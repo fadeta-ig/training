@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Book01Icon, FloppyDiskIcon, ArrowLeft01Icon } from 'hugeicons-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), { ssr: false });
 
 export default function NewTrainingPage() {
     const router = useRouter();
@@ -17,6 +20,12 @@ export default function NewTrainingPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!formData.content_html || formData.content_html === '<p></p>') {
+            setError('Konten materi tidak boleh kosong.');
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
 
@@ -43,7 +52,7 @@ export default function NewTrainingPage() {
     };
 
     return (
-        <div className="space-y-8 max-w-4xl">
+        <div className="space-y-8 max-w-5xl">
             <div className="flex items-center gap-4 border-b border-black/5 pb-6">
                 <Link
                     href="/admin/content"
@@ -68,41 +77,42 @@ export default function NewTrainingPage() {
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="glass-card p-8 space-y-6">
-                <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground">Judul <span className="text-destructive">*</span></label>
-                    <input
-                        type="text"
-                        required
-                        className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
-                        placeholder="Contoh: Pengantar Arsitektur Sistem"
-                        value={formData.title}
-                        onChange={e => setFormData({ ...formData, title: e.target.value })}
-                    />
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="glass-card p-8 space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-foreground">Judul <span className="text-destructive">*</span></label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
+                            placeholder="Contoh: Pengantar Arsitektur Sistem"
+                            value={formData.title}
+                            onChange={e => setFormData({ ...formData, title: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-foreground">Tautan Video <span className="text-muted-foreground font-normal">(Opsional)</span></label>
+                        <input
+                            type="url"
+                            className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
+                            placeholder="https://youtube.com/..."
+                            value={formData.video_url}
+                            onChange={e => setFormData({ ...formData, video_url: e.target.value })}
+                        />
+                    </div>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground">Tautan Video <span className="text-muted-foreground font-normal">(Opsional)</span></label>
-                    <input
-                        type="url"
-                        className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
-                        placeholder="https://youtube.com/..."
-                        value={formData.video_url}
-                        onChange={e => setFormData({ ...formData, video_url: e.target.value })}
+                <div className="space-y-3">
+                    <label className="text-sm font-bold text-foreground">Konten Materi <span className="text-destructive">*</span></label>
+                    <p className="text-xs text-muted-foreground">
+                        Gunakan toolbar untuk memformat teks (Bold, Italic, Heading, List, dll.) dan menyisipkan gambar.
+                    </p>
+                    <RichTextEditor
+                        content={formData.content_html}
+                        onChange={(html) => setFormData({ ...formData, content_html: html })}
+                        placeholder="Mulai menulis konten materi pelatihan di sini..."
                     />
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground">Konten (HTML) <span className="text-destructive">*</span></label>
-                    <textarea
-                        required
-                        rows={10}
-                        className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none font-mono resize-y"
-                        placeholder="<p>Masukkan teks berformat HTML di sini...</p>"
-                        value={formData.content_html}
-                        onChange={e => setFormData({ ...formData, content_html: e.target.value })}
-                    />
-                    <p className="text-xs text-muted-foreground">Gunakan tag standar HTML seperti &lt;h1&gt;, &lt;p&gt;, &lt;strong&gt;, dsb.</p>
                 </div>
 
                 <div className="pt-4 border-t border-black/5 flex justify-end">

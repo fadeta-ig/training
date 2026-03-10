@@ -124,14 +124,14 @@ export default function ModulesManagerPage() {
                                 </div>
                             </div>
                             <div className="px-6 py-4 border-t border-black/5 flex justify-end gap-2 bg-black/5">
-                                <Link href={`/admin/modules/${mod.id}/edit`} className="inline-block p-2 text-muted-foreground hover:text-foreground hover:bg-white rounded-lg transition-colors border border-transparent hover:border-black/10 shadow-sm opacity-0 group-hover:opacity-100">
-                                    <PencilEdit02Icon size={18} />
+                                <Link href={`/admin/modules/${mod.id}/edit`} className="inline-block p-2 text-muted-foreground hover:text-foreground bg-white hover:bg-black/5 rounded-lg transition-colors border border-black/10">
+                                    <PencilEdit02Icon size={16} />
                                 </Link>
                                 <button
                                     onClick={() => deleteModule(mod.id, mod.title)}
-                                    className="inline-block p-2 text-destructive/70 hover:text-destructive hover:bg-white rounded-lg transition-colors border border-transparent hover:border-destructive/20 shadow-sm opacity-0 group-hover:opacity-100"
+                                    className="inline-block p-2 text-destructive/60 hover:text-destructive bg-white hover:bg-destructive/10 rounded-lg transition-colors border border-black/10 hover:border-destructive/20"
                                 >
-                                    <Delete02Icon size={18} />
+                                    <Delete02Icon size={16} />
                                 </button>
                             </div>
                         </div>

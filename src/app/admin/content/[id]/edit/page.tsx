@@ -4,6 +4,9 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Book01Icon, FloppyDiskIcon, ArrowLeft01Icon } from 'hugeicons-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), { ssr: false });
 
 export default function EditTrainingPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
@@ -72,7 +75,7 @@ export default function EditTrainingPage({ params }: { params: Promise<{ id: str
     if (isLoading) return <div className="p-10 text-center">Memuat detail materi...</div>;
 
     return (
-        <div className="space-y-8 max-w-4xl">
+        <div className="space-y-8 max-w-5xl">
             <div className="flex items-center gap-4 border-b border-black/5 pb-6">
                 <Link
                     href="/admin/content"
@@ -97,36 +100,39 @@ export default function EditTrainingPage({ params }: { params: Promise<{ id: str
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="glass-card p-8 space-y-6">
-                <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground">Judul <span className="text-destructive">*</span></label>
-                    <input
-                        type="text"
-                        required
-                        className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
-                        value={formData.title}
-                        onChange={e => setFormData({ ...formData, title: e.target.value })}
-                    />
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="glass-card p-8 space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-foreground">Judul <span className="text-destructive">*</span></label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
+                            value={formData.title}
+                            onChange={e => setFormData({ ...formData, title: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-foreground">Tautan Video <span className="text-muted-foreground font-normal">(Opsional)</span></label>
+                        <input
+                            type="url"
+                            className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
+                            value={formData.video_url}
+                            onChange={e => setFormData({ ...formData, video_url: e.target.value })}
+                        />
+                    </div>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground">Tautan Video <span className="text-muted-foreground font-normal">(Opsional)</span></label>
-                    <input
-                        type="url"
-                        className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
-                        value={formData.video_url}
-                        onChange={e => setFormData({ ...formData, video_url: e.target.value })}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground">Konten (HTML) <span className="text-destructive">*</span></label>
-                    <textarea
-                        required
-                        rows={10}
-                        className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none font-mono resize-y"
-                        value={formData.content_html}
-                        onChange={e => setFormData({ ...formData, content_html: e.target.value })}
+                <div className="space-y-3">
+                    <label className="text-sm font-bold text-foreground">Konten Materi <span className="text-destructive">*</span></label>
+                    <p className="text-xs text-muted-foreground">
+                        Gunakan toolbar untuk memformat teks dan menyisipkan gambar.
+                    </p>
+                    <RichTextEditor
+                        content={formData.content_html}
+                        onChange={(html) => setFormData({ ...formData, content_html: html })}
+                        placeholder="Konten materi pelatihan..."
                     />
                 </div>
 

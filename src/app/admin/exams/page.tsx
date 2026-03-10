@@ -147,15 +147,15 @@ export default function ExamsManagerPage() {
                                                 Kelola Soal
                                             </Link>
                                         </td>
-                                        <td className="px-6 py-4 text-right space-x-2">
-                                            <Link href={`/admin/exams/${exam.id}/edit`} className="inline-block p-2 text-muted-foreground hover:text-foreground hover:bg-white rounded-lg transition-colors border border-transparent hover:border-black/10 shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100">
-                                                <PencilEdit02Icon size={18} />
+                                        <td className="px-6 py-4 text-right space-x-1.5">
+                                            <Link href={`/admin/exams/${exam.id}/edit`} className="inline-block p-2 text-muted-foreground hover:text-foreground bg-white hover:bg-black/5 rounded-lg transition-colors border border-black/10">
+                                                <PencilEdit02Icon size={16} />
                                             </Link>
                                             <button
                                                 onClick={() => deleteExam(exam.id, exam.title)}
-                                                className="inline-block p-2 text-destructive/70 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors border border-transparent hover:border-destructive/20 shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                className="inline-block p-2 text-destructive/60 hover:text-destructive bg-white hover:bg-destructive/10 rounded-lg transition-colors border border-black/10 hover:border-destructive/20"
                                             >
-                                                <Delete02Icon size={18} />
+                                                <Delete02Icon size={16} />
                                             </button>
                                         </td>
                                     </tr>

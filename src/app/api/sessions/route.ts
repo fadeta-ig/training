@@ -3,17 +3,18 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
+import { withAuth } from '@/lib/api-auth';
 
 const sessionSchema = z.object({
     module_id: z.string().uuid(),
     title: z.string().min(3).max(150),
-    start_time: z.string().datetime(), // ISO 8601
+    start_time: z.string().datetime(),
     end_time: z.string().datetime(),
     require_seb: z.boolean().default(false),
     participant_ids: z.array(z.string().uuid()).optional(),
 });
 
-export async function GET() {
+async function handleGet() {
     try {
         const sessions = await executeQuery(
             `SELECT id, module_id, title, start_time, end_time, require_seb, created_at FROM sessions ORDER BY start_time DESC`
@@ -25,7 +26,7 @@ export async function GET() {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     let connection;
     try {
         const body = await request.json();
@@ -41,7 +42,6 @@ export async function POST(request: NextRequest) {
         const { module_id, title, start_time, end_time, require_seb, participant_ids } = parsed.data;
         const sessionId = uuidv4();
 
-        // Default SEB configuration hash from environment if SEB is required
         const sebConfigKey = require_seb ? process.env.SEB_CONFIG_KEY_HASH || null : null;
 
         connection = await pool.getConnection();
@@ -84,3 +84,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
+
+export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });
+export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });

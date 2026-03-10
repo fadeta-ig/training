@@ -3,15 +3,16 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { executeQuery } from '@/lib/db';
 import { z } from 'zod';
+import { withAuth } from '@/lib/api-auth';
 
 const userSchema = z.object({
     username: z.string().min(3, 'Username minimal 3 karakter').max(50),
-    password: z.string().min(6, 'Password minimal 6 karakter').optional(), // opsional saat update
+    password: z.string().min(6, 'Password minimal 6 karakter').optional(),
     full_name: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(100),
     role: z.enum(['admin', 'participant'])
 });
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const page = parseInt(searchParams.get('page') || '1', 10);
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const body = await request.json();
         const parsed = userSchema.safeParse(body);
@@ -78,7 +79,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Cek username duplikat
         const existing = await executeQuery<{ id: string }[]>(`SELECT id FROM users WHERE username = ?`, [username]);
         if (Array.isArray(existing) && existing.length > 0) {
             return NextResponse.json(
@@ -101,3 +101,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
+
+export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });
+export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });

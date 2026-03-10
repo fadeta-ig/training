@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
+import pool from '@/lib/db';
 import { moduleSchema } from '@/lib/validations/moduleSchema';
+import { withAuth } from '@/lib/api-auth';
 
-export async function GET(
+async function handleGet(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    _user: any,
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
         const result = await executeQuery<any[]>(
             `SELECT * FROM modules WHERE id = ?`,
             [resolvedParams.id]
@@ -29,12 +33,14 @@ export async function GET(
     }
 }
 
-export async function PUT(
+async function handlePut(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    _user: any,
+    context: { params: Promise<{ id: string }> }
 ) {
+    let connection;
     try {
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
         const body = await request.json();
         const parsed = moduleSchema.safeParse(body);
 
@@ -47,49 +53,46 @@ export async function PUT(
 
         const { title, description, items } = parsed.data;
 
-        // Start Transaction
-        const connection = await require('@/lib/db').default.getConnection();
+        connection = await pool.getConnection();
         await connection.beginTransaction();
 
-        try {
+        await connection.execute(
+            `UPDATE modules SET title = ?, description = ? WHERE id = ?`,
+            [title, description || null, resolvedParams.id]
+        );
+
+        // Replace all items
+        await connection.execute(`DELETE FROM module_items WHERE module_id = ?`, [resolvedParams.id]);
+
+        for (const item of items) {
+            const itemId = uuidv4();
             await connection.execute(
-                `UPDATE modules SET title = ?, description = ? WHERE id = ?`,
-                [title, description || null, resolvedParams.id]
+                `INSERT INTO module_items (id, module_id, item_type, item_id, sequence_order) VALUES (?, ?, ?, ?, ?)`,
+                [itemId, resolvedParams.id, item.item_type, item.item_id, item.sequence_order]
             );
+        }
 
-            // Replace all items
-            await connection.execute(`DELETE FROM module_items WHERE module_id = ?`, [resolvedParams.id]);
-
-            for (const item of items) {
-                const itemId = require('uuid').v4();
-                await connection.execute(
-                    `INSERT INTO module_items (id, module_id, item_type, item_id, sequence_order) VALUES (?, ?, ?, ?, ?)`,
-                    [itemId, resolvedParams.id, item.item_type, item.item_id, item.sequence_order]
-                );
-            }
-
-            await connection.commit();
-            connection.release();
-            return NextResponse.json({ success: true, message: 'Module updated successfully' });
-        } catch (txnError) {
+        await connection.commit();
+        connection.release();
+        return NextResponse.json({ success: true, message: 'Module updated successfully' });
+    } catch (error) {
+        if (connection) {
             await connection.rollback();
             connection.release();
-            throw txnError;
         }
-    } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
 
-export async function DELETE(
+async function handleDelete(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    _user: any,
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
 
-        // ON DELETE CASCADE will handle module_items and sessions
         const result = await executeQuery<{ affectedRows: number }>(
             `DELETE FROM modules WHERE id = ?`,
             [resolvedParams.id]
@@ -105,3 +108,7 @@ export async function DELETE(
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
+
+export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });
+export const PUT = withAuth(handlePut, { allowedRoles: ['admin'] });
+export const DELETE = withAuth(handleDelete, { allowedRoles: ['admin'] });

@@ -25,6 +25,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const [user, setUser] = useState<any>(null);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
     const pathname = usePathname();
     const router = useRouter();
 
@@ -42,6 +44,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             } catch (err) { }
         };
         fetchUser();
+        fetchNotifications();
 
         const handleClickOutside = (event: MouseEvent) => {
             if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
@@ -59,6 +62,39 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
         router.replace('/auth/login');
+    };
+
+    const fetchNotifications = async () => {
+        try {
+            const res = await fetch('/api/notifications');
+            const data = await res.json();
+            if (data.success) {
+                setNotifications(data.data);
+                setUnreadCount(data.unreadCount);
+            }
+        } catch (err) { }
+    };
+
+    const markAllAsRead = async () => {
+        try {
+            await fetch('/api/notifications', { method: 'PUT' });
+            setUnreadCount(0);
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
+        } catch (err) { }
+    };
+
+    const formatTime = (dateStr: string) => {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMin = Math.floor(diffMs / 60000);
+        if (diffMin < 1) return 'Baru saja';
+        if (diffMin < 60) return `${diffMin} menit lalu`;
+        const diffHour = Math.floor(diffMin / 60);
+        if (diffHour < 24) return `${diffHour} jam lalu`;
+        const diffDay = Math.floor(diffHour / 24);
+        if (diffDay === 1) return 'Kemarin';
+        return `${diffDay} hari lalu`;
     };
 
     return (
@@ -142,31 +178,34 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                 className={`text-muted-foreground hover:text-foreground transition-colors relative p-1.5 rounded-lg ${isNotificationOpen ? 'bg-black/5' : ''}`}
                             >
                                 <Notification01Icon size={22} />
-                                <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full border-2 border-white"></span>
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full border-2 border-white"></span>
+                                )}
                             </button>
 
                             {/* Notifications Dropdown */}
                             {isNotificationOpen && (
                                 <div className="absolute right-0 mt-2 w-80 bg-white border border-black/10 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                                     <div className="px-4 py-3 border-b border-black/10 bg-[#f8f9fa] flex justify-between items-center">
-                                        <h3 className="font-semibold text-sm">Notifikasi</h3>
-                                        <button className="text-xs text-primary font-medium hover:underline">Tandai semua dibaca</button>
+                                        <h3 className="font-semibold text-sm">Notifikasi {unreadCount > 0 && <span className="text-xs font-bold text-destructive">({unreadCount})</span>}</h3>
+                                        {unreadCount > 0 && (
+                                            <button onClick={markAllAsRead} className="text-xs text-primary font-medium hover:underline">Tandai semua dibaca</button>
+                                        )}
                                     </div>
                                     <div className="max-h-80 overflow-y-auto">
-                                        {[
-                                            { title: 'Server berhasil diperbarui', desc: 'Migrasi database berhasil.', time: 'Baru saja' },
-                                            { title: 'Sistem Ujian Aktif', desc: 'Ada 2 sesi ujian sedang berjalan saat ini.', time: '1 jam yang lalu' },
-                                            { title: 'Selamat Datang', desc: 'Sistem e-learning Antigravity LMS aktif.', time: 'Kemarin' },
-                                        ].map((notif, i) => (
-                                            <div key={i} className="px-4 py-3 hover:bg-black/5 transition-colors cursor-pointer border-b border-black/5 last:border-0">
-                                                <p className="text-sm font-semibold">{notif.title}</p>
-                                                <p className="text-xs text-muted-foreground mt-0.5">{notif.desc}</p>
-                                                <p className="text-[10px] text-muted-foreground/70 mt-1.5">{notif.time}</p>
+                                        {notifications.length === 0 ? (
+                                            <div className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                                Belum ada notifikasi.
                                             </div>
-                                        ))}
-                                    </div>
-                                    <div className="px-4 py-2 text-center border-t border-black/5 bg-black/[0.02]">
-                                        <Link href="#" className="text-xs font-semibold text-muted-foreground hover:text-foreground">Lihat semua notifikasi</Link>
+                                        ) : (
+                                            notifications.map((notif) => (
+                                                <div key={notif.id} className={`px-4 py-3 hover:bg-black/5 transition-colors cursor-pointer border-b border-black/5 last:border-0 ${!notif.is_read ? 'bg-primary/5' : ''}`}>
+                                                    <p className="text-sm font-semibold">{notif.title}</p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">{notif.message}</p>
+                                                    <p className="text-[10px] text-muted-foreground/70 mt-1.5">{formatTime(notif.created_at)}</p>
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
                                 </div>
                             )}

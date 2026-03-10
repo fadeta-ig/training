@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { withAuth } from '@/lib/api-auth';
 
 const ALLOWED_IMAGE_TYPES = [
     'image/jpeg',
@@ -17,7 +18,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
  * Handles image upload for rich text editor and question images.
  * Stores files in `public/uploads/` and returns the accessible URL.
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const formData = await request.formData();
         const file = formData.get('file') as File | null;
@@ -72,3 +73,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });

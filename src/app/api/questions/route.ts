@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import { questionSchema } from '@/lib/validations/questionSchema';
+import { withAuth } from '@/lib/api-auth';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const examId = searchParams.get('examId');
 
         const page = parseInt(searchParams.get('page') || '1', 10);
-        const limit = parseInt(searchParams.get('limit') || '100', 10); // Default 100 limit for questions to avoid breaking existing exam flows
+        const limit = parseInt(searchParams.get('limit') || '100', 10);
         const offset = (page - 1) * limit;
 
         let countQuery = `SELECT COUNT(*) as total FROM questions`;
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const body = await request.json();
         const parsed = questionSchema.safeParse(body);
@@ -78,7 +79,6 @@ export async function POST(request: NextRequest) {
 
         const questionId = uuidv4();
 
-        // Build options_json based on type
         let optionsJson: string | null = null;
         let finalCorrectIndex: number | null = null;
         let finalCorrectAnswer: string | null = null;
@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
                 finalCorrectAnswer = correct_answer ?? null;
                 break;
             case 'essay':
-                // No auto-grading
                 break;
             case 'matching':
                 optionsJson = JSON.stringify({ pairs: matching_pairs });
@@ -130,3 +129,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
+
+export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });
+export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });

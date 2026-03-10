@@ -3,8 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
 import { moduleSchema } from '@/lib/validations/moduleSchema';
+import { withAuth } from '@/lib/api-auth';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const page = parseInt(searchParams.get('page') || '1', 10);
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     let connection;
     try {
         const body = await request.json();
@@ -51,7 +52,6 @@ export async function POST(request: NextRequest) {
         const { title, description, items } = parsed.data;
         const moduleId = uuidv4();
 
-        // Use transaction since we are inserting into modules and module_items
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
@@ -81,3 +81,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
+
+export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });
+export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });

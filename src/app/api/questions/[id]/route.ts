@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { questionSchema } from '@/lib/validations/questionSchema';
+import { withAuth } from '@/lib/api-auth';
 
-export async function GET(
+async function handleGet(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    _user: any,
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
         const questions = await executeQuery(
             `SELECT id, exam_id, question_type, text AS question_text, question_image, options_json, correct_option_index, correct_answer, points FROM questions WHERE id = ?`,
             [resolvedParams.id]
@@ -25,12 +27,13 @@ export async function GET(
     }
 }
 
-export async function PUT(
+async function handlePut(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    _user: any,
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
         const body = await request.json();
         const parsed = questionSchema.safeParse(body);
 
@@ -107,12 +110,13 @@ export async function PUT(
     }
 }
 
-export async function DELETE(
+async function handleDelete(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    _user: any,
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
 
         const result = await executeQuery<{ affectedRows: number }>(
             `DELETE FROM questions WHERE id = ?`,
@@ -129,3 +133,7 @@ export async function DELETE(
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
+
+export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });
+export const PUT = withAuth(handlePut, { allowedRoles: ['admin'] });
+export const DELETE = withAuth(handleDelete, { allowedRoles: ['admin'] });

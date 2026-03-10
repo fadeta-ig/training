@@ -59,9 +59,27 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
+    // Redirect authenticated users away from the login page (prevent back-navigation)
+    if (pathname === '/auth/login') {
+        const token = request.cookies.get('training_session')?.value;
+        if (token) {
+            try {
+                const { payload } = await jwtVerify(token, encodedKey);
+                if (payload.role === 'admin') {
+                    return NextResponse.redirect(new URL('/admin', request.url));
+                }
+                return NextResponse.redirect(new URL('/dashboard', request.url));
+            } catch (err) {
+                // Token is invalid, let them access the login page
+                return NextResponse.next();
+            }
+        }
+        return NextResponse.next();
+    }
+
     return NextResponse.next();
 }
 
 export const config = {
-    matcher: ['/', '/admin/:path*', '/dashboard/:path*'],
+    matcher: ['/', '/admin/:path*', '/dashboard/:path*', '/auth/login'],
 };

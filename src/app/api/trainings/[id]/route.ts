@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { trainingSchema } from '@/lib/validations/trainingSchema';
+import { withAuth } from '@/lib/api-auth';
 
-export async function GET(
+async function handleGet(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    _user: any,
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
         const result = await executeQuery<any[]>(
             `SELECT * FROM trainings WHERE id = ?`,
             [resolvedParams.id]
@@ -24,12 +26,13 @@ export async function GET(
     }
 }
 
-export async function PUT(
+async function handlePut(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    _user: any,
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
         const body = await request.json();
         const parsed = trainingSchema.safeParse(body);
 
@@ -58,14 +61,14 @@ export async function PUT(
     }
 }
 
-export async function DELETE(
+async function handleDelete(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    _user: any,
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const resolvedParams = await params;
+        const resolvedParams = await context.params;
 
-        // ON DELETE CASCADE handles related module_items and progress links
         const result = await executeQuery<{ affectedRows: number }>(
             `DELETE FROM trainings WHERE id = ?`,
             [resolvedParams.id]
@@ -81,3 +84,7 @@ export async function DELETE(
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
+
+export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });
+export const PUT = withAuth(handlePut, { allowedRoles: ['admin'] });
+export const DELETE = withAuth(handleDelete, { allowedRoles: ['admin'] });

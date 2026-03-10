@@ -5,15 +5,7 @@ import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
 
-const sessionSchema = z.object({
-    module_id: z.string().uuid(),
-    title: z.string().min(3).max(150),
-    start_time: z.string().datetime(),
-    end_time: z.string().datetime(),
-    require_seb: z.boolean().default(false),
-    participant_ids: z.array(z.string().uuid()).optional(),
-});
-
+import { sessionSchema } from '@/lib/validations/sessionSchema';
 async function handleGet() {
     try {
         const sessions = await executeQuery(

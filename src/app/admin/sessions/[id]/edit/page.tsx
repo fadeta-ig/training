@@ -56,14 +56,17 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                     setTitle(session.title);
                     setModuleId(session.module_id);
 
-                    // Format datetime strings for datetime-local input
+                    // Because dates from DB are sent as ISO but we want to show local time in the input
                     if (session.start_time) {
                         const startObj = new Date(session.start_time);
-                        setStartTime(new Date(startObj.getTime() - startObj.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+                        // Convert to local YYYY-MM-DDTHH:mm format
+                        const localStart = new Date(startObj.getTime() - startObj.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                        setStartTime(localStart);
                     }
                     if (session.end_time) {
                         const endObj = new Date(session.end_time);
-                        setEndTime(new Date(endObj.getTime() - endObj.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+                        const localEnd = new Date(endObj.getTime() - endObj.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                        setEndTime(localEnd);
                     }
 
                     setRequireSeb(!!session.require_seb);
@@ -120,8 +123,8 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
             const payload = {
                 title,
                 module_id: moduleId,
-                start_time: new Date(startTime).toISOString(),
-                end_time: new Date(endTime).toISOString(),
+                start_time: startTime, // String dari form: YYYY-MM-DDTHH:mm
+                end_time: endTime,
                 require_seb: requireSeb,
                 participant_ids: selectedUserIds
             };

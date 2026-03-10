@@ -84,8 +84,8 @@ async function handlePut(
             [
                 module_id,
                 title,
-                new Date(start_time).toISOString().slice(0, 19).replace('T', ' '),
-                new Date(end_time).toISOString().slice(0, 19).replace('T', ' '),
+                start_time.replace('T', ' ') + ':00',
+                end_time.replace('T', ' ') + ':00',
                 require_seb,
                 sebConfigKey,
                 resolvedParams.id

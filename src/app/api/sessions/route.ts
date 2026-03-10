@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
-
 import { sessionSchema } from '@/lib/validations/sessionSchema';
-async function handleGet() {
+
+async function handleGet(_request: NextRequest) {
     try {
         const sessions = await executeQuery(
             `SELECT id, module_id, title, start_time, end_time, require_seb, created_at FROM sessions ORDER BY start_time DESC`
@@ -46,8 +45,9 @@ async function handlePost(request: NextRequest) {
                 sessionId,
                 module_id,
                 title,
-                new Date(start_time).toISOString().slice(0, 19).replace('T', ' '),
-                new Date(end_time).toISOString().slice(0, 19).replace('T', ' '),
+                // start_time / end_time dari frontend berupa "YYYY-MM-DDTHH:mm"
+                start_time.replace('T', ' ') + ':00',
+                end_time.replace('T', ' ') + ':00',
                 require_seb,
                 sebConfigKey
             ]

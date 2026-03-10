@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { PlusSignIcon, Calendar02Icon, Time02Icon, SecurityLockIcon, PencilEdit01Icon, Delete02Icon } from 'hugeicons-react';
+import { PlusSignIcon, Calendar02Icon, Time02Icon, SecurityLockIcon, PencilEdit01Icon, Delete02Icon, ViewIcon } from 'hugeicons-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -155,6 +155,11 @@ export default function SessionsPage() {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-2">
+                                                    <ActionButton
+                                                        href={`/admin/sessions/${session.id}`}
+                                                        icon={<ViewIcon size={16} />}
+                                                        title="Detail Sesi"
+                                                    />
                                                     <ActionButton
                                                         href={`/admin/sessions/${session.id}/edit`}
                                                         icon={<PencilEdit01Icon size={16} />}

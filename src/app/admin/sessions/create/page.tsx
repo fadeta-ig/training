@@ -86,8 +86,8 @@ export default function CreateSessionPage() {
             const payload = {
                 title,
                 module_id: moduleId,
-                start_time: new Date(startTime).toISOString(),
-                end_time: new Date(endTime).toISOString(),
+                start_time: startTime, // Murni dari input tipe datetime-local (e.g. 2026-03-10T20:55)
+                end_time: endTime,
                 require_seb: requireSeb,
                 participant_ids: selectedUserIds
             };

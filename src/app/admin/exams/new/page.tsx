@@ -43,7 +43,7 @@ export default function NewExamPage() {
     };
 
     return (
-        <div className="space-y-8 max-w-4xl">
+        <div className="space-y-8 pb-12">
             <div className="flex items-center gap-4 border-b border-black/5 pb-6">
                 <Link
                     href="/admin/exams"

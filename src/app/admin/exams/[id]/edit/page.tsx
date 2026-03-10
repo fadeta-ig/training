@@ -72,7 +72,7 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
     if (isLoading) return <div className="p-10 text-center">Memuat detail ujian...</div>;
 
     return (
-        <div className="space-y-8 max-w-4xl">
+        <div className="space-y-8 pb-12">
             <div className="flex items-center gap-4 border-b border-black/5 pb-6">
                 <Link
                     href="/admin/exams"

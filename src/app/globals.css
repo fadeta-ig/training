@@ -76,12 +76,12 @@
   --ring: #000000;
   --radius: 0.75rem;
 
-  --sidebar: rgba(255, 255, 255, 0.6);
+  --sidebar: rgba(255, 255, 255, 0.95);
 
-  /* Glassmorphism clean extras */
-  --glass: rgba(255, 255, 255, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.8);
-  --glass-hover: rgba(255, 255, 255, 0.95);
+  /* Solid Cards instead of Transparent Glass */
+  --glass: #ffffff;
+  --glass-border: rgba(0, 0, 0, 0.05);
+  --glass-hover: #ffffff;
 
   --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }

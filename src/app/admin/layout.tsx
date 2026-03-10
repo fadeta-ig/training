@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { ReactNode, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { ReactNode, useState, useEffect, useRef } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import {
     Menu01Icon,
     Cancel01Icon,
@@ -14,12 +14,52 @@ import {
     Camera01Icon,
     UserCircleIcon,
     Notification01Icon,
-    UserGroupIcon
+    UserGroupIcon,
+    Logout01Icon,
+    Settings01Icon,
+    CheckmarkBadge01Icon
 } from 'hugeicons-react';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+    const [user, setUser] = useState<any>(null);
     const pathname = usePathname();
+    const router = useRouter();
+
+    const profileRef = useRef<HTMLDivElement>(null);
+    const notificationRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                const data = await res.json();
+                if (data.success) {
+                    setUser(data.data);
+                }
+            } catch (err) { }
+        };
+        fetchUser();
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+                setIsProfileOpen(false);
+            }
+            if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+                setIsNotificationOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleLogout = async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        router.replace('/auth/login');
+    };
 
     return (
         <div className="flex h-screen bg-background text-foreground font-sans overflow-hidden">
@@ -69,12 +109,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <NavLink href="/admin/users" label="Kelola Pengguna" icon={<UserGroupIcon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/admin/users')} />
                 </nav>
 
-                <div className={`mt-auto p-4 m-3 glass-card border-none bg-white/40 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 h-0 p-0 m-0'}`}>
+                <div className={`mt-auto p-4 m-3 rounded-2xl bg-black/5 border border-black/5 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 h-0 p-0 m-0'}`}>
                     <div className="flex items-center gap-3">
-                        <UserCircleIcon size={32} className="text-muted-foreground" />
+                        <UserCircleIcon size={32} className="text-muted-foreground shrink-0" />
                         <div className="overflow-hidden">
-                            <p className="text-sm font-semibold truncate">Administrator</p>
-                            <p className="text-xs text-muted-foreground truncate">admin@system.local</p>
+                            <p className="text-sm font-semibold truncate">{user?.full_name || 'Loading...'}</p>
+                            <p className="text-xs text-muted-foreground truncate">@{user?.username || 'admin'}</p>
                         </div>
                     </div>
                 </div>
@@ -83,7 +123,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             {/* Main Content Pane */}
             <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-background">
                 {/* Top Header */}
-                <header className="h-16 flex items-center justify-between px-6 border-b border-black/5 bg-white/60 backdrop-blur-md shrink-0 z-30">
+                <header className="h-16 flex items-center justify-between px-6 border-b border-black/5 bg-white/95 backdrop-blur-md shrink-0 z-30 relative">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -93,13 +133,84 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         </button>
                         <h2 className="text-lg font-semibold tracking-tight hidden sm:block">Administrator Hub</h2>
                     </div>
+
                     <div className="flex items-center gap-5">
-                        <button className="text-muted-foreground hover:text-foreground transition-colors relative">
-                            <Notification01Icon size={22} />
-                            <span className="absolute top-0 right-0 w-2 h-2 bg-destructive rounded-full border-2 border-white"></span>
-                        </button>
-                        <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white">
-                            <UserCircleIcon size={20} />
+                        {/* Notifications */}
+                        <div className="relative" ref={notificationRef}>
+                            <button
+                                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                                className={`text-muted-foreground hover:text-foreground transition-colors relative p-1.5 rounded-lg ${isNotificationOpen ? 'bg-black/5' : ''}`}
+                            >
+                                <Notification01Icon size={22} />
+                                <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full border-2 border-white"></span>
+                            </button>
+
+                            {/* Notifications Dropdown */}
+                            {isNotificationOpen && (
+                                <div className="absolute right-0 mt-2 w-80 bg-white border border-black/10 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="px-4 py-3 border-b border-black/10 bg-[#f8f9fa] flex justify-between items-center">
+                                        <h3 className="font-semibold text-sm">Notifikasi</h3>
+                                        <button className="text-xs text-primary font-medium hover:underline">Tandai semua dibaca</button>
+                                    </div>
+                                    <div className="max-h-80 overflow-y-auto">
+                                        {[
+                                            { title: 'Server berhasil diperbarui', desc: 'Migrasi database berhasil.', time: 'Baru saja' },
+                                            { title: 'Sistem Ujian Aktif', desc: 'Ada 2 sesi ujian sedang berjalan saat ini.', time: '1 jam yang lalu' },
+                                            { title: 'Selamat Datang', desc: 'Sistem e-learning Antigravity LMS aktif.', time: 'Kemarin' },
+                                        ].map((notif, i) => (
+                                            <div key={i} className="px-4 py-3 hover:bg-black/5 transition-colors cursor-pointer border-b border-black/5 last:border-0">
+                                                <p className="text-sm font-semibold">{notif.title}</p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">{notif.desc}</p>
+                                                <p className="text-[10px] text-muted-foreground/70 mt-1.5">{notif.time}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="px-4 py-2 text-center border-t border-black/5 bg-black/[0.02]">
+                                        <Link href="#" className="text-xs font-semibold text-muted-foreground hover:text-foreground">Lihat semua notifikasi</Link>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Profile Dropdown */}
+                        <div className="relative" ref={profileRef}>
+                            <button
+                                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                                className="w-9 h-9 flex items-center justify-center rounded-full bg-black text-white hover:scale-105 active:scale-95 transition-all outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                            >
+                                <span className="text-sm font-bold">{user ? user.username.charAt(0).toUpperCase() : 'A'}</span>
+                            </button>
+
+                            {isProfileOpen && (
+                                <div className="absolute right-0 mt-2 w-56 bg-white border border-black/10 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="px-4 py-4 border-b border-black/5 flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-black/5 flex flex-col items-center justify-center text-foreground">
+                                            <UserCircleIcon size={24} />
+                                        </div>
+                                        <div className="overflow-hidden">
+                                            <p className="text-sm font-bold truncate text-foreground">{user?.full_name || 'Administrator'}</p>
+                                            <p className="text-xs font-medium text-muted-foreground truncate">@{user?.username || 'admin'}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-2 flex flex-col gap-1">
+                                        <Link href={user ? `/admin/users/${user.id}/edit` : '#'} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-black/5 active:bg-black/10 transition-colors text-sm font-medium text-muted-foreground hover:text-foreground">
+                                            <Settings01Icon size={18} />
+                                            Pengaturan Profil
+                                        </Link>
+                                    </div>
+
+                                    <div className="p-2 border-t border-black/5">
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-destructive/10 active:bg-destructive/20 transition-colors text-sm font-medium text-destructive"
+                                        >
+                                            <Logout01Icon size={18} />
+                                            Keluar Sistem
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </header>

@@ -30,9 +30,9 @@ export default function LoginPage() {
             if (res.ok && result.success) {
                 // Redirect based on role
                 if (result.user.role === 'admin') {
-                    router.push('/admin');
+                    router.replace('/admin');
                 } else {
-                    router.push('/dashboard');
+                    router.replace('/dashboard');
                 }
                 router.refresh();
             } else {

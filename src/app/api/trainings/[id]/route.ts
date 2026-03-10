@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { executeQuery } from '@/lib/db';
-
-const updateTrainingSchema = z.object({
-    title: z.string().min(3, 'Title must be at least 3 characters long').max(150),
-    content_html: z.string().min(10, 'Content must not be empty'),
-    video_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
-});
+import { trainingSchema } from '@/lib/validations/trainingSchema';
 
 export async function GET(
     request: NextRequest,
@@ -37,7 +31,7 @@ export async function PUT(
     try {
         const resolvedParams = await params;
         const body = await request.json();
-        const parsed = updateTrainingSchema.safeParse(body);
+        const parsed = trainingSchema.safeParse(body);
 
         if (!parsed.success) {
             return NextResponse.json(

@@ -1,20 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
+import { examSchema } from '@/lib/validations/examSchema';
 
-const examSchema = z.object({
-    title: z.string().min(3).max(150),
-    duration_minutes: z.number().int().min(10).max(300),
-    passing_grade: z.number().min(0).max(100),
-});
-
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const { searchParams } = new URL(request.url);
+        const page = parseInt(searchParams.get('page') || '1', 10);
+        const limit = parseInt(searchParams.get('limit') || '10', 10);
+        const offset = (page - 1) * limit;
+
+        const countResult = await executeQuery<{ total: number }[]>(`SELECT COUNT(*) as total FROM exams`);
+        const total = countResult[0]?.total || 0;
+
         const exams = await executeQuery(
-            `SELECT id, title, duration_minutes, passing_grade, created_at FROM exams ORDER BY created_at DESC`
+            `SELECT id, title, duration_minutes, passing_grade, created_at FROM exams ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+            [limit, offset]
         );
-        return NextResponse.json({ success: true, data: exams });
+
+        return NextResponse.json({
+            success: true,
+            data: exams,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });

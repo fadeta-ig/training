@@ -3,13 +3,17 @@
 import { useState, useEffect } from 'react';
 import {
     CubeIcon,
-    PlusSignIcon,
     PencilEdit02Icon,
     Delete02Icon,
     RefreshIcon,
     Alert02Icon
 } from 'hugeicons-react';
-import Link from 'next/link';
+
+import { PageHeader } from '@/components/ui/PageHeader';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { ActionButton } from '@/components/ui/ActionButton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Pagination } from '@/components/ui/Pagination';
 
 type Module = {
     id: string;
@@ -22,16 +26,21 @@ export default function ModulesManagerPage() {
     const [modules, setModules] = useState<Module[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
-    const fetchModules = async () => {
+    const fetchModules = async (targetPage = page) => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch('/api/modules');
+            const res = await fetch(`/api/modules?page=${targetPage}&limit=10`);
             if (!res.ok) throw new Error('Gagal mengambil data modul');
             const result = await res.json();
             if (result.success) {
                 setModules(result.data);
+                if (result.pagination) {
+                    setTotalPages(result.pagination.totalPages);
+                }
             } else {
                 throw new Error(result.error || 'Terjadi kesalahan sistem');
             }
@@ -43,8 +52,8 @@ export default function ModulesManagerPage() {
     };
 
     useEffect(() => {
-        fetchModules();
-    }, []);
+        fetchModules(page);
+    }, [page]);
 
     const deleteModule = async (id: string, title: string) => {
         if (!confirm(`Apakah Anda yakin ingin menghapus Modul "${title}" secara permanen? Sesi yang sedang berjalan untuk modul ini akan terganggu.`)) return;
@@ -52,7 +61,7 @@ export default function ModulesManagerPage() {
         try {
             const res = await fetch(`/api/modules/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Gagal menghapus modul');
-            fetchModules();
+            fetchModules(page);
         } catch (err: any) {
             alert(err.message);
         }
@@ -60,33 +69,15 @@ export default function ModulesManagerPage() {
 
     return (
         <div className="space-y-8 max-w-6xl">
-            <div className="flex justify-between items-end border-b border-black/5 pb-6">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-                        <CubeIcon size={28} className="text-muted-foreground" />
-                        Perakit Modul (Builder)
-                    </h1>
-                    <p className="text-muted-foreground mt-2 text-sm">
-                        Susun kurikulum dengan menyatukan Materi Pelatihan dan Ujian menjadi satu alur linier utuh.
-                    </p>
-                </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={fetchModules}
-                        className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-white border border-black/10 text-foreground hover:bg-black/5 transition-colors shadow-sm"
-                        disabled={isLoading}
-                    >
-                        <RefreshIcon size={18} className={isLoading ? 'animate-spin' : ''} />
-                    </button>
-                    <Link
-                        href="/admin/modules/new"
-                        className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors shadow-sm flex items-center gap-2"
-                    >
-                        <PlusSignIcon size={18} />
-                        Rakit Modul Baru
-                    </Link>
-                </div>
-            </div>
+            <PageHeader
+                title="Perakit Modul (Builder)"
+                description="Susun kurikulum dengan menyatukan Materi Pelatihan dan Ujian menjadi satu alur linier utuh."
+                icon={<CubeIcon size={28} className="text-muted-foreground" />}
+                actionLabel="Rakit Modul Baru"
+                actionHref="/admin/modules/new"
+                onRefresh={fetchModules}
+                isRefreshing={isLoading}
+            />
 
             {error && (
                 <div className="bg-destructive/10 border border-destructive/20 text-destructive px-5 py-4 rounded-xl flex items-start gap-3">
@@ -105,13 +96,18 @@ export default function ModulesManagerPage() {
                         <p>Memuat deret modul...</p>
                     </div>
                 ) : modules.length === 0 ? (
-                    <div className="col-span-full py-20 text-center text-muted-foreground glass-card flex flex-col items-center justify-center">
-                        <CubeIcon size={48} className="mb-4 opacity-20" />
-                        <p>Belum ada modul yang terdaftar. Mulai rakit alur pembelajaran Anda.</p>
+                    <div className="col-span-full">
+                        <EmptyState
+                            icon={<CubeIcon size={48} className="mb-4 opacity-20" />}
+                            title="Belum ada modul yang terdaftar."
+                            description="Mulai rakit alur pembelajaran Anda dengan menyatukan materi dan ujian."
+                            actionLabel="Rakit Modul Pertama"
+                            actionHref="/admin/modules/new"
+                        />
                     </div>
                 ) : (
                     modules.map((mod) => (
-                        <div key={mod.id} className="glass-card flex flex-col group transition-all hover:glass-card-hover">
+                        <GlassCard key={mod.id} className="flex flex-col group transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
                             <div className="p-6 flex-1">
                                 <h3 className="text-xl font-bold tracking-tight text-foreground line-clamp-2 mb-2">
                                     {mod.title}
@@ -123,21 +119,25 @@ export default function ModulesManagerPage() {
                                     Dibuat pada: {new Date(mod.created_at).toLocaleDateString('id-ID')}
                                 </div>
                             </div>
-                            <div className="px-6 py-4 border-t border-black/5 flex justify-end gap-2 bg-black/5">
-                                <Link href={`/admin/modules/${mod.id}/edit`} className="inline-block p-2 text-muted-foreground hover:text-foreground bg-white hover:bg-black/5 rounded-lg transition-colors border border-black/10">
-                                    <PencilEdit02Icon size={16} />
-                                </Link>
-                                <button
+                            <div className="px-6 py-4 border-t border-black/5 flex justify-end gap-2 bg-black/5 rounded-b-2xl">
+                                <ActionButton
+                                    href={`/admin/modules/${mod.id}/edit`}
+                                    icon={<PencilEdit02Icon size={16} />}
+                                    title="Edit"
+                                />
+                                <ActionButton
                                     onClick={() => deleteModule(mod.id, mod.title)}
-                                    className="inline-block p-2 text-destructive/60 hover:text-destructive bg-white hover:bg-destructive/10 rounded-lg transition-colors border border-black/10 hover:border-destructive/20"
-                                >
-                                    <Delete02Icon size={16} />
-                                </button>
+                                    icon={<Delete02Icon size={16} />}
+                                    variant="destructive"
+                                    title="Hapus"
+                                />
                             </div>
-                        </div>
+                        </GlassCard>
                     ))
                 )}
             </div>
+
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
     );
 }

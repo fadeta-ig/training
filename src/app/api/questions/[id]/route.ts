@@ -1,71 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { executeQuery } from '@/lib/db';
-
-const QUESTION_TYPES = [
-    'multiple_choice',
-    'multiple_select',
-    'true_false',
-    'short_answer',
-    'essay',
-    'matching',
-] as const;
-
-const updateQuestionSchema = z.object({
-    question_type: z.enum(QUESTION_TYPES, { message: 'Tipe soal tidak valid' }),
-    question_text: z.string().min(3, 'Teks pertanyaan minimal 3 karakter'),
-    question_image: z.string().nullable().optional(),
-    options: z.array(z.object({
-        text: z.string(),
-        image: z.string().nullable().optional(),
-    })).optional(),
-    correct_option_index: z.number().int().min(0).optional(),
-    correct_option_indices: z.array(z.number().int().min(0)).optional(),
-    correct_answer: z.string().optional(),
-    matching_pairs: z.array(z.object({
-        left: z.string(),
-        right: z.string(),
-    })).optional(),
-    points: z.number().int().min(1).default(1),
-}).superRefine((data, ctx) => {
-    const t = data.question_type;
-
-    if (t === 'multiple_choice') {
-        if (!data.options || data.options.length < 2) {
-            ctx.addIssue({ code: 'custom', path: ['options'], message: 'Pilihan ganda membutuhkan minimal 2 opsi' });
-        }
-        if (data.correct_option_index === undefined || data.correct_option_index === null) {
-            ctx.addIssue({ code: 'custom', path: ['correct_option_index'], message: 'Jawaban benar wajib dipilih' });
-        }
-    }
-
-    if (t === 'multiple_select') {
-        if (!data.options || data.options.length < 2) {
-            ctx.addIssue({ code: 'custom', path: ['options'], message: 'Multi-jawaban membutuhkan minimal 2 opsi' });
-        }
-        if (!data.correct_option_indices || data.correct_option_indices.length === 0) {
-            ctx.addIssue({ code: 'custom', path: ['correct_option_indices'], message: 'Minimal 1 jawaban benar wajib dipilih' });
-        }
-    }
-
-    if (t === 'true_false') {
-        if (data.correct_option_index === undefined || data.correct_option_index === null) {
-            ctx.addIssue({ code: 'custom', path: ['correct_option_index'], message: 'Jawaban benar wajib dipilih' });
-        }
-    }
-
-    if (t === 'short_answer') {
-        if (!data.correct_answer || data.correct_answer.trim().length === 0) {
-            ctx.addIssue({ code: 'custom', path: ['correct_answer'], message: 'Kunci jawaban singkat wajib diisi' });
-        }
-    }
-
-    if (t === 'matching') {
-        if (!data.matching_pairs || data.matching_pairs.length < 2) {
-            ctx.addIssue({ code: 'custom', path: ['matching_pairs'], message: 'Menjodohkan membutuhkan minimal 2 pasangan' });
-        }
-    }
-});
+import { questionSchema } from '@/lib/validations/questionSchema';
 
 export async function GET(
     request: NextRequest,
@@ -97,7 +32,7 @@ export async function PUT(
     try {
         const resolvedParams = await params;
         const body = await request.json();
-        const parsed = updateQuestionSchema.safeParse(body);
+        const parsed = questionSchema.safeParse(body);
 
         if (!parsed.success) {
             return NextResponse.json(

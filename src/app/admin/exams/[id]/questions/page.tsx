@@ -21,6 +21,9 @@ import {
     Tick02Icon,
 } from 'hugeicons-react';
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
     multiple_choice: { label: 'Pilihan Ganda', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200' },
@@ -184,37 +187,16 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
 
     return (
         <div className="space-y-5 max-w-5xl">
-            {/* Breadcrumb */}
-            <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Link href="/admin/exams" className="hover:text-foreground transition-colors">Ujian & Bank Soal</Link>
-                <span className="text-black/15">/</span>
-                <span className="text-foreground font-semibold truncate">{exam?.title || 'Bank Soal'}</span>
-            </nav>
-
             {/* Header */}
-            <div className="flex items-center justify-between gap-4 pb-5 border-b border-black/5">
-                <div className="flex items-center gap-3 min-w-0">
-                    <Link href="/admin/exams" className="p-2 rounded-xl bg-white border border-black/10 text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors shadow-sm shrink-0">
-                        <ArrowLeft01Icon size={18} />
-                    </Link>
-                    <div className="min-w-0">
-                        <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                            <HelpCircleIcon size={22} className="text-muted-foreground shrink-0" />
-                            Bank Soal
-                        </h1>
-                        {exam && (
-                            <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                                <Clock01Icon size={12} /> <span>{exam.duration_minutes} menit</span>
-                                <span className="text-black/10">|</span>
-                                <Target01Icon size={12} /> <span>KKM {exam.passing_grade}%</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <Link href={`/admin/exams/${examId}/questions/new`} className="px-4 py-2 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 flex items-center gap-2 shadow-sm shrink-0 active:scale-95 transition-all">
-                    <PlusSignIcon size={16} /> Tambah Soal
-                </Link>
-            </div>
+            {exam && (
+                <PageHeader
+                    title="Bank Soal"
+                    description={`Kelola soal untuk ujian: ${exam.title} (${exam.duration_minutes} mnt, KKM ${exam.passing_grade}%)`}
+                    icon={<HelpCircleIcon size={28} className="text-muted-foreground shrink-0" />}
+                    actionLabel="Tambah Soal"
+                    actionHref={`/admin/exams/${examId}/questions/new`}
+                />
+            )}
 
             {/* Toast */}
             {successMsg && (
@@ -239,21 +221,21 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                         { v: Object.keys(typeCounts).length, l: 'Tipe' },
                         { v: (totalPts / questions.length).toFixed(1), l: 'Rata-rata' },
                     ].map((s, i) => (
-                        <div key={i} className="glass-card px-3 py-2.5 text-center">
+                        <GlassCard key={i} className="px-3 py-2.5 text-center">
                             <p className="text-lg font-bold text-foreground leading-none">{s.v}</p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">{s.l}</p>
-                        </div>
+                        </GlassCard>
                     ))}
                 </div>
             )}
 
             {/* Search & Filter */}
             {!isLoading && questions.length > 0 && (
-                <div className="glass-card p-3 space-y-2.5">
+                <GlassCard className="p-3 space-y-2.5">
                     <div className="flex gap-2">
                         <div className="relative flex-1">
                             <Search01Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                            <input type="text" placeholder="Cari pertanyaan..." className="w-full pl-9 pr-8 py-2 rounded-lg glass-input text-xs focus:outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                            <input type="text" placeholder="Cari pertanyaan..." className="w-full pl-9 pr-8 py-2 rounded-lg bg-white/50 border border-black/10 text-xs focus:outline-none focus:ring-2 focus:ring-ring" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                             {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><Cancel01Icon size={12} /></button>}
                         </div>
                         <button onClick={() => expandedIds.size === questions.length ? collapseAll() : expandAll()} className="px-3 py-2 text-[11px] font-semibold rounded-lg bg-white border border-black/10 hover:bg-black/5 flex items-center gap-1.5 shrink-0 transition-colors">
@@ -280,32 +262,29 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                             );
                         })}
                     </div>
-                </div>
+                </GlassCard>
             )}
 
             {/* List */}
             <div className="space-y-2">
                 {isLoading ? (
-                    <div className="p-12 text-center text-muted-foreground glass-card flex flex-col items-center gap-2">
+                    <GlassCard className="p-12 text-center text-muted-foreground flex flex-col items-center gap-2">
                         <RefreshIcon size={22} className="animate-spin opacity-30" /> <span className="text-xs">Memuat...</span>
-                    </div>
+                    </GlassCard>
                 ) : questions.length === 0 ? (
-                    <div className="glass-card p-12 text-center flex flex-col items-center gap-3">
-                        <HelpCircleIcon size={40} className="text-black/10" />
-                        <div>
-                            <h3 className="text-base font-bold text-foreground">Belum ada soal</h3>
-                            <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">Mulai tambahkan soal untuk membuat bank soal yang lengkap.</p>
-                        </div>
-                        <Link href={`/admin/exams/${examId}/questions/new`} className="mt-1 px-5 py-2.5 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 flex items-center gap-2 shadow-sm">
-                            <PlusSignIcon size={16} /> Tambah Soal Pertama
-                        </Link>
-                    </div>
+                    <EmptyState
+                        icon={<HelpCircleIcon size={40} className="text-black/10" />}
+                        title="Belum ada soal"
+                        description="Mulai tambahkan soal untuk membuat bank soal yang lengkap."
+                        actionLabel="Tambah Soal Pertama"
+                        actionHref={`/admin/exams/${examId}/questions/new`}
+                    />
                 ) : filtered.length === 0 ? (
-                    <div className="glass-card p-8 text-center text-muted-foreground">
+                    <GlassCard className="p-8 text-center text-muted-foreground">
                         <Search01Icon size={24} className="mx-auto mb-2 opacity-20" />
                         <p className="text-xs">Tidak ditemukan</p>
                         <button onClick={() => { setSearchQuery(''); setActiveTypeFilter(null); }} className="text-[11px] font-semibold text-foreground underline mt-1">Reset</button>
-                    </div>
+                    </GlassCard>
                 ) : (
                     filtered.map((q) => {
                         const conf = TYPE_CONFIG[q.question_type || 'multiple_choice'] || TYPE_CONFIG.multiple_choice;
@@ -313,7 +292,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                         const num = questions.findIndex(o => o.id === q.id) + 1;
 
                         return (
-                            <div key={q.id} className={`glass-card overflow-hidden transition-all ${isExp ? 'ring-1 ring-black/5' : ''}`}>
+                            <GlassCard key={q.id} className={`overflow-hidden transition-all ${isExp ? 'ring-1 ring-black/5' : ''}`}>
                                 <div className="px-4 py-3 flex items-start gap-3">
                                     {/* Number */}
                                     <span className="w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center font-bold text-xs text-black/25 shrink-0 mt-0.5">{num}</span>
@@ -360,7 +339,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                                         </div>
                                     </div>
                                 )}
-                            </div>
+                            </GlassCard>
                         );
                     })
                 )}

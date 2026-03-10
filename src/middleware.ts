@@ -1,54 +1,67 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
 
-/**
- * SEB (Safe Exam Browser) Middleware
- *
- * Intercepts all requests to `/session/exam/*`.
- * Validates the `x-safeexambrowser-configkeyhash` header
- * against the stored SEB_CONFIG_KEY_HASH environment variable.
- *
- * If the session does NOT require SEB (determined by query param),
- * the request is allowed through.
- */
+// Cannot reuse /lib/auth.ts verifyToken directly if it relies on Node APIs like env directly
+// but jose is edge-compatible, so we must recreate decoding here explicitly for Edge Runtime
+const JWT_SECRET = process.env.JWT_SECRET || 'secret-key-super-secure-change-in-prod';
+const encodedKey = new TextEncoder().encode(JWT_SECRET);
 
-const SEB_HEADER_KEY = 'x-safeexambrowser-configkeyhash';
-const UNAUTHORIZED_PATH = '/unauthorized';
-const EXAM_ROUTE_PREFIX = '/session/exam';
+export async function middleware(request: NextRequest) {
+    const { pathname } = request.nextUrl;
 
-export function middleware(request: NextRequest): NextResponse {
-    const { pathname, searchParams } = request.nextUrl;
+    // Defined protected routes prefixes
+    const isProtectedAdminRoute = pathname.startsWith('/admin');
+    const isProtectedDashboardRoute = pathname.startsWith('/dashboard');
 
-    // Only intercept exam routes
-    if (!pathname.startsWith(EXAM_ROUTE_PREFIX)) {
-        return NextResponse.next();
+    if (isProtectedAdminRoute || isProtectedDashboardRoute) {
+        const token = request.cookies.get('training_session')?.value;
+
+        if (!token) {
+            return NextResponse.redirect(new URL('/auth/login', request.url));
+        }
+
+        try {
+            const { payload } = await jwtVerify(token, encodedKey);
+
+            // Check roles
+            const role = payload.role as string;
+
+            if (isProtectedAdminRoute && role !== 'admin') {
+                // If attempting to access /admin but not an admin, redirect to general dashboard
+                return NextResponse.redirect(new URL('/dashboard', request.url));
+            }
+
+            // Valid session, continue
+            return NextResponse.next();
+        } catch (error) {
+            // Token is invalid/expired
+            const response = NextResponse.redirect(new URL('/auth/login', request.url));
+            response.cookies.delete('training_session'); // Clear invalid token
+            return response;
+        }
     }
 
-    // Check if SEB is required for this session (passed as query or will be
-    // resolved server-side; default to required for maximum security)
-    const sebRequired = searchParams.get('seb') !== 'false';
-
-    if (!sebRequired) {
-        return NextResponse.next();
-    }
-
-    // Validate SEB config key hash
-    const clientHash = request.headers.get(SEB_HEADER_KEY);
-    const serverHash = process.env.SEB_CONFIG_KEY_HASH;
-
-    if (!serverHash) {
-        console.warn('[SEB_MIDDLEWARE] SEB_CONFIG_KEY_HASH not configured in environment.');
-        return NextResponse.redirect(new URL(UNAUTHORIZED_PATH, request.url));
-    }
-
-    if (!clientHash || clientHash !== serverHash) {
-        const clientIp = request.headers.get('x-forwarded-for') ?? 'unknown';
-        console.warn('[SEB_MIDDLEWARE] Invalid or missing SEB header from:', clientIp);
-        return NextResponse.redirect(new URL(UNAUTHORIZED_PATH, request.url));
+    // Redirect guest users from / to /auth/login or /dashboard
+    if (pathname === '/') {
+        const token = request.cookies.get('training_session')?.value;
+        if (token) {
+            try {
+                const { payload } = await jwtVerify(token, encodedKey);
+                if (payload.role === 'admin') {
+                    return NextResponse.redirect(new URL('/admin', request.url));
+                }
+                return NextResponse.redirect(new URL('/dashboard', request.url));
+            } catch (err) {
+                return NextResponse.redirect(new URL('/auth/login', request.url));
+            }
+        }
+        return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
     return NextResponse.next();
 }
 
 export const config = {
-    matcher: ['/session/exam/:path*'],
+    matcher: ['/', '/admin/:path*', '/dashboard/:path*'],
 };

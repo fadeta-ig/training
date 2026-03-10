@@ -1,20 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
+import { trainingSchema } from '@/lib/validations/trainingSchema';
 
-const trainingSchema = z.object({
-    title: z.string().min(3, 'Title must be at least 3 characters long').max(150),
-    content_html: z.string().min(10, 'Content must not be empty'),
-    video_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
-});
-
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const { searchParams } = new URL(request.url);
+        const page = parseInt(searchParams.get('page') || '1', 10);
+        const limit = parseInt(searchParams.get('limit') || '10', 10);
+        const offset = (page - 1) * limit;
+
+        const countResult = await executeQuery<{ total: number }[]>(`SELECT COUNT(*) as total FROM trainings`);
+        const total = countResult[0]?.total || 0;
+
         const trainings = await executeQuery(
-            `SELECT id, title, created_at, updated_at FROM trainings ORDER BY created_at DESC`
+            `SELECT id, title, created_at, updated_at FROM trainings ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+            [limit, offset]
         );
-        return NextResponse.json({ success: true, data: trainings });
+
+        return NextResponse.json({
+            success: true,
+            data: trainings,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });

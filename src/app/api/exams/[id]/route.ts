@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { executeQuery } from '@/lib/db';
-
-const updateExamSchema = z.object({
-    title: z.string().min(3).max(150),
-    duration_minutes: z.number().int().min(10).max(300),
-    passing_grade: z.number().min(0).max(100),
-});
+import { examSchema } from '@/lib/validations/examSchema';
 
 export async function GET(
     request: NextRequest,
@@ -37,7 +31,7 @@ export async function PUT(
     try {
         const resolvedParams = await params;
         const body = await request.json();
-        const parsed = updateExamSchema.safeParse(body);
+        const parsed = examSchema.safeParse(body);
 
         if (!parsed.success) {
             return NextResponse.json(

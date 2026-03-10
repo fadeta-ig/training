@@ -1,25 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
+import { moduleSchema } from '@/lib/validations/moduleSchema';
 
-const itemSchema = z.object({
-    item_type: z.enum(['training', 'exam']),
-    item_id: z.string().uuid(),
-    sequence_order: z.number().int().min(1),
-});
-
-const moduleSchema = z.object({
-    title: z.string().min(3).max(150),
-    description: z.string().optional(),
-    items: z.array(itemSchema).min(1, 'Module must have at least one item'),
-});
-
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        const modules = await executeQuery(`SELECT id, title, description, created_at FROM modules ORDER BY created_at DESC`);
-        return NextResponse.json({ success: true, data: modules });
+        const { searchParams } = new URL(request.url);
+        const page = parseInt(searchParams.get('page') || '1', 10);
+        const limit = parseInt(searchParams.get('limit') || '10', 10);
+        const offset = (page - 1) * limit;
+
+        const countResult = await executeQuery<{ total: number }[]>(`SELECT COUNT(*) as total FROM modules`);
+        const total = countResult[0]?.total || 0;
+
+        const modules = await executeQuery(
+            `SELECT id, title, description, created_at FROM modules ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+            [limit, offset]
+        );
+
+        return NextResponse.json({
+            success: true,
+            data: modules,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });

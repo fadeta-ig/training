@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { executeQuery } from '@/lib/db';
-
-const itemSchema = z.object({
-    item_type: z.enum(['training', 'exam']),
-    item_id: z.string().uuid(),
-    sequence_order: z.number().int().min(1),
-});
-
-const updateModuleSchema = z.object({
-    title: z.string().min(3).max(150),
-    description: z.string().optional(),
-    items: z.array(itemSchema).min(1, 'Modul harus memiliki setidaknya satu item'),
-});
+import { moduleSchema } from '@/lib/validations/moduleSchema';
 
 export async function GET(
     request: NextRequest,
@@ -48,7 +36,7 @@ export async function PUT(
     try {
         const resolvedParams = await params;
         const body = await request.json();
-        const parsed = updateModuleSchema.safeParse(body);
+        const parsed = moduleSchema.safeParse(body);
 
         if (!parsed.success) {
             return NextResponse.json(

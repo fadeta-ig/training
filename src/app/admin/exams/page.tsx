@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import {
     Edit01Icon,
-    PlusSignIcon,
     PencilEdit02Icon,
     Delete02Icon,
     RefreshIcon,
@@ -11,6 +10,11 @@ import {
     HelpCircleIcon
 } from 'hugeicons-react';
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { ActionButton } from '@/components/ui/ActionButton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Pagination } from '@/components/ui/Pagination';
 
 type Exam = {
     id: string;
@@ -24,16 +28,21 @@ export default function ExamsManagerPage() {
     const [exams, setExams] = useState<Exam[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
-    const fetchExams = async () => {
+    const fetchExams = async (targetPage = page) => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch('/api/exams');
+            const res = await fetch(`/api/exams?page=${targetPage}&limit=10`);
             if (!res.ok) throw new Error('Gagal memuat ujian');
             const result = await res.json();
             if (result.success) {
                 setExams(result.data);
+                if (result.pagination) {
+                    setTotalPages(result.pagination.totalPages);
+                }
             } else {
                 throw new Error(result.error || 'Terjadi kesalahan server');
             }
@@ -45,8 +54,8 @@ export default function ExamsManagerPage() {
     };
 
     useEffect(() => {
-        fetchExams();
-    }, []);
+        fetchExams(page);
+    }, [page]);
 
     const deleteExam = async (id: string, title: string) => {
         if (!confirm(`Apakah Anda yakin ingin menghapus Ujian "${title}" beserta seluruh soalnya secara permanen? Aksi ini tidak dapat dibatalkan.`)) return;
@@ -54,7 +63,7 @@ export default function ExamsManagerPage() {
         try {
             const res = await fetch(`/api/exams/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Gagal menghapus ujian');
-            fetchExams();
+            fetchExams(page);
         } catch (err: any) {
             alert(err.message);
         }
@@ -62,31 +71,15 @@ export default function ExamsManagerPage() {
 
     return (
         <div className="space-y-8 max-w-6xl">
-            <div className="flex justify-between items-end border-b border-black/5 pb-6">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-                        <Edit01Icon size={28} className="text-muted-foreground" />
-                        Ujian & Bank Soal
-                    </h1>
-                    <p className="text-muted-foreground mt-2 text-sm">
-                        Buat parameter ujian (waktu, passing grade) lalu pasangkan soal-soalnya ke dalam Bank Soal.
-                    </p>
-                </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={fetchExams}
-                        className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-white border border-black/10 text-foreground hover:bg-black/5 transition-colors focus:ring-2 focus:ring-ring focus:outline-none flex items-center gap-2 active:scale-95 shadow-sm"
-                        disabled={isLoading}
-                    >
-                        <RefreshIcon size={18} className={isLoading ? 'animate-spin' : ''} />
-                        Segarkan
-                    </button>
-                    <Link href="/admin/exams/new" className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors focus:ring-2 focus:ring-ring focus:outline-none flex items-center gap-2 active:scale-95 shadow-sm">
-                        <PlusSignIcon size={18} />
-                        Buat Ujian Baru
-                    </Link>
-                </div>
-            </div>
+            <PageHeader
+                title="Ujian & Bank Soal"
+                description="Buat parameter ujian (waktu, passing grade) lalu pasangkan soal-soalnya ke dalam Bank Soal."
+                icon={<Edit01Icon size={28} className="text-muted-foreground" />}
+                actionLabel="Buat Ujian Baru"
+                actionHref="/admin/exams/new"
+                onRefresh={fetchExams}
+                isRefreshing={isLoading}
+            />
 
             {error && (
                 <div className="bg-destructive/10 border border-destructive/20 text-destructive px-5 py-4 rounded-xl flex items-start gap-3">
@@ -98,7 +91,7 @@ export default function ExamsManagerPage() {
                 </div>
             )}
 
-            <div className="glass-card overflow-hidden">
+            <GlassCard className="overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
                         <thead className="bg-black/5 border-b border-black/5 text-muted-foreground font-medium uppercase text-xs tracking-wider">
@@ -120,8 +113,14 @@ export default function ExamsManagerPage() {
                                 </tr>
                             ) : exams.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
-                                        Belum ada ujian yang terdaftar. Buat satu ujian baru untuk memulai.
+                                    <td colSpan={5} className="p-0">
+                                        <EmptyState
+                                            icon={<Edit01Icon size={40} className="text-black/10" />}
+                                            title="Belum ada ujian"
+                                            description="Buat satu parameter ujian baru untuk mulai memasukkan soal."
+                                            actionLabel="Buat Ujian Pertama"
+                                            actionHref="/admin/exams/new"
+                                        />
                                     </td>
                                 </tr>
                             ) : (
@@ -147,16 +146,18 @@ export default function ExamsManagerPage() {
                                                 Kelola Soal
                                             </Link>
                                         </td>
-                                        <td className="px-6 py-4 text-right space-x-1.5">
-                                            <Link href={`/admin/exams/${exam.id}/edit`} className="inline-block p-2 text-muted-foreground hover:text-foreground bg-white hover:bg-black/5 rounded-lg transition-colors border border-black/10">
-                                                <PencilEdit02Icon size={16} />
-                                            </Link>
-                                            <button
+                                        <td className="px-6 py-4 text-right space-x-1.5 flex justify-end gap-1.5">
+                                            <ActionButton
+                                                href={`/admin/exams/${exam.id}/edit`}
+                                                icon={<PencilEdit02Icon size={16} />}
+                                                title="Edit Parameter"
+                                            />
+                                            <ActionButton
                                                 onClick={() => deleteExam(exam.id, exam.title)}
-                                                className="inline-block p-2 text-destructive/60 hover:text-destructive bg-white hover:bg-destructive/10 rounded-lg transition-colors border border-black/10 hover:border-destructive/20"
-                                            >
-                                                <Delete02Icon size={16} />
-                                            </button>
+                                                variant="destructive"
+                                                icon={<Delete02Icon size={16} />}
+                                                title="Hapus Ujian"
+                                            />
                                         </td>
                                     </tr>
                                 ))
@@ -164,7 +165,9 @@ export default function ExamsManagerPage() {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </GlassCard>
+
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
     );
 }

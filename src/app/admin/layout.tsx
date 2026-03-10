@@ -13,7 +13,8 @@ import {
     Calendar01Icon,
     Camera01Icon,
     UserCircleIcon,
-    Notification01Icon
+    Notification01Icon,
+    UserGroupIcon
 } from 'hugeicons-react';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -65,6 +66,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <NavLink href="/admin/modules" label="Module Builder" icon={<CubeIcon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/admin/modules')} />
                     <NavLink href="/admin/sessions" label="Session Manager" icon={<Calendar01Icon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/admin/sessions')} />
                     <NavLink href="/admin/monitoring" label="Live Proctoring" icon={<Camera01Icon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/admin/monitoring')} />
+                    <NavLink href="/admin/users" label="Kelola Pengguna" icon={<UserGroupIcon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/admin/users')} />
                 </nav>
 
                 <div className={`mt-auto p-4 m-3 glass-card border-none bg-white/40 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 h-0 p-0 m-0'}`}>

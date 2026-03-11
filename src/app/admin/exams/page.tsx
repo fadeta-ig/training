@@ -15,6 +15,8 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
+import { useConfirm } from '@/hooks/useConfirm';
+import { toast } from 'sonner';
 
 type Exam = {
     id: string;
@@ -30,6 +32,7 @@ export default function ExamsManagerPage() {
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const { confirm, ConfirmComponent } = useConfirm();
 
     const fetchExams = async (targetPage = page) => {
         setIsLoading(true);
@@ -58,19 +61,28 @@ export default function ExamsManagerPage() {
     }, [page]);
 
     const deleteExam = async (id: string, title: string) => {
-        if (!confirm(`Apakah Anda yakin ingin menghapus Ujian "${title}" beserta seluruh soalnya secara permanen? Aksi ini tidak dapat dibatalkan.`)) return;
+        const isConfirmed = await confirm({
+            title: 'Hapus Ujian?',
+            message: `Apakah Anda yakin ingin menghapus Ujian "${title}" beserta seluruh soalnya secara permanen? Aksi ini tidak dapat dibatalkan.`,
+            isDestructive: true,
+            confirmLabel: 'Ya, Hapus Ujian',
+            cancelLabel: 'Batal'
+        });
+        if (!isConfirmed) return;
 
         try {
             const res = await fetch(`/api/exams/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Gagal menghapus ujian');
+            toast.success('Ujian berhasil dihapus');
             fetchExams(page);
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || 'Gagal menghapus ujian');
         }
     };
 
     return (
-        <div className="space-y-8 max-w-6xl">
+        <div className="space-y-8 max-w-6xl relative">
+            <ConfirmComponent />
             <PageHeader
                 title="Ujian & Bank Soal"
                 description="Buat parameter ujian (waktu, passing grade) lalu pasangkan soal-soalnya ke dalam Bank Soal."

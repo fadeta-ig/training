@@ -9,7 +9,7 @@ const userSchema = z.object({
     username: z.string().min(3, 'Username minimal 3 karakter').max(50),
     password: z.string().min(6, 'Password minimal 6 karakter').optional(),
     full_name: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(100),
-    role: z.enum(['admin', 'participant'])
+    role: z.enum(['admin', 'trainer'])
 });
 
 async function handleGet(request: NextRequest) {
@@ -20,14 +20,14 @@ async function handleGet(request: NextRequest) {
         const search = searchParams.get('search') || '';
         const offset = (page - 1) * limit;
 
-        let countQuery = `SELECT COUNT(*) as total FROM users`;
+        let countQuery = `SELECT COUNT(*) as total FROM users WHERE role IN ('admin', 'trainer')`;
         const countParams: (string | number)[] = [];
 
-        let query = `SELECT id, username, full_name, role, created_at FROM users`;
+        let query = `SELECT id, username, full_name, role, created_at FROM users WHERE role IN ('admin', 'trainer')`;
         const params: (string | number)[] = [];
 
         if (search) {
-            const searchClause = ` WHERE username LIKE ? OR full_name LIKE ?`;
+            const searchClause = ` AND (username LIKE ? OR full_name LIKE ?)`;
             countQuery += searchClause;
             query += searchClause;
             countParams.push(`%${search}%`, `%${search}%`);

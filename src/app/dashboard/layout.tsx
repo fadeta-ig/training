@@ -1,22 +1,49 @@
 'use client';
 
 import Link from 'next/link';
-import { ReactNode, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { ReactNode, useState, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import {
     Menu01Icon,
     Cancel01Icon,
     DashboardSquare01Icon,
     Clock01Icon,
-    DiplomaIcon,
     UserCircleIcon,
     Notification01Icon,
-    Mortarboard01Icon
+    Mortarboard01Icon,
+    Logout01Icon,
 } from 'hugeicons-react';
+
+type UserInfo = {
+    id: string;
+    username: string;
+    full_name: string;
+    role: string;
+};
 
 export default function UserLayout({ children }: { children: ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [user, setUser] = useState<UserInfo | null>(null);
     const pathname = usePathname();
+    const router = useRouter();
+
+    useEffect(() => {
+        fetch('/api/auth/me')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) setUser(data.data);
+            })
+            .catch(() => { });
+    }, []);
+
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            router.replace('/auth/login');
+        } catch {
+            router.replace('/auth/login');
+        }
+    };
 
     return (
         <div className="flex h-screen bg-background text-foreground font-sans overflow-hidden">
@@ -29,7 +56,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                 />
             )}
 
-            {/* Sidebar: Glassmorphism themed */}
+            {/* Sidebar */}
             <aside
                 className={`${isSidebarOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full md:w-20 md:translate-x-0'} 
           fixed md:relative z-50 h-full flex flex-col glass-sidebar transition-all duration-300 ease-in-out shrink-0`}
@@ -40,7 +67,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                             <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center shadow-md">
                                 <Mortarboard01Icon size={18} />
                             </div>
-                            <h1 className="text-xl font-bold tracking-tight">Student Portal</h1>
+                            <h1 className="text-xl font-bold tracking-tight">Portal Peserta</h1>
                         </div>
                     ) : (
                         <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center shadow-md">
@@ -57,23 +84,36 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                 </div>
 
                 <nav className="flex-1 space-y-1.5 p-3 overflow-y-auto overflow-x-hidden">
-                    <NavLink href="/dashboard" label="My Learning" icon={<DashboardSquare01Icon size={20} />} isOpen={isSidebarOpen} active={pathname === '/dashboard'} />
-                    <NavLink href="/dashboard/history" label="Activity History" icon={<Clock01Icon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/dashboard/history')} />
-                    <NavLink href="/dashboard/certificates" label="Certificates" icon={<DiplomaIcon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/dashboard/certificates')} />
+                    <NavLink href="/dashboard" label="Sesi Saya" icon={<DashboardSquare01Icon size={20} />} isOpen={isSidebarOpen} active={pathname === '/dashboard'} />
+                    <NavLink href="/dashboard/riwayat" label="Riwayat Ujian" icon={<Clock01Icon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/dashboard/riwayat')} />
                 </nav>
 
-                <div className={`mt-auto p-4 m-3 glass-card border-none bg-white/40 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 h-0 p-0 m-0'}`}>
-                    <div className="flex items-center gap-3">
-                        <UserCircleIcon size={32} className="text-muted-foreground" />
-                        <div className="overflow-hidden">
-                            <p className="text-sm font-semibold truncate">Student</p>
-                            <p className="text-xs text-muted-foreground truncate">student@kampus.local</p>
+                {/* User Profile */}
+                <div className={`mt-auto border-t border-black/5 transition-all duration-300 ${isSidebarOpen ? 'p-4' : 'p-2'}`}>
+                    <div className={`flex items-center ${isSidebarOpen ? 'gap-3' : 'justify-center'}`}>
+                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                            <UserCircleIcon size={22} />
                         </div>
+                        {isSidebarOpen && (
+                            <div className="overflow-hidden flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate">{user?.full_name || 'Memuat...'}</p>
+                                <p className="text-xs text-muted-foreground truncate">{user?.username || ''}</p>
+                            </div>
+                        )}
                     </div>
+                    {isSidebarOpen && (
+                        <button
+                            onClick={handleLogout}
+                            className="mt-3 w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 px-3 py-2 rounded-lg transition-colors"
+                        >
+                            <Logout01Icon size={14} />
+                            <span>Keluar</span>
+                        </button>
+                    )}
                 </div>
             </aside>
 
-            {/* Main Content Pane */}
+            {/* Main Content */}
             <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-background">
                 {/* Top Header */}
                 <header className="h-16 flex items-center justify-between px-6 border-b border-black/5 bg-white/60 backdrop-blur-md shrink-0 z-30">
@@ -84,14 +124,16 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                         >
                             <Menu01Icon size={22} />
                         </button>
-                        <h2 className="text-lg font-semibold tracking-tight hidden sm:block">Welcome back, Student!</h2>
+                        <h2 className="text-lg font-semibold tracking-tight hidden sm:block">
+                            Selamat datang, {user?.full_name?.split(' ')[0] || 'Peserta'}!
+                        </h2>
                     </div>
                     <div className="flex items-center gap-5">
-                        <button className="text-muted-foreground hover:text-foreground transition-colors">
+                        <button className="text-muted-foreground hover:text-foreground transition-colors relative">
                             <Notification01Icon size={22} />
                         </button>
-                        <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center text-background">
-                            <UserCircleIcon size={20} />
+                        <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center text-background text-xs font-bold">
+                            {user?.full_name?.charAt(0)?.toUpperCase() || 'P'}
                         </div>
                     </div>
                 </header>

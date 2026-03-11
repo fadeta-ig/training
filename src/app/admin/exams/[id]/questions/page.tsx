@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { toast } from 'sonner';
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
     multiple_choice: { label: 'Pilihan Ganda', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200' },
@@ -87,7 +88,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
             setDeleteConfirmId(null);
             setSuccessMsg('Soal berhasil dihapus.');
             fetchData();
-        } catch (err: any) { alert(err.message); }
+        } catch (err: any) { toast.error(err.message || 'Gagal menghapus soal'); }
     };
 
     const toggleExpand = (id: string) => setExpandedIds(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });

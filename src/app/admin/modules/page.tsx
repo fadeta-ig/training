@@ -14,6 +14,8 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
+import { useConfirm } from '@/hooks/useConfirm';
+import { toast } from 'sonner';
 
 type Module = {
     id: string;
@@ -28,6 +30,7 @@ export default function ModulesManagerPage() {
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const { confirm, ConfirmComponent } = useConfirm();
 
     const fetchModules = async (targetPage = page) => {
         setIsLoading(true);
@@ -56,19 +59,28 @@ export default function ModulesManagerPage() {
     }, [page]);
 
     const deleteModule = async (id: string, title: string) => {
-        if (!confirm(`Apakah Anda yakin ingin menghapus Modul "${title}" secara permanen? Sesi yang sedang berjalan untuk modul ini akan terganggu.`)) return;
+        const isConfirmed = await confirm({
+            title: 'Hapus Modul?',
+            message: `Apakah Anda yakin ingin menghapus Modul "${title}" secara permanen? Sesi yang sedang berjalan untuk modul ini akan terganggu.`,
+            isDestructive: true,
+            confirmLabel: 'Ya, Hapus',
+            cancelLabel: 'Batal'
+        });
+        if (!isConfirmed) return;
 
         try {
             const res = await fetch(`/api/modules/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Gagal menghapus modul');
+            toast.success('Modul berhasil dihapus');
             fetchModules(page);
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || 'Gagal menghapus modul');
         }
     };
 
     return (
-        <div className="space-y-8 max-w-6xl">
+        <div className="space-y-8 max-w-6xl relative">
+            <ConfirmComponent />
             <PageHeader
                 title="Perakit Modul (Builder)"
                 description="Susun kurikulum dengan menyatukan Materi Pelatihan dan Ujian menjadi satu alur linier utuh."

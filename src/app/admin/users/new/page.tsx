@@ -12,7 +12,7 @@ export default function NewUserPage() {
         username: '',
         password: '',
         full_name: '',
-        role: 'participant'
+        role: 'trainer'
     });
     const [error, setError] = useState<string | null>(null);
 
@@ -63,7 +63,7 @@ export default function NewUserPage() {
                         Tambah Pengguna Baru
                     </h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        Buat akun untuk Administrator atau Peserta Ujian baru.
+                        Buat akun untuk Administrator atau Pelatih/Trainer baru.
                     </p>
                 </div>
             </div>
@@ -121,7 +121,7 @@ export default function NewUserPage() {
                             value={formData.role}
                             onChange={e => setFormData({ ...formData, role: e.target.value })}
                         >
-                            <option value="participant">Peserta Ujian</option>
+                            <option value="trainer">Pelatih / Trainer</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>

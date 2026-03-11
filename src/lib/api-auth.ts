@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 
-export type AuthRole = 'admin' | 'participant';
+export type AuthRole = 'admin' | 'trainer' | 'trainee';
 
 export interface AuthenticatedUser {
     id: string;

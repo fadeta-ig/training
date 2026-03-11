@@ -7,7 +7,7 @@ import { ArrowLeft01Icon, FloppyDiskIcon, AlertCircleIcon, Tick02Icon, Calendar0
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 
-type User = { id: string; username: string; full_name: string; role: string };
+type User = { id: string; username: string; full_name: string; email?: string; name?: string; role?: string };
 type Module = { id: string; title: string };
 
 export default function CreateSessionPage() {
@@ -36,11 +36,16 @@ export default function CreateSessionPage() {
                 const modData = await modRes.json();
                 if (modData.success) setAvailableModules(modData.data);
 
-                // Fetch Users (Participants only)
-                const usrRes = await fetch('/api/users?limit=1000');
+                // Fetch Users (Participants / Trainees)
+                const usrRes = await fetch('/api/admin/participants?limit=1000');
                 const usrData = await usrRes.json();
                 if (usrData.success) {
-                    const participants = usrData.data.filter((u: User) => u.role === 'participant');
+                    // Map participant API response to User type
+                    const participants = usrData.data.map((p: any) => ({
+                        id: p.id,
+                        username: p.email || p.username,
+                        full_name: p.name || p.full_name,
+                    }));
                     setAvailableUsers(participants);
                 }
             } catch (err) {

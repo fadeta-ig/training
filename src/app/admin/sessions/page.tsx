@@ -7,6 +7,8 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ActionButton } from '@/components/ui/ActionButton';
+import { useConfirm } from '@/hooks/useConfirm';
+import { toast } from 'sonner';
 
 type Session = {
     id: string;
@@ -21,6 +23,7 @@ type Session = {
 export default function SessionsPage() {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(true);
+    const { confirm, ConfirmComponent } = useConfirm();
 
     const fetchSessions = async () => {
         setLoading(true);
@@ -42,17 +45,25 @@ export default function SessionsPage() {
     }, []);
 
     const handleDelete = async (id: string, title: string) => {
-        if (!confirm(`Apakah Anda yakin ingin menghapus sesi "${title}"?`)) return;
+        const isConfirmed = await confirm({
+            title: 'Hapus Sesi?',
+            message: `Apakah Anda yakin ingin menghapus sesi "${title}"?`,
+            isDestructive: true,
+            confirmLabel: 'Ya, Hapus',
+            cancelLabel: 'Batal'
+        });
+        if (!isConfirmed) return;
 
         try {
             const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
             if (res.ok) {
+                toast.success('Sesi berhasil dihapus');
                 setSessions(sessions.filter(s => s.id !== id));
             } else {
-                alert('Gagal menghapus sesi');
+                toast.error('Gagal menghapus sesi');
             }
         } catch (error) {
-            alert('Terjadi kesalahan saat menghapus sesi');
+            toast.error('Terjadi kesalahan saat menghapus sesi');
         }
     };
 
@@ -90,7 +101,8 @@ export default function SessionsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 relative">
+            <ConfirmComponent />
             <PageHeader
                 title="Sesi Ujian & Kelas"
                 description="Kelola jadwal ujian, kelas, dan peserta yang bergabung."

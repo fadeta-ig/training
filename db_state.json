@@ -1,0 +1,28 @@
+{
+  "users": [
+    {
+      "id": "83156c34-f9c5-4f2d-9d86-f045fddeaf6d",
+      "username": "tes",
+      "full_name": "TES",
+      "role": "trainee"
+    },
+    {
+      "id": "admin-uuid-001",
+      "username": "admin",
+      "full_name": "Administrator Sistem",
+      "role": "admin"
+    },
+    {
+      "id": "d2a3441c-9f88-4125-b611-a9088212a033",
+      "username": "it.wijayainovasigemilang@gmail.com",
+      "full_name": "Heru Sutoyo",
+      "role": "trainee"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "5c493c07-341e-4ed4-aa03-58b80f609ea4",
+      "user_id": "d2a3441c-9f88-4125-b611-a9088212a033"
+    }
+  ]
+}

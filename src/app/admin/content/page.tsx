@@ -14,6 +14,8 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
+import { useConfirm } from '@/hooks/useConfirm';
+import { toast } from 'sonner';
 
 type Training = {
     id: string;
@@ -27,6 +29,7 @@ export default function ContentManagerPage() {
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const { confirm, ConfirmComponent } = useConfirm();
 
     const fetchTrainings = async (targetPage = page) => {
         setIsLoading(true);
@@ -55,19 +58,28 @@ export default function ContentManagerPage() {
     }, [page]);
 
     const deleteTraining = async (id: string, title: string) => {
-        if (!confirm(`Apakah Anda yakin ingin menghapus materi "${title}" secara permanen? Aksi ini tidak dapat dibatalkan.`)) return;
+        const isConfirmed = await confirm({
+            title: 'Hapus Materi?',
+            message: `Apakah Anda yakin ingin menghapus materi "${title}" secara permanen? Aksi ini tidak dapat dibatalkan.`,
+            isDestructive: true,
+            confirmLabel: 'Ya, Hapus Materi',
+            cancelLabel: 'Batal'
+        });
+        if (!isConfirmed) return;
 
         try {
             const res = await fetch(`/api/trainings/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Gagal menghapus materi');
+            toast.success('Materi berhasil dihapus');
             fetchTrainings(page);
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || 'Gagal menghapus materi');
         }
     };
 
     return (
-        <div className="space-y-8 max-w-5xl">
+        <div className="space-y-8 max-w-5xl relative">
+            <ConfirmComponent />
             <PageHeader
                 title="Materi Pelatihan"
                 description="Kelola bacaan, artikel HTML, dan tautan video yang akan digunakan pada Modul."

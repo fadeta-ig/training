@@ -14,7 +14,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         username: '',
         password: '',
         full_name: '',
-        role: 'participant'
+        role: 'trainer'
     });
     const [error, setError] = useState<string | null>(null);
 
@@ -167,7 +167,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                             value={formData.role}
                             onChange={e => setFormData({ ...formData, role: e.target.value })}
                         >
-                            <option value="participant">Peserta Ujian</option>
+                            <option value="trainer">Pelatih/Trainer</option>
                             <option value="admin">Administrator</option>
                         </select>
 

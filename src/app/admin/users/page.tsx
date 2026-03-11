@@ -10,11 +10,13 @@ import {
     PlusSignIcon,
     Search01Icon
 } from 'hugeicons-react';
+import { toast } from 'sonner';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useConfirm } from '@/hooks/useConfirm';
 import { Pagination } from '@/components/ui/Pagination';
 
 type User = {
@@ -32,6 +34,7 @@ export default function UsersManagerPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
+    const { confirm, ConfirmComponent } = useConfirm();
 
     const fetchUsers = async (targetPage = page, search = searchQuery) => {
         setIsLoading(true);
@@ -65,7 +68,14 @@ export default function UsersManagerPage() {
     };
 
     const deleteUser = async (id: string, name: string) => {
-        if (!confirm(`Apakah Anda yakin ingin menghapus Pengguna "${name}" secara permanen?`)) return;
+        const isConfirmed = await confirm({
+            title: 'Hapus Pengguna?',
+            message: `Apakah Anda yakin ingin menghapus Pengguna "${name}" secara permanen?`,
+            isDestructive: true,
+            confirmLabel: 'Ya, Hapus',
+            cancelLabel: 'Batal'
+        });
+        if (!isConfirmed) return;
 
         try {
             const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
@@ -74,17 +84,19 @@ export default function UsersManagerPage() {
             if (!res.ok || !result.success) {
                 throw new Error(result.error || 'Gagal menghapus pengguna');
             }
+            toast.success('Pengguna berhasil dihapus');
             fetchUsers(page, searchQuery);
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || 'Terjadi kesalahan saat menghapus pengguna');
         }
     };
 
     return (
-        <div className="space-y-8 max-w-6xl">
+        <div className="space-y-8 max-w-6xl relative">
+            <ConfirmComponent />
             <PageHeader
-                title="Kelola Pengguna"
-                description="Manajemen akun admin dan peserta ujian pada sistem E-Learning"
+                title="Kelola Pengguna (Sistem)"
+                description="Manajemen akun Administrator dan Pelatih/Trainer"
                 icon={<UserGroupIcon size={28} className="text-muted-foreground" />}
                 actionLabel="Tambah Pengguna"
                 actionHref="/admin/users/new"
@@ -160,10 +172,10 @@ export default function UsersManagerPage() {
                                         </td>
                                         <td className="px-6 py-4 text-muted-foreground">
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold ${user.role === 'admin'
-                                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                                    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                                 }`}>
-                                                {user.role === 'admin' ? 'Administrator' : 'Peserta'}
+                                                {user.role === 'admin' ? 'Administrator' : 'Pelatih / Trainer'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-muted-foreground">

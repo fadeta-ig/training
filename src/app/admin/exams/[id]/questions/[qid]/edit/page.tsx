@@ -14,6 +14,7 @@ import {
     Tick02Icon,
 } from 'hugeicons-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 const QUESTION_TYPES = [
     { value: 'multiple_choice', label: 'Pilihan Ganda', description: 'Satu jawaban benar dari beberapa opsi' },
@@ -75,8 +76,8 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
 
     const uploadImage = async (file: File): Promise<string | null> => {
         const fd = new FormData(); fd.append('file', file);
-        try { const r = await fetch('/api/upload', { method: 'POST', body: fd }); const d = await r.json(); if (d.success) return d.url; alert(d.error); return null; }
-        catch { alert('Gagal mengunggah gambar.'); return null; }
+        try { const r = await fetch('/api/upload', { method: 'POST', body: fd }); const d = await r.json(); if (d.success) return d.url; toast.error(d.error || 'Gagal mengunggah gambar.'); return null; }
+        catch { toast.error('Gagal mengunggah gambar.'); return null; }
     };
     const handleQuestionImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (!f) return; const u = await uploadImage(f); if (u) setQuestionImage(u); e.target.value = ''; };
     const handleOptionImageUpload = async (idx: number, file: File) => { const u = await uploadImage(file); if (u) { const n = [...options]; n[idx] = { ...n[idx], image: u }; setOptions(n); } };

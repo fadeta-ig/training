@@ -8,7 +8,7 @@ const userUpdateSchema = z.object({
     username: z.string().min(3, 'Username minimal 3 karakter').max(50),
     password: z.string().min(6, 'Password minimal 6 karakter').optional().or(z.literal('')),
     full_name: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(100),
-    role: z.enum(['admin', 'participant'])
+    role: z.enum(['admin', 'trainer'])
 });
 
 async function handleGet(

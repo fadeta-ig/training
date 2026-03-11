@@ -1,6 +1,6 @@
 -- =============================================================================
 -- LMS Antigravity - Modular Training & Exam System
--- DDL Schema (MySQL 8.x compatible)
+-- DDL Schema (MySQL 8.x compatible) — SINKRON DENGAN DB AKTUAL
 -- =============================================================================
 -- Run this against your XAMPP MySQL on localhost:3306
 -- Database: lms_antigravity
@@ -16,16 +16,33 @@ USE lms_antigravity;
 -- 1. Users
 -- ─────────────────────────────────────────────
 CREATE TABLE users (
-  id          VARCHAR(36)  PRIMARY KEY,
-  role        ENUM('admin', 'trainer', 'trainee') NOT NULL DEFAULT 'trainee',
-  name        VARCHAR(100) NOT NULL,
-  username    VARCHAR(50)  UNIQUE NOT NULL,
+  id            VARCHAR(36)  PRIMARY KEY,
+  role          ENUM('admin', 'trainer', 'trainee') NOT NULL DEFAULT 'trainee',
+  full_name     VARCHAR(100) NOT NULL,
+  username      VARCHAR(50)  UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 2. Master Data: Training Materials
+-- 2. Participant Profiles (Detail Data Peserta)
+-- ─────────────────────────────────────────────
+CREATE TABLE participant_profiles (
+  id              VARCHAR(36) PRIMARY KEY,
+  user_id         VARCHAR(36) NOT NULL UNIQUE,
+  phone_number    VARCHAR(20) NULL,
+  address         TEXT NULL,
+  date_of_birth   DATE NULL,
+  gender          ENUM('L', 'P') NULL,
+  institution     VARCHAR(150) NULL,
+  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_participant_user
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ─────────────────────────────────────────────
+-- 3. Master Data: Training Materials
 -- ─────────────────────────────────────────────
 CREATE TABLE trainings (
   id          VARCHAR(36)  PRIMARY KEY,
@@ -37,7 +54,7 @@ CREATE TABLE trainings (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 3. Master Data: Exams (Bank Soal)
+-- 4. Master Data: Exams (Bank Soal)
 -- ─────────────────────────────────────────────
 CREATE TABLE exams (
   id               VARCHAR(36)    PRIMARY KEY,
@@ -48,20 +65,25 @@ CREATE TABLE exams (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 4. Questions (Butir Soal)
+-- 5. Questions (Butir Soal — Multi-type)
 -- ─────────────────────────────────────────────
 CREATE TABLE questions (
-  id             VARCHAR(36)  PRIMARY KEY,
-  exam_id        VARCHAR(36)  NOT NULL,
-  text           TEXT         NOT NULL,
-  options_json   JSON         NOT NULL,
-  correct_answer VARCHAR(50)  NOT NULL,
+  id                   VARCHAR(36) PRIMARY KEY,
+  exam_id              VARCHAR(36) NOT NULL,
+  question_type        ENUM('multiple_choice','multiple_select','true_false','short_answer','essay','matching')
+                         NOT NULL DEFAULT 'multiple_choice',
+  question_text        TEXT NOT NULL,
+  question_image       VARCHAR(500) NULL,
+  options_json         JSON NULL,
+  correct_option_index INT NULL,
+  correct_answer       TEXT NULL,
+  points               INT NOT NULL DEFAULT 1,
   CONSTRAINT fk_questions_exam
     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 5. Modules (Learning Path / Kerangka Urutan)
+-- 6. Modules (Learning Path / Kerangka Urutan)
 -- ─────────────────────────────────────────────
 CREATE TABLE modules (
   id          VARCHAR(36)  PRIMARY KEY,
@@ -71,7 +93,7 @@ CREATE TABLE modules (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 6. Module Items (Urutan item di dalam modul)
+-- 7. Module Items (Urutan item di dalam modul)
 -- ─────────────────────────────────────────────
 CREATE TABLE module_items (
   id             VARCHAR(36) PRIMARY KEY,
@@ -84,7 +106,7 @@ CREATE TABLE module_items (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 7. Sessions (Jadwal Pelaksanaan Sesi)
+-- 8. Sessions (Jadwal Pelaksanaan Sesi)
 -- ─────────────────────────────────────────────
 CREATE TABLE sessions (
   id             VARCHAR(36)  PRIMARY KEY,
@@ -100,7 +122,7 @@ CREATE TABLE sessions (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 8. Session Participants (Peserta Terdaftar)
+-- 9. Session Participants (Peserta Terdaftar)
 -- ─────────────────────────────────────────────
 CREATE TABLE session_participants (
   id          VARCHAR(36) PRIMARY KEY,
@@ -114,7 +136,7 @@ CREATE TABLE session_participants (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 9. User Progress (Tracking Keterbukaan & Nilai)
+-- 10. User Progress (Tracking Keterbukaan & Nilai)
 -- ─────────────────────────────────────────────
 CREATE TABLE user_progress (
   id              VARCHAR(36)   PRIMARY KEY,
@@ -134,7 +156,7 @@ CREATE TABLE user_progress (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 10. Exam Answers (Rekaman Jawaban Per Individu)
+-- 11. Exam Answers (Rekaman Jawaban Per Individu)
 -- ─────────────────────────────────────────────
 CREATE TABLE exam_answers (
   id              VARCHAR(36)  PRIMARY KEY,
@@ -153,7 +175,7 @@ CREATE TABLE exam_answers (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 11. Proctor Snapshots (Webcam Capture Periodik)
+-- 12. Proctor Snapshots (Webcam Capture Periodik)
 -- ─────────────────────────────────────────────
 CREATE TABLE proctor_snapshots (
   id          VARCHAR(36) PRIMARY KEY,
@@ -165,4 +187,19 @@ CREATE TABLE proctor_snapshots (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_proctor_session
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ─────────────────────────────────────────────
+-- 13. Notifications (Sistem Notifikasi)
+-- ─────────────────────────────────────────────
+CREATE TABLE notifications (
+  id          VARCHAR(36) PRIMARY KEY,
+  user_id     VARCHAR(36) NOT NULL,
+  title       VARCHAR(200) NOT NULL,
+  message     TEXT NOT NULL,
+  type        ENUM('info','success','warning','error') NOT NULL DEFAULT 'info',
+  is_read     TINYINT(1) NOT NULL DEFAULT 0,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_notification_user
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

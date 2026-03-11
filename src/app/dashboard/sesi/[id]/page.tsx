@@ -11,6 +11,7 @@ import {
     Book01Icon,
     Edit01Icon,
     AlertCircleIcon,
+    Award01Icon,
 } from 'hugeicons-react';
 
 type ModuleItem = {
@@ -45,11 +46,8 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
         fetch(`/api/participant/sessions/${id}`)
             .then((res) => res.json())
             .then((data) => {
-                if (data.success) {
-                    setSession(data.data);
-                } else {
-                    setError(data.error || 'Gagal memuat sesi');
-                }
+                if (data.success) setSession(data.data);
+                else setError(data.error || 'Gagal memuat sesi');
             })
             .catch(() => setError('Kesalahan jaringan'))
             .finally(() => setLoading(false));
@@ -58,20 +56,20 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     if (loading) {
         return (
             <div className="flex items-center justify-center p-20">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-4 border-foreground/20 border-t-foreground rounded-full animate-spin" />
             </div>
         );
     }
 
     if (error || !session) {
         return (
-            <div className="max-w-3xl mx-auto space-y-6">
-                <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
-                    <ArrowLeft01Icon size={16} /> Kembali
+            <div className="max-w-2xl mx-auto space-y-4">
+                <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
+                    <ArrowLeft01Icon size={14} /> Kembali
                 </Link>
-                <div className="glass-card p-10 text-center">
-                    <AlertCircleIcon size={48} className="mx-auto text-destructive mb-4" />
-                    <p className="text-destructive font-semibold">{error || 'Sesi tidak ditemukan'}</p>
+                <div className="glass-card p-8 text-center">
+                    <AlertCircleIcon size={36} className="mx-auto text-destructive mb-3" />
+                    <p className="text-sm text-destructive font-semibold">{error || 'Sesi tidak ditemukan'}</p>
                 </div>
             </div>
         );
@@ -80,66 +78,92 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const now = new Date();
     const start = new Date(session.start_time);
     const end = new Date(session.end_time);
-    const isActive = now >= start && now <= end;
-
     const completedCount = session.items.filter((i) => i.progress_status === 'completed').length;
-    const progress = session.items.length > 0 ? Math.round((completedCount / session.items.length) * 100) : 0;
+    const totalItems = session.items.length;
+    const progress = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
+
+    // Auto-complete: 100% = Selesai regardless of time
+    const isFullyCompleted = progress === 100 && totalItems > 0;
+    const isActive = !isFullyCompleted && now >= start && now <= end;
+
+    const statusLabel = isFullyCompleted ? 'Selesai' : isActive ? 'Berlangsung' : now < start ? 'Akan Datang' : 'Berakhir';
+    const statusColor = isFullyCompleted ? 'bg-emerald-500' : isActive ? 'bg-emerald-500 animate-pulse' : now < start ? 'bg-blue-400' : 'bg-gray-300';
 
     return (
-        <div className="max-w-3xl mx-auto space-y-8 pb-12">
-            <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
-                <ArrowLeft01Icon size={16} /> Kembali ke Sesi Saya
+        <div className="max-w-2xl mx-auto space-y-5 pb-12">
+            <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
+                <ArrowLeft01Icon size={14} /> Kembali
             </Link>
 
-            {/* Header Card */}
-            <div className="glass-card p-6 md:p-8 space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase ${isActive ? 'bg-emerald-100 text-emerald-700' : now < start ? 'bg-blue-100 text-blue-700' : 'bg-black/5 text-muted-foreground'
-                            }`}>
-                            {isActive ? 'Sedang Berlangsung' : now < start ? 'Akan Datang' : 'Selesai'}
+            {/* Compact Header */}
+            <div className="glass-card p-5 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className={`w-2 h-2 rounded-full ${statusColor}`} />
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{statusLabel}</span>
+                        </div>
+                        <h1 className="text-lg font-bold tracking-tight truncate">{session.title}</h1>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
+                            {session.module_title && <span>{session.module_title}</span>}
+                            <span className="flex items-center gap-1">
+                                <Clock01Icon size={10} />
+                                {start.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} {start.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                                {' — '}
+                                {end.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Progress Circle */}
+                    <div className="shrink-0 w-14 h-14 relative">
+                        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none" stroke="currentColor" strokeWidth="3" className="text-black/5" />
+                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none" strokeWidth="3" strokeDasharray={`${progress}, 100`} strokeLinecap="round"
+                                className={progress === 100 ? 'text-emerald-500' : 'text-foreground'}
+                                style={{ transition: 'stroke-dasharray 1s ease' }} />
+                        </svg>
+                        <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">{progress}%</span>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-black/5">
+                    <span>{completedCount}/{totalItems} item selesai</span>
+                    {isFullyCompleted && (
+                        <span className="flex items-center gap-1 text-emerald-600 font-bold">
+                            <Award01Icon size={12} /> Semua selesai!
                         </span>
-                        <h1 className="text-2xl font-bold tracking-tight mt-2">{session.title}</h1>
-                        {session.module_title && (
-                            <p className="text-sm text-muted-foreground mt-1">Modul: {session.module_title}</p>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3">
-                    <Clock01Icon size={12} />
-                    <span>
-                        {new Date(session.start_time).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        {' — '}
-                        {new Date(session.end_time).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                </div>
-
-                {/* Progress */}
-                <div className="pt-4 border-t border-black/5 space-y-2">
-                    <div className="flex justify-between text-sm font-semibold">
-                        <span>Progress Keseluruhan</span>
-                        <span>{progress}%</span>
-                    </div>
-                    <div className="w-full h-2.5 bg-black/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-foreground rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
-                    </div>
-                    <p className="text-xs text-muted-foreground">{completedCount} / {session.items.length} item selesai</p>
+                    )}
                 </div>
             </div>
 
-            {/* Module Items List */}
-            <div className="space-y-4">
-                <h2 className="text-lg font-semibold tracking-tight">Daftar Materi & Ujian</h2>
+            {/* 100% Completed Banner */}
+            {isFullyCompleted && (
+                <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                        <Award01Icon size={20} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold text-emerald-800">Sesi Selesai!</p>
+                        <p className="text-xs text-emerald-600">Anda telah menyelesaikan semua materi dan ujian dalam sesi ini.</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Module Items */}
+            <div>
+                <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Daftar Materi & Ujian</h2>
 
                 {session.items.length === 0 ? (
-                    <div className="glass-card p-8 text-center text-muted-foreground text-sm">
-                        Modul ini belum memiliki item materi atau ujian.
+                    <div className="glass-card p-6 text-center text-xs text-muted-foreground">
+                        Modul ini belum memiliki item.
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-1.5">
                         {session.items.map((item, idx) => (
-                            <ModuleItemCard
+                            <ItemRow
                                 key={item.module_item_id}
                                 item={item}
                                 index={idx + 1}
@@ -154,87 +178,68 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     );
 }
 
-function ModuleItemCard({
-    item,
-    index,
-    sessionId,
-    isSessionActive,
-}: {
-    item: ModuleItem;
-    index: number;
-    sessionId: string;
-    isSessionActive: boolean;
+function ItemRow({ item, index, sessionId, isSessionActive }: {
+    item: ModuleItem; index: number; sessionId: string; isSessionActive: boolean;
 }) {
     const isCompleted = item.progress_status === 'completed';
     const isLocked = item.progress_status === 'locked';
     const isExam = item.item_type === 'exam';
     const canAccess = isSessionActive && !isLocked;
 
-    return (
-        <div className={`glass-card p-5 flex items-center gap-4 ${canAccess ? 'glass-card-hover cursor-pointer' : ''} ${isLocked ? 'opacity-60' : ''} group transition-all`}>
-            {/* Index / Status Icon */}
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold transition-colors ${isCompleted
-                ? 'bg-emerald-100 text-emerald-700'
-                : isLocked ? 'bg-black/5 text-muted-foreground'
-                    : 'bg-foreground text-background'
+    const href = isExam
+        ? `/dashboard/sesi/${sessionId}/ujian/${item.item_id}`
+        : `/dashboard/sesi/${sessionId}/materi/${item.item_id}`;
+
+    const inner = (
+        <div className={`glass-card px-4 py-3 flex items-center gap-3 transition-all ${canAccess ? 'glass-card-hover group cursor-pointer' : ''} ${isLocked ? 'opacity-40' : ''}`}>
+            {/* Step indicator */}
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-bold ${isCompleted
+                ? 'bg-emerald-100 text-emerald-600'
+                : canAccess ? 'bg-foreground text-background'
+                    : 'bg-black/5 text-muted-foreground'
                 }`}>
-                {isCompleted ? <Tick01Icon size={18} /> : isLocked ? <LockIcon size={14} /> : index}
+                {isCompleted ? <Tick01Icon size={14} /> : isLocked ? <LockIcon size={10} /> : index}
             </div>
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                    {isExam ? (
-                        <Edit01Icon size={14} className="text-muted-foreground shrink-0" />
-                    ) : (
-                        <Book01Icon size={14} className="text-muted-foreground shrink-0" />
-                    )}
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <div className="flex items-center gap-1.5">
+                    {isExam ? <Edit01Icon size={11} className="text-muted-foreground shrink-0" />
+                        : <Book01Icon size={11} className="text-muted-foreground shrink-0" />}
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                         {isExam ? 'Ujian' : 'Materi'}
                     </span>
                 </div>
-                <h3 className="text-sm font-bold mt-0.5 truncate">{item.item_title || 'Untitled'}</h3>
-                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                    {isExam && item.duration_minutes && (
-                        <span className="flex items-center gap-1">
-                            <Clock01Icon size={10} /> {item.duration_minutes} menit
-                        </span>
-                    )}
-                    {isCompleted && item.score !== null && (
-                        <span className="font-semibold text-emerald-600">
-                            Nilai: {item.score}
-                        </span>
-                    )}
-                </div>
+                <h3 className="text-sm font-semibold truncate leading-tight">{item.item_title || 'Untitled'}</h3>
             </div>
 
-            {/* Action */}
-            {canAccess && isExam && !isCompleted && (
-                <Link
-                    href={`/dashboard/sesi/${sessionId}/ujian/${item.item_id}`}
-                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-foreground text-background hover:bg-foreground/90 transition-colors flex items-center gap-1.5 active:scale-95 shrink-0"
-                >
-                    <PlayIcon size={12} />
-                    Mulai Ujian
-                </Link>
-            )}
-            {canAccess && !isExam && !isCompleted && (
-                <Link
-                    href={`/dashboard/sesi/${sessionId}/materi/${item.item_id}`}
-                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-foreground text-background hover:bg-foreground/90 transition-colors flex items-center gap-1.5 active:scale-95 shrink-0"
-                >
-                    <Book01Icon size={12} />
-                    Buka Materi
-                </Link>
-            )}
-            {isCompleted && (
-                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full shrink-0">
-                    Selesai
-                </span>
-            )}
-            {isLocked && (
-                <span className="text-xs text-muted-foreground shrink-0">Terkunci</span>
-            )}
+            {/* Meta */}
+            <div className="flex items-center gap-2 shrink-0">
+                {isExam && item.duration_minutes && (
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <Clock01Icon size={9} /> {item.duration_minutes}m
+                    </span>
+                )}
+                {isCompleted && item.score !== null && (
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                        {item.score}
+                    </span>
+                )}
+                {isCompleted && (
+                    <Tick01Icon size={14} className="text-emerald-500" />
+                )}
+                {canAccess && (
+                    <div className="w-6 h-6 rounded-md bg-foreground text-background flex items-center justify-center">
+                        <PlayIcon size={10} />
+                    </div>
+                )}
+            </div>
         </div>
     );
+
+    if (canAccess) {
+        return <Link href={href}>{inner}</Link>;
+    }
+
+    return inner;
 }

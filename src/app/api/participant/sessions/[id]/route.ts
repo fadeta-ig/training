@@ -76,19 +76,30 @@ async function handleGet(
             [user.id, sessionId, session.module_id]
         );
 
-        // Apply smart defaults based on session timing
+        // Apply sequential phase unlock based on session timing
+        // Rule: items must be completed in sequence_order. Only the FIRST uncompleted item is 'open'.
+        let foundFirstIncomplete = false;
+
         const mappedItems = items.map((item: any) => {
             let progressStatus = item.raw_progress_status;
 
-            if (!progressStatus) {
-                // No user_progress record exists yet
-                if (isActive) {
-                    progressStatus = 'open'; // Session active → items are accessible
-                } else if (isEnded) {
-                    progressStatus = 'completed'; // Session ended → show as done context
+            if (progressStatus === 'completed') {
+                // Already completed — keep as is
+            } else if (!isActive && !isEnded) {
+                // Session hasn't started → all locked
+                progressStatus = 'locked';
+            } else if (isActive) {
+                if (!foundFirstIncomplete) {
+                    // This is the first non-completed item → it's open (accessible)
+                    progressStatus = 'open';
+                    foundFirstIncomplete = true;
                 } else {
-                    progressStatus = 'locked'; // Session hasn't started → locked
+                    // Previous item not yet completed → locked
+                    progressStatus = 'locked';
                 }
+            } else {
+                // Session ended, not completed → show as locked (missed)
+                progressStatus = progressStatus || 'locked';
             }
 
             return {

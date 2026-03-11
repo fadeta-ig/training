@@ -6,7 +6,14 @@ import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMult
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 
-type User = { id: string; username: string; full_name: string };
+type User = {
+    id: string;
+    username: string;
+    full_name: string;
+    completed_items: number;
+    total_items: number;
+    progress: number;
+};
 type SessionDetail = {
     id: string;
     module_id: string;
@@ -191,14 +198,53 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                             <th className="px-4 py-3 font-medium w-16 text-center">No</th>
                                             <th className="px-4 py-3 font-medium">Username</th>
                                             <th className="px-4 py-3 font-medium">Nama Lengkap</th>
+                                            <th className="px-4 py-3 font-medium w-48">Progress</th>
+                                            <th className="px-4 py-3 font-medium text-center w-28">Status</th>
+                                            <th className="px-4 py-3 font-medium text-center w-24">Aksi</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody className="divide-y divide-black/5">
                                         {session.participants.map((p, idx) => (
-                                            <tr key={p.id} className="border-b border-black/5 last:border-0 hover:bg-black/[0.02]">
+                                            <tr key={p.id} className="hover:bg-black/[0.02] transition-colors">
                                                 <td className="px-4 py-3 text-center text-muted-foreground">{idx + 1}</td>
                                                 <td className="px-4 py-3 font-medium text-foreground">{p.username}</td>
                                                 <td className="px-4 py-3 text-muted-foreground">{p.full_name}</td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex-1 h-1.5 bg-black/5 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-700 ${p.progress === 100 ? 'bg-emerald-500' : 'bg-primary'}`}
+                                                                style={{ width: `${p.progress}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-muted-foreground w-8 text-right">
+                                                            {p.progress}%
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {p.progress === 100 ? (
+                                                        <span className="inline-flex px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-bold tracking-wide">
+                                                            SELESAI
+                                                        </span>
+                                                    ) : p.progress > 0 ? (
+                                                        <span className="inline-flex px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[10px] font-bold tracking-wide pulse text-center">
+                                                            MENGERJAKAN
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[10px] font-bold tracking-wide">
+                                                            BELUM
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <Link
+                                                        href={`/admin/sessions/${session.id}/participants/${p.id}`}
+                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary/80 bg-primary/10 px-3 py-1.5 rounded-md hover:bg-primary/20 transition-colors"
+                                                    >
+                                                        Detail
+                                                    </Link>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>

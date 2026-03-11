@@ -6,8 +6,10 @@ import {
     Clock01Icon,
     Tick01Icon,
     Cancel01Icon,
-    ArrowLeft01Icon,
+    ArrowRight01Icon,
     BookOpen01Icon,
+    Calendar01Icon,
+    Award01Icon,
 } from 'hugeicons-react';
 
 type HistoryItem = {
@@ -29,10 +31,13 @@ export default function RiwayatPage() {
             .then((res) => res.json())
             .then((data) => {
                 if (data.success) {
-                    // Filter only ended sessions
                     const now = new Date();
-                    const ended = data.data.filter((s: HistoryItem) => new Date(s.end_time) < now);
-                    setSessions(ended);
+                    // Show sessions that are either ended OR 100% completed
+                    const finished = data.data.filter((s: HistoryItem) =>
+                        new Date(s.end_time) < now ||
+                        (s.total_items > 0 && s.completed_items >= s.total_items)
+                    );
+                    setSessions(finished);
                 }
             })
             .catch(() => { })
@@ -42,62 +47,59 @@ export default function RiwayatPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center p-20">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-4 border-foreground/20 border-t-foreground rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 max-w-5xl mx-auto">
+        <div className="max-w-4xl mx-auto space-y-6">
             <div>
-                <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground">Riwayat Ujian</h1>
-                <p className="text-muted-foreground mt-2 text-sm lg:text-base">
-                    Daftar sesi pelatihan dan ujian yang telah selesai.
-                </p>
+                <h1 className="text-2xl font-bold tracking-tight">Riwayat</h1>
+                <p className="text-muted-foreground text-sm mt-1">Sesi yang telah selesai atau berakhir.</p>
             </div>
 
             {sessions.length === 0 ? (
-                <div className="glass-card p-10 flex flex-col items-center justify-center min-h-[300px]">
-                    <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mb-4">
-                        <BookOpen01Icon size={32} className="text-muted-foreground/50" />
+                <div className="glass-card p-12 flex flex-col items-center text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-black/5 flex items-center justify-center mb-4">
+                        <BookOpen01Icon size={28} className="text-muted-foreground/40" />
                     </div>
-                    <p className="text-muted-foreground font-medium">Belum ada riwayat ujian.</p>
-                    <p className="text-sm text-muted-foreground/70 mt-1">Riwayat akan muncul setelah sesi yang Anda ikuti berakhir.</p>
+                    <p className="font-semibold text-muted-foreground text-sm">Belum ada riwayat</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">Riwayat muncul setelah sesi berakhir atau Anda menyelesaikan semua item.</p>
                 </div>
             ) : (
-                <div className="space-y-3">
+                <div className="space-y-1.5">
                     {sessions.map((s) => {
                         const progress = s.total_items > 0
                             ? Math.round((s.completed_items / s.total_items) * 100)
                             : 0;
-                        const allDone = s.completed_items === s.total_items && s.total_items > 0;
+                        const allDone = progress === 100 && s.total_items > 0;
 
                         return (
                             <Link
                                 key={s.id}
                                 href={`/dashboard/sesi/${s.id}`}
-                                className="glass-card p-5 flex flex-col sm:flex-row sm:items-center gap-4 glass-card-hover group"
+                                className="glass-card px-4 py-3 flex items-center gap-3 glass-card-hover group"
                             >
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${allDone ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                    {allDone ? <Tick01Icon size={18} /> : <Cancel01Icon size={18} />}
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${allDone ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                    {allDone ? <Award01Icon size={14} /> : <Cancel01Icon size={12} />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="text-sm font-bold truncate">{s.title}</h3>
-                                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                    <h3 className="text-sm font-semibold truncate">{s.title}</h3>
+                                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
                                         <span>{s.module_title}</span>
-                                        <span>•</span>
+                                        <span className="opacity-30">·</span>
                                         <span className="flex items-center gap-1">
-                                            <Clock01Icon size={10} />
-                                            {new Date(s.end_time).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            <Calendar01Icon size={10} />
+                                            {new Date(s.end_time).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3 shrink-0">
-                                    <div className="text-right">
-                                        <p className="text-xs font-semibold">{progress}% selesai</p>
-                                        <p className="text-[10px] text-muted-foreground">{s.completed_items}/{s.total_items} item</p>
-                                    </div>
-                                    <ArrowLeft01Icon size={16} className="rotate-180 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${allDone ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                                        {progress}%
+                                    </span>
+                                    <ArrowRight01Icon size={14} className="text-muted-foreground/30 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
                                 </div>
                             </Link>
                         );

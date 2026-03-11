@@ -10,6 +10,7 @@ import {
     Clock01Icon,
     Calendar01Icon,
     BookOpen01Icon,
+    ArrowRight01Icon,
 } from 'hugeicons-react';
 
 type Session = {
@@ -40,6 +41,8 @@ export default function UserDashboardPage() {
     const now = new Date();
 
     function getStatus(s: Session) {
+        // If 100% completed, always "completed" regardless of time
+        if (s.total_items > 0 && s.completed_items >= s.total_items) return 'completed';
         const start = new Date(s.start_time);
         const end = new Date(s.end_time);
         if (now < start) return 'upcoming';
@@ -47,9 +50,14 @@ export default function UserDashboardPage() {
         return 'ended';
     }
 
-    function formatDate(dateStr: string) {
-        return new Date(dateStr).toLocaleString('id-ID', {
-            day: '2-digit', month: 'short', year: 'numeric',
+    function formatDateShort(dateStr: string) {
+        return new Date(dateStr).toLocaleDateString('id-ID', {
+            day: 'numeric', month: 'short',
+        });
+    }
+
+    function formatTime(dateStr: string) {
+        return new Date(dateStr).toLocaleTimeString('id-ID', {
             hour: '2-digit', minute: '2-digit',
         });
     }
@@ -57,170 +65,138 @@ export default function UserDashboardPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center p-20">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-4 border-foreground/20 border-t-foreground rounded-full animate-spin" />
             </div>
         );
     }
 
     const activeSessions = sessions.filter((s) => getStatus(s) === 'active');
+    const completedSessions = sessions.filter((s) => getStatus(s) === 'completed');
     const upcomingSessions = sessions.filter((s) => getStatus(s) === 'upcoming');
     const endedSessions = sessions.filter((s) => getStatus(s) === 'ended');
 
     return (
-        <div className="space-y-10 max-w-5xl mx-auto">
+        <div className="max-w-4xl mx-auto space-y-8">
+            {/* Page Header */}
             <div>
-                <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground">Sesi Saya</h1>
-                <p className="text-muted-foreground mt-2 text-sm lg:text-base">
-                    Daftar sesi pelatihan dan ujian yang Anda ikuti.
-                </p>
+                <h1 className="text-2xl font-bold tracking-tight">Sesi Saya</h1>
+                <p className="text-muted-foreground text-sm mt-1">Pelatihan dan ujian yang Anda ikuti.</p>
             </div>
 
             {sessions.length === 0 ? (
-                <div className="glass-card p-10 flex flex-col items-center justify-center min-h-[400px]">
-                    <div className="w-20 h-20 rounded-full bg-black/5 flex items-center justify-center mb-5">
-                        <BookOpen01Icon size={40} className="text-muted-foreground/50" />
+                <div className="glass-card p-12 flex flex-col items-center justify-center text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-black/5 flex items-center justify-center mb-4">
+                        <BookOpen01Icon size={28} className="text-muted-foreground/40" />
                     </div>
-                    <p className="text-lg font-semibold text-muted-foreground">Belum Ada Sesi Terdaftar</p>
-                    <p className="text-sm text-muted-foreground/70 mt-2 text-center max-w-sm">
-                        Anda belum didaftarkan ke sesi pelatihan atau ujian. Hubungi administrator untuk mendaftarkan Anda ke sesi yang tersedia.
-                    </p>
+                    <p className="font-semibold text-muted-foreground">Belum ada sesi</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1 max-w-xs">Hubungi administrator untuk didaftarkan ke sesi pelatihan.</p>
                 </div>
             ) : (
-                <>
-                    {/* Active Sessions */}
+                <div className="space-y-6">
                     {activeSessions.length > 0 && (
-                        <SectionBlock title="Sedang Berlangsung" count={activeSessions.length}>
-                            {activeSessions.map((s) => (
-                                <SessionCard key={s.id} session={s} status="active" formatDate={formatDate} />
-                            ))}
-                        </SectionBlock>
+                        <SessionGroup title="Sedang Berlangsung" sessions={activeSessions} status="active" formatDateShort={formatDateShort} formatTime={formatTime} />
                     )}
-
-                    {/* Upcoming Sessions */}
                     {upcomingSessions.length > 0 && (
-                        <SectionBlock title="Akan Datang" count={upcomingSessions.length}>
-                            {upcomingSessions.map((s) => (
-                                <SessionCard key={s.id} session={s} status="upcoming" formatDate={formatDate} />
-                            ))}
-                        </SectionBlock>
+                        <SessionGroup title="Akan Datang" sessions={upcomingSessions} status="upcoming" formatDateShort={formatDateShort} formatTime={formatTime} />
                     )}
-
-                    {/* Ended Sessions */}
+                    {completedSessions.length > 0 && (
+                        <SessionGroup title="Selesai (100%)" sessions={completedSessions} status="completed" formatDateShort={formatDateShort} formatTime={formatTime} />
+                    )}
                     {endedSessions.length > 0 && (
-                        <SectionBlock title="Selesai" count={endedSessions.length}>
-                            {endedSessions.map((s) => (
-                                <SessionCard key={s.id} session={s} status="ended" formatDate={formatDate} />
-                            ))}
-                        </SectionBlock>
+                        <SessionGroup title="Berakhir" sessions={endedSessions} status="ended" formatDateShort={formatDateShort} formatTime={formatTime} />
                     )}
-                </>
+                </div>
             )}
         </div>
     );
 }
 
-function SectionBlock({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+function SessionGroup({ title, sessions, status, formatDateShort, formatTime }: {
+    title: string; sessions: Session[]; status: string;
+    formatDateShort: (d: string) => string; formatTime: (d: string) => string;
+}) {
     return (
-        <div className="space-y-4">
-            <div className="flex items-center gap-3">
-                <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-                <span className="bg-black/5 text-muted-foreground text-xs font-bold px-2.5 py-0.5 rounded-full">
-                    {count}
-                </span>
+        <div>
+            <div className="flex items-center gap-2 mb-3">
+                <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{title}</h2>
+                <span className="text-[10px] font-bold bg-black/5 text-muted-foreground px-2 py-0.5 rounded-full">{sessions.length}</span>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">{children}</div>
+            <div className="space-y-2">
+                {sessions.map((s) => (
+                    <SessionRow key={s.id} session={s} status={status} formatDateShort={formatDateShort} formatTime={formatTime} />
+                ))}
+            </div>
         </div>
     );
 }
 
-function SessionCard({
-    session,
-    status,
-    formatDate,
-}: {
-    session: Session;
-    status: 'active' | 'upcoming' | 'ended';
-    formatDate: (d: string) => string;
+function SessionRow({ session, status, formatDateShort, formatTime }: {
+    session: Session; status: string;
+    formatDateShort: (d: string) => string; formatTime: (d: string) => string;
 }) {
     const progress = session.total_items > 0
         ? Math.round((session.completed_items / session.total_items) * 100)
         : 0;
 
-    const statusConfig = {
-        active: { label: 'Sedang Berlangsung', color: 'bg-emerald-100 text-emerald-700', icon: <RocketIcon size={28} /> },
-        upcoming: { label: 'Akan Datang', color: 'bg-blue-100 text-blue-700', icon: <Calendar01Icon size={28} /> },
-        ended: { label: 'Selesai', color: 'bg-black/5 text-muted-foreground', icon: <Tick01Icon size={28} /> },
+    const statusStyles: Record<string, { dot: string; bg: string }> = {
+        active: { dot: 'bg-emerald-500 animate-pulse', bg: 'border-emerald-200/50' },
+        upcoming: { dot: 'bg-blue-400', bg: 'border-blue-100/50' },
+        completed: { dot: 'bg-emerald-500', bg: 'border-emerald-100/50' },
+        ended: { dot: 'bg-gray-300', bg: '' },
     };
 
-    const cfg = statusConfig[status];
-    const isAccessible = status === 'active';
+    const style = statusStyles[status] || statusStyles.ended;
+    const isClickable = status === 'active' || status === 'completed' || status === 'ended';
 
-    return (
-        <div className={`glass-card p-6 flex flex-col ${isAccessible ? 'glass-card-hover' : ''} group`}>
-            <div className="flex justify-between items-start mb-4">
-                <div className="space-y-2">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase ${cfg.color}`}>
-                        {cfg.label}
+    const content = (
+        <div className={`glass-card p-4 flex items-center gap-4 ${isClickable ? 'glass-card-hover group cursor-pointer' : ''} ${style.bg} transition-all`}>
+            {/* Status Dot */}
+            <div className="flex items-center justify-center w-8">
+                <div className={`w-2.5 h-2.5 rounded-full ${style.dot}`} />
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold truncate">{session.title}</h3>
+                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                    <span>{session.module_title}</span>
+                    <span className="opacity-30">·</span>
+                    <span className="flex items-center gap-1">
+                        <Calendar01Icon size={10} />
+                        {formatDateShort(session.start_time)} {formatTime(session.start_time)}
                     </span>
-                    <h2 className="text-xl font-bold tracking-tight leading-tight">{session.title}</h2>
-                    {session.module_title && (
-                        <p className="text-xs text-muted-foreground font-medium">{session.module_title}</p>
-                    )}
-                </div>
-                <div className={`p-3 rounded-2xl transition-colors duration-300 ${isAccessible
-                    ? 'bg-black/5 group-hover:bg-foreground group-hover:text-background'
-                    : 'bg-black/5 text-muted-foreground/50'
-                    }`}>
-                    {cfg.icon}
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-5">
-                <Clock01Icon size={12} />
-                <span>{formatDate(session.start_time)} — {formatDate(session.end_time)}</span>
-            </div>
-
-            <div className="mt-auto space-y-4">
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                    <div className="flex justify-between text-sm font-semibold">
-                        <span>Progress</span>
+            {/* Progress */}
+            <div className="hidden sm:flex items-center gap-3 shrink-0">
+                <div className="w-24">
+                    <div className="flex justify-between text-[10px] font-bold mb-1">
+                        <span className="text-muted-foreground">{session.completed_items}/{session.total_items}</span>
                         <span>{progress}%</span>
                     </div>
-                    <div className="w-full h-2 bg-black/5 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-black/5 rounded-full overflow-hidden">
                         <div
-                            className={`h-full rounded-full transition-all duration-1000 ease-out ${status === 'ended' ? 'bg-muted-foreground' : 'bg-foreground'}`}
+                            className={`h-full rounded-full transition-all duration-700 ${progress === 100 ? 'bg-emerald-500' : 'bg-foreground'}`}
                             style={{ width: `${progress}%` }}
                         />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        {session.completed_items} / {session.total_items} item selesai
-                    </p>
                 </div>
-
-                {/* Action Button */}
-                {isAccessible ? (
-                    <Link
-                        href={`/dashboard/sesi/${session.id}`}
-                        className="w-full px-5 py-2.5 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors focus:ring-2 focus:ring-ring focus:outline-none flex items-center justify-center gap-2 active:scale-95"
-                    >
-                        <PlayIcon size={16} />
-                        Mulai Belajar
-                    </Link>
-                ) : status === 'upcoming' ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium bg-black/5 px-4 py-2.5 rounded-xl">
-                        <LockIcon size={16} />
-                        Sesi belum dimulai
-                    </div>
-                ) : (
-                    <Link
-                        href={`/dashboard/sesi/${session.id}`}
-                        className="w-full px-5 py-2.5 text-sm font-semibold rounded-xl border border-black/10 text-foreground hover:bg-black/5 transition-colors flex items-center justify-center gap-2 active:scale-95"
-                    >
-                        Lihat Hasil
-                    </Link>
-                )}
             </div>
+
+            {/* Action Chevron */}
+            {isClickable && (
+                <ArrowRight01Icon size={16} className="text-muted-foreground/30 group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
+            )}
+            {status === 'upcoming' && (
+                <LockIcon size={14} className="text-muted-foreground/30 shrink-0" />
+            )}
         </div>
     );
+
+    if (isClickable) {
+        return <Link href={`/dashboard/sesi/${session.id}`}>{content}</Link>;
+    }
+
+    return content;
 }

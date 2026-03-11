@@ -5,7 +5,7 @@ import pool from '@/lib/db';
 import { sessionSchema } from '@/lib/validations/sessionSchema';
 import { withAuth } from '@/lib/api-auth';
 
-// GET Detail Sesi & Peserta
+// GET Detail Sesi & Peserta + Progress Monitoring
 async function handleGet(
     request: NextRequest,
     _user: any,
@@ -25,12 +25,35 @@ async function handleGet(
 
         const session = result[0];
 
-        // Fetch participants
+        // Fetch module items count
+        const moduleItems = await executeQuery<any[]>(
+            `SELECT mi.id, mi.item_type, mi.item_id, mi.sequence_order,
+                    CASE mi.item_type
+                        WHEN 'training' THEN t.title
+                        WHEN 'exam' THEN e.title
+                    END AS item_title
+             FROM module_items mi
+             LEFT JOIN trainings t ON mi.item_type = 'training' AND mi.item_id = t.id
+             LEFT JOIN exams e ON mi.item_type = 'exam' AND mi.item_id = e.id
+             WHERE mi.module_id = ?
+             ORDER BY mi.sequence_order ASC`,
+            [session.module_id]
+        );
+
+        const totalItems = moduleItems.length;
+
+        // Fetch participants with progress
         const participants = await executeQuery<any[]>(
-            `SELECT sp.user_id, u.username, u.full_name 
+            `SELECT sp.user_id, u.username, u.full_name,
+                    COUNT(up.id) AS completed_items
              FROM session_participants sp
              JOIN users u ON sp.user_id = u.id
-             WHERE sp.session_id = ?`,
+             LEFT JOIN user_progress up ON up.user_id = sp.user_id 
+                  AND up.session_id = sp.session_id 
+                  AND up.status = 'completed'
+             WHERE sp.session_id = ?
+             GROUP BY sp.user_id, u.username, u.full_name
+             ORDER BY completed_items DESC, u.full_name ASC`,
             [resolvedParams.id]
         );
 
@@ -38,10 +61,15 @@ async function handleGet(
             success: true,
             data: {
                 ...session,
+                total_items: totalItems,
+                module_items: moduleItems,
                 participants: participants.map(p => ({
                     id: p.user_id,
                     username: p.username,
-                    full_name: p.full_name
+                    full_name: p.full_name,
+                    completed_items: Number(p.completed_items),
+                    total_items: totalItems,
+                    progress: totalItems > 0 ? Math.round((Number(p.completed_items) / totalItems) * 100) : 0,
                 }))
             }
         });

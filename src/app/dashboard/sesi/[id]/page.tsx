@@ -188,17 +188,22 @@ function ItemRow({ item, index, sessionId, isSessionActive, requireSeb, isSeb }:
     const isCompleted = item.progress_status === 'completed';
     const isLocked = item.progress_status === 'locked';
     const isExam = item.item_type === 'exam';
+    const isTraining = item.item_type === 'training';
     const requireSebForThisItem = isExam && requireSeb;
     const sebLocked = requireSebForThisItem && !isSeb;
 
-    const canAccess = isSessionActive && !isLocked && !sebLocked;
+    // A completed training is ALWAYS accessible regardless of session status
+    // A completed exam is accessible ONLY if it has can_retake = true AND session is active AND SEB is valid
+    const canAccess = (isTraining && isCompleted) ||
+        (isSessionActive && !isLocked && !sebLocked) ||
+        (isExam && isCompleted && (item as any).can_retake && isSessionActive && !sebLocked);
 
     const href = isExam
         ? `/dashboard/sesi/${sessionId}/ujian/${item.item_id}`
         : `/dashboard/sesi/${sessionId}/materi/${item.item_id}`;
 
     const inner = (
-        <div className={`glass-card px-4 py-3 flex flex-col gap-2 transition-all ${canAccess ? 'glass-card-hover group cursor-pointer' : ''} ${(isLocked || sebLocked) ? 'opacity-40' : ''}`}>
+        <div className={`glass-card px-4 py-3 flex flex-col gap-2 transition-all ${canAccess ? 'glass-card-hover group cursor-pointer' : ''} ${(isLocked || sebLocked) && !(isTraining && isCompleted) ? 'opacity-40' : ''}`}>
             <div className="flex items-center gap-3">
                 {/* Step indicator */}
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-bold ${isCompleted
@@ -217,6 +222,16 @@ function ItemRow({ item, index, sessionId, isSessionActive, requireSeb, isSeb }:
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                             {isExam ? 'Ujian' : 'Materi'}
                         </span>
+                        {isExam && (item as any).max_attempts > 1 && (
+                            <span className="text-[9px] bg-black/5 px-1.5 py-0.5 rounded text-muted-foreground font-semibold ml-1">
+                                {(item as any).attempts_count}/{(item as any).max_attempts} Percobaan
+                            </span>
+                        )}
+                        {isExam && isCompleted && (item as any).can_retake && (
+                            <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold ml-1">
+                                Remidi
+                            </span>
+                        )}
                     </div>
                     <h3 className="text-sm font-semibold truncate leading-tight">{item.item_title || 'Untitled'}</h3>
                 </div>
@@ -233,7 +248,7 @@ function ItemRow({ item, index, sessionId, isSessionActive, requireSeb, isSeb }:
                             {item.score}
                         </span>
                     )}
-                    {isCompleted && (
+                    {isCompleted && !(isExam && (item as any).can_retake) && (
                         <Tick01Icon size={14} className="text-emerald-500" />
                     )}
                     {canAccess && (
@@ -245,7 +260,7 @@ function ItemRow({ item, index, sessionId, isSessionActive, requireSeb, isSeb }:
             </div>
 
             {/* SEB Warning */}
-            {sebLocked && !isCompleted && (
+            {sebLocked && (!isCompleted || (item as any).can_retake) && (
                 <div className="flex items-center gap-1.5 text-[10px] text-destructive bg-destructive/10 px-2.5 py-1.5 rounded-md mt-1 w-fit">
                     <AlertCircleIcon size={12} />
                     <span>Ujian ini hanya dapat diakses melalui Safe Exam Browser (SEB).</span>

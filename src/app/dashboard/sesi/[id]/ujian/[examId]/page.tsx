@@ -55,11 +55,12 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     });
                     setAnswers(restored);
 
-                    // Calculate time left
+                    // Calculate time left based solely on attemptStart and duration
                     const durationMs = data.data.exam.duration_minutes * 60 * 1000;
-                    const sessionEnd = new Date(data.data.sessionEnd).getTime();
                     const serverNow = new Date(data.data.serverTime).getTime();
-                    const maxEnd = Math.min(serverNow + durationMs, sessionEnd);
+                    const attemptStart = new Date(data.data.attemptStart).getTime();
+                    const maxEnd = attemptStart + durationMs;
+
                     setTimeLeft(Math.max(0, Math.floor((maxEnd - serverNow) / 1000)));
                 } else {
                     setError(data.error || 'Gagal memuat ujian');

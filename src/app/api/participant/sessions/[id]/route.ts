@@ -65,8 +65,21 @@ async function handleGet(
                     WHEN 'exam' THEN e.duration_minutes
                     ELSE NULL
                 END AS duration_minutes,
+                CASE mi.item_type
+                    WHEN 'exam' THEN e.allow_remedial
+                    ELSE FALSE
+                END AS allow_remedial,
+                CASE mi.item_type
+                    WHEN 'exam' THEN e.max_attempts
+                    ELSE 1
+                END AS max_attempts,
+                CASE mi.item_type
+                    WHEN 'exam' THEN e.passing_grade
+                    ELSE NULL
+                END AS passing_grade,
                 up.status AS raw_progress_status,
-                up.score
+                up.score,
+                up.attempts_count
             FROM module_items mi
             LEFT JOIN trainings t ON mi.item_type = 'training' AND mi.item_id = t.id
             LEFT JOIN exams e ON mi.item_type = 'exam' AND mi.item_id = e.id
@@ -82,9 +95,21 @@ async function handleGet(
 
         const mappedItems = items.map((item: any) => {
             let progressStatus = item.raw_progress_status;
+            let canRetake = false;
 
             if (progressStatus === 'completed') {
-                // Already completed — keep as is
+                // Completed items generally remain accessible
+                if (item.item_type === 'exam') {
+                    const parsedScore = Number(item.score);
+                    const parsedPassing = Number(item.passing_grade);
+                    const allowRemedial = item.allow_remedial === 1 || item.allow_remedial === true;
+                    const maxAttempts = Number(item.max_attempts) || 1;
+                    const currentAttempts = Number(item.attempts_count) || 1;
+
+                    if (parsedScore < parsedPassing && allowRemedial && currentAttempts < maxAttempts) {
+                        canRetake = true;
+                    }
+                }
             } else if (!isActive && !isEnded) {
                 // Session hasn't started → all locked
                 progressStatus = 'locked';
@@ -111,6 +136,9 @@ async function handleGet(
                 duration_minutes: item.duration_minutes,
                 progress_status: progressStatus,
                 score: item.score,
+                can_retake: canRetake,
+                attempts_count: item.attempts_count || 0,
+                max_attempts: item.max_attempts || 1
             };
         });
 

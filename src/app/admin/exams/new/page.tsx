@@ -11,7 +11,9 @@ export default function NewExamPage() {
     const [formData, setFormData] = useState({
         title: '',
         duration_minutes: 60,
-        passing_grade: 70
+        passing_grade: 70,
+        allow_remedial: false,
+        max_attempts: 1
     });
     const [error, setError] = useState<string | null>(null);
 
@@ -109,6 +111,43 @@ export default function NewExamPage() {
                         />
                         <p className="text-xs text-muted-foreground">Persentase minimum untuk lulus (0-100).</p>
                     </div>
+                </div>
+
+                <div className="pt-4 border-t border-black/5">
+                    <div className="flex items-center gap-3 mb-4">
+                        <input
+                            type="checkbox"
+                            id="allow_remedial"
+                            className="w-5 h-5 rounded border-black/20 text-foreground focus:ring-foreground transition-all"
+                            checked={formData.allow_remedial}
+                            onChange={(e) => {
+                                setFormData({
+                                    ...formData,
+                                    allow_remedial: e.target.checked,
+                                    max_attempts: e.target.checked ? Math.max(2, formData.max_attempts) : 1
+                                })
+                            }}
+                        />
+                        <label htmlFor="allow_remedial" className="text-sm font-bold text-foreground cursor-pointer select-none">
+                            Izinkan Pelaksanaan Remidi Ujian
+                        </label>
+                    </div>
+
+                    {formData.allow_remedial && (
+                        <div className="space-y-2 mb-6 ml-8 p-4 bg-black/[0.02] rounded-xl border border-black/5">
+                            <label className="text-sm font-bold text-foreground">Batas Maksimal Percobaan <span className="text-destructive">*</span></label>
+                            <input
+                                type="number"
+                                required
+                                min={2}
+                                max={10}
+                                className="w-full max-w-xs glass-input px-4 py-3 rounded-xl text-sm focus:outline-none block"
+                                value={formData.max_attempts}
+                                onChange={e => setFormData({ ...formData, max_attempts: Number(e.target.value) })}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Jumlah kesempatan maksimal yang diberikan kepada peserta (termasuk ujian pertama).</p>
+                        </div>
+                    )}
                 </div>
 
                 <div className="pt-4 border-t border-black/5 flex justify-end">

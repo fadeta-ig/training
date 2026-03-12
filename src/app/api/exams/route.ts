@@ -15,7 +15,7 @@ async function handleGet(request: NextRequest) {
         const total = countResult[0]?.total || 0;
 
         const exams = await executeQuery(
-            `SELECT id, title, duration_minutes, passing_grade, created_at FROM exams ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+            `SELECT id, title, duration_minutes, passing_grade, allow_remedial, max_attempts, created_at FROM exams ORDER BY created_at DESC LIMIT ? OFFSET ?`,
             [limit, offset]
         );
 
@@ -47,12 +47,12 @@ async function handlePost(request: NextRequest) {
             );
         }
 
-        const { title, duration_minutes, passing_grade } = parsed.data;
+        const { title, duration_minutes, passing_grade, allow_remedial = false, max_attempts = 1 } = parsed.data;
         const examId = uuidv4();
 
         await executeQuery(
-            `INSERT INTO exams (id, title, duration_minutes, passing_grade) VALUES (?, ?, ?, ?)`,
-            [examId, title, duration_minutes, passing_grade]
+            `INSERT INTO exams (id, title, duration_minutes, passing_grade, allow_remedial, max_attempts) VALUES (?, ?, ?, ?, ?, ?)`,
+            [examId, title, duration_minutes, passing_grade, allow_remedial, max_attempts]
         );
 
         return NextResponse.json({ success: true, id: examId, message: 'Exam created' }, { status: 201 });

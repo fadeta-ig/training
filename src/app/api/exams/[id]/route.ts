@@ -43,11 +43,11 @@ async function handlePut(
             );
         }
 
-        const { title, duration_minutes, passing_grade } = parsed.data;
+        const { title, duration_minutes, passing_grade, allow_remedial = false, max_attempts = 1 } = parsed.data;
 
         const result = await executeQuery<{ affectedRows: number }>(
-            `UPDATE exams SET title = ?, duration_minutes = ?, passing_grade = ? WHERE id = ?`,
-            [title, duration_minutes, passing_grade, resolvedParams.id]
+            `UPDATE exams SET title = ?, duration_minutes = ?, passing_grade = ?, allow_remedial = ?, max_attempts = ? WHERE id = ?`,
+            [title, duration_minutes, passing_grade, allow_remedial, max_attempts, resolvedParams.id]
         );
 
         if (result && 'affectedRows' in result && result.affectedRows === 0) {

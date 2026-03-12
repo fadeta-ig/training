@@ -66,10 +66,26 @@ async function handlePost(
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
-        // Delete existing answers first (allow re-submit)
+        // Get attempt number
+        const progressRes = await executeQuery<any[]>(
+            `SELECT up.id, up.attempts_count 
+             FROM user_progress up
+             JOIN module_items mi ON up.module_item_id = mi.id
+             WHERE up.user_id = ? AND up.session_id = ? AND mi.item_type = 'exam' AND mi.item_id = ?`,
+            [user.id, sessionId, examId]
+        );
+        let attemptNumber = 1;
+        let progressId = null;
+
+        if (progressRes && progressRes.length > 0) {
+            attemptNumber = (progressRes[0].attempts_count || 0) + 1;
+            progressId = progressRes[0].id;
+        }
+
+        // Delete existing answers only for the current attempt (allows resume-then-submit flow safely)
         await connection.execute(
-            `DELETE FROM exam_answers WHERE user_id = ? AND session_id = ?`,
-            [user.id, sessionId]
+            `DELETE FROM exam_answers WHERE user_id = ? AND session_id = ? AND attempt_number = ?`,
+            [user.id, sessionId, attemptNumber]
         );
 
         let totalPoints = 0;
@@ -123,9 +139,9 @@ async function handlePost(
             }
 
             await connection.execute(
-                `INSERT INTO exam_answers (id, user_id, session_id, question_id, selected_option, is_correct)
-                 VALUES (?, ?, ?, ?, ?, ?)`,
-                [uuidv4(), user.id, sessionId, answer.question_id, answer.selected_option, isCorrect]
+                `INSERT INTO exam_answers (id, user_id, session_id, question_id, selected_option, is_correct, attempt_number)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [uuidv4(), user.id, sessionId, answer.question_id, answer.selected_option, isCorrect, attemptNumber]
             );
         }
 
@@ -141,20 +157,18 @@ async function handlePost(
         );
 
         if (moduleItem && moduleItem.length > 0) {
-            const existing = await executeQuery<any[]>(
-                `SELECT id FROM user_progress WHERE user_id = ? AND session_id = ? AND module_item_id = ?`,
-                [user.id, sessionId, moduleItem[0].id]
-            );
-
-            if (existing && existing.length > 0) {
+            if (progressId) {
+                // Determine the best score across attempts (or just use latest, but best is usually preferred for remedial)
+                // Actually, typically the latest attempt is the one recorded, but we can store it.
+                // Reset last_attempt_start so next attempt generates a newly fresh timer.
                 await connection.execute(
-                    `UPDATE user_progress SET status = 'completed', score = ? WHERE id = ?`,
-                    [score, existing[0].id]
+                    `UPDATE user_progress SET status = 'completed', score = ?, attempts_count = attempts_count + 1, last_attempt_start = NULL WHERE id = ?`,
+                    [score, progressId]
                 );
             } else {
                 await connection.execute(
-                    `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status, score)
-                     VALUES (?, ?, ?, ?, 'completed', ?)`,
+                    `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status, score, attempts_count)
+                     VALUES (?, ?, ?, ?, 'completed', ?, 1)`,
                     [uuidv4(), user.id, sessionId, moduleItem[0].id, score]
                 );
             }

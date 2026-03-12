@@ -64,6 +64,33 @@ async function handleGet(
             return NextResponse.json({ success: false, error: 'Ujian tidak ditemukan' }, { status: 404 });
         }
 
+        // Get or initialize last_attempt_start
+        const progress = await executeQuery<any[]>(
+            `SELECT up.id, up.last_attempt_start, up.attempts_count 
+             FROM user_progress up
+             JOIN module_items mi ON up.module_item_id = mi.id
+             WHERE up.user_id = ? AND up.session_id = ? AND mi.item_type = 'exam' AND mi.item_id = ?`,
+            [user.id, sessionId, examId]
+        );
+
+        let attemptStart = now;
+        let attemptNumber = 1;
+
+        if (progress && progress.length > 0) {
+            const up = progress[0];
+            attemptNumber = (up.attempts_count || 0) + 1;
+
+            if (!up.last_attempt_start) {
+                // Initialize start time for this attempt
+                await executeQuery(
+                    `UPDATE user_progress SET last_attempt_start = ? WHERE id = ?`,
+                    [now, up.id]
+                );
+            } else {
+                attemptStart = new Date(up.last_attempt_start);
+            }
+        }
+
         // Fetch questions (without correct answers for security)
         const questions = await executeQuery<any[]>(
             `SELECT id, question_type, text AS question_text, question_image, options_json, points
@@ -90,10 +117,11 @@ async function handleGet(
         });
 
         // Fetch any existing answers (in case of resume)
+        // We now filter by attempt_number to only load answers for the CURRENT attempt
         const existingAnswers = await executeQuery<any[]>(
             `SELECT question_id, selected_option FROM exam_answers
-             WHERE user_id = ? AND session_id = ?`,
-            [user.id, sessionId]
+             WHERE user_id = ? AND session_id = ? AND attempt_number = ?`,
+            [user.id, sessionId, attemptNumber]
         );
 
         return NextResponse.json({
@@ -102,8 +130,10 @@ async function handleGet(
                 exam: exam[0],
                 questions: sanitized,
                 existingAnswers,
-                serverTime: new Date().toISOString(),
+                serverTime: now.toISOString(),
                 sessionEnd: session[0].end_time,
+                attemptStart: attemptStart.toISOString(),
+                attemptNumber: attemptNumber,
             },
         });
     } catch (error) {

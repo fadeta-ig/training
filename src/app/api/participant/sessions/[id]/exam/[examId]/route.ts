@@ -27,11 +27,21 @@ async function handleGet(
 
         // Check session is active
         const session = await executeQuery<any[]>(
-            `SELECT start_time, end_time FROM sessions WHERE id = ?`,
+            `SELECT start_time, end_time, require_seb FROM sessions WHERE id = ?`,
             [sessionId]
         );
         if (!session || session.length === 0) {
             return NextResponse.json({ success: false, error: 'Sesi tidak ditemukan' }, { status: 404 });
+        }
+
+        if (session[0].require_seb) {
+            const userAgent = _request.headers.get('user-agent') || '';
+            if (!userAgent.includes('SafeExamBrowser')) {
+                return NextResponse.json(
+                    { success: false, error: 'Akses ujian ini mewajibkan penggunaan Safe Exam Browser (SEB).' },
+                    { status: 403 }
+                );
+            }
         }
 
         const now = new Date();

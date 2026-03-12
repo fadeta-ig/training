@@ -32,6 +32,21 @@ async function handlePost(
             return NextResponse.json({ success: false, error: 'Tidak terdaftar' }, { status: 403 });
         }
 
+        // Check SEB requirement
+        const session = await executeQuery<any[]>(
+            `SELECT require_seb FROM sessions WHERE id = ?`,
+            [sessionId]
+        );
+        if (session && session.length > 0 && session[0].require_seb) {
+            const userAgent = request.headers.get('user-agent') || '';
+            if (!userAgent.includes('SafeExamBrowser')) {
+                return NextResponse.json(
+                    { success: false, error: 'Pengumpulan ujian mewajibkan penggunaan Safe Exam Browser (SEB).' },
+                    { status: 403 }
+                );
+            }
+        }
+
         // Fetch all questions for grading
         const questions = await executeQuery<any[]>(
             `SELECT id, question_type, options_json, correct_option_index, correct_answer, points

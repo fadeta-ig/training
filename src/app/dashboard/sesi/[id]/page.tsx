@@ -41,8 +41,10 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const [session, setSession] = useState<SessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isSEB, setIsSEB] = useState(false);
 
     useEffect(() => {
+        setIsSEB(navigator.userAgent.includes('SafeExamBrowser'));
         fetch(`/api/participant/sessions/${id}`)
             .then((res) => res.json())
             .then((data) => {
@@ -169,6 +171,8 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                                 index={idx + 1}
                                 sessionId={session.id}
                                 isSessionActive={isActive}
+                                requireSeb={session.require_seb}
+                                isSeb={isSEB}
                             />
                         ))}
                     </div>
@@ -178,62 +182,75 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     );
 }
 
-function ItemRow({ item, index, sessionId, isSessionActive }: {
-    item: ModuleItem; index: number; sessionId: string; isSessionActive: boolean;
+function ItemRow({ item, index, sessionId, isSessionActive, requireSeb, isSeb }: {
+    item: ModuleItem; index: number; sessionId: string; isSessionActive: boolean; requireSeb: boolean; isSeb: boolean;
 }) {
     const isCompleted = item.progress_status === 'completed';
     const isLocked = item.progress_status === 'locked';
     const isExam = item.item_type === 'exam';
-    const canAccess = isSessionActive && !isLocked;
+    const requireSebForThisItem = isExam && requireSeb;
+    const sebLocked = requireSebForThisItem && !isSeb;
+
+    const canAccess = isSessionActive && !isLocked && !sebLocked;
 
     const href = isExam
         ? `/dashboard/sesi/${sessionId}/ujian/${item.item_id}`
         : `/dashboard/sesi/${sessionId}/materi/${item.item_id}`;
 
     const inner = (
-        <div className={`glass-card px-4 py-3 flex items-center gap-3 transition-all ${canAccess ? 'glass-card-hover group cursor-pointer' : ''} ${isLocked ? 'opacity-40' : ''}`}>
-            {/* Step indicator */}
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-bold ${isCompleted
-                ? 'bg-emerald-100 text-emerald-600'
-                : canAccess ? 'bg-foreground text-background'
-                    : 'bg-black/5 text-muted-foreground'
-                }`}>
-                {isCompleted ? <Tick01Icon size={14} /> : isLocked ? <LockIcon size={10} /> : index}
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                    {isExam ? <Edit01Icon size={11} className="text-muted-foreground shrink-0" />
-                        : <Book01Icon size={11} className="text-muted-foreground shrink-0" />}
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                        {isExam ? 'Ujian' : 'Materi'}
-                    </span>
+        <div className={`glass-card px-4 py-3 flex flex-col gap-2 transition-all ${canAccess ? 'glass-card-hover group cursor-pointer' : ''} ${(isLocked || sebLocked) ? 'opacity-40' : ''}`}>
+            <div className="flex items-center gap-3">
+                {/* Step indicator */}
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-bold ${isCompleted
+                    ? 'bg-emerald-100 text-emerald-600'
+                    : canAccess ? 'bg-foreground text-background'
+                        : 'bg-black/5 text-muted-foreground'
+                    }`}>
+                    {isCompleted ? <Tick01Icon size={14} /> : (isLocked || sebLocked) ? <LockIcon size={10} /> : index}
                 </div>
-                <h3 className="text-sm font-semibold truncate leading-tight">{item.item_title || 'Untitled'}</h3>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                        {isExam ? <Edit01Icon size={11} className="text-muted-foreground shrink-0" />
+                            : <Book01Icon size={11} className="text-muted-foreground shrink-0" />}
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                            {isExam ? 'Ujian' : 'Materi'}
+                        </span>
+                    </div>
+                    <h3 className="text-sm font-semibold truncate leading-tight">{item.item_title || 'Untitled'}</h3>
+                </div>
+
+                {/* Meta */}
+                <div className="flex items-center gap-2 shrink-0">
+                    {isExam && item.duration_minutes && (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <Clock01Icon size={9} /> {item.duration_minutes}m
+                        </span>
+                    )}
+                    {isCompleted && item.score !== null && (
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                            {item.score}
+                        </span>
+                    )}
+                    {isCompleted && (
+                        <Tick01Icon size={14} className="text-emerald-500" />
+                    )}
+                    {canAccess && (
+                        <div className="w-6 h-6 rounded-md bg-foreground text-background flex items-center justify-center">
+                            <PlayIcon size={10} />
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Meta */}
-            <div className="flex items-center gap-2 shrink-0">
-                {isExam && item.duration_minutes && (
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                        <Clock01Icon size={9} /> {item.duration_minutes}m
-                    </span>
-                )}
-                {isCompleted && item.score !== null && (
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                        {item.score}
-                    </span>
-                )}
-                {isCompleted && (
-                    <Tick01Icon size={14} className="text-emerald-500" />
-                )}
-                {canAccess && (
-                    <div className="w-6 h-6 rounded-md bg-foreground text-background flex items-center justify-center">
-                        <PlayIcon size={10} />
-                    </div>
-                )}
-            </div>
+            {/* SEB Warning */}
+            {sebLocked && !isCompleted && (
+                <div className="flex items-center gap-1.5 text-[10px] text-destructive bg-destructive/10 px-2.5 py-1.5 rounded-md mt-1 w-fit">
+                    <AlertCircleIcon size={12} />
+                    <span>Ujian ini hanya dapat diakses melalui Safe Exam Browser (SEB).</span>
+                </div>
+            )}
         </div>
     );
 

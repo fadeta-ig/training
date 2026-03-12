@@ -24,6 +24,9 @@ type UserInfo = {
 export default function UserLayout({ children }: { children: ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [user, setUser] = useState<UserInfo | null>(null);
+    const [unreadNotifs, setUnreadNotifs] = useState(0);
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
 
@@ -32,6 +35,15 @@ export default function UserLayout({ children }: { children: ReactNode }) {
             .then((res) => res.json())
             .then((data) => {
                 if (data.success) setUser(data.data);
+            })
+            .catch(() => { });
+
+        fetch('/api/participant/notifications')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    setUnreadNotifs(data.data.filter((n: any) => !n.is_read).length);
+                }
             })
             .catch(() => { });
     }, []);
@@ -84,8 +96,10 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                 </div>
 
                 <nav className="flex-1 space-y-1.5 p-3 overflow-y-auto overflow-x-hidden">
-                    <NavLink href="/dashboard" label="Sesi Saya" icon={<DashboardSquare01Icon size={20} />} isOpen={isSidebarOpen} active={pathname === '/dashboard'} />
+                    <NavLink href="/dashboard" label="Overview" icon={<DashboardSquare01Icon size={20} />} isOpen={isSidebarOpen} active={pathname === '/dashboard'} />
+                    <NavLink href="/dashboard/sesi" label="Sesi Pelatihan" icon={<Mortarboard01Icon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/dashboard/sesi')} />
                     <NavLink href="/dashboard/riwayat" label="Riwayat Ujian" icon={<Clock01Icon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/dashboard/riwayat')} />
+                    <NavLink href="/dashboard/profil" label="Profil & Pengaturan" icon={<UserCircleIcon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/dashboard/profil')} />
                 </nav>
 
                 {/* User Profile */}
@@ -101,20 +115,11 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                             </div>
                         )}
                     </div>
-                    {isSidebarOpen && (
-                        <button
-                            onClick={handleLogout}
-                            className="mt-3 w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 px-3 py-2 rounded-lg transition-colors"
-                        >
-                            <Logout01Icon size={14} />
-                            <span>Keluar</span>
-                        </button>
-                    )}
                 </div>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-background">
+            <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-background relative">
                 {/* Top Header */}
                 <header className="h-16 flex items-center justify-between px-6 border-b border-black/5 bg-white/60 backdrop-blur-md shrink-0 z-30">
                     <div className="flex items-center gap-4">
@@ -128,13 +133,78 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                             Selamat datang, {user?.full_name?.split(' ')[0] || 'Peserta'}!
                         </h2>
                     </div>
-                    <div className="flex items-center gap-5">
-                        <button className="text-muted-foreground hover:text-foreground transition-colors relative">
-                            <Notification01Icon size={22} />
-                        </button>
-                        <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center text-background text-xs font-bold">
-                            {user?.full_name?.charAt(0)?.toUpperCase() || 'P'}
+                    <div className="flex items-center gap-5 relative">
+                        {/* Notifications */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                                className={`p-2 rounded-xl transition-colors relative ${isNotifOpen ? 'bg-black/10 text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-black/5'}`}
+                            >
+                                <Notification01Icon size={22} />
+                                {unreadNotifs > 0 && (
+                                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-background"></span>
+                                )}
+                            </button>
+
+                            {/* Notif Dropdown */}
+                            {isNotifOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
+                                    <div className="absolute right-0 mt-2 w-72 bg-background border border-black/10 shadow-xl rounded-2xl overflow-hidden z-50 glass-card">
+                                        <div className="p-4 border-b border-black/5 flex items-center justify-between">
+                                            <h3 className="font-bold text-sm">Notifikasi</h3>
+                                            {unreadNotifs > 0 && (
+                                                <span className="bg-destructive/10 text-destructive text-[10px] font-bold px-2 py-0.5 rounded-full">{unreadNotifs} baru</span>
+                                            )}
+                                        </div>
+                                        <div className="p-4 text-center">
+                                            <Link
+                                                href="/dashboard/notifikasi"
+                                                onClick={() => setIsNotifOpen(false)}
+                                                className="text-xs font-semibold text-foreground hover:underline transition-all"
+                                            >
+                                                Lihat Semua Notifikasi &rarr;
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
+
+                        {/* Profile Avatar & Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                                className="w-9 h-9 rounded-full bg-foreground flex items-center justify-center text-background text-xs font-bold hover:ring-2 hover:ring-foreground/20 transition-all border-2 border-transparent focus:border-white"
+                            >
+                                {user?.full_name?.charAt(0)?.toUpperCase() || 'P'}
+                            </button>
+
+                            {isProfileOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)}></div>
+                                    <div className="absolute right-0 mt-2 w-48 bg-background border border-black/10 shadow-xl rounded-2xl overflow-hidden z-50 py-1">
+                                        <Link
+                                            href="/dashboard/profil"
+                                            onClick={() => setIsProfileOpen(false)}
+                                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium hover:bg-black/5 transition-colors"
+                                        >
+                                            <UserCircleIcon size={16} />
+                                            Profil Saya
+                                        </Link>
+                                        <div className="h-px bg-black/5 my-1"></div>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/5 transition-colors text-left"
+                                        >
+                                            <Logout01Icon size={16} />
+                                            Log Keluar
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
                     </div>
                 </header>
 

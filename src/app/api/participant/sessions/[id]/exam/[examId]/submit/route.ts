@@ -91,6 +91,9 @@ async function handlePost(
         let totalPoints = 0;
         let earnedPoints = 0;
 
+        const answerValues: any[] = [];
+        const placeholders: string[] = [];
+
         for (const answer of answers) {
             const q = questionMap.get(answer.question_id);
             if (!q) continue;
@@ -138,10 +141,23 @@ async function handlePost(
                 earnedPoints += q.points || 1;
             }
 
+            answerValues.push(
+                uuidv4(),
+                user.id,
+                sessionId,
+                answer.question_id,
+                answer.selected_option,
+                isCorrect,
+                attemptNumber
+            );
+            placeholders.push('(?, ?, ?, ?, ?, ?, ?)');
+        }
+
+        if (answerValues.length > 0) {
             await connection.execute(
                 `INSERT INTO exam_answers (id, user_id, session_id, question_id, selected_option, is_correct, attempt_number)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [uuidv4(), user.id, sessionId, answer.question_id, answer.selected_option, isCorrect, attemptNumber]
+                 VALUES ${placeholders.join(', ')}`,
+                answerValues
             );
         }
 

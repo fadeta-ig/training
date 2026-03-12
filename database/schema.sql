@@ -146,6 +146,7 @@ CREATE TABLE user_progress (
   status          ENUM('locked', 'open', 'completed') DEFAULT 'locked',
   score           DECIMAL(5, 2) NULL,
   updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_user_session (user_id, session_id),
   UNIQUE KEY uq_progress (user_id, session_id, module_item_id),
   CONSTRAINT fk_progress_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -165,7 +166,9 @@ CREATE TABLE exam_answers (
   question_id     VARCHAR(36)  NOT NULL,
   selected_option VARCHAR(50)  NOT NULL,
   is_correct      BOOLEAN      NOT NULL DEFAULT FALSE,
+  attempt_number  INT          NOT NULL DEFAULT 1,
   answered_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_exam_answers_user_attempt (user_id, session_id, attempt_number),
   CONSTRAINT fk_answers_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_answers_session

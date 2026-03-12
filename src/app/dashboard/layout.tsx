@@ -6,12 +6,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
     Menu01Icon,
     Cancel01Icon,
+    Mortarboard01Icon,
+    UserCircleIcon,
     DashboardSquare01Icon,
     Clock01Icon,
-    UserCircleIcon,
     Notification01Icon,
-    Mortarboard01Icon,
-    Logout01Icon,
+    CrownIcon,
+    Logout01Icon
 } from 'hugeicons-react';
 
 type UserInfo = {
@@ -98,6 +99,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                 <nav className="flex-1 space-y-1.5 p-3 overflow-y-auto overflow-x-hidden">
                     <NavLink href="/dashboard" label="Overview" icon={<DashboardSquare01Icon size={20} />} isOpen={isSidebarOpen} active={pathname === '/dashboard'} />
                     <NavLink href="/dashboard/sesi" label="Sesi Pelatihan" icon={<Mortarboard01Icon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/dashboard/sesi')} />
+                    <NavLink href="/dashboard/leaderboard" label="Klasemen Top 100" icon={<CrownIcon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/dashboard/leaderboard')} />
                     <NavLink href="/dashboard/riwayat" label="Riwayat Ujian" icon={<Clock01Icon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/dashboard/riwayat')} />
                     <NavLink href="/dashboard/profil" label="Profil & Pengaturan" icon={<UserCircleIcon size={20} />} isOpen={isSidebarOpen} active={pathname.startsWith('/dashboard/profil')} />
                 </nav>

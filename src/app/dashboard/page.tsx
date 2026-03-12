@@ -1,7 +1,7 @@
-'use client';
-
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
+import { executeQuery } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
 import {
     Calendar01Icon,
     Mortarboard01Icon,
@@ -10,6 +10,7 @@ import {
     ArrowRight01Icon,
     BookOpen01Icon,
 } from 'hugeicons-react';
+import DashboardCalendar from './_components/DashboardCalendar';
 
 type Session = {
     id: string;
@@ -21,21 +22,40 @@ type Session = {
     completed_items: number;
 };
 
-export default function DashboardOverviewPage() {
-    const [sessions, setSessions] = useState<Session[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [currentMonth, setCurrentMonth] = useState(new Date());
+// RSC Fetch Logic
+async function getSessions() {
+    try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get('training_session')?.value;
+        if (!token) return [];
 
-    useEffect(() => {
-        fetch('/api/participant/sessions')
-            .then((res) => res.json())
-            .then((data) => {
-                if (data.success) setSessions(data.data);
-            })
-            .catch(() => { })
-            .finally(() => setLoading(false));
-    }, []);
+        const payload = await verifyToken(token);
+        if (!payload || !payload.sub) return [];
+        const userId = payload.sub;
 
+        const query = `
+            SELECT 
+                s.id, s.title, s.start_time, s.end_time,
+                m.title as module_title,
+                (SELECT COUNT(*) FROM module_items mi WHERE mi.module_id = m.id) as total_items,
+                (SELECT COUNT(*) FROM user_progress up 
+                 WHERE up.user_id = ? AND up.session_id = s.id AND up.status = 'completed') as completed_items
+            FROM sessions s
+            JOIN modules m ON s.module_id = m.id
+            JOIN session_participants sp ON s.id = sp.session_id
+            WHERE sp.user_id = ?
+            ORDER BY s.start_time ASC
+        `;
+
+        const data = await executeQuery<Session[]>(query, [userId, userId]);
+        return data || [];
+    } catch {
+        return [];
+    }
+}
+
+export default async function DashboardOverviewPage() {
+    const sessions = await getSessions();
     const now = new Date();
 
     function getStatus(s: Session) {
@@ -50,30 +70,6 @@ export default function DashboardOverviewPage() {
     const activeCount = sessions.filter(s => getStatus(s) === 'active').length;
     const completedCount = sessions.filter(s => getStatus(s) === 'completed').length;
     const upcomingCount = sessions.filter(s => getStatus(s) === 'upcoming').length;
-
-    // Calendar Logic
-    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-    const startDate = new Date(startOfMonth);
-    startDate.setDate(startDate.getDate() - startDate.getDay()); // Adjust to start on Sunday
-
-    const calendarDays = [];
-    let currentDayIter = new Date(startDate);
-    while (currentDayIter <= endOfMonth || calendarDays.length % 7 !== 0) {
-        calendarDays.push(new Date(currentDayIter));
-        currentDayIter.setDate(currentDayIter.getDate() + 1);
-    }
-
-    const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
-    const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
-
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center h-full p-20">
-                <div className="w-8 h-8 border-4 border-foreground/20 border-t-foreground rounded-full animate-spin" />
-            </div>
-        );
-    }
 
     return (
         <div className="max-w-5xl mx-auto space-y-8">
@@ -125,93 +121,22 @@ export default function DashboardOverviewPage() {
             {/* Layout Grid: Calendar & Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {/* Calendar View */}
-                <div className="lg:col-span-2 glass-card p-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-base font-bold flex items-center gap-2">
-                            <Calendar01Icon size={20} className="text-muted-foreground" />
-                            Jadwal Pelatihan
-                        </h2>
-                        <div className="flex items-center gap-3">
-                            <button onClick={prevMonth} className="w-8 h-8 rounded-lg flex items-center justify-center border hover:bg-black/5 transition-colors">&lt;</button>
-                            <span className="text-sm font-bold w-32 text-center">
-                                {currentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-                            </span>
-                            <button onClick={nextMonth} className="w-8 h-8 rounded-lg flex items-center justify-center border hover:bg-black/5 transition-colors">&gt;</button>
-                        </div>
-                    </div>
-
-                    {/* Calendar Grid */}
-                    <div>
-                        <div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-semibold text-muted-foreground">
-                            {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map(d => (
-                                <div key={d} className="py-2">{d}</div>
-                            ))}
-                        </div>
-                        <div className="grid grid-cols-7 gap-2">
-                            {calendarDays.map((date, idx) => {
-                                const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
-                                const isToday = date.toDateString() === now.toDateString();
-
-                                // Find events for this day
-                                const dayEvents = sessions.filter(s => {
-                                    const st = new Date(s.start_time);
-                                    const en = new Date(s.end_time);
-                                    // Treat as event if the day falls between start and end inclusive
-                                    const dStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-                                    const dEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
-                                    return (st <= dEnd && en >= dStart);
-                                });
-
-                                return (
-                                    <div
-                                        key={idx}
-                                        className={`min-h-24 p-2 rounded-xl border transition-all 
-                                            ${!isCurrentMonth ? 'opacity-40 bg-black/5' : 'bg-white/50 hover:border-black/20'} 
-                                            ${isToday ? 'ring-2 ring-foreground border-transparent shadow-sm' : 'border-black/10'}`}
-                                    >
-                                        <div className={`text-xs font-bold mb-1.5 ${isToday ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                            {date.getDate()}
-                                        </div>
-                                        <div className="space-y-1">
-                                            {dayEvents.slice(0, 2).map(ev => {
-                                                const status = getStatus(ev);
-                                                const bg = status === 'active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                                    : status === 'ended' || status === 'completed' ? 'bg-black/5 text-muted-foreground border border-black/10'
-                                                        : 'bg-blue-100 text-blue-800 border border-blue-200';
-                                                return (
-                                                    <Link key={ev.id} href={`/dashboard/sesi/${ev.id}`} title={ev.title}
-                                                        className={`block px-1.5 py-1 text-[10px] font-semibold rounded shrink-0 truncate transition-colors hover:brightness-95 ${bg}`}>
-                                                        {ev.title}
-                                                    </Link>
-                                                )
-                                            })}
-                                            {dayEvents.length > 2 && (
-                                                <div className="text-[10px] font-bold text-muted-foreground px-1">
-                                                    +{dayEvents.length - 2} sesi
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
-                </div>
+                {/* Calendar View (Client Component) */}
+                <DashboardCalendar sessions={sessions} />
 
                 {/* Quick Actions / Shortcut */}
                 <div className="space-y-6">
-                    <div className="glass-card p-6 bg-foreground text-background relative overflow-hidden">
+                    <div className="glass-card p-6 !bg-[#111111] text-white relative overflow-hidden">
                         <div className="relative z-10 space-y-4">
                             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                                <Mortarboard01Icon size={24} />
+                                <Mortarboard01Icon size={24} className="text-white" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold">Lanjutkan Belajar</h3>
-                                <p className="text-sm text-background/80 mt-1 mb-4 leading-relaxed">
+                                <h3 className="text-lg font-bold text-white">Lanjutkan Belajar</h3>
+                                <p className="text-sm text-white/80 mt-1 mb-4 leading-relaxed">
                                     Jangan tunda penyelesaian materi dan ujian Anda. Cek sesi aktif Anda sekarang.
                                 </p>
-                                <Link href="/dashboard/sesi" className="inline-flex items-center gap-2 bg-background text-foreground px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-white/90 transition-colors w-full justify-center">
+                                <Link href="/dashboard/sesi" className="inline-flex items-center gap-2 bg-white text-[#111111] px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-white/90 transition-colors w-full justify-center">
                                     Lihat Sesi Aktif
                                     <ArrowRight01Icon size={16} />
                                 </Link>

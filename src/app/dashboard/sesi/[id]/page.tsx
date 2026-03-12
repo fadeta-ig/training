@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef } from 'react';
 import Link from 'next/link';
 import {
     ArrowLeft01Icon,
@@ -12,7 +12,12 @@ import {
     Edit01Icon,
     AlertCircleIcon,
     Award01Icon,
+    Download01Icon,
 } from 'hugeicons-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import { CertificateTemplate } from '@/app/dashboard/_components/CertificateTemplate';
+import AlertCustom, { useAlert } from '@/app/dashboard/_components/AlertCustom';
 
 type ModuleItem = {
     module_item_id: string;
@@ -42,9 +47,23 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [isSEB, setIsSEB] = useState(false);
+    const { showAlert, AlertComponent } = useAlert();
+
+    // Certificate States
+    const [downloading, setDownloading] = useState(false);
+    const [userName, setUserName] = useState('');
+    const certificateRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setIsSEB(navigator.userAgent.includes('SafeExamBrowser'));
+
+        // Fetch User Name for Certificate
+        fetch('/api/auth/me')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) setUserName(data.data.full_name);
+            }).catch(() => { });
+
         fetch(`/api/participant/sessions/${id}`)
             .then((res) => res.json())
             .then((data) => {
@@ -54,6 +73,56 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
             .catch(() => setError('Kesalahan jaringan'))
             .finally(() => setLoading(false));
     }, [id]);
+
+    const handleDownloadCertificate = async () => {
+        if (downloading || !session || !certificateRef.current) return;
+
+        try {
+            setDownloading(true);
+            const element = certificateRef.current;
+
+            // Set fixed dimensions temporarily for perfect render
+            const originalStyle = element.getAttribute('style') || '';
+            // Render it off-screen for html2canvas
+            element.style.position = 'fixed';
+            element.style.left = '-9999px';
+            element.style.top = '0';
+            element.style.zIndex = '9999';
+            element.style.opacity = '1';
+            element.style.display = 'block';
+
+            const canvas = await html2canvas(element, {
+                scale: 2, // Double resolution for sharpness
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+                width: 1123,
+                height: 794
+            });
+
+            // Restore hidden state
+            element.setAttribute('style', originalStyle);
+
+            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+
+            // Landscape A4
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+            pdf.save(`Sertifikat_${session.title.replace(/\s+/g, '_')}_${userName}.pdf`);
+            showAlert('Sertifikat berhasil diunduh. Selamat!', 'success');
+
+        } catch (error) {
+            console.error('Failed to generate PDF:', error);
+            showAlert('Gagal membuat sertifikat PDF. Pastikan koneksi stabil.', 'error');
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -93,6 +162,21 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
 
     return (
         <div className="max-w-2xl mx-auto space-y-5 pb-12">
+            {AlertComponent}
+
+            {/* Hidden Certificate Canvas */}
+            {isFullyCompleted && (
+                <div style={{ opacity: 0, pointerEvents: 'none', position: 'absolute', left: '-9999px' }}>
+                    <CertificateTemplate
+                        ref={certificateRef}
+                        participantName={userName}
+                        courseName={session.title}
+                        completionDate={now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        certificateId={`WIG-${session.id.split('-')[0].toUpperCase()}-${now.getFullYear()}`}
+                    />
+                </div>
+            )}
+
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
                 <ArrowLeft01Icon size={14} /> Kembali
             </Link>
@@ -141,16 +225,29 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                 </div>
             </div>
 
-            {/* 100% Completed Banner */}
+            {/* 100% Completed Banner with Download Action */}
             {isFullyCompleted && (
-                <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                        <Award01Icon size={20} />
+                <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 shadow-sm border border-emerald-200">
+                            <Award01Icon size={20} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-emerald-800">Selamat! Sesi Selesai!</p>
+                            <p className="text-xs text-emerald-600 mt-0.5">Anda telah berhasil menyelesaikan semua kurikulum dalam pelatihan ini.</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm font-bold text-emerald-800">Sesi Selesai!</p>
-                        <p className="text-xs text-emerald-600">Anda telah menyelesaikan semua materi dan ujian dalam sesi ini.</p>
-                    </div>
+
+                    <button
+                        onClick={handleDownloadCertificate}
+                        disabled={downloading}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold tracking-wide transition-colors shadow-sm"
+                    >
+                        {downloading ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : <Download01Icon size={16} />}
+                        {downloading ? 'Memproses PDF...' : 'Unduh Sertifikat PDF'}
+                    </button>
                 </div>
             )}
 

@@ -148,12 +148,20 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                                         )}
                                     </div>
                                     <div className="shrink-0 flex items-center gap-4">
-                                        {isExam && done && item.score !== null ? (
-                                            <div className="text-right">
-                                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5">Nilai</p>
-                                                <span className="inline-flex px-2.5 py-1 rounded-md bg-primary/10 text-primary text-sm font-bold">
-                                                    {item.score}
-                                                </span>
+                                        {isExam && done ? (
+                                            <div className="text-right flex items-center gap-3">
+                                                <Link
+                                                    href={`/admin/sessions/${sessionId}/participants/${participantId}/grade`}
+                                                    className="text-xs font-bold text-primary hover:underline"
+                                                >
+                                                    Nilai Manual
+                                                </Link>
+                                                <div className="flex flex-col items-end">
+                                                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5">Skor Akhir</p>
+                                                    <span className="inline-flex px-2.5 py-1 rounded-md bg-primary/10 text-primary text-sm font-bold">
+                                                        {item.score !== null ? item.score : '0'}
+                                                    </span>
+                                                </div>
                                             </div>
                                         ) : !done ? (
                                             <span className="text-xs font-bold text-muted-foreground px-2">Belum</span>

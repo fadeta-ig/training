@@ -52,7 +52,7 @@ async function handleGet(request: NextRequest) {
         const params: (string | number)[] = [];
 
         if (search) {
-            const searchClause = ` AND (u.username LIKE ? OR u.name LIKE ? OR p.institution LIKE ?)`;
+            const searchClause = ` AND (u.username LIKE ? OR u.full_name LIKE ? OR p.institution LIKE ?)`;
             countQuery += searchClause;
             query += searchClause;
             countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);

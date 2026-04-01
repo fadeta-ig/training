@@ -27,8 +27,8 @@ export async function middleware(request: NextRequest) {
             // Check roles
             const role = payload.role as string;
 
-            if (isProtectedAdminRoute && role !== 'admin') {
-                // If attempting to access /admin but not an admin, redirect to general dashboard
+            if (isProtectedAdminRoute && role !== 'admin' && role !== 'trainer') {
+                // If attempting to access /admin but not an admin/trainer, redirect to general dashboard
                 return NextResponse.redirect(new URL('/dashboard', request.url));
             }
 
@@ -48,7 +48,7 @@ export async function middleware(request: NextRequest) {
         if (token) {
             try {
                 const { payload } = await jwtVerify(token, encodedKey);
-                if (payload.role === 'admin') {
+                if (payload.role === 'admin' || payload.role === 'trainer') {
                     return NextResponse.redirect(new URL('/admin', request.url));
                 }
                 return NextResponse.redirect(new URL('/dashboard', request.url));
@@ -65,7 +65,7 @@ export async function middleware(request: NextRequest) {
         if (token) {
             try {
                 const { payload } = await jwtVerify(token, encodedKey);
-                if (payload.role === 'admin') {
+                if (payload.role === 'admin' || payload.role === 'trainer') {
                     return NextResponse.redirect(new URL('/admin', request.url));
                 }
                 return NextResponse.redirect(new URL('/dashboard', request.url));

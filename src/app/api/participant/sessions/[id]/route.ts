@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import { verifyEnrollment, validateSessionTiming, ParticipantError } from '@/lib/participant-helpers';
 
 /**
  * GET /api/participant/sessions/[id]
@@ -14,41 +15,9 @@ async function handleGet(
     try {
         const { id: sessionId } = await context.params;
 
-        // Verify enrollment
-        const enrollment = await executeQuery<any[]>(
-            `SELECT id FROM session_participants WHERE session_id = ? AND user_id = ?`,
-            [sessionId, user.id]
-        );
-
-        if (!enrollment || enrollment.length === 0) {
-            return NextResponse.json(
-                { success: false, error: 'Anda tidak terdaftar di sesi ini' },
-                { status: 403 }
-            );
-        }
-
-        // Fetch session
-        const sessionResult = await executeQuery<any[]>(
-            `SELECT s.id, s.title, s.start_time, s.end_time, s.require_seb,
-                    m.title AS module_title, m.id AS module_id
-             FROM sessions s
-             LEFT JOIN modules m ON s.module_id = m.id
-             WHERE s.id = ?`,
-            [sessionId]
-        );
-
-        if (!sessionResult || sessionResult.length === 0) {
-            return NextResponse.json({ success: false, error: 'Sesi tidak ditemukan' }, { status: 404 });
-        }
-
-        const session = sessionResult[0];
-
-        // Determine session status server-side
-        const now = new Date();
-        const start = new Date(session.start_time);
-        const end = new Date(session.end_time);
-        const isActive = now >= start && now <= end;
-        const isEnded = now > end;
+        // Shared helpers handle 404s/403s internally by throwing ParticipantError
+        await verifyEnrollment(sessionId, user.id);
+        const { session, isActive, isEnded } = await validateSessionTiming(sessionId);
 
         // Fetch module items with progress
         const items = await executeQuery<any[]>(
@@ -150,6 +119,9 @@ async function handleGet(
             },
         });
     } catch (error) {
+        if (error instanceof ParticipantError) {
+            return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+        }
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }

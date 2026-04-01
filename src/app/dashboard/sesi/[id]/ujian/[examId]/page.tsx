@@ -202,6 +202,28 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     if (!examData) return null;
 
     const questions = examData.questions;
+
+    if (questions.length === 0) {
+        return (
+            <div className="max-w-3xl mx-auto space-y-6 pb-12">
+                <div className="glass-card p-10 text-center">
+                    <AlertCircleIcon size={48} className="mx-auto text-amber-500 mb-4" />
+                    <h2 className="text-xl font-bold">Ujian Kosong</h2>
+                    <p className="text-muted-foreground mt-2">Belum ada butir soal yang ditambahkan ke ujian ini. Silakan hubungi instruktur/admin.</p>
+                    <div className="mt-6">
+                        <Link
+                            href={`/dashboard/sesi/${sessionId}`}
+                            className="inline-flex items-center justify-center gap-2 bg-foreground text-background px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-foreground/90 transition-all active:scale-95"
+                        >
+                            <ArrowLeft01Icon size={16} />
+                            Kembali ke Sesi
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     const currentQ = questions[currentIdx];
     const answeredCount = Object.keys(answers).filter((k) => answers[k]).length;
     const parsedOptions = currentQ.options_json

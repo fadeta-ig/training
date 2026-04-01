@@ -6,11 +6,11 @@ import mysql, { Pool, PoolOptions } from 'mysql2/promise';
  * Host: localhost | Port: 3306 (XAMPP default)
  */
 const poolConfig: PoolOptions = {
-  host: process.env.DB_HOST ?? 'localhost',
-  port: Number(process.env.DB_PORT) ?? 3306,
-  user: process.env.DB_USER ?? 'root',
+  host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT) || 3306,
+  user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD ?? '',
-  database: process.env.DB_NAME ?? 'lms_antigravity',
+  database: process.env.DB_NAME || 'lms_antigravity',
   waitForConnections: true,
   connectionLimit: 20,
   queueLimit: 0,
@@ -23,9 +23,15 @@ declare global {
   var __dbPool: Pool | undefined;
 }
 
+/** Module-scope cache for production — avoids leaking pools on every call. */
+let productionPool: Pool | undefined;
+
 function getPool(): Pool {
   if (process.env.NODE_ENV === 'production') {
-    return mysql.createPool(poolConfig);
+    if (!productionPool) {
+      productionPool = mysql.createPool(poolConfig);
+    }
+    return productionPool;
   }
 
   if (!global.__dbPool) {

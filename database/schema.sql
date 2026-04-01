@@ -19,7 +19,7 @@ CREATE TABLE users (
   id            VARCHAR(36)  PRIMARY KEY,
   role          ENUM('admin', 'trainer', 'trainee') NOT NULL DEFAULT 'trainee',
   full_name     VARCHAR(100) NOT NULL,
-  username      VARCHAR(50)  UNIQUE NOT NULL,
+  username      VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -61,6 +61,8 @@ CREATE TABLE exams (
   title            VARCHAR(150)   NOT NULL,
   duration_minutes INT            NOT NULL DEFAULT 60,
   passing_grade    DECIMAL(5, 2)  NOT NULL DEFAULT 70.00,
+  allow_remedial   BOOLEAN        NOT NULL DEFAULT FALSE,
+  max_attempts     INT            NOT NULL DEFAULT 1,
   created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -139,13 +141,15 @@ CREATE TABLE session_participants (
 -- 10. User Progress (Tracking Keterbukaan & Nilai)
 -- ─────────────────────────────────────────────
 CREATE TABLE user_progress (
-  id              VARCHAR(36)   PRIMARY KEY,
-  user_id         VARCHAR(36)   NOT NULL,
-  session_id      VARCHAR(36)   NOT NULL,
-  module_item_id  VARCHAR(36)   NOT NULL,
-  status          ENUM('locked', 'open', 'completed') DEFAULT 'locked',
-  score           DECIMAL(5, 2) NULL,
-  updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id                 VARCHAR(36)   PRIMARY KEY,
+  user_id            VARCHAR(36)   NOT NULL,
+  session_id         VARCHAR(36)   NOT NULL,
+  module_item_id     VARCHAR(36)   NOT NULL,
+  status             ENUM('locked', 'open', 'completed') DEFAULT 'locked',
+  score              DECIMAL(5, 2) NULL,
+  attempts_count     INT           NOT NULL DEFAULT 0,
+  last_attempt_start DATETIME      NULL,
+  updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_user_session (user_id, session_id),
   UNIQUE KEY uq_progress (user_id, session_id, module_item_id),
   CONSTRAINT fk_progress_user
@@ -164,7 +168,7 @@ CREATE TABLE exam_answers (
   user_id         VARCHAR(36)  NOT NULL,
   session_id      VARCHAR(36)  NOT NULL,
   question_id     VARCHAR(36)  NOT NULL,
-  selected_option VARCHAR(50)  NOT NULL,
+  selected_option TEXT         NOT NULL,
   is_correct      BOOLEAN      NOT NULL DEFAULT FALSE,
   attempt_number  INT          NOT NULL DEFAULT 1,
   answered_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -202,6 +206,7 @@ CREATE TABLE notifications (
   message     TEXT NOT NULL,
   type        ENUM('info','success','warning','error') NOT NULL DEFAULT 'info',
   is_read     TINYINT(1) NOT NULL DEFAULT 0,
+  link_url    VARCHAR(500) NULL,
   created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_notification_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

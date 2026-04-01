@@ -17,14 +17,20 @@ async function handleGet(request: NextRequest) {
                 -- 50 Points for each completed training material
                 (SELECT COUNT(*) * 50 
                  FROM user_progress up 
-                 WHERE up.user_id = u.id AND up.status = 'completed' AND up.material_id IS NOT NULL) as training_points,
-                -- Sum of Highest Scores per Exam
+                 JOIN module_items mi ON up.module_item_id = mi.id
+                 WHERE up.user_id = u.id 
+                   AND up.status = 'completed' 
+                   AND mi.item_type = 'training') as training_points,
+                -- Sum of highest exam scores from user_progress
                 COALESCE((
-                    SELECT SUM(max_score) FROM (
-                        SELECT exam_id, MAX(score) as max_score 
-                        FROM exam_answers ea 
-                        WHERE ea.user_id = u.id 
-                        GROUP BY exam_id
+                    SELECT SUM(best_score) FROM (
+                        SELECT mi.item_id, MAX(up.score) as best_score
+                        FROM user_progress up
+                        JOIN module_items mi ON up.module_item_id = mi.id
+                        WHERE up.user_id = u.id 
+                          AND mi.item_type = 'exam'
+                          AND up.status = 'completed'
+                        GROUP BY mi.item_id
                     ) as highest_exam_scores
                 ), 0) as exam_points
             FROM users u

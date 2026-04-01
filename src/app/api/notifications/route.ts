@@ -5,7 +5,7 @@ import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 async function handleGet(request: NextRequest, user: AuthenticatedUser) {
     try {
         const notifications = await executeQuery<any[]>(
-            `SELECT id, title, message, type, is_read, created_at 
+            `SELECT id, title, message, type, is_read, created_at, link_url 
              FROM notifications 
              WHERE user_id = ? 
              ORDER BY created_at DESC 

@@ -3,6 +3,7 @@ import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '@/lib/db';
+import { verifyEnrollment, validateSessionTiming, validateSebAccess, ParticipantError } from '@/lib/participant-helpers';
 
 /**
  * POST /api/participant/sessions/[id]/exam/[examId]/submit
@@ -23,42 +24,11 @@ async function handlePost(
             return NextResponse.json({ success: false, error: 'Jawaban tidak valid' }, { status: 400 });
         }
 
-        // Verify enrollment
-        const enrollment = await executeQuery<any[]>(
-            `SELECT id FROM session_participants WHERE session_id = ? AND user_id = ?`,
-            [sessionId, user.id]
-        );
-        if (!enrollment || enrollment.length === 0) {
-            return NextResponse.json({ success: false, error: 'Tidak terdaftar' }, { status: 403 });
-        }
+        await verifyEnrollment(sessionId, user.id);
+        const { session, isActive } = await validateSessionTiming(sessionId);
 
-        // Check SEB requirement
-        const session = await executeQuery<any[]>(
-            `SELECT require_seb, seb_config_key FROM sessions WHERE id = ?`,
-            [sessionId]
-        );
-        if (session && session.length > 0 && session[0].require_seb) {
-            const userAgent = request.headers.get('user-agent') || '';
-            const configKeyHash = request.headers.get('x-safeexambrowser-configkeyhash') || '';
-
-            if (!userAgent.includes('SafeExamBrowser')) {
-                return NextResponse.json(
-                    { success: false, error: 'Pengumpulan ujian mewajibkan penggunaan Safe Exam Browser (SEB).' },
-                    { status: 403 }
-                );
-            }
-
-            // Verify configuration key hash if it's set in the session
-            if (session[0].seb_config_key && configKeyHash !== session[0].seb_config_key) {
-                return NextResponse.json(
-                    { 
-                        success: false, 
-                        error: 'Konfigurasi Safe Exam Browser (SEB) tidak cocok saat pengumpulan data.' 
-                    },
-                    { status: 403 }
-                );
-            }
-        }
+        // Allow slight delay for submission after session ends, but enforce SEB if required
+        validateSebAccess(request, session);
 
         // Fetch all questions for grading
         const questions = await executeQuery<any[]>(
@@ -220,6 +190,9 @@ async function handlePost(
         if (connection) {
             await connection.rollback();
             connection.release();
+        }
+        if (error instanceof ParticipantError) {
+            return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
         }
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });

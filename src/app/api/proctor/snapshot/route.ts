@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
+import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 
 /**
  * Zod schema for snapshot submission with strict input validation.
  */
 const snapshotSchema = z.object({
     sessionId: z.string().uuid('Invalid session ID format'),
-    userId: z.string().uuid('Invalid user ID format'),
     imageBase64: z
         .string()
         .min(100, 'Image data too short')
@@ -22,8 +22,9 @@ const snapshotSchema = z.object({
 /**
  * POST /api/proctor/snapshot
  * Receives and stores a webcam proctoring snapshot.
+ * Now protected by withAuth — userId is extracted from the JWT token.
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest, user: AuthenticatedUser) {
     try {
         const body = await request.json();
         const parsed = snapshotSchema.safeParse(body);
@@ -35,12 +36,12 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const { sessionId, userId, imageBase64 } = parsed.data;
+        const { sessionId, imageBase64 } = parsed.data;
         const snapshotId = uuidv4();
 
         await executeQuery(
             `INSERT INTO proctor_snapshots (id, user_id, session_id, image_base64) VALUES (?, ?, ?, ?)`,
-            [snapshotId, userId, sessionId, imageBase64],
+            [snapshotId, user.id, sessionId, imageBase64],
         );
 
         return NextResponse.json({ success: true, id: snapshotId }, { status: 201 });
@@ -50,3 +51,5 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: message }, { status: 500 });
     }
 }
+
+export const POST = withAuth(handlePost);

@@ -100,11 +100,23 @@ async function handleDelete(
     try {
         const resolvedParams = await context.params;
 
-        if (resolvedParams.id === 'admin-uuid-001') {
-            return NextResponse.json(
-                { success: false, error: 'Akun Admin utama tidak bisa dihapus' },
-                { status: 403 }
+        // Prevent deleting the last admin (role-based, no hardcoded IDs)
+        const targetUser = await executeQuery<{ role: string }[]>(
+            `SELECT role FROM users WHERE id = ?`,
+            [resolvedParams.id]
+        );
+
+        if (targetUser?.[0]?.role === 'admin') {
+            const adminCount = await executeQuery<{ count: number }[]>(
+                `SELECT COUNT(*) as count FROM users WHERE role = 'admin'`
             );
+
+            if ((adminCount?.[0]?.count || 0) <= 1) {
+                return NextResponse.json(
+                    { success: false, error: 'Tidak dapat menghapus admin terakhir di sistem' },
+                    { status: 403 }
+                );
+            }
         }
 
         const result = await executeQuery<{ affectedRows: number }>(

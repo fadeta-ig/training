@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { v4 as uuidv4 } from 'uuid';
+import { verifyEnrollment, validateSessionTiming, ParticipantError } from '@/lib/participant-helpers';
 
 /**
  * POST /api/participant/sessions/[id]/training/[trainingId]/complete
@@ -16,29 +17,10 @@ async function handlePost(
     try {
         const { id: sessionId, trainingId } = await context.params;
 
-        // Verify enrollment
-        const enrollment = await executeQuery<any[]>(
-            `SELECT id FROM session_participants WHERE session_id = ? AND user_id = ?`,
-            [sessionId, user.id]
-        );
-        if (!enrollment || enrollment.length === 0) {
-            return NextResponse.json({ success: false, error: 'Tidak terdaftar' }, { status: 403 });
-        }
+        await verifyEnrollment(sessionId, user.id);
+        const { session, isActive } = await validateSessionTiming(sessionId);
 
-        // Check session is active
-        const session = await executeQuery<any[]>(
-            `SELECT start_time, end_time, module_id FROM sessions WHERE id = ?`,
-            [sessionId]
-        );
-        if (!session || session.length === 0) {
-            return NextResponse.json({ success: false, error: 'Sesi tidak ditemukan' }, { status: 404 });
-        }
-
-        const now = new Date();
-        const start = new Date(session[0].start_time);
-        const end = new Date(session[0].end_time);
-
-        if (now < start || now > end) {
+        if (!isActive) {
             return NextResponse.json({ success: false, error: 'Sesi tidak aktif' }, { status: 400 });
         }
 
@@ -46,7 +28,7 @@ async function handlePost(
         const moduleItem = await executeQuery<any[]>(
             `SELECT id, sequence_order FROM module_items
              WHERE module_id = ? AND item_type = 'training' AND item_id = ?`,
-            [session[0].module_id, trainingId]
+            [session.module_id, trainingId]
         );
         if (!moduleItem || moduleItem.length === 0) {
             return NextResponse.json({ success: false, error: 'Item materi tidak ditemukan di modul' }, { status: 404 });
@@ -80,6 +62,9 @@ async function handlePost(
 
         return NextResponse.json({ success: true, message: 'Materi berhasil diselesaikan' });
     } catch (error) {
+        if (error instanceof ParticipantError) {
+            return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
+        }
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }

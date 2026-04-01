@@ -27,7 +27,7 @@ async function handleGet(
 
         // Check session is active
         const session = await executeQuery<any[]>(
-            `SELECT start_time, end_time, require_seb FROM sessions WHERE id = ?`,
+            `SELECT start_time, end_time, require_seb, seb_config_key FROM sessions WHERE id = ?`,
             [sessionId]
         );
         if (!session || session.length === 0) {
@@ -36,9 +36,22 @@ async function handleGet(
 
         if (session[0].require_seb) {
             const userAgent = _request.headers.get('user-agent') || '';
+            const configKeyHash = _request.headers.get('x-safeexambrowser-configkeyhash') || '';
+
             if (!userAgent.includes('SafeExamBrowser')) {
                 return NextResponse.json(
                     { success: false, error: 'Akses ujian ini mewajibkan penggunaan Safe Exam Browser (SEB).' },
+                    { status: 403 }
+                );
+            }
+
+            // Verify configuration key hash if it's set in the session
+            if (session[0].seb_config_key && configKeyHash !== session[0].seb_config_key) {
+                return NextResponse.json(
+                    { 
+                        success: false, 
+                        error: 'Konfigurasi Safe Exam Browser (SEB) tidak cocok. Gunakan file .seb yang resmi dari administrator.' 
+                    },
                     { status: 403 }
                 );
             }

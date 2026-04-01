@@ -13,6 +13,7 @@ import {
     AlertCircleIcon,
     Award01Icon,
     Download01Icon,
+    Logout01Icon,
 } from 'hugeicons-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -177,9 +178,21 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                 </div>
             )}
 
-            <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
-                <ArrowLeft01Icon size={14} /> Kembali
-            </Link>
+            <div className="flex items-center justify-between gap-4">
+                <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
+                    <ArrowLeft01Icon size={14} /> Kembali
+                </Link>
+
+                {isSEB && (
+                    <Link
+                        href="/quit-seb"
+                        className="inline-flex items-center gap-1.5 text-[10px] font-bold text-red-600 hover:text-red-700 bg-red-50 px-3 py-1 rounded-full border border-red-100 transition-all active:scale-95"
+                    >
+                        <Logout01Icon size={12} />
+                        Keluar Aplikasi SEB
+                    </Link>
+                )}
+            </div>
 
             {/* Compact Header */}
             <div className="glass-card p-5 space-y-4">

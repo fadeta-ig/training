@@ -34,14 +34,27 @@ async function handlePost(
 
         // Check SEB requirement
         const session = await executeQuery<any[]>(
-            `SELECT require_seb FROM sessions WHERE id = ?`,
+            `SELECT require_seb, seb_config_key FROM sessions WHERE id = ?`,
             [sessionId]
         );
         if (session && session.length > 0 && session[0].require_seb) {
             const userAgent = request.headers.get('user-agent') || '';
+            const configKeyHash = request.headers.get('x-safeexambrowser-configkeyhash') || '';
+
             if (!userAgent.includes('SafeExamBrowser')) {
                 return NextResponse.json(
                     { success: false, error: 'Pengumpulan ujian mewajibkan penggunaan Safe Exam Browser (SEB).' },
+                    { status: 403 }
+                );
+            }
+
+            // Verify configuration key hash if it's set in the session
+            if (session[0].seb_config_key && configKeyHash !== session[0].seb_config_key) {
+                return NextResponse.json(
+                    { 
+                        success: false, 
+                        error: 'Konfigurasi Safe Exam Browser (SEB) tidak cocok saat pengumpulan data.' 
+                    },
                     { status: 403 }
                 );
             }

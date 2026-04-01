@@ -9,6 +9,7 @@ import {
     Tick01Icon,
     AlertCircleIcon,
     ArrowRight01Icon,
+    Logout01Icon,
 } from 'hugeicons-react';
 
 type Question = {
@@ -41,6 +42,16 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const [currentIdx, setCurrentIdx] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
     const [result, setResult] = useState<{ score: number; passed: boolean; earnedPoints: number; totalPoints: number } | null>(null);
+    const [isSeb, setIsSeb] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && (
+            navigator.userAgent.includes('SafeExamBrowser') ||
+            (window as any).SafeExamBrowser
+        )) {
+            setIsSeb(true);
+        }
+    }, []);
 
     useEffect(() => {
         fetch(`/api/participant/sessions/${sessionId}/exam/${examId}`)
@@ -165,13 +176,24 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     <div className="text-sm text-muted-foreground">
                         {result.earnedPoints} / {result.totalPoints} poin benar
                     </div>
-                    <Link
-                        href={`/dashboard/sesi/${sessionId}`}
-                        className="inline-flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl text-sm font-semibold hover:bg-foreground/90 transition-colors active:scale-95"
-                    >
-                        <ArrowLeft01Icon size={16} />
-                        Kembali ke Sesi
-                    </Link>
+                    <div className="flex flex-col gap-3">
+                        <Link
+                            href={`/dashboard/sesi/${sessionId}`}
+                            className="inline-flex items-center justify-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl text-sm font-semibold hover:bg-foreground/90 transition-all active:scale-95"
+                        >
+                            <ArrowLeft01Icon size={16} />
+                            Kembali ke Sesi
+                        </Link>
+                        {isSeb && (
+                            <Link
+                                href="/quit-seb"
+                                className="inline-flex items-center justify-center gap-2 bg-red-100 text-red-700 hover:bg-red-200 px-6 py-3 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                            >
+                                <Logout01Icon size={16} />
+                                Keluar Aplikasi SEB
+                            </Link>
+                        )}
+                    </div>
                 </div>
             </div>
         );

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, PencilEdit01Icon } from 'hugeicons-react';
+import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, PencilEdit01Icon, Logout01Icon } from 'hugeicons-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 
@@ -31,6 +31,11 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [session, setSession] = useState<SessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isSeb, setIsSeb] = useState(false);
+
+    useEffect(() => {
+        setIsSeb(navigator.userAgent.includes('SafeExamBrowser'));
+    }, []);
 
     useEffect(() => {
         const fetchSession = async () => {
@@ -105,10 +110,22 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-12">
-            <Link href="/admin/sessions" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
-                <ArrowLeft01Icon size={16} />
-                Kembali ke Daftar Sesi
-            </Link>
+            <div className="flex items-center justify-between gap-4">
+                <Link href="/admin/sessions" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
+                    <ArrowLeft01Icon size={16} />
+                    Kembali ke Daftar Sesi
+                </Link>
+
+                {isSeb && (
+                    <Link
+                        href="/quit-seb"
+                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 px-4 py-1.5 rounded-full border border-red-100 transition-all active:scale-95"
+                    >
+                        <Logout01Icon size={14} />
+                        Keluar Aplikasi SEB
+                    </Link>
+                )}
+            </div>
 
             <PageHeader
                 title="Detail Sesi Ujian"

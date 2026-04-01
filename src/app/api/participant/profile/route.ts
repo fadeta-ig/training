@@ -13,7 +13,7 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
         const query = `
             SELECT 
                 u.id, u.full_name, u.username, u.role, u.created_at,
-                p.phone_number, p.address, p.date_of_birth, p.gender, p.institution
+                p.phone_number, p.address, DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, p.gender, p.institution
             FROM users u
             LEFT JOIN participant_profiles p ON u.id = p.user_id
             WHERE u.id = ?

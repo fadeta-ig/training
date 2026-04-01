@@ -24,7 +24,7 @@ async function handleGet(
         const participants = await executeQuery(
             `SELECT 
         u.id, u.username as email, u.full_name as name, u.created_at,
-        p.phone_number, p.address, p.date_of_birth, p.gender, p.institution
+        p.phone_number, p.address, DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, p.gender, p.institution
       FROM users u
       LEFT JOIN participant_profiles p ON u.id = p.user_id
       WHERE u.id = ? AND u.role = 'trainee'`,

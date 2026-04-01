@@ -33,7 +33,7 @@ export default function ProfilePage() {
                         username: d.username || '',
                         phone_number: d.phone_number || '',
                         address: d.address || '',
-                        date_of_birth: d.date_of_birth ? d.date_of_birth.split('T')[0] : '',
+                        date_of_birth: d.date_of_birth || '',
                         gender: d.gender || '',
                         institution: d.institution || ''
                     }));
@@ -136,8 +136,8 @@ export default function ProfilePage() {
                             <select name="gender" value={formData.gender} onChange={handleChange}
                                 className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:ring-2 focus:ring-foreground/20 outline-none text-sm transition-all">
                                 <option value="">Pilih...</option>
-                                <option value="male">Laki-Laki</option>
-                                <option value="female">Perempuan</option>
+                                <option value="L">Laki-Laki</option>
+                                <option value="P">Perempuan</option>
                             </select>
                         </div>
 

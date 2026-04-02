@@ -99,20 +99,20 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                 quality: 1.0,
                 pixelRatio: 2, // Double resolution for sharpness
                 backgroundColor: '#ffffff',
-                width: 1123,
-                height: 794
+                width: 794,
+                height: 1123
             });
 
             document.body.removeChild(clone);
 
-            // Landscape A4
+            // Portrait A4
             const pdf = new jsPDF({
-                orientation: 'landscape',
+                orientation: 'portrait',
                 unit: 'mm',
                 format: 'a4'
             });
 
-            pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+            pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
             pdf.save(`Sertifikat_${session.title.replace(/\s+/g, '_')}_${userName}.pdf`);
             showAlert('Sertifikat berhasil diunduh. Selamat!', 'success');
 
@@ -160,6 +160,13 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const statusLabel = isFullyCompleted ? 'Selesai' : isActive ? 'Berlangsung' : now < start ? 'Akan Datang' : 'Berakhir';
     const statusColor = isFullyCompleted ? 'bg-emerald-500' : isActive ? 'bg-emerald-500 animate-pulse' : now < start ? 'bg-blue-400' : 'bg-gray-300';
 
+    // Calculate final score metric for certificates
+    const examItems = session.items.filter(i => i.item_type === 'exam' && i.progress_status === 'completed');
+    let finalScore = 0;
+    if (examItems.length > 0) {
+        finalScore = examItems.reduce((acc, curr) => acc + (curr.score || 0), 0) / examItems.length;
+    }
+
     return (
         <div className="max-w-2xl mx-auto space-y-5 pb-12">
             {AlertComponent}
@@ -171,8 +178,9 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                         ref={certificateRef}
                         participantName={userName}
                         courseName={session.title}
-                        completionDate={now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        completionDate={now.toLocaleDateString('id-ID', { month: 'long', day: 'numeric', year: 'numeric' })}
                         certificateId={`WIG-${session.id.split('-')[0].toUpperCase()}-${now.getFullYear()}`}
+                        finalScore={finalScore}
                     />
                 </div>
             )}
@@ -192,7 +200,7 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                             Download Config SEB
                         </a>
                     )}
-                    
+
                     {isSEB && (
                         <Link
                             href="/quit-seb"

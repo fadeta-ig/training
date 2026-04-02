@@ -10,6 +10,7 @@ import {
     Camera01Icon,
     UserCircleIcon,
     UserGroupIcon,
+    Activity01Icon
 } from 'hugeicons-react';
 import type { AuthPayload } from '@/types';
 
@@ -72,7 +73,10 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                     
                     {/* Hide User Management from Trainers */}
                     {user?.role === 'admin' && (
-                        <NavLink href="/admin/users" label="Kelola Pengguna (Admin)" icon={<UserGroupIcon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/users')} />
+                        <>
+                            <NavLink href="/admin/users" label="Kelola Pengguna (Admin)" icon={<UserGroupIcon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/users')} />
+                            <NavLink href="/admin/audit-logs" label="Audit Trail" icon={<Activity01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/audit-logs')} />
+                        </>
                     )}
                     <NavLink href="/admin/participants" label="Kelola Peserta" icon={<UserCircleIcon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/participants')} />
                 </nav>

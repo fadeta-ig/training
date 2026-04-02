@@ -10,6 +10,8 @@ export interface User {
     username: string;
     password_hash: string;
     created_at: string;
+    reset_token?: string | null;
+    reset_token_expires?: string | null;
 }
 
 export interface ParticipantProfile {
@@ -145,3 +147,17 @@ export interface AuthPayload {
     full_name: string;
     role: 'admin' | 'trainer' | 'trainee';
 }
+
+export interface AuditLog {
+    id: string;
+    user_id: string;
+    action_type: string;
+    entity: string;
+    entity_id: string | null;
+    details: any | null;
+    created_at: string;
+    // Joined standard fields
+    full_name?: string;
+    username?: string;
+}
+

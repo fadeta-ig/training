@@ -18,6 +18,8 @@ import { ActionButton } from '@/components/ui/ActionButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useConfirm } from '@/hooks/useConfirm';
 import { Pagination } from '@/components/ui/Pagination';
+import { BulkImportModal } from './_components/BulkImportModal';
+import { FileExportIcon } from 'hugeicons-react';
 
 type User = {
     id: string;
@@ -34,6 +36,7 @@ export default function UsersManagerPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const { confirm, ConfirmComponent } = useConfirm();
 
     const fetchUsers = async (targetPage = page, search = searchQuery) => {
@@ -104,15 +107,11 @@ export default function UsersManagerPage() {
                 isRefreshing={isLoading}
             />
 
-            {error && (
-                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-5 py-4 rounded-xl flex items-start gap-3">
-                    <Alert02Icon size={20} className="shrink-0 mt-0.5" />
-                    <div>
-                        <h4 className="font-semibold text-sm">Gagal Memuat Data</h4>
-                        <p className="text-sm opacity-90">{error}</p>
-                    </div>
-                </div>
-            )}
+            <BulkImportModal 
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onSuccess={() => fetchUsers(1, '')}
+            />
 
             <div className="flex items-center gap-4 mb-4">
                 <div className="relative flex-1 max-w-sm">
@@ -127,7 +126,27 @@ export default function UsersManagerPage() {
                         className="w-full glass-input pl-11 pr-4 py-2.5 rounded-xl text-sm focus:outline-none"
                     />
                 </div>
+                
+                {/* Tombol Import Massal */}
+                <button
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="flex shrink-0 items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-4 py-2.5 rounded-xl text-sm border border-blue-200 transition-colors"
+                >
+                    <FileExportIcon size={18} /> Import Massal
+                </button>
             </div>
+
+            {error && (
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-5 py-4 rounded-xl flex items-start gap-3">
+                    <Alert02Icon size={20} className="shrink-0 mt-0.5" />
+                    <div>
+                        <h4 className="font-semibold text-sm">Gagal Memuat Data</h4>
+                        <p className="text-sm opacity-90">{error}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Flex Group is already placed above above error */}
 
             <GlassCard className="overflow-hidden">
                 <div className="overflow-x-auto">

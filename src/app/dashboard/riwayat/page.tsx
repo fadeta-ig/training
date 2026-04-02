@@ -12,7 +12,7 @@ import {
     Award01Icon,
     Download01Icon,
 } from 'hugeicons-react';
-import html2canvas from 'html2canvas';
+import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { CertificateTemplate } from '@/app/dashboard/_components/CertificateTemplate';
 import AlertCustom, { useAlert } from '@/app/dashboard/_components/AlertCustom';
@@ -73,29 +73,28 @@ export default function RiwayatPage() {
 
             if (!element) throw new Error('Template tidak ditemukan');
 
-            // Set fixed dimensions temporarily for perfect render
-            const originalStyle = element.getAttribute('style') || '';
-            // We force it to be visible enough for html2canvas but away from user viewport
-            element.style.position = 'fixed';
-            element.style.left = '-9999px';
-            element.style.top = '0';
-            element.style.zIndex = '9999';
-            element.style.opacity = '1';
-            element.style.display = 'block';
+            // Clone to avoid layout shift and ensure perfect rendering
+            const clone = element.cloneNode(true) as HTMLElement;
+            clone.style.position = 'fixed';
+            clone.style.top = '0px';
+            clone.style.left = '0px';
+            clone.style.zIndex = '-9999';
+            clone.style.opacity = '1';
+            clone.style.display = 'flex';
+            document.body.appendChild(clone);
 
-            const canvas = await html2canvas(element, {
-                scale: 2, // Double resolution for sharpness
-                useCORS: true,
+            // Wait a tick for fonts/DOM to paint
+            await new Promise((r) => setTimeout(r, 150));
+
+            const imgData = await toJpeg(clone, {
+                quality: 1.0,
+                pixelRatio: 2, // Double resolution for sharpness
                 backgroundColor: '#ffffff',
-                logging: false,
                 width: 1123,
                 height: 794
             });
 
-            // Restore hidden state
-            element.setAttribute('style', originalStyle);
-
-            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+            document.body.removeChild(clone);
 
             // Landscape A4 (297 x 210 mm)
             const pdf = new jsPDF({
@@ -153,7 +152,7 @@ export default function RiwayatPage() {
                             <div key={s.id} className="relative">
                                 {/* Hidden Certificate Template for this session */}
                                 {allDone && (
-                                    <div style={{ opacity: 0, pointerEvents: 'none', position: 'absolute', left: '-9999px' }}>
+                                    <div style={{ pointerEvents: 'none', position: 'absolute', left: '-99999px', top: '-99999px' }}>
                                         <CertificateTemplate
                                             ref={(el) => { certificateRefs.current[s.id] = el; }}
                                             participantName={userName}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, PencilEdit01Icon, Logout01Icon } from 'hugeicons-react';
+import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, PencilEdit01Icon, Logout01Icon, Download01Icon } from 'hugeicons-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 
@@ -194,13 +194,24 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     </GlassCard>
 
                     <GlassCard className="p-6 md:p-8">
-                        <div className="flex items-center justify-between border-b border-black/5 pb-4 mb-4">
-                            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                                <UserMultipleIcon size={20} /> Daftar Peserta Terdaftar
-                            </h3>
-                            <span className="bg-black/5 text-foreground px-3 py-1 rounded-full text-xs font-bold">
-                                {session.participants.length} Orang
-                            </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-black/5 pb-4 mb-4 gap-4">
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                                    <UserMultipleIcon size={20} /> Daftar Peserta Terdaftar
+                                </h3>
+                                <span className="bg-black/5 text-foreground px-3 py-1 rounded-full text-xs font-bold">
+                                    {session.participants.length} Orang
+                                </span>
+                            </div>
+                            <a
+                                href={`/api/admin/sessions/${session.id}/export`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                            >
+                                <Download01Icon size={16} />
+                                Export Laporan Excel
+                            </a>
                         </div>
 
                         {session.participants.length === 0 ? (

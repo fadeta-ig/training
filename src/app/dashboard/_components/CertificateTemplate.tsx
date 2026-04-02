@@ -13,6 +13,7 @@ export const CertificateTemplate = forwardRef<HTMLDivElement, CertificateProps>(
     ({ participantName, courseName, completionDate, certificateId }, ref) => {
         return (
             <div
+                id="certificate-container"
                 ref={ref}
                 style={{
                     backgroundColor: '#ffffff',
@@ -31,9 +32,25 @@ export const CertificateTemplate = forwardRef<HTMLDivElement, CertificateProps>(
                     paddingLeft: '96px',
                     paddingRight: '96px',
                     boxSizing: 'border-box',
-                    backgroundImage: 'radial-gradient(circle at center, #ffffff 0%, #fefcf3 100%)'
+                    backgroundImage: 'radial-gradient(circle at center, #ffffff 0%, #fefcf3 100%)',
+                    color: '#1e293b',
+                    borderColor: 'transparent'
                 }}
             >
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                    #certificate-container,
+                    #certificate-container *,
+                    #certificate-container *::before,
+                    #certificate-container *::after {
+                        border-color: transparent !important;
+                        outline-color: transparent !important;
+                        text-decoration-color: transparent !important;
+                        caret-color: transparent !important;
+                        column-rule-color: transparent !important;
+                        -webkit-tap-highlight-color: transparent !important;
+                    }
+                `}} />
                 {/* Outer Border */}
                 <div style={{
                     position: 'absolute',

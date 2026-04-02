@@ -15,7 +15,7 @@ import {
     Download01Icon,
     Logout01Icon,
 } from 'hugeicons-react';
-import html2canvas from 'html2canvas';
+import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { CertificateTemplate } from '@/app/dashboard/_components/CertificateTemplate';
 import AlertCustom, { useAlert } from '@/app/dashboard/_components/AlertCustom';
@@ -82,29 +82,28 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
             setDownloading(true);
             const element = certificateRef.current;
 
-            // Set fixed dimensions temporarily for perfect render
-            const originalStyle = element.getAttribute('style') || '';
-            // Render it off-screen for html2canvas
-            element.style.position = 'fixed';
-            element.style.left = '-9999px';
-            element.style.top = '0';
-            element.style.zIndex = '9999';
-            element.style.opacity = '1';
-            element.style.display = 'block';
+            // Clone to avoid layout shift and ensure perfect rendering
+            const clone = element.cloneNode(true) as HTMLElement;
+            clone.style.position = 'fixed';
+            clone.style.top = '0px';
+            clone.style.left = '0px';
+            clone.style.zIndex = '-9999';
+            clone.style.opacity = '1';
+            clone.style.display = 'flex';
+            document.body.appendChild(clone);
 
-            const canvas = await html2canvas(element, {
-                scale: 2, // Double resolution for sharpness
-                useCORS: true,
+            // Wait a tick for fonts/DOM to paint
+            await new Promise((r) => setTimeout(r, 150));
+
+            const imgData = await toJpeg(clone, {
+                quality: 1.0,
+                pixelRatio: 2, // Double resolution for sharpness
                 backgroundColor: '#ffffff',
-                logging: false,
                 width: 1123,
                 height: 794
             });
 
-            // Restore hidden state
-            element.setAttribute('style', originalStyle);
-
-            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+            document.body.removeChild(clone);
 
             // Landscape A4
             const pdf = new jsPDF({
@@ -167,7 +166,7 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
 
             {/* Hidden Certificate Canvas */}
             {isFullyCompleted && (
-                <div style={{ opacity: 0, pointerEvents: 'none', position: 'absolute', left: '-9999px' }}>
+                <div style={{ pointerEvents: 'none', position: 'absolute', left: '-99999px', top: '-99999px' }}>
                     <CertificateTemplate
                         ref={certificateRef}
                         participantName={userName}
@@ -183,15 +182,27 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                     <ArrowLeft01Icon size={14} /> Kembali
                 </Link>
 
-                {isSEB && (
-                    <Link
-                        href="/quit-seb"
-                        className="inline-flex items-center gap-1.5 text-[10px] font-bold text-red-600 hover:text-red-700 bg-red-50 px-3 py-1 rounded-full border border-red-100 transition-all active:scale-95"
-                    >
-                        <Logout01Icon size={12} />
-                        Keluar Aplikasi SEB
-                    </Link>
-                )}
+                <div className="flex items-center gap-2">
+                    {session.require_seb && !isSEB && (
+                        <a
+                            href={`/api/participant/sessions/${session.id}/seb-config`}
+                            className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded-full border border-slate-700 transition-all active:scale-95 shadow-sm"
+                        >
+                            <Download01Icon size={12} />
+                            Download Config SEB
+                        </a>
+                    )}
+                    
+                    {isSEB && (
+                        <Link
+                            href="/quit-seb"
+                            className="inline-flex items-center gap-1.5 text-[10px] font-bold text-red-600 hover:text-red-700 bg-red-50 px-3 py-1 rounded-full border border-red-100 transition-all active:scale-95"
+                        >
+                            <Logout01Icon size={12} />
+                            Keluar Aplikasi SEB
+                        </Link>
+                    )}
+                </div>
             </div>
 
             {/* Compact Header */}

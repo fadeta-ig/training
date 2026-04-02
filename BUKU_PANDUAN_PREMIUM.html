@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buku Panduan & Guideline — Sistem E-Learning LMS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @page { size: A4; margin: 2.5cm 2cm; }
+        @media print {
+            body { font-size: 10.5pt; }
+            .page-break { page-break-before: always; }
+            .no-break { page-break-inside: avoid; }
+            h2 { page-break-after: avoid; }
+            h3, h4 { page-break-after: avoid; }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            color: #1a1a1a;
+            line-height: 1.75;
+            font-size: 14px;
+            background: #fff;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 3rem 2.5rem;
+        }
+
+        /* ── COVER ── */
+        .cover {
+            min-height: 85vh;
+            display: flex; flex-direction: column;
+            justify-content: center;
+            border-bottom: 3px solid #111;
+            padding-bottom: 3rem;
+            margin-bottom: 3rem;
+        }
+        .cover h1 {
+            font-size: 2.4rem; font-weight: 700;
+            line-height: 1.2; letter-spacing: -0.03em;
+            margin-bottom: 0.75rem;
+        }
+        .cover .subtitle {
+            font-size: 1.1rem; color: #555; margin-bottom: 2.5rem;
+        }
+        .cover .meta {
+            font-size: 0.85rem; color: #888;
+            border-top: 1px solid #ddd; padding-top: 1.5rem;
+            margin-top: auto;
+        }
+
+        /* ── HEADINGS ── */
+        h2 {
+            font-size: 1.5rem; font-weight: 700;
+            margin: 3.5rem 0 1.25rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #111;
+            letter-spacing: -0.02em;
+        }
+        h3 {
+            font-size: 1.1rem; font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: #111;
+        }
+        h4 {
+            font-size: 0.95rem; font-weight: 600;
+            margin: 1.5rem 0 0.5rem;
+            color: #333;
+        }
+
+        /* ── TEXT ── */
+        p { margin-bottom: 0.85rem; color: #333; }
+        strong { color: #111; }
+        code {
+            background: #f5f5f5; padding: 0.1rem 0.35rem;
+            border-radius: 3px; font-size: 0.88em;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* ── LISTS ── */
+        ol, ul { margin: 0.5rem 0 1rem 1.5rem; color: #333; }
+        li { margin-bottom: 0.35rem; }
+
+        /* ── TABLES ── */
+        table {
+            width: 100%; border-collapse: collapse;
+            margin: 0.75rem 0 1.5rem; font-size: 0.88rem;
+        }
+        th {
+            text-align: left; padding: 0.6rem 0.75rem;
+            font-weight: 600; font-size: 0.78rem;
+            text-transform: uppercase; letter-spacing: 0.03em;
+            color: #555; border-bottom: 2px solid #ddd;
+            background: #fafafa;
+        }
+        td {
+            padding: 0.55rem 0.75rem;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+
+        /* ── SPECIAL BLOCKS ── */
+        .note {
+            padding: 0.75rem 1rem;
+            border-left: 3px solid #111;
+            background: #fafafa;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            color: #444;
+        }
+        .note strong { color: #111; }
+
+        .screenshot {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 1.25rem;
+            text-align: center;
+            color: #999;
+            font-size: 0.85rem;
+            font-style: italic;
+            margin: 0.75rem 0;
+            background: #fafafa;
+        }
+
+        .swatch {
+            display: inline-block; width: 14px; height: 14px;
+            border-radius: 3px; vertical-align: middle;
+            margin-right: 0.4rem; border: 1px solid #ddd;
+        }
+
+        .flow-box {
+            background: #fafafa; border: 1px solid #eee;
+            border-radius: 4px; padding: 1.25rem;
+            margin: 1rem 0; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; line-height: 1.5;
+            white-space: pre; overflow-x: auto;
+        }
+
+        .step-label {
+            display: inline-block;
+            background: #111; color: #fff;
+            width: 24px; height: 24px; border-radius: 50%;
+            text-align: center; line-height: 24px;
+            font-size: 0.75rem; font-weight: 700;
+            margin-right: 0.5rem; flex-shrink: 0;
+        }
+
+        .toc { list-style: none; padding: 0; margin: 1rem 0; }
+        .toc li { padding: 0.35rem 0; border-bottom: 1px dotted #ddd; font-size: 0.92rem; }
+        .toc .indent { padding-left: 1.5rem; }
+
+        hr { border: none; border-top: 1px solid #eee; margin: 2.5rem 0; }
+
+        footer {
+            margin-top: 4rem; padding-top: 1.5rem;
+            border-top: 2px solid #111;
+            font-size: 0.8rem; color: #888; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ════════════════════════ COVER ════════════════════════ -->
+<div class="cover">
+    <h1>Buku Panduan &amp;<br>Guideline Sistem Website</h1>
+    <p class="subtitle">Sistem E-Learning — Learning Management System (LMS)</p>
+    <div class="meta">
+        Edisi Resmi &middot; Dokumen Serah Terima (Handover)<br>
+        Versi 1.0 — April 2026
+    </div>
+</div>
+
+<!-- ════════════════════════ DAFTAR ISI ════════════════════════ -->
+<h2>Daftar Isi</h2>
+<ul class="toc">
+    <li><strong>1.</strong> Pendahuluan</li>
+    <li class="indent">1.1 Tujuan Dokumen</li>
+    <li class="indent">1.2 Deskripsi Sistem</li>
+    <li class="indent">1.3 Target Audiens</li>
+    <li><strong>2.</strong> Brand &amp; UI Guidelines</li>
+    <li class="indent">2.1 Palet Warna</li>
+    <li class="indent">2.2 Tipografi</li>
+    <li class="indent">2.3 Komponen UI</li>
+    <li><strong>3.</strong> Alur Pengguna (User Flow)</li>
+    <li class="indent">3.1 Alur Administrator</li>
+    <li class="indent">3.2 Alur Peserta</li>
+    <li><strong>4.</strong> Panduan Penggunaan Sistem</li>
+    <li class="indent">4.1 Akses Sistem (Login)</li>
+    <li class="indent">4.2 Pengenalan Antarmuka</li>
+    <li class="indent">4.3 Fitur Utama — Panel Administrator</li>
+    <li class="indent">4.4 Fitur Utama — Dashboard Peserta</li>
+    <li class="indent">4.5 Pengaturan Profil &amp; Keamanan</li>
+    <li><strong>5.</strong> Troubleshooting &amp; FAQ</li>
+    <li><strong>6.</strong> Penutup &amp; Pusat Bantuan</li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- ════════════════════════ BAB 1 ════════════════════════ -->
+<h2>1 — Pendahuluan</h2>
+
+<h3>1.1 Tujuan Dokumen</h3>
+<p>Dokumen ini merupakan <strong>panduan resmi</strong> pengoperasian dan <strong>pedoman visual</strong> untuk Sistem E-Learning (LMS). Fungsi utamanya:</p>
+<ol>
+    <li><strong>User Manual</strong> — Langkah operasional harian bagi Admin, Trainer, dan Peserta.</li>
+    <li><strong>UI Guideline</strong> — Standar visual (warna, tipografi, komponen) untuk konsistensi pengembangan.</li>
+    <li><strong>Referensi Tunggal</strong> — Seluruh informasi teknis dan operasional dalam satu dokumen.</li>
+</ol>
+
+<h3>1.2 Deskripsi Sistem</h3>
+<p>Platform manajemen pembelajaran berbasis web yang mendukung siklus pelatihan menyeluruh: penyusunan materi, pelaksanaan ujian aman, pemantauan peserta secara langsung, hingga penerbitan sertifikat otomatis.</p>
+
+<table>
+    <thead><tr><th>Fitur</th><th>Deskripsi</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Manajemen Materi</strong></td><td>Konten pelatihan (teks, gambar, video) via editor visual.</td></tr>
+        <tr><td><strong>Bank Soal &amp; Ujian</strong></td><td>Pilihan ganda (otomatis dinilai) dan esai (manual).</td></tr>
+        <tr><td><strong>Penjadwalan Sesi</strong></td><td>Jadwal kelas/ujian dengan status otomatis (Aktif/Selesai).</td></tr>
+        <tr><td><strong>Safe Exam Browser</strong></td><td>Penguncian komputer peserta selama ujian berlangsung.</td></tr>
+        <tr><td><strong>Live Proctoring</strong></td><td>Snapshot webcam peserta setiap 30 detik.</td></tr>
+        <tr><td><strong>Sertifikasi Otomatis</strong></td><td>PDF sertifikat saat syarat kelulusan terpenuhi.</td></tr>
+        <tr><td><strong>Analitik &amp; Laporan</strong></td><td>Grafik tren partisipasi dan rasio kelulusan.</td></tr>
+    </tbody>
+</table>
+
+<h3>1.3 Target Audiens</h3>
+<ul>
+    <li><strong>Administrator</strong> — Mengelola seluruh aspek operasional.</li>
+    <li><strong>Trainer</strong> — Memantau perkembangan peserta (akses baca).</li>
+    <li><strong>Trainee (Peserta)</strong> — Mengakses materi, ujian, dan sertifikat.</li>
+    <li><strong>Tim IT / Developer</strong> — Menjaga konsistensi visual dalam pengembangan.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- ════════════════════════ BAB 2 ════════════════════════ -->
+<h2>2 — Brand &amp; UI Guidelines</h2>
+
+<h3>2.1 Palet Warna</h3>
+<p>Sistem menggunakan pendekatan <strong>monokrom mewah</strong> dengan aksen fungsional minimal.</p>
+
+<table>
+    <thead><tr><th>Kategori</th><th>Token</th><th>HEX</th><th>Keterangan</th></tr></thead>
+    <tbody>
+        <tr><td>Primary</td><td><code>--primary</code></td><td><span class="swatch" style="background:#000"></span>#000000</td><td>Tombol utama dan elemen aksi.</td></tr>
+        <tr><td>Background</td><td><code>--background</code></td><td><span class="swatch" style="background:#f8f9fa"></span>#F8F9FA</td><td>Latar belakang halaman.</td></tr>
+        <tr><td>Foreground</td><td><code>--foreground</code></td><td><span class="swatch" style="background:#111"></span>#111111</td><td>Teks utama dan heading.</td></tr>
+        <tr><td>Muted</td><td><code>--muted-foreground</code></td><td><span class="swatch" style="background:#6b7280"></span>#6B7280</td><td>Teks pendukung, placeholder.</td></tr>
+        <tr><td>Destructive</td><td><code>--destructive</code></td><td><span class="swatch" style="background:#ef4444"></span>#EF4444</td><td>Peringatan, error, hapus.</td></tr>
+        <tr><td>Card</td><td><code>--card</code></td><td><span class="swatch" style="background:#fff"></span>#FFFFFF</td><td>Latar kartu komponen.</td></tr>
+        <tr><td>Border</td><td><code>--border</code></td><td>rgba(0,0,0,0.08)</td><td>Garis pembatas halus.</td></tr>
+    </tbody>
+</table>
+
+<div class="note">
+    <strong>Aksen Fungsional:</strong> Hijau (#10B981) untuk sukses, Biru (#2563EB) untuk info, Kuning (#F59E0B) untuk peringatan — hanya untuk indikator status.
+</div>
+
+<h3>2.2 Tipografi</h3>
+<table>
+    <thead><tr><th>Elemen</th><th>Font</th><th>Ukuran</th><th>Weight</th></tr></thead>
+    <tbody>
+        <tr><td>Heading 1</td><td>Helvetica Neue, sans-serif</td><td>2.0 — 3.5 rem</td><td>700 — 800</td></tr>
+        <tr><td>Heading 2</td><td>Helvetica Neue, sans-serif</td><td>1.25 — 2.2 rem</td><td>600 — 700</td></tr>
+        <tr><td>Body Text</td><td>Helvetica Neue, sans-serif</td><td>0.875 — 1.1 rem</td><td>400</td></tr>
+        <tr><td>Caption</td><td>Helvetica Neue, sans-serif</td><td>0.65 — 0.85 rem</td><td>500 — 700</td></tr>
+        <tr><td>Monospace</td><td>Geist Mono, monospace</td><td>0.75 — 0.85 rem</td><td>400</td></tr>
+    </tbody>
+</table>
+
+<h3>2.3 Komponen UI</h3>
+
+<h4>Tombol (Buttons)</h4>
+<table>
+    <thead><tr><th>Tipe</th><th>Gaya Visual</th></tr></thead>
+    <tbody>
+        <tr><td>Primary</td><td>BG: #000, Teks: #FFF, Radius: 0.75rem, Shadow halus.</td></tr>
+        <tr><td>Secondary</td><td>BG: transparan, Border: rgba(0,0,0,0.08), Teks: #111.</td></tr>
+        <tr><td>Destructive</td><td>BG: #EF4444/10, Teks: #EF4444. Untuk aksi hapus.</td></tr>
+    </tbody>
+</table>
+
+<h4>Kartu &amp; Form Input</h4>
+<table>
+    <thead><tr><th>Komponen</th><th>Spesifikasi</th></tr></thead>
+    <tbody>
+        <tr><td>Glass Card</td><td>BG: #FFF, Border: 1px solid rgba(0,0,0,0.05), Radius: 1.35rem.</td></tr>
+        <tr><td>Form Input</td><td>BG: rgba(255,255,255,0.5), Focus: border #000 + ring 2px, Radius: 0.75rem.</td></tr>
+    </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<!-- ════════════════════════ BAB 3 ════════════════════════ -->
+<h2>3 — Alur Pengguna (User Flow)</h2>
+
+<h3>3.1 Alur Administrator</h3>
+<div class="flow-box">LOGIN ──▶ DASHBOARD OVERVIEW
+  │
+  ├── Buat Materi (Content)
+  ├── Buat Ujian &amp; Bank Soal (Exams)
+  ├── Susun Modul (Modules)
+  ├── Kelola Peserta (Participants)
+  │
+  └── Buat Sesi (Sessions)
+        │  Gabungkan: Modul + Peserta + Jadwal
+        │  Opsi: Aktifkan Safe Exam Browser
+        │
+        ├── MONITORING LIVE PROCTORING
+        │   Webcam snapshot setiap 30 detik
+        │
+        └── EXPORT LAPORAN &amp; SERTIFIKASI
+            Unduh Excel + Sertifikat otomatis</div>
+
+<h3>3.2 Alur Peserta (Trainee)</h3>
+<div class="flow-box">LOGIN ──▶ DASHBOARD OVERVIEW
+  │   (Kalender, Statistik, Sesi Terbaru)
+  │
+  └── PILIH SESI AKTIF
+        │
+        ├── Baca Materi (item per item, progress %)
+        ├── Kerjakan Ujian
+        │     ├─ SEB Aktif → Buka aplikasi SEB
+        │     └─ SEB Tidak → Browser biasa
+        │
+        └── HASIL
+              ├─ Lulus → Download Sertifikat (PDF)
+              └─ Belum → Cek ulang / Remedial</div>
+
+<div class="page-break"></div>
+
+<!-- ════════════════════════ BAB 4 ════════════════════════ -->
+<h2>4 — Panduan Penggunaan Sistem</h2>
+
+<h3>4.1 Akses Sistem (Login)</h3>
+<div class="screenshot">[ Masukkan Screenshot Halaman Login di sini ]</div>
+<ol>
+    <li>Buka browser (Chrome / Firefox / Edge versi terbaru).</li>
+    <li>Masukkan <strong>alamat URL</strong> sistem yang diberikan administrator.</li>
+    <li>Isi <strong>Username</strong> dan <strong>Password</strong>.</li>
+    <li>Klik tombol <strong>"Masuk ke Dashboard"</strong>.</li>
+    <li>Sistem mengarahkan sesuai peran:
+        <ul>
+            <li><strong>Admin</strong> → Dashboard Administrator.</li>
+            <li><strong>Trainee</strong> → Dashboard Peserta.</li>
+        </ul>
+    </li>
+</ol>
+
+<div class="note">
+    <strong>Lupa Password?</strong> Hubungi Administrator untuk reset melalui panel User Management. Fitur reset mandiri belum tersedia.
+</div>
+
+<hr>
+
+<h3>4.2 Pengenalan Antarmuka</h3>
+
+<h4>A. Dashboard Administrator</h4>
+<div class="screenshot">[ Masukkan Screenshot Dashboard Admin di sini ]</div>
+<table>
+    <thead><tr><th>Komponen</th><th>Posisi</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td>Sidebar Navigasi</td><td>Kiri</td><td>Menu ke semua modul sistem.</td></tr>
+        <tr><td>Panel Statistik</td><td>Atas</td><td>4 kartu: Materi, Soal, Sesi, Peserta.</td></tr>
+        <tr><td>Grafik Analitik</td><td>Tengah</td><td>Tren partisipasi 14 hari &amp; rasio lulus.</td></tr>
+        <tr><td>Sesi Terkini</td><td>Bawah kiri</td><td>5 sesi terakhir beserta status.</td></tr>
+        <tr><td>Aksi Cepat</td><td>Bawah kanan</td><td>Shortcut buat materi, soal, sesi baru.</td></tr>
+    </tbody>
+</table>
+<p><strong>Menu Sidebar:</strong> Overview, Content, Modules, Exams, Sessions, Participants, Users, Monitoring.</p>
+
+<h4>B. Dashboard Peserta</h4>
+<div class="screenshot">[ Masukkan Screenshot Dashboard Peserta di sini ]</div>
+<table>
+    <thead><tr><th>Komponen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td>3 Kartu Statistik</td><td>Sesi Berjalan, Akan Datang, Selesai.</td></tr>
+        <tr><td>Kalender Interaktif</td><td>Visualisasi jadwal pelatihan.</td></tr>
+        <tr><td>Widget Lanjutkan Belajar</td><td>Shortcut ke sesi aktif.</td></tr>
+        <tr><td>Daftar Sesi Terbaru</td><td>4 sesi terkini dengan progress.</td></tr>
+    </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<h3>4.3 Fitur Utama — Panel Administrator</h3>
+<p>Berikut alur kerja utama Administrator dari awal hingga akhir:</p>
+
+<h4><span class="step-label">1</span> Buat Materi Pelatihan</h4>
+<p>Sidebar → <strong>Content</strong> → klik "Buat Materi Baru" → isi judul → gunakan editor visual (teks, gambar, video) → Simpan.</p>
+<div class="screenshot">[ Masukkan Screenshot Editor Materi di sini ]</div>
+
+<h4><span class="step-label">2</span> Buat Bank Soal (Ujian)</h4>
+<p>Sidebar → <strong>Exams</strong> → klik "Buat Ujian Baru" → isi parameter:</p>
+<table>
+    <thead><tr><th>Parameter</th><th>Keterangan</th></tr></thead>
+    <tbody>
+        <tr><td>Judul Ujian</td><td>Nama identitas (contoh: "Ujian Akhir Modul 1").</td></tr>
+        <tr><td>Durasi (Menit)</td><td>Batas waktu. Jawaban otomatis terkirim saat habis.</td></tr>
+        <tr><td>Passing Grade</td><td>Skor minimum untuk lulus (contoh: 70%).</td></tr>
+    </tbody>
+</table>
+<p>Setelah simpan, klik <strong>"Kelola Soal"</strong> → tambah soal pilihan ganda (dinilai otomatis) atau esai (dinilai manual).</p>
+
+<h4><span class="step-label">3</span> Susun Modul Pembelajaran</h4>
+<p>Sidebar → <strong>Modules</strong> → "Buat Modul Baru" → pasangkan Materi + Ujian → atur urutan → Simpan.</p>
+
+<h4><span class="step-label">4</span> Jadwalkan Sesi</h4>
+<p>Sidebar → <strong>Sessions</strong> → "Buat Sesi Baru":</p>
+<div class="screenshot">[ Masukkan Screenshot Form Sesi di sini ]</div>
+<table>
+    <thead><tr><th>Field</th><th>Keterangan</th></tr></thead>
+    <tbody>
+        <tr><td>Judul Sesi</td><td>Nama kelas (contoh: "Batch 1 — Pelatihan K3").</td></tr>
+        <tr><td>Pilih Modul</td><td>Modul yang akan diajarkan.</td></tr>
+        <tr><td>Waktu Mulai / Selesai</td><td>Otomatis terkunci setelah waktu selesai.</td></tr>
+        <tr><td>Require SEB</td><td>Centang jika ujian wajib via Safe Exam Browser.</td></tr>
+    </tbody>
+</table>
+<p>Masukkan peserta (individu atau massal) → klik Simpan.</p>
+
+<p><strong>Status Sesi Otomatis:</strong></p>
+<table>
+    <thead><tr><th>Status</th><th>Kondisi</th></tr></thead>
+    <tbody>
+        <tr><td>Akan Datang</td><td>Waktu saat ini belum mencapai waktu mulai.</td></tr>
+        <tr><td>Berlangsung</td><td>Waktu saat ini berada di antara mulai dan selesai.</td></tr>
+        <tr><td>Selesai</td><td>Waktu saat ini sudah melewati batas selesai.</td></tr>
+    </tbody>
+</table>
+
+<h4><span class="step-label">5</span> Live Proctoring (Monitoring Ujian)</h4>
+<p>Sidebar → <strong>Monitoring</strong> → pilih sesi aktif dari dropdown. Sistem menampilkan grid snapshot webcam peserta dengan refresh otomatis setiap 30 detik.</p>
+<div class="screenshot">[ Masukkan Screenshot Halaman Monitoring di sini ]</div>
+<table>
+    <thead><tr><th>Informasi</th><th>Keterangan</th></tr></thead>
+    <tbody>
+        <tr><td>Foto Webcam</td><td>Tangkapan wajah peserta (diambil otomatis).</td></tr>
+        <tr><td>Nama &amp; Username</td><td>Identitas di bawah setiap foto.</td></tr>
+        <tr><td>Waktu Capture</td><td>Stempel waktu saat foto diambil.</td></tr>
+    </tbody>
+</table>
+
+<h4><span class="step-label">6</span> Export Laporan Excel</h4>
+<p>Sessions → klik sesi → halaman Detail Sesi → tombol <strong>"Export Laporan Excel"</strong>. File berisi daftar peserta, progress (%), dan status pengerjaan.</p>
+
+<div class="page-break"></div>
+
+<h3>4.4 Fitur Utama — Dashboard Peserta</h3>
+
+<h4>A. Halaman "Sesi Saya"</h4>
+<div class="screenshot">[ Masukkan Screenshot Sesi Peserta di sini ]</div>
+<p>Seluruh sesi yang diikuti ditampilkan berdasarkan status:</p>
+<table>
+    <thead><tr><th>Kelompok</th><th>Keterangan</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Sedang Berlangsung</strong></td><td>Klik untuk akses materi dan ujian.</td></tr>
+        <tr><td><strong>Akan Datang</strong></td><td>Terkunci hingga waktu mulai tiba.</td></tr>
+        <tr><td><strong>Selesai (100%)</strong></td><td>Semua item telah diselesaikan.</td></tr>
+        <tr><td><strong>Berakhir</strong></td><td>Sudah melewati batas waktu.</td></tr>
+    </tbody>
+</table>
+<p>Setiap baris sesi menampilkan <strong>Progress Bar</strong> (contoh: 3/5 item = 60%).</p>
+
+<h4>B. Mengerjakan Sesi</h4>
+<ol>
+    <li>Klik sesi berstatus <strong>"Sedang Berlangsung"</strong>.</li>
+    <li>Baca <strong>Materi</strong> — otomatis ditandai selesai setelah dibaca.</li>
+    <li>Kerjakan <strong>Ujian</strong> — jika SEB diwajibkan, pastikan aplikasi SEB terinstal.</li>
+    <li>Selesaikan seluruh item untuk progres <strong>100%</strong>.</li>
+</ol>
+
+<h4>C. Unduh Sertifikat</h4>
+<p>Jika progres 100% dan skor ≥ Passing Grade → tombol <strong>"Download Sertifikat"</strong> muncul → klik untuk unduh PDF.</p>
+
+<hr>
+
+<h3>4.5 Pengaturan Profil &amp; Keamanan</h3>
+<div class="screenshot">[ Masukkan Screenshot Halaman Profil di sini ]</div>
+
+<h4>Data Personal</h4>
+<table>
+    <thead><tr><th>Field</th><th>Keterangan</th><th>Dapat Diubah</th></tr></thead>
+    <tbody>
+        <tr><td>Nama Lengkap</td><td>Nama resmi yang tertera di sertifikat.</td><td>Ya</td></tr>
+        <tr><td>Username</td><td>Identitas login, ditetapkan oleh Admin.</td><td>Tidak</td></tr>
+        <tr><td>Nomor Telepon</td><td>Kontak pribadi.</td><td>Ya</td></tr>
+        <tr><td>Jenis Kelamin</td><td>L (Laki-Laki) / P (Perempuan).</td><td>Ya</td></tr>
+        <tr><td>Tanggal Lahir</td><td>Format: YYYY-MM-DD.</td><td>Ya</td></tr>
+        <tr><td>Institusi</td><td>Instansi / perusahaan asal.</td><td>Ya</td></tr>
+        <tr><td>Alamat</td><td>Alamat domisili.</td><td>Ya</td></tr>
+    </tbody>
+</table>
+
+<h4>Ganti Password</h4>
+<ol>
+    <li>Isi <strong>"Password Saat Ini"</strong> untuk verifikasi.</li>
+    <li>Isi <strong>"Password Baru"</strong> dan <strong>"Konfirmasi"</strong> (harus sama).</li>
+    <li>Klik <strong>"Simpan Perubahan"</strong>.</li>
+</ol>
+<div class="note"><strong>Tips:</strong> Kosongkan field password jika hanya ingin memperbarui data personal tanpa mengganti kata sandi.</div>
+
+<div class="page-break"></div>
+
+<!-- ════════════════════════ BAB 5 ════════════════════════ -->
+<h2>5 — Troubleshooting &amp; FAQ</h2>
+
+<div class="no-break">
+<h4>Masalah 1: Tidak bisa login — "Login gagal"</h4>
+<table>
+    <tbody>
+        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Username atau password salah; akun belum terdaftar.</td></tr>
+        <tr><td><strong>Solusi</strong></td><td>Periksa huruf besar/kecil. Pastikan tidak ada spasi. Hubungi Admin untuk reset.</td></tr>
+    </tbody>
+</table>
+</div>
+
+<div class="no-break">
+<h4>Masalah 2: Monitoring tidak menampilkan foto webcam</h4>
+<table>
+    <tbody>
+        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Peserta belum mulai ujian; webcam tidak diizinkan; SEB tidak aktif.</td></tr>
+        <tr><td><strong>Solusi</strong></td><td>Pastikan peserta klik "Mulai Ujian". Aktifkan SEB di sesi. Izinkan akses kamera.</td></tr>
+    </tbody>
+</table>
+</div>
+
+<div class="no-break">
+<h4>Masalah 3: Sertifikat tidak muncul setelah ujian selesai</h4>
+<table>
+    <tbody>
+        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Progres belum 100%; skor di bawah Passing Grade.</td></tr>
+        <tr><td><strong>Solusi</strong></td><td>Pastikan seluruh materi dibaca. Periksa skor ujian. Hubungi Admin.</td></tr>
+    </tbody>
+</table>
+</div>
+
+<div class="no-break">
+<h4>Masalah 4: Halaman loading terus-menerus</h4>
+<table>
+    <tbody>
+        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Koneksi lambat; server beban tinggi.</td></tr>
+        <tr><td><strong>Solusi</strong></td><td>Cek koneksi internet. Refresh (<code>F5</code>). Hapus cache (<code>Ctrl+Shift+Del</code>). Hubungi IT.</td></tr>
+    </tbody>
+</table>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ════════════════════════ BAB 6 ════════════════════════ -->
+<h2>6 — Penutup &amp; Pusat Bantuan</h2>
+
+<h3>6.1 Penutup</h3>
+<p>Sistem E-Learning ini dirancang untuk mempermudah seluruh siklus pelatihan dengan jaminan keamanan dan pengalaman pengguna yang modern. Dengan mematuhi panduan ini, seluruh pihak dapat memanfaatkan sistem secara optimal dan mandiri.</p>
+
+<h3>6.2 Pusat Bantuan</h3>
+<table>
+    <tbody>
+        <tr><td style="width:140px"><strong>Email</strong></td><td>support@lms-system.com</td></tr>
+        <tr><td><strong>WhatsApp</strong></td><td>+62 812-34XX-XXXX</td></tr>
+        <tr><td><strong>Jam Operasional</strong></td><td>Senin — Jumat, 08.00 — 17.00 WIB</td></tr>
+        <tr><td><strong>Respon Darurat</strong></td><td>Sabtu &amp; Minggu hanya untuk isu kritis.</td></tr>
+    </tbody>
+</table>
+<div class="note"><strong>Tips Reset Password:</strong> Sertakan username dan nama lengkap pada pesan agar proses lebih cepat.</div>
+
+<footer>
+    Dokumen Panduan &amp; Guideline — Sistem E-Learning LMS<br>
+    Versi 1.0 — April 2026
+</footer>
+
+</body>
+</html>

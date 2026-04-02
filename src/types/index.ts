@@ -28,9 +28,18 @@ export interface Training {
     id: string;
     title: string;
     content_html: string;
-    video_url: string | null;
     created_at: string;
     updated_at: string;
+}
+
+export interface TrainingMedia {
+    id: string;
+    training_id: string;
+    media_type: 'video' | 'image' | 'pdf' | 'document';
+    media_url: string;
+    original_filename: string | null;
+    sequence_order: number;
+    created_at: string;
 }
 
 export interface Exam {

@@ -48,9 +48,24 @@ CREATE TABLE trainings (
   id          VARCHAR(36)  PRIMARY KEY,
   title       VARCHAR(150) NOT NULL,
   content_html TEXT        NOT NULL,
-  video_url   VARCHAR(255) NULL,
   created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ─────────────────────────────────────────────
+-- 3b. Training Media (Lampiran Multi-Media)
+-- ─────────────────────────────────────────────
+CREATE TABLE training_media (
+  id                VARCHAR(36) PRIMARY KEY,
+  training_id       VARCHAR(36) NOT NULL,
+  media_type        ENUM('video', 'image', 'pdf', 'document') NOT NULL,
+  media_url         VARCHAR(500) NOT NULL,
+  original_filename VARCHAR(255) NULL,
+  sequence_order    INT NOT NULL DEFAULT 0,
+  created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_training_media_training (training_id),
+  CONSTRAINT fk_training_media_training
+    FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────

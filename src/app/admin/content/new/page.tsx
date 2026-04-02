@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Book01Icon, FloppyDiskIcon, ArrowLeft01Icon } from 'hugeicons-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import MediaAttachmentManager from '@/components/ui/MediaAttachmentManager';
+import type { MediaItem } from '@/components/ui/MediaAttachmentManager';
 
 const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), { ssr: false });
 
@@ -14,8 +16,8 @@ export default function NewTrainingPage() {
     const [formData, setFormData] = useState({
         title: '',
         content_html: '',
-        video_url: ''
     });
+    const [media, setMedia] = useState<MediaItem[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -33,7 +35,7 @@ export default function NewTrainingPage() {
             const res = await fetch('/api/trainings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({ ...formData, media })
             });
 
             const result = await res.json();
@@ -66,7 +68,7 @@ export default function NewTrainingPage() {
                         Buat Materi Baru
                     </h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        Tambahkan bahan bacaan, artikel, atau konten video baru ke dalam sistem.
+                        Tambahkan bahan bacaan, artikel, atau konten multimedia baru ke dalam sistem.
                     </p>
                 </div>
             </div>
@@ -91,16 +93,7 @@ export default function NewTrainingPage() {
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-foreground">Tautan Video <span className="text-muted-foreground font-normal">(Opsional)</span></label>
-                        <input
-                            type="url"
-                            className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
-                            placeholder="https://youtube.com/..."
-                            value={formData.video_url}
-                            onChange={e => setFormData({ ...formData, video_url: e.target.value })}
-                        />
-                    </div>
+                    <MediaAttachmentManager items={media} onChange={setMedia} />
                 </div>
 
                 <div className="space-y-3">

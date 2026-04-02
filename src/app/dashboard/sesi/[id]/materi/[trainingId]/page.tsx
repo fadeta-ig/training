@@ -2,21 +2,31 @@
 
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
     ArrowLeft01Icon,
     Book01Icon,
     AlertCircleIcon,
     VideoReplayIcon,
+    Image01Icon,
+    File01Icon,
+    Download01Icon,
     Tick01Icon,
 } from 'hugeicons-react';
 import { toast } from 'sonner';
+
+type MediaAttachment = {
+    id: string;
+    media_type: 'video' | 'image' | 'pdf' | 'document';
+    media_url: string;
+    original_filename: string | null;
+    sequence_order: number;
+};
 
 type TrainingData = {
     id: string;
     title: string;
     content_html: string;
-    video_url: string | null;
+    media: MediaAttachment[];
 };
 
 function extractYouTubeEmbedUrl(url: string): string | null {
@@ -32,9 +42,105 @@ function extractYouTubeEmbedUrl(url: string): string | null {
     return null;
 }
 
+/** Renders a single media attachment based on its type */
+function MediaRenderer({ item }: { item: MediaAttachment }) {
+    if (item.media_type === 'video') {
+        const embedUrl = extractYouTubeEmbedUrl(item.media_url);
+        if (!embedUrl) return null;
+        return (
+            <div className="glass-card p-4 space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <VideoReplayIcon size={12} />
+                    Video
+                </div>
+                <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                    <iframe
+                        src={embedUrl}
+                        className="w-full h-full"
+                        allowFullScreen
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    if (item.media_type === 'image') {
+        return (
+            <div className="glass-card p-4 space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                    <Image01Icon size={12} />
+                    Gambar
+                </div>
+                <div className="rounded-lg overflow-hidden bg-black/5">
+                    <img
+                        src={item.media_url}
+                        alt={item.original_filename || 'Gambar materi'}
+                        className="w-full h-auto max-h-[500px] object-contain mx-auto"
+                        loading="lazy"
+                    />
+                </div>
+                {item.original_filename && (
+                    <p className="text-[10px] text-muted-foreground text-center">{item.original_filename}</p>
+                )}
+            </div>
+        );
+    }
+
+    if (item.media_type === 'pdf') {
+        return (
+            <div className="glass-card p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                        <File01Icon size={12} />
+                        PDF
+                    </div>
+                    <a
+                        href={item.media_url}
+                        download={item.original_filename || 'document.pdf'}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline"
+                    >
+                        <Download01Icon size={11} />
+                        Download
+                    </a>
+                </div>
+                <div className="rounded-lg overflow-hidden border border-black/5" style={{ height: '500px' }}>
+                    <iframe
+                        src={item.media_url}
+                        className="w-full h-full"
+                        title={item.original_filename || 'PDF Viewer'}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // document type (Word, PPT, etc.) — download link
+    return (
+        <div className="glass-card p-4">
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-violet-50 text-violet-500 flex items-center justify-center shrink-0">
+                    <File01Icon size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{item.original_filename || 'Dokumen'}</p>
+                    <p className="text-[10px] text-muted-foreground">Dokumen lampiran</p>
+                </div>
+                <a
+                    href={item.media_url}
+                    download={item.original_filename || 'document'}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors active:scale-95 shrink-0"
+                >
+                    <Download01Icon size={14} />
+                    Download
+                </a>
+            </div>
+        </div>
+    );
+}
+
 export default function MateriViewerPage({ params }: { params: Promise<{ id: string; trainingId: string }> }) {
     const { id: sessionId, trainingId } = use(params);
-    const router = useRouter();
     const [training, setTraining] = useState<TrainingData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -92,8 +198,6 @@ export default function MateriViewerPage({ params }: { params: Promise<{ id: str
         );
     }
 
-    const embedUrl = training.video_url ? extractYouTubeEmbedUrl(training.video_url) : null;
-
     return (
         <div className="max-w-2xl mx-auto space-y-4 pb-12">
             <Link href={`/dashboard/sesi/${sessionId}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
@@ -111,22 +215,11 @@ export default function MateriViewerPage({ params }: { params: Promise<{ id: str
                 </div>
             </div>
 
-            {/* Video */}
-            {embedUrl && (
-                <div className="glass-card p-4 space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                        <VideoReplayIcon size={12} />
-                        Video
-                    </div>
-                    <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                        <iframe
-                            src={embedUrl}
-                            className="w-full h-full"
-                            allowFullScreen
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        />
-                    </div>
-                </div>
+            {/* Media Attachments */}
+            {training.media && training.media.length > 0 && (
+                training.media.map((item) => (
+                    <MediaRenderer key={item.id} item={item} />
+                ))
             )}
 
             {/* Content */}

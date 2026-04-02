@@ -37,14 +37,9 @@ export async function POST(request: NextRequest) {
         // Generate token
         const resetToken = crypto.randomBytes(32).toString('hex');
         
-        // Expiration: 1 Hour from now
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 1);
-        const expiresAtStr = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
-
         await executeQuery(
-            `UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?`,
-            [resetToken, expiresAtStr, user.id]
+            `UPDATE users SET reset_token = ?, reset_token_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE id = ?`,
+            [resetToken, user.id]
         );
 
         // Buat reset link

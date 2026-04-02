@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { z } from 'zod';
-import { withAuth } from '@/lib/api-auth';
+import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import { logActivity } from '@/lib/audit';
 import pool from '@/lib/db';
 
 const participantUpdateSchema = z.object({
@@ -46,7 +47,7 @@ async function handleGet(
 
 async function handlePut(
     request: NextRequest,
-    _user: any,
+    authUser: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -110,6 +111,12 @@ async function handlePut(
             connection.release();
         }
 
+        // Emit Audit Trail
+        await logActivity(authUser.id, 'UPDATE_USER', 'users', resolvedParams.id, {
+            email: email,
+            name: name
+        });
+
         return NextResponse.json({ success: true, message: 'Data peserta berhasil diperbarui' });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';
@@ -119,7 +126,7 @@ async function handlePut(
 
 async function handleDelete(
     request: NextRequest,
-    _user: any,
+    authUser: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -135,6 +142,9 @@ async function handleDelete(
         }
 
         // participant_profiles deletes automatically via CASCADE FK
+
+        // Emit Audit Trail
+        await logActivity(authUser.id, 'DELETE_USER', 'users', resolvedParams.id);
 
         return NextResponse.json({ success: true, message: 'Peserta berhasil dihapus' });
     } catch (error) {

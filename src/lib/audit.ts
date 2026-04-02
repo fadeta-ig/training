@@ -15,7 +15,8 @@ export type AuditActionType =
     | 'DELETE_SESSION'
     | 'MANUAL_GRADE_EXAM'
     | 'BULK_IMPORT_USERS'
-    | 'RESET_PASSWORD';
+    | 'RESET_PASSWORD'
+    | 'SEND_CREDENTIALS';
 
 /**
  * Core function to log an activity to the audit_logs table.

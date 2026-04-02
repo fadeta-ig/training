@@ -10,7 +10,9 @@ import {
     Search01Icon,
     RefreshIcon,
     Alert02Icon,
-    Clock01Icon
+    Clock01Icon,
+    ViewIcon,
+    Cancel01Icon
 } from 'hugeicons-react';
 import { AuditLog } from '@/types';
 
@@ -21,6 +23,7 @@ export default function AuditLogsPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
     const fetchLogs = async (targetPage = page, search = searchQuery) => {
         setIsLoading(true);
@@ -157,8 +160,18 @@ export default function AuditLogsPage() {
                                             <p className="font-semibold text-slate-800">{log.full_name || 'SYSTEM'}</p>
                                             <p className="text-xs text-slate-500">{log.username ? `@${log.username}` : 'Auto-triggered Action'}</p>
                                         </td>
-                                        <td className="px-6 py-4 text-right max-w-xs truncate text-[11px] text-slate-500 font-mono">
-                                            {log.details ? JSON.stringify(log.details) : '-'}
+                                        <td className="px-6 py-4 text-right">
+                                            {log.details ? (
+                                                <button
+                                                    onClick={() => setSelectedLog(log)}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/5 hover:bg-black/10 text-slate-600 hover:text-slate-900 transition-colors text-xs font-semibold"
+                                                >
+                                                    <ViewIcon size={14} />
+                                                    Lihat Detail
+                                                </button>
+                                            ) : (
+                                                <span className="text-slate-400 text-xs italic">-</span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
@@ -169,6 +182,48 @@ export default function AuditLogsPage() {
             </GlassCard>
 
             <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+
+            {/* JSON Payload Detail Modal */}
+            {selectedLog && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div 
+                        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between bg-slate-50/50">
+                            <div>
+                                <h3 className="font-bold text-lg text-slate-800">Detail Payload Aktivitas</h3>
+                                <div className="flex gap-2 items-center mt-1 text-xs text-slate-500">
+                                    <span className="font-mono bg-black/5 px-1.5 rounded">Action: {selectedLog.action_type}</span>
+                                    <span>•</span>
+                                    <span>Entity: {selectedLog.entity}</span>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedLog(null)}
+                                className="p-2 -mr-2 rounded-xl hover:bg-black/5 text-muted-foreground transition-colors"
+                            >
+                                <Cancel01Icon size={20} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-900">
+                            <pre className="text-emerald-400 font-mono text-[13px] leading-relaxed whitespace-pre-wrap break-words">
+                                {JSON.stringify(selectedLog.details, null, 2)}
+                            </pre>
+                        </div>
+                        
+                        <div className="px-6 py-4 border-t border-black/5 bg-slate-50 flex justify-end">
+                            <button
+                                onClick={() => setSelectedLog(null)}
+                                className="px-4 py-2 text-sm font-semibold rounded-xl bg-white border border-black/10 hover:bg-black/5 transition-colors"
+                            >
+                                Tutup Panel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserAdd01Icon, FloppyDiskIcon, ArrowLeft01Icon, Copy01Icon, Tick01Icon, Key01Icon } from 'hugeicons-react';
+import { UserAdd01Icon, FloppyDiskIcon, ArrowLeft01Icon, Copy01Icon, Tick01Icon, Key01Icon, MailSend01Icon } from 'hugeicons-react';
 import Link from 'next/link';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ type Credentials = {
 export default function NewParticipantPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [credentials, setCredentials] = useState<Credentials | null>(null);
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [formData, setFormData] = useState({
@@ -39,6 +40,31 @@ export default function NewParticipantPage() {
         const text = `Login Peserta\nUsername: ${credentials.username}\nPassword: ${credentials.password}`;
         await navigator.clipboard.writeText(text);
         toast.success('Semua kredensial disalin!');
+    };
+
+    const handleSendEmail = async () => {
+        if (!credentials) return;
+        setIsSendingEmail(true);
+        try {
+            const res = await fetch('/api/admin/users/send-credentials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: credentials.username,
+                    password: credentials.password
+                })
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                toast.success('Berhasil!', { description: result.message || 'Kredensial berhasil dikirim ke email peserta.' });
+            } else {
+                toast.error('Gagal mengirim email', { description: result.error });
+            }
+        } catch (err: any) {
+            toast.error('Gagal mengirim email', { description: err.message });
+        } finally {
+            setIsSendingEmail(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -122,13 +148,28 @@ export default function NewParticipantPage() {
                     </div>
 
                     <div className="space-y-3 pt-2">
-                        <button
-                            onClick={handleCopyAll}
-                            className="w-full flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold rounded-xl border border-black/10 hover:bg-black/5 transition-colors active:scale-95"
-                        >
-                            <Copy01Icon size={16} />
-                            Salin Semua Kredensial
-                        </button>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleCopyAll}
+                                className="flex-1 flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold rounded-xl border border-black/10 hover:bg-black/5 transition-colors active:scale-95"
+                            >
+                                <Copy01Icon size={16} />
+                                Salin
+                            </button>
+
+                            <button
+                                onClick={handleSendEmail}
+                                disabled={isSendingEmail}
+                                className="flex-1 flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold rounded-xl border border-emerald-600/30 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition-colors active:scale-95 disabled:opacity-50"
+                            >
+                                {isSendingEmail ? (
+                                    <div className="w-4 h-4 border-2 border-emerald-800 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <MailSend01Icon size={16} />
+                                )}
+                                Kirim via Email
+                            </button>
+                        </div>
 
                         <div className="flex gap-3">
                             <button

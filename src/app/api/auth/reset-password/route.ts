@@ -16,25 +16,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: 'Password minimal 6 karakter' }, { status: 400 });
         }
 
-        // Validate Token
+        // Validate Token & Expiration natively via MySQL
         const users = await executeQuery<any[]>(
-            `SELECT id, username, reset_token_expires 
+            `SELECT id, username 
              FROM users 
-             WHERE reset_token = ?`,
+             WHERE reset_token = ? AND reset_token_expires > NOW()`,
             [token]
         );
 
         if (!users || users.length === 0) {
-            return NextResponse.json({ success: false, error: 'Token reset password tidak valid atau telah digunakan' }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Token reset password tidak valid atau telah kedaluwarsa. Silakan minta ulang.' }, { status: 400 });
         }
 
         const user = users[0];
-        const now = new Date();
-        const expiresAt = new Date(user.reset_token_expires);
-
-        if (now > expiresAt) {
-            return NextResponse.json({ success: false, error: 'Token reset password telah kedaluwarsa. Silakan minta ulang.' }, { status: 400 });
-        }
 
         // Hash new password
         const salt = await bcrypt.genSalt(10);

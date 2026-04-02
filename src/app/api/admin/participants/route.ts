@@ -3,7 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { executeQuery } from '@/lib/db';
 import { z } from 'zod';
-import { withAuth } from '@/lib/api-auth';
+import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import { logActivity } from '@/lib/audit';
 import pool from '@/lib/db';
 
 const participantSchema = z.object({
@@ -83,7 +84,7 @@ async function handleGet(request: NextRequest) {
     }
 }
 
-async function handlePost(request: NextRequest) {
+async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
     try {
         const body = await request.json();
         const parsed = participantSchema.safeParse(body);
@@ -132,6 +133,13 @@ async function handlePost(request: NextRequest) {
         } finally {
             connection.release();
         }
+
+        // Emit Audit Trail
+        await logActivity(authUser.id, 'CREATE_USER', 'users', userId, {
+            role: 'trainee',
+            email: email,
+            name: name
+        });
 
         // Return the generated password so admin can share it manually
         return NextResponse.json({

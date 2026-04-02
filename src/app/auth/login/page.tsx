@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Login02Icon, Key01Icon, UserIcon, Alert02Icon } from 'hugeicons-react';
 
 export default function LoginPage() {
@@ -88,7 +89,12 @@ export default function LoginPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-foreground">Password</label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-bold text-foreground">Password</label>
+                                <Link href="/auth/forgot-password" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors">
+                                    Lupa Password?
+                                </Link>
+                            </div>
                             <div className="relative">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                                     <Key01Icon size={18} />

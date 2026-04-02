@@ -4,7 +4,10 @@ import { jwtVerify } from 'jose';
 
 // Cannot reuse /lib/auth.ts verifyToken directly if it relies on Node APIs like env directly
 // but jose is edge-compatible, so we must recreate decoding here explicitly for Edge Runtime
-const JWT_SECRET = process.env.JWT_SECRET || 'secret-key-super-secure-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('[FATAL] JWT_SECRET environment variable is not set. Middleware cannot start.');
+}
 const encodedKey = new TextEncoder().encode(JWT_SECRET);
 
 export async function middleware(request: NextRequest) {

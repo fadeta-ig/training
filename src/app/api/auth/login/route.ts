@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
+import { checkRateLimit } from '@/lib/rate-limit';
+
+/** Max 10 login attempts per minute per IP */
+const LOGIN_RATE_LIMIT = { windowMs: 60_000, maxRequests: 10, message: 'Terlalu banyak percobaan login. Coba lagi dalam 1 menit.' };
 
 export async function POST(request: NextRequest) {
+    const blocked = checkRateLimit(request, LOGIN_RATE_LIMIT);
+    if (blocked) return blocked;
+
     try {
         const body = await request.json();
         const { username, password } = body;

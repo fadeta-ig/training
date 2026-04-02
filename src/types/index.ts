@@ -123,7 +123,7 @@ export interface ProctorSnapshot {
     id: string;
     user_id: string;
     session_id: string;
-    image_base64: string;
+    image_url: string;
     captured_at: string;
 }
 

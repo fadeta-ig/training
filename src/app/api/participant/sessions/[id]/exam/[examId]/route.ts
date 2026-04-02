@@ -56,10 +56,11 @@ async function handleGet(
             attemptNumber = (up.attempts_count || 0) + 1;
 
             if (!up.last_attempt_start) {
-                // Initialize start time for this attempt
+                // Initialize start time for this attempt — convert Date to MySQL-compatible string
+                const nowStr = now.toISOString().slice(0, 19).replace('T', ' ');
                 await executeQuery(
                     `UPDATE user_progress SET last_attempt_start = ? WHERE id = ?`,
-                    [now, up.id]
+                    [nowStr, up.id]
                 );
             } else {
                 attemptStart = new Date(up.last_attempt_start);

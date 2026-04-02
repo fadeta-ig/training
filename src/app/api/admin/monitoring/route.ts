@@ -15,7 +15,7 @@ interface SnapshotData {
     id: string;
     user_id: string;
     session_id: string;
-    image_base64: string;
+    image_url: string;
     captured_at: string;
     full_name: string;
     username: string;
@@ -44,7 +44,7 @@ async function handleGet(request: NextRequest) {
         // If sessionId provided, get the LATEST snapshot for each participant in that session
         const snapshots = await executeQuery<SnapshotData[]>(`
             SELECT 
-                ps.id, ps.user_id, ps.session_id, ps.image_base64, ps.captured_at,
+                ps.id, ps.user_id, ps.session_id, ps.image_url, ps.captured_at,
                 u.full_name, u.username
             FROM proctor_snapshots ps
             JOIN users u ON ps.user_id = u.id

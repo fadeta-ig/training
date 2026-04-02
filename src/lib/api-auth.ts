@@ -12,11 +12,17 @@ export interface AuthenticatedUser {
 interface AuthOptions {
     /** Roles allowed to access this route. Empty = any authenticated user. */
     allowedRoles?: AuthRole[];
+    /** If true, skip CSRF origin check (e.g., for GET-only routes). Default: false */
+    skipCsrf?: boolean;
 }
+
+/** Allowed origins for CSRF protection. */
+const ALLOWED_ORIGIN = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 /**
  * Higher-order function to protect API routes with JWT authentication.
  * Extracts user from JWT cookie and passes it to the handler.
+ * Includes CSRF Origin validation for mutation methods.
  *
  * @example
  * export const POST = withAuth(async (request, user) => {
@@ -34,6 +40,20 @@ export function withAuth(
 ) {
     return async (request: NextRequest, context?: any): Promise<NextResponse> => {
         try {
+            // CSRF Protection: validate Origin header on mutation methods
+            const method = request.method.toUpperCase();
+            const isMutation = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+
+            if (isMutation && !options.skipCsrf) {
+                const origin = request.headers.get('origin');
+                if (origin && !origin.startsWith(ALLOWED_ORIGIN)) {
+                    return NextResponse.json(
+                        { success: false, error: 'Request origin tidak diizinkan' },
+                        { status: 403 }
+                    );
+                }
+            }
+
             const token = request.cookies.get('training_session')?.value;
 
             if (!token) {
@@ -77,3 +97,4 @@ export function withAuth(
         }
     };
 }
+

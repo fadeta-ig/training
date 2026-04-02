@@ -5,6 +5,10 @@ import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { checkRateLimit } from '@/lib/rate-limit';
+
+/** Max 30 snapshots per minute per IP (allows ~2s interval captures) */
+const SNAPSHOT_RATE_LIMIT = { windowMs: 60_000, maxRequests: 30 };
 
 /**
  * Zod schema for snapshot submission with strict input validation.
@@ -28,6 +32,9 @@ const snapshotSchema = z.object({
  * and maintains the URL path in the DB.
  */
 async function handlePost(request: NextRequest, user: AuthenticatedUser) {
+    const blocked = checkRateLimit(request, SNAPSHOT_RATE_LIMIT);
+    if (blocked) return blocked;
+
     try {
         const body = await request.json();
         const parsed = snapshotSchema.safeParse(body);
@@ -60,7 +67,7 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
 
         // 4. Record the path into the database rather than the heavy base64
         await executeQuery(
-            `INSERT INTO proctor_snapshots (id, user_id, session_id, image_base64) VALUES (?, ?, ?, ?)`,
+            `INSERT INTO proctor_snapshots (id, user_id, session_id, image_url) VALUES (?, ?, ?, ?)`,
             [snapshotId, user.id, sessionId, fileUrl],
         );
 

@@ -1,6 +1,10 @@
 import { jwtVerify, SignJWT } from 'jose';
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'secret-key-super-secure-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('[FATAL] JWT_SECRET environment variable is not set. Aborting.');
+}
+export { JWT_SECRET };
 const encodedKey = new TextEncoder().encode(JWT_SECRET);
 
 export interface TokenPayload {

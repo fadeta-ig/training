@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
+import { escapeHtml } from '@/lib/sanitize';
 
 export const GET = withAuth(async (
     request: NextRequest,
@@ -40,8 +41,8 @@ export const GET = withAuth(async (
         let htmlRows = '';
         if (results && results.length > 0) {
             results.forEach((row, index) => {
-                const name = row.full_name || '-';
-                const username = row.username || '-';
+                const name = escapeHtml(row.full_name) || '-';
+                const username = escapeHtml(row.username) || '-';
                 
                 let statusStr = 'BELUM';
                 let statusColor = '#64748b'; // slate-500
@@ -114,7 +115,7 @@ export const GET = withAuth(async (
             },
         });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('Excel Export Error:', error);
         return NextResponse.json(
             { success: false, message: 'Gagal mengekspor data' },

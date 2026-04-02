@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 /**
  * Zod schema for snapshot submission with strict input validation.
@@ -21,8 +23,9 @@ const snapshotSchema = z.object({
 
 /**
  * POST /api/proctor/snapshot
- * Receives and stores a webcam proctoring snapshot.
- * Now protected by withAuth — userId is extracted from the JWT token.
+ * Receives a webcam proctoring snapshot in Base64.
+ * Decodes the image to avoid MySQL Bloat, saves it locally,
+ * and maintains the URL path in the DB.
  */
 async function handlePost(request: NextRequest, user: AuthenticatedUser) {
     try {
@@ -39,9 +42,26 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
         const { sessionId, imageBase64 } = parsed.data;
         const snapshotId = uuidv4();
 
+        // 1. Ekstrak header Data URI
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+
+        // 2. Siapkan Lokasi File
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'proctor');
+        await fs.mkdir(uploadDir, { recursive: true });
+
+        const filename = `${snapshotId}-${user.id}.jpg`;
+        const filePath = path.join(uploadDir, filename);
+        
+        // 3. Tulis Gambar secara fisik (Menyelamatkan RAM Database)
+        await fs.writeFile(filePath, imageBuffer);
+
+        const fileUrl = `/uploads/proctor/${filename}`;
+
+        // 4. Record the path into the database rather than the heavy base64
         await executeQuery(
             `INSERT INTO proctor_snapshots (id, user_id, session_id, image_base64) VALUES (?, ?, ?, ?)`,
-            [snapshotId, user.id, sessionId, imageBase64],
+            [snapshotId, user.id, sessionId, fileUrl],
         );
 
         return NextResponse.json({ success: true, id: snapshotId }, { status: 201 });

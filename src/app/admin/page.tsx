@@ -11,6 +11,7 @@ import {
 import { ReactNode } from 'react';
 import { executeQuery } from '@/lib/db';
 import Link from 'next/link';
+import { AnalyticsCharts } from './_components/AnalyticsCharts';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ type RecentSession = {
 };
 
 export default async function AdminOverviewPage() {
-    const [trainings, exams, sessions, trainees, recentSessions] = await Promise.all([
+    const [trainings, exams, sessions, trainees, recentSessions, trendData, ratioData] = await Promise.all([
         executeQuery<{ count: number }[]>('SELECT COUNT(*) as count FROM trainings'),
         executeQuery<{ count: number }[]>('SELECT COUNT(*) as count FROM exams'),
         executeQuery<{ count: number }[]>('SELECT COUNT(*) as count FROM sessions'),
@@ -38,6 +39,23 @@ export default async function AdminOverviewPage() {
             ORDER BY s.start_time DESC
             LIMIT 5
         `),
+        executeQuery<{ name: string; partisipasi: number }[]>(`
+            SELECT DATE_FORMAT(updated_at, '%d %b') as name, COUNT(*) as partisipasi
+            FROM user_progress
+            WHERE status = 'completed' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+            GROUP BY DATE(updated_at)
+            ORDER BY DATE(updated_at) ASC
+        `),
+        executeQuery<{ name: string; value: number }[]>(`
+            SELECT 
+                IF(up.score >= e.passing_grade, 'Lulus', 'Gagal') as name,
+                COUNT(*) as value
+            FROM user_progress up
+            JOIN module_items mi ON up.module_item_id = mi.id
+            JOIN exams e ON mi.item_id = e.id
+            WHERE mi.item_type = 'exam' AND up.status = 'completed'
+            GROUP BY name
+        `)
     ]);
 
     const stats = {
@@ -79,6 +97,9 @@ export default async function AdminOverviewPage() {
                 <StatCard title="Sesi Ujian (Sessions)" value={stats.ongoingSessions} trend="Sesi terdaftar" icon={<PlayIcon size={24} />} />
                 <StatCard title="Total Peserta" value={stats.totalTrainees} trend="Aktif di sistem" icon={<UserGroupIcon size={24} />} />
             </div>
+
+            {/* Analytics Dashboard */}
+            <AnalyticsCharts trendData={trendData} ratioData={ratioData} />
 
             {/* Sesi Terkini & Aksi Cepat */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

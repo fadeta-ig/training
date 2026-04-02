@@ -49,12 +49,13 @@ async function handlePost(
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
-        // Get attempt number
-        const progressRes = await executeQuery<any[]>(
+        // Get attempt number and apply Row-Level Lock to prevent race condition (Lost Update)
+        const [progressRes] = await connection.execute<any[]>(
             `SELECT up.id, up.attempts_count 
              FROM user_progress up
              JOIN module_items mi ON up.module_item_id = mi.id
-             WHERE up.user_id = ? AND up.session_id = ? AND mi.item_type = 'exam' AND mi.item_id = ?`,
+             WHERE up.user_id = ? AND up.session_id = ? AND mi.item_type = 'exam' AND mi.item_id = ?
+             FOR UPDATE`,
             [user.id, sessionId, examId]
         );
         let attemptNumber = 1;
@@ -148,7 +149,7 @@ async function handlePost(
         const passed = score >= passingGrade;
 
         // Update user_progress for this exam module_item
-        const moduleItem = await executeQuery<any[]>(
+        const [moduleItem] = await connection.execute<any[]>(
             `SELECT mi.id FROM module_items mi
              JOIN sessions s ON s.module_id = mi.module_id
              WHERE s.id = ? AND mi.item_type = 'exam' AND mi.item_id = ?`,

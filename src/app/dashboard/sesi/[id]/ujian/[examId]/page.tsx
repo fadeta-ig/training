@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, use } from 'react';
+import { useState, useEffect, useCallback, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -39,6 +39,12 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const [error, setError] = useState('');
 
     const [answers, setAnswers] = useState<Record<string, string>>({});
+    const answersRef = useRef(answers);
+
+    useEffect(() => {
+        answersRef.current = answers;
+    }, [answers]);
+
     const [currentIdx, setCurrentIdx] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
     const [result, setResult] = useState<{ score: number; passed: boolean; earnedPoints: number; totalPoints: number } | null>(null);
@@ -81,33 +87,34 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             .finally(() => setLoading(false));
     }, [sessionId, examId]);
 
-    // Timer
+    // Rock-solid Timer Interval
     useEffect(() => {
-        if (timeLeft <= 0 || result) return;
+        if (timeLeft <= 0 || result || !examData) return;
         const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    handleSubmit();
-                    return 0;
-                }
-                return prev - 1;
-            });
+            setTimeLeft((prev) => prev - 1);
         }, 1000);
         return () => clearInterval(timer);
-    }, [timeLeft, result]);
+    }, [result, examData]); // Only rebind if result/examData changes
+
+    // Auto-submit monitor
+    useEffect(() => {
+        if (examData && timeLeft <= 0 && !result && !submitting && timeLeft !== null) {
+            // Waktu habis
+            handleSubmit();
+        }
+    }, [timeLeft, examData, result, submitting]);
 
     const handleAnswerChange = useCallback((questionId: string, value: string) => {
         setAnswers((prev) => ({ ...prev, [questionId]: value }));
     }, []);
 
-    const handleSubmit = async () => {
+    const handleSubmit = useCallback(async () => {
         if (!examData || submitting) return;
         setSubmitting(true);
 
         const payload = examData.questions.map((q) => ({
             question_id: q.id,
-            selected_option: answers[q.id] || '',
+            selected_option: answersRef.current[q.id] || '',
         }));
 
         try {
@@ -128,7 +135,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         } finally {
             setSubmitting(false);
         }
-    };
+    }, [examData, submitting, sessionId, examId]);
 
     const formatTime = (s: number) => {
         const mins = Math.floor(s / 60);

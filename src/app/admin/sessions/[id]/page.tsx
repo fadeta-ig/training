@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, PencilEdit01Icon, Logout01Icon, Download01Icon } from 'hugeicons-react';
+import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, PencilEdit01Icon, Logout01Icon, Download01Icon, MailSend01Icon, AlertCircleIcon, Cancel01Icon } from 'hugeicons-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 
@@ -32,6 +34,8 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isSeb, setIsSeb] = useState(false);
+    const [isSendingBlast, setIsSendingBlast] = useState(false);
+    const [showBlastConfirm, setShowBlastConfirm] = useState(false);
 
     useEffect(() => {
         setIsSeb(navigator.userAgent.includes('SafeExamBrowser'));
@@ -65,6 +69,24 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
             hour: '2-digit',
             minute: '2-digit'
         });
+    };
+
+    const handleBlastEmail = async () => {
+        setShowBlastConfirm(false);
+        setIsSendingBlast(true);
+        try {
+            const res = await fetch(`/api/admin/sessions/${session?.id}/remind`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                toast.success('Broadcast Terkirim!', { description: data.message });
+            } else {
+                toast.error('Gagal Broadcast', { description: data.error });
+            }
+        } catch (err: any) {
+            toast.error('Galat Eksekusi', { description: err.message });
+        } finally {
+            setIsSendingBlast(false);
+        }
     };
 
     const getSessionStatus = (start: string, end: string) => {
@@ -203,15 +225,29 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                     {session.participants.length} Orang
                                 </span>
                             </div>
-                            <a
-                                href={`/api/admin/sessions/${session.id}/export`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
-                            >
-                                <Download01Icon size={16} />
-                                Export Laporan Excel
-                            </a>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setShowBlastConfirm(true)}
+                                    disabled={isSendingBlast || session.participants.length === 0}
+                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                                >
+                                    {isSendingBlast ? (
+                                        <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+                                    ) : (
+                                        <MailSend01Icon size={16} />
+                                    )}
+                                    Blast Pengingat
+                                </button>
+                                <a
+                                    href={`/api/admin/sessions/${session.id}/export`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                                >
+                                    <Download01Icon size={16} />
+                                    Export Laporan Excel
+                                </a>
+                            </div>
                         </div>
 
                         {session.participants.length === 0 ? (
@@ -300,6 +336,48 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     </GlassCard>
                 </div>
             </div>
+
+            {/* Custom Blast Confirmation Modal */}
+            {showBlastConfirm && typeof window !== 'undefined' && createPortal(
+                <div 
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                >
+                    <div 
+                        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 relative"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Decorative Top Bar */}
+                        <div className="h-2 w-full bg-blue-600 absolute top-0 left-0"></div>
+
+                        <div className="p-6 text-center space-y-4 mt-2">
+                            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <MailSend01Icon size={32} />
+                            </div>
+                            <h3 className="font-bold text-xl text-slate-800">Kirim Broadcast Email?</h3>
+                            <p className="text-sm text-slate-500 leading-relaxed">
+                                Anda yakin ingin mengirim pemberitahuan jadwal sesi pelatihan ini ke <b className="text-slate-800">SELURUH</b> peserta yang terdaftar secara serentak?
+                            </p>
+                        </div>
+                        
+                        <div className="bg-slate-50 border-t border-black/5 p-4 flex gap-3 justify-end items-center">
+                            <button
+                                onClick={() => setShowBlastConfirm(false)}
+                                className="px-5 py-2.5 text-sm font-semibold rounded-xl text-slate-600 hover:bg-slate-200/50 transition-colors focus:ring-2 focus:ring-slate-200 outline-none"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={handleBlastEmail}
+                                className="px-5 py-2.5 text-sm font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-md shadow-blue-500/20 focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 outline-none"
+                            >
+                                Ya, Kirim Sekarang
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 }

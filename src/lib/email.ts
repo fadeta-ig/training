@@ -77,3 +77,55 @@ export async function sendCredentialEmail(to: string, participantName: string, p
 
     return transporter.sendMail(mailOptions);
 }
+
+
+export async function sendSessionReminderEmail(bccEmails: string[], sessionDetail: { title: string, startTime: string, endTime: string }) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    
+    // Formatting date neatly
+    const startDate = new Date(sessionDetail.startTime);
+    const dateStr = startDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeStr = startDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+
+    const mailOptions = {
+        from: `"LMS System Admin" <${process.env.SMTP_USER}>`,
+        bcc: bccEmails, // Use BCC to hide recipients from each other
+        subject: `[Pengingat] Jadwal Sesi Pelatihan: ${sessionDetail.title}`,
+        html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px;">
+            <h2 style="color: #0369a1; border-bottom: 2px solid #0284c7; padding-bottom: 12px;">Panggilan Sesi Pelatihan Aktif</h2>
+            <p style="color: #334155;">Halo Peserta,</p>
+            <p style="color: #334155;">Mengingatkan Anda bahwa sesi pembelajaran <b>${sessionDetail.title}</b> akan/sedang berlangsung sesuai dengan jadwal berikut:</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin: 24px 0; background-color: #f8fafc; border-radius: 8px; overflow: hidden;">
+                <tbody>
+                    <tr>
+                        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; width: 30%; font-weight: bold; color: #475569;">Modul/Sesi</td>
+                        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: bold;">${sessionDetail.title}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; width: 30%; font-weight: bold; color: #475569;">Tanggal</td>
+                        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${dateStr}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; width: 30%; font-weight: bold; color: #475569;">Waktu Mulai</td>
+                        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${timeStr}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p style="color: #334155;">Pastikan Anda telah bersiap dengan jaringan koneksi yang stabil sebelum sesi ujian / materi dieksekusi secara terawasi.</p>
+            
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="${baseUrl}/dashboard" style="background-color: #0369a1; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block;">Akses Dashboard Anda</a>
+            </div>
+            
+            <p style="color: #64748b; font-size: 12px; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                Anda menerima rincian notifikasi email sistem ini karena Administrator telah mengaitkan Anda ke dalam Sesi. Evaluasi dan ketentuan berlaku mutlak.
+            </p>
+        </div>
+        `,
+    };
+
+    return transporter.sendMail(mailOptions);
+}

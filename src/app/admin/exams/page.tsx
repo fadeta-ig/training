@@ -31,6 +31,7 @@ export default function ExamsManagerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
+    const [userRole, setUserRole] = useState<string>('');
     const [totalPages, setTotalPages] = useState(1);
     const { confirm, ConfirmComponent } = useConfirm();
 
@@ -60,6 +61,14 @@ export default function ExamsManagerPage() {
         fetchExams(page);
     }, [page]);
 
+    useEffect(() => {
+        fetch('/api/auth/me').then(res => res.json()).then(data => {
+            if (data.success) {
+                setUserRole(data.data.role);
+            }
+        }).catch(() => {});
+    }, []);
+
     const deleteExam = async (id: string, title: string) => {
         const isConfirmed = await confirm({
             title: 'Hapus Ujian?',
@@ -87,8 +96,8 @@ export default function ExamsManagerPage() {
                 title="Ujian & Bank Soal"
                 description="Buat parameter ujian (waktu, passing grade) lalu pasangkan soal-soalnya ke dalam Bank Soal."
                 icon={<Edit01Icon size={28} className="text-muted-foreground" />}
-                actionLabel="Buat Ujian Baru"
-                actionHref="/admin/exams/new"
+                actionLabel={userRole === 'admin' ? "Buat Ujian Baru" : undefined}
+                actionHref={userRole === 'admin' ? "/admin/exams/new" : undefined}
                 onRefresh={fetchExams}
                 isRefreshing={isLoading}
             />
@@ -112,26 +121,26 @@ export default function ExamsManagerPage() {
                                 <th className="px-6 py-4">Durasi</th>
                                 <th className="px-6 py-4">Passing Grade</th>
                                 <th className="px-6 py-4">Bank Soal</th>
-                                <th className="px-6 py-4 text-right rounded-tr-2xl">Aksi</th>
+                                {userRole === 'admin' && <th className="px-6 py-4 text-right rounded-tr-2xl">Aksi</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black/5">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
+                                    <td colSpan={userRole === 'admin' ? 5 : 4} className="px-6 py-10 text-center text-muted-foreground">
                                         <RefreshIcon size={24} className="animate-spin mx-auto mb-2 opacity-50" />
                                         Memuat data ujian...
                                     </td>
                                 </tr>
                             ) : exams.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="p-0">
+                                    <td colSpan={userRole === 'admin' ? 5 : 4} className="p-0">
                                         <EmptyState
                                             icon={<Edit01Icon size={40} className="text-black/10" />}
                                             title="Belum ada ujian"
                                             description="Buat satu parameter ujian baru untuk mulai memasukkan soal."
-                                            actionLabel="Buat Ujian Pertama"
-                                            actionHref="/admin/exams/new"
+                                            actionLabel={userRole === 'admin' ? "Buat Ujian Pertama" : undefined}
+                                            actionHref={userRole === 'admin' ? "/admin/exams/new" : undefined}
                                         />
                                     </td>
                                 </tr>
@@ -155,22 +164,24 @@ export default function ExamsManagerPage() {
                                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black text-white text-xs font-semibold hover:bg-black/80 transition-colors shadow-sm"
                                             >
                                                 <HelpCircleIcon size={14} />
-                                                Kelola Soal
+                                                {userRole === 'admin' ? 'Kelola Soal' : 'Lihat Soal'}
                                             </Link>
                                         </td>
-                                        <td className="px-6 py-4 text-right space-x-1.5 flex justify-end gap-1.5">
-                                            <ActionButton
-                                                href={`/admin/exams/${exam.id}/edit`}
-                                                icon={<PencilEdit02Icon size={16} />}
-                                                title="Edit Parameter"
-                                            />
-                                            <ActionButton
-                                                onClick={() => deleteExam(exam.id, exam.title)}
-                                                variant="destructive"
-                                                icon={<Delete02Icon size={16} />}
-                                                title="Hapus Ujian"
-                                            />
-                                        </td>
+                                        {userRole === 'admin' && (
+                                            <td className="px-6 py-4 text-right space-x-1.5 flex justify-end gap-1.5">
+                                                <ActionButton
+                                                    href={`/admin/exams/${exam.id}/edit`}
+                                                    icon={<PencilEdit02Icon size={16} />}
+                                                    title="Edit Parameter"
+                                                />
+                                                <ActionButton
+                                                    onClick={() => deleteExam(exam.id, exam.title)}
+                                                    variant="destructive"
+                                                    icon={<Delete02Icon size={16} />}
+                                                    title="Hapus Ujian"
+                                                />
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             )}

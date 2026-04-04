@@ -77,5 +77,5 @@ async function handlePost(request: NextRequest) {
     }
 }
 
-export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });
+export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer'] });
 export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });

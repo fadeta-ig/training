@@ -108,6 +108,6 @@ async function handleDelete(
     }
 }
 
-export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });
+export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer'] });
 export const PUT = withAuth(handlePut, { allowedRoles: ['admin'] });
 export const DELETE = withAuth(handleDelete, { allowedRoles: ['admin'] });

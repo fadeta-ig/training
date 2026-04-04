@@ -33,6 +33,7 @@ export default function ParticipantsManagerPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
+    const [userRole, setUserRole] = useState<string>('');
     const { confirm, ConfirmComponent } = useConfirm();
 
     const fetchParticipants = async (targetPage = page, search = searchQuery) => {
@@ -60,6 +61,14 @@ export default function ParticipantsManagerPage() {
     useEffect(() => {
         fetchParticipants(page, searchQuery);
     }, [page, searchQuery]);
+
+    useEffect(() => {
+        fetch('/api/auth/me').then(res => res.json()).then(data => {
+            if (data.success) {
+                setUserRole(data.data.role);
+            }
+        }).catch(() => {});
+    }, []);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
@@ -97,8 +106,8 @@ export default function ParticipantsManagerPage() {
                 title="Kelola Peserta"
                 description="Manajemen data diri peserta pelatihan dan ujian"
                 icon={<UserGroupIcon size={28} className="text-muted-foreground" />}
-                actionLabel="Tambah Peserta Baru"
-                actionHref="/admin/participants/new"
+                actionLabel={userRole === 'admin' ? "Tambah Peserta Baru" : undefined}
+                actionHref={userRole === 'admin' ? "/admin/participants/new" : undefined}
                 onRefresh={() => fetchParticipants(page, searchQuery)}
                 isRefreshing={isLoading}
             />
@@ -138,26 +147,26 @@ export default function ParticipantsManagerPage() {
                                 <th className="px-6 py-4">Institusi</th>
                                 <th className="px-6 py-4">No. HP</th>
                                 <th className="px-6 py-4">Terdaftar</th>
-                                <th className="px-6 py-4 text-right rounded-tr-2xl">Aksi</th>
+                                {userRole === 'admin' && <th className="px-6 py-4 text-right rounded-tr-2xl">Aksi</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black/5">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
+                                    <td colSpan={userRole === 'admin' ? 6 : 5} className="px-6 py-10 text-center text-muted-foreground">
                                         <RefreshIcon size={24} className="animate-spin mx-auto mb-2 opacity-50" />
                                         Memuat data...
                                     </td>
                                 </tr>
                             ) : participants.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-10">
+                                    <td colSpan={userRole === 'admin' ? 6 : 5} className="px-6 py-10">
                                         <EmptyState
                                             icon={<UserGroupIcon size={48} className="mb-4 opacity-20" />}
                                             title="Belum ada peserta"
                                             description="Sistem belum memiliki data peserta pelatihan."
-                                            actionLabel="Tambah Peserta"
-                                            actionHref="/admin/participants/new"
+                                            actionLabel={userRole === 'admin' ? "Tambah Peserta" : undefined}
+                                            actionHref={userRole === 'admin' ? "/admin/participants/new" : undefined}
                                         />
                                     </td>
                                 </tr>
@@ -179,19 +188,21 @@ export default function ParticipantsManagerPage() {
                                         <td className="px-6 py-4 text-muted-foreground">
                                             {new Date(p.created_at).toLocaleDateString('id-ID')}
                                         </td>
-                                        <td className="px-6 py-4 text-right space-x-1.5 flex justify-end gap-1.5">
-                                            <ActionButton
-                                                href={`/admin/participants/${p.id}`}
-                                                icon={<PencilEdit02Icon size={16} />}
-                                                title="Edit Peserta"
-                                            />
-                                            <ActionButton
-                                                onClick={() => deleteParticipant(p.id, p.name)}
-                                                variant="destructive"
-                                                icon={<Delete02Icon size={16} />}
-                                                title="Hapus Peserta"
-                                            />
-                                        </td>
+                                        {userRole === 'admin' && (
+                                            <td className="px-6 py-4 text-right space-x-1.5 flex justify-end gap-1.5">
+                                                <ActionButton
+                                                    href={`/admin/participants/${p.id}`}
+                                                    icon={<PencilEdit02Icon size={16} />}
+                                                    title="Edit Peserta"
+                                                />
+                                                <ActionButton
+                                                    onClick={() => deleteParticipant(p.id, p.name)}
+                                                    variant="destructive"
+                                                    icon={<Delete02Icon size={16} />}
+                                                    title="Hapus Peserta"
+                                                />
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             )}

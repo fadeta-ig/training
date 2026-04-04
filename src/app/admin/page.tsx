@@ -12,6 +12,8 @@ import { ReactNode } from 'react';
 import { executeQuery } from '@/lib/db';
 import Link from 'next/link';
 import { AnalyticsCharts } from './_components/AnalyticsCharts';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +60,18 @@ export default async function AdminOverviewPage() {
         `)
     ]);
 
+    let userRole = 'admin';
+    try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get('training_session')?.value;
+        if (token) {
+            const payload = await verifyToken(token);
+            if (payload) userRole = payload.role;
+        }
+    } catch (error) {
+        console.error('Error fetching role in overview', error);
+    }
+
     const stats = {
         totalTrainings: trainings[0]?.count || 0,
         activeExams: exams[0]?.count || 0,
@@ -103,7 +117,7 @@ export default async function AdminOverviewPage() {
 
             {/* Sesi Terkini & Aksi Cepat */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-5">
+                <div className={userRole === 'admin' ? "lg:col-span-2 space-y-5" : "lg:col-span-3 space-y-5"}>
                     <h2 className="text-xl font-semibold tracking-tight">Sesi Terkini</h2>
 
                     {recentSessions.length === 0 ? (
@@ -159,16 +173,18 @@ export default async function AdminOverviewPage() {
                     )}
                 </div>
 
-                <div className="space-y-5">
-                    <h2 className="text-xl font-semibold tracking-tight">Aksi Cepat</h2>
-                    <div className="glass-card p-2 flex flex-col gap-1">
-                        <ActionRow label="Buat Materi Baru" href="/admin/content/new" />
-                        <ActionRow label="Buat Bank Soal" href="/admin/exams/new" />
-                        <ActionRow label="Kelola Peserta" href="/admin/participants" />
-                        <ActionRow label="Modul Pembelajaran" href="/admin/modules/new" />
-                        <ActionRow label="Buat Sesi Baru" href="/admin/sessions/create" />
+                {userRole === 'admin' && (
+                    <div className="space-y-5">
+                        <h2 className="text-xl font-semibold tracking-tight">Aksi Cepat</h2>
+                        <div className="glass-card p-2 flex flex-col gap-1">
+                            <ActionRow label="Buat Materi Baru" href="/admin/content/new" />
+                            <ActionRow label="Buat Bank Soal" href="/admin/exams/new" />
+                            <ActionRow label="Kelola Peserta" href="/admin/participants" />
+                            <ActionRow label="Modul Pembelajaran" href="/admin/modules/new" />
+                            <ActionRow label="Buat Sesi Baru" href="/admin/sessions/create" />
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

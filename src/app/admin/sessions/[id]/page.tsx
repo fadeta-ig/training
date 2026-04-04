@@ -36,6 +36,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [isSeb, setIsSeb] = useState(false);
     const [isSendingBlast, setIsSendingBlast] = useState(false);
     const [showBlastConfirm, setShowBlastConfirm] = useState(false);
+    const [userRole, setUserRole] = useState<string>('');
 
     useEffect(() => {
         setIsSeb(navigator.userAgent.includes('SafeExamBrowser'));
@@ -57,7 +58,15 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                 setLoading(false);
             }
         };
+        const fetchRole = async () => {
+            try {
+                const res = await fetch('/api/auth/me');
+                const data = await res.json();
+                if (data.success) { setUserRole(data.data.role); }
+            } catch (err) {}
+        };
         fetchSession();
+        fetchRole();
     }, [resolvedParams.id]);
 
     const formatDate = (dateString: string) => {
@@ -153,8 +162,8 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                 title="Detail Sesi Ujian"
                 description="Informasi lengkap mengenai jadwal ujian dan peserta yang terdaftar."
                 icon={<Calendar02Icon size={28} />}
-                actionLabel="Edit Sesi"
-                actionHref={`/admin/sessions/${session.id}/edit`}
+                actionLabel={userRole === 'admin' ? "Edit Sesi" : undefined}
+                actionHref={userRole === 'admin' ? `/admin/sessions/${session.id}/edit` : undefined}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -255,7 +264,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                 Belum ada peserta yang didaftarkan pada sesi ini.
                             </div>
                         ) : (
-                            <div className="overflow-hidden border border-black/5 rounded-xl">
+                            <div className="overflow-x-auto border border-black/5 rounded-xl">
                                 <table className="w-full text-sm text-left">
                                     <thead className="text-xs text-muted-foreground uppercase bg-black/5">
                                         <tr>

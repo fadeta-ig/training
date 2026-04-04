@@ -6,7 +6,8 @@ import {
     PencilEdit02Icon,
     Delete02Icon,
     RefreshIcon,
-    Alert02Icon
+    Alert02Icon,
+    ViewIcon
 } from 'hugeicons-react';
 
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -28,6 +29,7 @@ export default function ContentManagerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
+    const [userRole, setUserRole] = useState<string>('');
     const [totalPages, setTotalPages] = useState(1);
     const { confirm, ConfirmComponent } = useConfirm();
 
@@ -57,6 +59,14 @@ export default function ContentManagerPage() {
         fetchTrainings(page);
     }, [page]);
 
+    useEffect(() => {
+        fetch('/api/auth/me').then(res => res.json()).then(data => {
+            if (data.success) {
+                setUserRole(data.data.role);
+            }
+        }).catch(() => {});
+    }, []);
+
     const deleteTraining = async (id: string, title: string) => {
         const isConfirmed = await confirm({
             title: 'Hapus Materi?',
@@ -84,8 +94,8 @@ export default function ContentManagerPage() {
                 title="Materi Pelatihan"
                 description="Kelola bacaan, artikel HTML, dan tautan video yang akan digunakan pada Modul."
                 icon={<Book01Icon size={28} className="text-muted-foreground" />}
-                actionLabel="Buat Materi Baru"
-                actionHref="/admin/content/new"
+                actionLabel={userRole === 'admin' ? "Buat Materi Baru" : undefined}
+                actionHref={userRole === 'admin' ? "/admin/content/new" : undefined}
                 onRefresh={fetchTrainings}
                 isRefreshing={isLoading}
             />
@@ -113,20 +123,20 @@ export default function ContentManagerPage() {
                         <tbody className="divide-y divide-black/5">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={3} className="px-6 py-10 text-center text-muted-foreground">
+                                    <td colSpan={userRole === 'admin' ? 3 : 2} className="px-6 py-10 text-center text-muted-foreground">
                                         <RefreshIcon size={24} className="animate-spin mx-auto mb-2 opacity-50" />
                                         Memuat materi...
                                     </td>
                                 </tr>
                             ) : trainings.length === 0 ? (
                                 <tr>
-                                    <td colSpan={3} className="p-0">
+                                    <td colSpan={userRole === 'admin' ? 3 : 2} className="p-0">
                                         <EmptyState
                                             icon={<Book01Icon size={40} className="text-black/10" />}
                                             title="Belum ada materi pelatihan"
                                             description="Silakan buat satu materi baru untuk memulai."
-                                            actionLabel="Buat Materi Pertama"
-                                            actionHref="/admin/content/new"
+                                            actionLabel={userRole === 'admin' ? "Buat Materi Pertama" : undefined}
+                                            actionHref={userRole === 'admin' ? "/admin/content/new" : undefined}
                                         />
                                     </td>
                                 </tr>
@@ -141,16 +151,25 @@ export default function ContentManagerPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right space-x-1.5 flex justify-end gap-1.5">
                                             <ActionButton
-                                                href={`/admin/content/${training.id}/edit`}
-                                                icon={<PencilEdit02Icon size={16} />}
-                                                title="Edit"
+                                                href={`/admin/content/${training.id}`}
+                                                icon={<ViewIcon size={16} />}
+                                                title="Detail"
                                             />
-                                            <ActionButton
-                                                onClick={() => deleteTraining(training.id, training.title)}
-                                                icon={<Delete02Icon size={16} />}
-                                                variant="destructive"
-                                                title="Hapus"
-                                            />
+                                            {userRole === 'admin' && (
+                                                <>
+                                                    <ActionButton
+                                                        href={`/admin/content/${training.id}/edit`}
+                                                        icon={<PencilEdit02Icon size={16} />}
+                                                        title="Edit"
+                                                    />
+                                                    <ActionButton
+                                                        onClick={() => deleteTraining(training.id, training.title)}
+                                                        icon={<Delete02Icon size={16} />}
+                                                        variant="destructive"
+                                                        title="Hapus"
+                                                    />
+                                                </>
+                                            )}
                                         </td>
                                     </tr>
                                 ))

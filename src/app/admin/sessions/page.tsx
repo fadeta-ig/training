@@ -23,6 +23,7 @@ type Session = {
 export default function SessionsPage() {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userRole, setUserRole] = useState<string>('');
     const { confirm, ConfirmComponent } = useConfirm();
 
     const fetchSessions = async () => {
@@ -42,6 +43,11 @@ export default function SessionsPage() {
 
     useEffect(() => {
         fetchSessions();
+        fetch('/api/auth/me').then(res => res.json()).then(data => {
+            if (data.success) {
+                setUserRole(data.data.role);
+            }
+        }).catch(() => {});
     }, []);
 
     const handleDelete = async (id: string, title: string) => {
@@ -107,8 +113,8 @@ export default function SessionsPage() {
                 title="Sesi Ujian & Kelas"
                 description="Kelola jadwal ujian, kelas, dan peserta yang bergabung."
                 icon={<Calendar02Icon size={28} />}
-                actionLabel="Buat Sesi Baru"
-                actionHref="/admin/sessions/create"
+                actionLabel={userRole === 'admin' ? "Buat Sesi Baru" : undefined}
+                actionHref={userRole === 'admin' ? "/admin/sessions/create" : undefined}
             />
 
             <GlassCard>
@@ -119,8 +125,8 @@ export default function SessionsPage() {
                         icon={<Calendar02Icon size={48} className="text-muted-foreground" />}
                         title="Belum ada Sesi"
                         description="Sistem belum memiliki jadwal ujian atau kelas. Silakan buat sesi baru untuk memulai."
-                        actionLabel="Buat Sesi Pertama"
-                        actionHref="/admin/sessions/create"
+                        actionLabel={userRole === 'admin' ? "Buat Sesi Pertama" : undefined}
+                        actionHref={userRole === 'admin' ? "/admin/sessions/create" : undefined}
                     />
                 ) : (
                     <div className="overflow-x-auto">
@@ -172,17 +178,21 @@ export default function SessionsPage() {
                                                         icon={<ViewIcon size={16} />}
                                                         title="Detail Sesi"
                                                     />
-                                                    <ActionButton
-                                                        href={`/admin/sessions/${session.id}/edit`}
-                                                        icon={<PencilEdit01Icon size={16} />}
-                                                        title="Edit"
-                                                    />
-                                                    <ActionButton
-                                                        icon={<Delete02Icon size={16} />}
-                                                        title="Hapus"
-                                                        variant="destructive"
-                                                        onClick={() => handleDelete(session.id, session.title)}
-                                                    />
+                                                    {userRole === 'admin' && (
+                                                        <>
+                                                            <ActionButton
+                                                                href={`/admin/sessions/${session.id}/edit`}
+                                                                icon={<PencilEdit01Icon size={16} />}
+                                                                title="Edit"
+                                                            />
+                                                            <ActionButton
+                                                                icon={<Delete02Icon size={16} />}
+                                                                title="Hapus"
+                                                                variant="destructive"
+                                                                onClick={() => handleDelete(session.id, session.title)}
+                                                            />
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

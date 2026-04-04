@@ -6,7 +6,8 @@ import {
     PencilEdit02Icon,
     Delete02Icon,
     RefreshIcon,
-    Alert02Icon
+    Alert02Icon,
+    ViewIcon
 } from 'hugeicons-react';
 
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -29,6 +30,7 @@ export default function ModulesManagerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
+    const [userRole, setUserRole] = useState<string>('');
     const [totalPages, setTotalPages] = useState(1);
     const { confirm, ConfirmComponent } = useConfirm();
 
@@ -58,6 +60,14 @@ export default function ModulesManagerPage() {
         fetchModules(page);
     }, [page]);
 
+    useEffect(() => {
+        fetch('/api/auth/me').then(res => res.json()).then(data => {
+            if (data.success) {
+                setUserRole(data.data.role);
+            }
+        }).catch(() => {});
+    }, []);
+
     const deleteModule = async (id: string, title: string) => {
         const isConfirmed = await confirm({
             title: 'Hapus Modul?',
@@ -85,8 +95,8 @@ export default function ModulesManagerPage() {
                 title="Perakit Modul (Builder)"
                 description="Susun kurikulum dengan menyatukan Materi Pelatihan dan Ujian menjadi satu alur linier utuh."
                 icon={<CubeIcon size={28} className="text-muted-foreground" />}
-                actionLabel="Rakit Modul Baru"
-                actionHref="/admin/modules/new"
+                actionLabel={userRole === 'admin' ? "Rakit Modul Baru" : undefined}
+                actionHref={userRole === 'admin' ? "/admin/modules/new" : undefined}
                 onRefresh={fetchModules}
                 isRefreshing={isLoading}
             />
@@ -113,8 +123,8 @@ export default function ModulesManagerPage() {
                             icon={<CubeIcon size={48} className="mb-4 opacity-20" />}
                             title="Belum ada modul yang terdaftar."
                             description="Mulai rakit alur pembelajaran Anda dengan menyatukan materi dan ujian."
-                            actionLabel="Rakit Modul Pertama"
-                            actionHref="/admin/modules/new"
+                            actionLabel={userRole === 'admin' ? "Rakit Modul Pertama" : undefined}
+                            actionHref={userRole === 'admin' ? "/admin/modules/new" : undefined}
                         />
                     </div>
                 ) : (
@@ -133,16 +143,25 @@ export default function ModulesManagerPage() {
                             </div>
                             <div className="px-6 py-4 border-t border-black/5 flex justify-end gap-2 bg-black/5 rounded-b-2xl">
                                 <ActionButton
-                                    href={`/admin/modules/${mod.id}/edit`}
-                                    icon={<PencilEdit02Icon size={16} />}
-                                    title="Edit"
+                                    href={`/admin/modules/${mod.id}`}
+                                    icon={<ViewIcon size={16} />}
+                                    title="Detail"
                                 />
-                                <ActionButton
-                                    onClick={() => deleteModule(mod.id, mod.title)}
-                                    icon={<Delete02Icon size={16} />}
-                                    variant="destructive"
-                                    title="Hapus"
-                                />
+                                {userRole === 'admin' && (
+                                    <>
+                                        <ActionButton
+                                            href={`/admin/modules/${mod.id}/edit`}
+                                            icon={<PencilEdit02Icon size={16} />}
+                                            title="Edit"
+                                        />
+                                        <ActionButton
+                                            onClick={() => deleteModule(mod.id, mod.title)}
+                                            icon={<Delete02Icon size={16} />}
+                                            variant="destructive"
+                                            title="Hapus"
+                                        />
+                                    </>
+                                )}
                             </div>
                         </GlassCard>
                     ))

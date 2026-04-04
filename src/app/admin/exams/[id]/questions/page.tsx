@@ -61,6 +61,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const [userRole, setUserRole] = useState<string>('');
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -78,7 +79,14 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
         finally { setIsLoading(false); }
     };
 
-    useEffect(() => { fetchData(); }, [examId]);
+    useEffect(() => { 
+        fetchData(); 
+        fetch('/api/auth/me').then(res => res.json()).then(data => {
+            if (data.success) {
+                setUserRole(data.data.role);
+            }
+        }).catch(() => {});
+    }, [examId]);
     useEffect(() => { if (successMsg) { const t = setTimeout(() => setSuccessMsg(null), 3000); return () => clearTimeout(t); } }, [successMsg]);
 
     const deleteQuestion = async (id: string) => {
@@ -194,8 +202,8 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                     title="Bank Soal"
                     description={`Kelola soal untuk ujian: ${exam.title} (${exam.duration_minutes} mnt, KKM ${exam.passing_grade}%)`}
                     icon={<HelpCircleIcon size={28} className="text-muted-foreground shrink-0" />}
-                    actionLabel="Tambah Soal"
-                    actionHref={`/admin/exams/${examId}/questions/new`}
+                    actionLabel={userRole === 'admin' ? "Tambah Soal" : undefined}
+                    actionHref={userRole === 'admin' ? `/admin/exams/${examId}/questions/new` : undefined}
                 />
             )}
 
@@ -277,8 +285,8 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                         icon={<HelpCircleIcon size={40} className="text-black/10" />}
                         title="Belum ada soal"
                         description="Mulai tambahkan soal untuk membuat bank soal yang lengkap."
-                        actionLabel="Tambah Soal Pertama"
-                        actionHref={`/admin/exams/${examId}/questions/new`}
+                        actionLabel={userRole === 'admin' ? "Tambah Soal Pertama" : undefined}
+                        actionHref={userRole === 'admin' ? `/admin/exams/${examId}/questions/new` : undefined}
                     />
                 ) : filtered.length === 0 ? (
                     <GlassCard className="p-8 text-center text-muted-foreground">
@@ -315,19 +323,23 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                                         <button onClick={() => toggleExpand(q.id)} className={`p-1.5 rounded-lg transition-colors ${isExp ? 'bg-black/5 text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-black/5'}`} title={isExp ? 'Tutup jawaban' : 'Lihat jawaban'}>
                                             {isExp ? <ViewOffIcon size={15} /> : <ViewIcon size={15} />}
                                         </button>
-                                        <Link href={`/admin/exams/${examId}/questions/${q.id}/edit`} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors" title="Edit">
-                                            <PencilEdit02Icon size={15} />
-                                        </Link>
-                                        {deleteConfirmId === q.id ? (
-                                            <div className="flex items-center gap-1 bg-destructive/10 rounded-lg px-1.5 py-0.5 ml-0.5">
-                                                <span className="text-[10px] text-destructive font-semibold">Hapus?</span>
-                                                <button onClick={() => deleteQuestion(q.id)} className="px-1.5 py-0.5 bg-destructive text-white rounded text-[10px] font-bold">Ya</button>
-                                                <button onClick={() => setDeleteConfirmId(null)} className="px-1.5 py-0.5 bg-black/10 rounded text-[10px] font-bold">Batal</button>
-                                            </div>
-                                        ) : (
-                                            <button onClick={() => setDeleteConfirmId(q.id)} className="p-1.5 rounded-lg text-destructive/30 hover:text-destructive hover:bg-destructive/10 transition-colors" title="Hapus">
-                                                <Delete02Icon size={15} />
-                                            </button>
+                                        {userRole === 'admin' && (
+                                            <>
+                                                <Link href={`/admin/exams/${examId}/questions/${q.id}/edit`} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors" title="Edit">
+                                                    <PencilEdit02Icon size={15} />
+                                                </Link>
+                                                {deleteConfirmId === q.id ? (
+                                                    <div className="flex items-center gap-1 bg-destructive/10 rounded-lg px-1.5 py-0.5 ml-0.5">
+                                                        <span className="text-[10px] text-destructive font-semibold">Hapus?</span>
+                                                        <button onClick={() => deleteQuestion(q.id)} className="px-1.5 py-0.5 bg-destructive text-white rounded text-[10px] font-bold">Ya</button>
+                                                        <button onClick={() => setDeleteConfirmId(null)} className="px-1.5 py-0.5 bg-black/10 rounded text-[10px] font-bold">Batal</button>
+                                                    </div>
+                                                ) : (
+                                                    <button onClick={() => setDeleteConfirmId(q.id)} className="p-1.5 rounded-lg text-destructive/30 hover:text-destructive hover:bg-destructive/10 transition-colors" title="Hapus">
+                                                        <Delete02Icon size={15} />
+                                                    </button>
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                 </div>

@@ -1,639 +1,234 @@
 # BUKU PANDUAN & GUIDELINE SISTEM WEBSITE
-
 ## Sistem E-Learning — Learning Management System (LMS)
 
-**Edisi Resmi | Dokumen Serah Terima (Handover)**
-
----
-
----
-
-# HALAMAN SAMPUL (Cover Page)
-
-> **Arahan Visual untuk Desainer:**
->
-> - **Judul Utama:** BUKU PANDUAN & GUIDELINE SISTEM WEBSITE
-> - **Subjudul:** Sistem E-Learning — Learning Management System (LMS)
-> - **Tagline:** *Edisi Resmi | Dokumen Serah Terima (Handover)*
-> - **Elemen Visual:**
->   - Logo perusahaan di kiri atas (ukuran proporsional, tidak mendominasi).
->   - Gunakan whitespace minimal 40% dari area halaman untuk kesan bersih.
->   - Warna dominan: **#111111** (Charcoal Black) sebagai teks utama di atas latar **#FFFFFF**.
->   - Aksen garis tipis berwarna **#2563EB** (Electric Blue) sebagai pembatas visual.
->   - Tahun terbit dan versi dokumen di pojok kanan bawah: *v1.0 — April 2026*
-
----
-
----
-
-# DAFTAR ISI
-
-| No. | Bab                                     | Halaman |
-|-----|-----------------------------------------|---------|
-| 1   | Pendahuluan                             | 3       |
-| 2   | Brand & UI Guidelines                   | 5       |
-|     | 2.1 Palet Warna                         | 5       |
-|     | 2.2 Tipografi                           | 6       |
-|     | 2.3 Komponen UI                         | 7       |
-| 3   | Alur Pengguna (User Flow)               | 8       |
-|     | 3.1 Alur Kerja Administrator            | 8       |
-|     | 3.2 Alur Kerja Peserta (Trainee)        | 9       |
-| 4   | Panduan Penggunaan Sistem (User Manual) | 10      |
-|     | 4.1 Akses Sistem (Login)                | 10      |
-|     | 4.2 Pengenalan Antarmuka                | 11      |
-|     | 4.3 Fitur Utama — Panel Administrator   | 13      |
-|     | 4.4 Fitur Utama — Dashboard Peserta     | 20      |
-|     | 4.5 Pengaturan Profil & Keamanan        | 23      |
-| 5   | Troubleshooting & FAQ                   | 25      |
-| 6   | Penutup & Pusat Bantuan                 | 27      |
-
----
+**Edisi Ekstensif & Komprehensif | Dokumen Serah Terima (Handover)**
+Versi 2.1 — April 2026
 
 ---
 
 # BAB 1 — PENDAHULUAN
 
 ## 1.1 Tujuan Dokumen
+Dokumen ini disusun sebagai **panduan operasional paling komprehensif** untuk platform E-Learning berbasis website yang telah kita kembangkan. Panduan ini dirancang agar dapat dibaca, dipahami, dan dipraktikkan langsung oleh **orang awam** sekalipun (tanpa latar belakang IT). Segala tombol, menu, peringatan, dan fungsionalitas sistem—sekecil apa pun—akan dijabarkan dengan jelas. Selain itu, dokumen ini juga memuat **Dokumentasi Teknis** untuk referensi pengembang sistem (Developer).
 
-Dokumen ini disusun sebagai **panduan resmi pengoperasian** dan **pedoman visual (guideline)** untuk Sistem Website E-Learning (LMS). Tujuan utamanya adalah:
-
-1. **Memastikan kelancaran operasional** — Memberikan panduan langkah-demi-langkah kepada pengelola dan peserta pelatihan agar dapat menggunakan seluruh fitur sistem secara mandiri.
-2. **Menjaga konsistensi tampilan** — Mendokumentasikan standar visual (warna, font, komponen UI) agar setiap pengembangan di masa depan tetap selaras dengan identitas desain awal.
-3. **Menjadi referensi tunggal** — Seluruh informasi teknis dan operasional terkait sistem terhimpun dalam satu dokumen yang mudah diakses.
-
-## 1.2 Deskripsi Singkat Sistem
-
-**Sistem E-Learning** ini adalah platform manajemen pembelajaran berbasis web yang dirancang untuk mendukung siklus pelatihan secara menyeluruh: mulai dari penyusunan materi, pelaksanaan ujian yang aman, pemantauan peserta secara langsung (*live proctoring*), hingga penerbitan sertifikat kelulusan secara otomatis.
-
-**Fitur Utama:**
-
-| Fitur                    | Deskripsi Singkat                                                             |
-|--------------------------|-------------------------------------------------------------------------------|
-| Manajemen Materi         | Penyusunan konten pelatihan (teks, gambar, video) menggunakan editor visual.  |
-| Bank Soal & Ujian        | Pembuatan soal pilihan ganda (otomatis dinilai) dan esai (dinilai manual).    |
-| Penjadwalan Sesi         | Pengaturan jadwal kelas dan ujian dengan status otomatis (Aktif/Selesai).     |
-| Safe Exam Browser (SEB)  | Integrasi pengamanan ujian yang mengunci komputer peserta selama ujian.        |
-| Live Proctoring          | Pemantauan webcam peserta secara real-time (snapshot otomatis setiap 30 detik).|
-| Sertifikasi Otomatis     | Penerbitan sertifikat PDF saat peserta memenuhi syarat kelulusan.             |
-| Analitik & Laporan       | Dashboard statistik dengan grafik tren partisipasi dan rasio kelulusan.       |
-
-## 1.3 Target Audiens
-
-Dokumen ini ditujukan untuk:
-
-- **Administrator Sistem** — Mengelola seluruh aspek operasional (peserta, materi, ujian, sesi, dan monitoring).
-- **Trainer / Pengajar** — Memantau perkembangan peserta dan meninjau materi pelatihan (akses baca/pantau).
-- **Trainee / Peserta** — Mengakses materi, mengikuti ujian, dan mengunduh sertifikat.
-- **Tim IT / Developer** — Menjaga konsistensi visual dan teknis dalam pengembangan lanjutan.
+## 1.2 Bagaimana Sistem Ini Bekerja? (Konsep Dasar)
+Bayangkan LMS ini sebagai sebuah Sekolah Digital. 
+1. **Admin** (Kepala Sekolah) membuat jadwal, menyusun daftar mata pelajaran (Materi), membuat Ujian (Soal), dan memastikan keamanan ujian.
+2. **Trainer** (Guru) hanya bertugas memantau siswa, membimbing, dan memberi nilai ujian berjenis esai (jawaban panjang).
+3. **Trainee / Peserta** (Murid) cukup masuk (login), belajar dengan melihat video atau membaca PDF, mengerjakan soal ujian, dan jika nilainya memenuhi syarat (Lulus), mereka bisa langsung mencetak sertifikat digitalnya secara otomatis.
 
 ---
 
----
+# BAB 2 — HAK AKSES PENGGUNA (ROLE)
+Sistem memiliki tembok pembatas yang ketat untuk memastikan tidak ada data yang bisa dilihat atau dirusak oleh orang yang salah. LMS Antigravity membagi pengguna menjadi 3 (tiga) peran:
 
-# BAB 2 — BRAND & UI GUIDELINES
+### 1. Administrator (SuperAdmin)
+SuperAdmin memegang kendali 100% pada sistem. 
+- **Hak Akses:** Menambah/menghapus orang, mengubah profil peserta, menghapus materi, membuka kelas (Sesi), mengatur *Safe Exam Browser (SEB)*, melihat semua foto *webcam* (Live Proctoring), mengubah nilai kelulusan, dan memantau *Audit Log* (catatan aktivitas admin).
 
-> Bagian ini ditujukan untuk **developer dan desainer internal** yang bertanggung jawab atas pengembangan dan pemeliharaan tampilan sistem.
+### 2. Trainer (Pengajar)
+Trainer difokuskan pada kegiatan akademis dan pantauan, tanpa risiko merusak sistem.
+- **Hak Akses Hanya-Baca:** Dapat melihat siapa saja yang terdaftar di kelas, siapa yang sedang ujian, dan kemajuan peserta (misal: "Peserta baru menyelesaikan 50%").
+- **Hak Akses Penilaian (Grading):** Mampu membuka jawaban esai peserta dan mengisi nilai angka (misalnya: 85) yang nantinya secara otomatis dihitung bersama ujian Pilihan Ganda.
+- **Batasan:** Tidak bisa menghapus kelas, tidak bisa mengubah pengaturan sistem, atau menambahkan pengguna baru.
 
-## 2.1 Palet Warna
-
-Sistem menggunakan pendekatan **monokrom mewah** dengan aksen fungsional yang minimal. Nuansanya dirancang untuk memberikan kesan **bersih, profesional, dan tidak membingungkan**.
-
-| Kategori            | Nama Token             | Kode HEX     | Preview                     | Keterangan                              |
-|---------------------|------------------------|---------------|-----------------------------|-----------------------------------------|
-| **Primary**         | `--primary`            | `#000000`     | ⬛                          | Hitam pekat. Digunakan untuk tombol utama dan elemen aksi. |
-| **Primary (Alt)**   | `--primary-foreground` | `#FFFFFF`     | ⬜                          | Putih. Teks di atas elemen Primary.     |
-| **Background**      | `--background`         | `#F8F9FA`     | 🟫 (abu sangat terang)     | Latar belakang seluruh halaman.         |
-| **Foreground**      | `--foreground`         | `#111111`     | ⬛ (abu kelam)              | Warna teks utama dan heading.           |
-| **Secondary**       | `--secondary`          | `#F1F3F5`     | ⬜ (abu terang)             | Latar elemen sekunder (badge, label).   |
-| **Muted Text**      | `--muted-foreground`   | `#6B7280`     | 🔘 (abu medium)            | Teks pendukung, keterangan, placeholder.|
-| **Destructive**     | `--destructive`        | `#EF4444`     | 🟥                          | Peringatan, error, tombol hapus.        |
-| **Card**            | `--card`               | `#FFFFFF`     | ⬜                          | Latar kartu komponen (Glass Card).      |
-| **Border**          | `--border`             | `rgba(0,0,0,0.08)` | —                     | Garis pembatas halus antar elemen.      |
-| **Ring/Focus**      | `--ring`               | `#000000`     | ⬛                          | Indikator fokus pada input dan tombol.  |
-
-**Catatan Penting:**
-- Hindari penggunaan warna-warna mencolok (neon, saturasi tinggi) di luar palet yang telah ditentukan.
-- Warna aksen fungsional (Hijau untuk sukses `#10B981`, Biru untuk info `#2563EB`, Kuning untuk peringatan `#F59E0B`) hanya digunakan untuk **indikator status**, bukan dekorasi.
-
-## 2.2 Tipografi
-
-| Elemen            | Font Family                                        | Ukuran (rem) | Berat (weight) | Keterangan                 |
-|-------------------|----------------------------------------------------|--------------|----------------|----------------------------|
-| **Heading 1**     | Helvetica Neue, Helvetica, Arial, sans-serif       | 2.0 — 3.5    | 700 — 800      | Judul halaman utama.       |
-| **Heading 2**     | Helvetica Neue, Helvetica, Arial, sans-serif       | 1.25 — 2.2   | 600 — 700      | Sub-judul section.         |
-| **Heading 3**     | Helvetica Neue, Helvetica, Arial, sans-serif       | 1.0 — 1.4    | 600             | Label grup/komponen.       |
-| **Body Text**     | Helvetica Neue, Helvetica, Arial, sans-serif       | 0.875 — 1.1  | 400             | Paragraf, deskripsi.       |
-| **Caption/Label** | Helvetica Neue, Helvetica, Arial, sans-serif       | 0.65 — 0.85  | 500 — 700      | Label kecil, badge, status.|
-| **Monospace**     | Geist Mono, Courier New, monospace                 | 0.75 — 0.85  | 400             | Kode, ID teknis.           |
-
-**Aturan Tipografi:**
-- Gunakan `letter-spacing: -0.025em` pada Heading 1 untuk kesan modern dan padat.
-- Teks body menggunakan `line-height: 1.6` untuk keterbacaan optimal.
-- Semua teks menggunakan rendering `antialiased` agar tajam di semua layar.
-
-## 2.3 Komponen UI
-
-### Tombol (Buttons)
-
-| Tipe              | Gaya Visual                                                                 |
-|-------------------|-----------------------------------------------------------------------------|
-| **Primary**       | Background: `#000000`, Teks: `#FFFFFF`. Rounded: `0.75rem`. Shadow halus.   |
-| **Secondary**     | Background: Transparan. Border: `rgba(0,0,0,0.08)`. Teks: `#111111`.       |
-| **Destructive**   | Background: `#EF4444/10`. Teks: `#EF4444`. Digunakan untuk aksi hapus.     |
-| **Icon Button**   | Ukuran `36x36px`. Background: `rgba(0,0,0,0.05)`. Rounded: `0.5rem`.       |
-
-**Interaksi:**
-- Hover: `opacity: 0.9` + `translateY(-2px)` untuk efek mengambang halus.
-- Active/Tekan: `scale(0.98)` untuk umpan balik sentuhan.
-- Disabled: `opacity: 0.5`, kursor `not-allowed`.
-
-### Kartu (Glass Card)
-
-```
-Background : #FFFFFF (solid)
-Border     : 1px solid rgba(0, 0, 0, 0.05)
-Shadow     : 0 4px 24px -2px rgba(0, 0, 0, 0.03)
-Radius     : 1.35rem (--radius-2xl)
-Hover      : translateY(-2px), shadow lebih dalam
-```
-
-### Form / Input
-
-```
-Background : rgba(255, 255, 255, 0.5)
-Border     : 1px solid rgba(0, 0, 0, 0.08)
-Focus      : Border #000000, Shadow ring 2px
-Radius     : 0.75rem
-Padding    : 0.625rem 1rem
-```
-
-### Spasi & Whitespace
-
-- Antar section: `2.5rem — 5rem`
-- Antar kartu: `1.5rem — 2.5rem`
-- Padding internal kartu: `1.5rem — 2rem`
-- Margin antar elemen dalam kartu: `1rem — 1.5rem`
+### 3. Trainee (Peserta Pelatihan)
+Trainee memiliki akses yang paling dibatasi dan fokus pada kegiatan belajar.
+- **Hak Akses:** Hanya dapat melihat jadwal Sesi yang ditugaskan khusus untuk dirinya. Bisa mengubah kata sandi miliknya sendiri, mengerjakan materi dan ujian, serta mengunduh (download) sertifikat.
 
 ---
 
----
+# BAB 3 — PANDUAN LENGKAP UNTUK PARTICIPANT (PESERTA LATIHAN)
 
-# BAB 3 — ALUR PENGGUNA (USER FLOW)
+Jika Anda adalah seorang Trainee (Peserta), ikuti panduan detail berikut dari awal mendapatkan akun hingga mencetak sertifikat.
 
-## 3.1 Alur Kerja Administrator
+## 3.1 Cara Login & Mendapatkan Akun
+Sebagai peserta, Anda **TIDAK BISA mendaftar sendiri** di halaman depan. Langkahnya adalah:
+1. Administrator akan membuatkan akun Anda.
+2. Cek kotak masuk **Email Pribadi** Anda. Sistem secara otomatis telah mengirimkan **Username** dan **Password** Anda (Fitur *Automated Email Credentials*).
+3. Buka halaman depan website. Masukkan Username dan Password tersebut. 
+4. Jika salah memasukkan, peringatan berwarna merah "Kredensial Tidak Valid" akan muncul. Periksa kembali penggunaan huruf besar dan kecil.
 
-```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   LOGIN     │────▶│  DASHBOARD ADMIN │────▶│  KELOLA MASTER  │
-│  (Auth)     │     │  (Overview)      │     │  DATA           │
-└─────────────┘     └──────────────────┘     └────────┬────────┘
-                                                      │
-                    ┌─────────────────────────────────┤
-                    ▼                                 ▼
-            ┌───────────────┐               ┌────────────────┐
-            │ BUAT MATERI   │               │ KELOLA PESERTA │
-            │ (Content)     │               │ (Participants) │
-            └───────┬───────┘               └────────┬───────┘
-                    │                                 │
-                    ▼                                 │
-            ┌───────────────┐                         │
-            │ BUAT UJIAN &  │                         │
-            │ BANK SOAL     │                         │
-            │ (Exams)       │                         │
-            └───────┬───────┘                         │
-                    │                                 │
-                    ▼                                 ▼
-            ┌───────────────────────────────────────────┐
-            │       BUAT SESI (Sessions)                │
-            │  Gabungkan: Modul + Peserta + Jadwal      │
-            │  Opsi: Aktifkan Safe Exam Browser (SEB)   │
-            └────────────────────┬──────────────────────┘
-                                 │
-                                 ▼
-            ┌─────────────────────────────────────────────┐
-            │       MONITORING LIVE PROCTORING             │
-            │  Pantau webcam peserta secara real-time       │
-            │  Lihat progress pengerjaan (0% — 100%)       │
-            └────────────────────┬────────────────────────┘
-                                 │
-                                 ▼
-            ┌─────────────────────────────────────────────┐
-            │       EXPORT LAPORAN & SERTIFIKASI           │
-            │  Unduh laporan Excel per sesi                 │
-            │  Sertifikat otomatis untuk peserta lulus      │
-            └─────────────────────────────────────────────┘
-```
+## 3.2 Mengenal Dashboard (Halaman Utama)
+Setelah login, Anda akan melihat layar dengan 3 area utama:
+- **Kartu Statistik di Atas:** Menunjukkan angka "Sesi Sedang Berjalan" (Kelas yang bisa dikerjakan sekarang), "Akan Datang" (Kelas yang belum dimulai), dan "Selesai" (Kelas yang sudah purna).
+- **Kalender Interaktif:** Ini adalah visualisasi kalender. Setiap tanggal yang memiliki warna atau lingkaran berarti di hari tersebut terdapat kelas ujian atau materi yang harus Anda selesaikan. Anda bisa mengeklik tanggal tersebut.
+- **Widget Sesi Berjalan:** Tombol "Lanjutkan Belajar" ditujukan agar Anda tidak perlu repot mencari menu, cukup klik dan langsung masuk ke kelas Anda.
 
-## 3.2 Alur Kerja Peserta (Trainee)
+## 3.3 Menu Pengaturan Profil & Mengganti Kata Sandi
+Di navigasi kiri (Sidebar), terdapat menu **"Profil & Pengaturan"**:
+- **Biodata Pribadi:** Anda harus melengkapi atau memperbaiki formulir di sana. Meliputi *Nama Lengkap* (Nama ini **wajib benar** karena akan dicetak persis di Sertifikat), *Jenis Kelamin (Laki-laki/Perempuan)*, *Tanggal Lahir*, *Nomor Telepon*, dan *Alamat*.
+- **Sinkronisasi Tanggal Otomatis:** Sistem telah dikonfigurasi untuk menyesuaikan format secara otomatis (*Date bind synchronization*), sehingga penulisan tanggal lahir dan gender tidak mungkin tertukar di penyimpanan pusat.
+- **Mengganti Kata Sandi:** Agar aman, segera ganti kata sandi awal Anda. Masukkan kata sandi lama sekali, lalu masukkan kata sandi baru dua kali di kotak yang disediakan, kemudian klik **Simpan**.
 
-```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   LOGIN     │────▶│  DASHBOARD       │────▶│  PILIH SESI     │
-│  (Auth)     │     │  OVERVIEW        │     │  AKTIF          │
-└─────────────┘     │  • Kalender      │     └────────┬────────┘
-                    │  • Statistik     │              │
-                    └──────────────────┘              │
-                                                      ▼
-                                              ┌───────────────┐
-                                              │ BACA MATERI   │
-                                              │ PELATIHAN     │
-                                              │ (Progress %)  │
-                                              └───────┬───────┘
-                                                      │
-                                                      ▼
-                                              ┌───────────────┐
-                                              │ MULAI UJIAN   │
-                                              │               │
-                                              │ ┌───────────┐ │
-                                              │ │ SEB Aktif? │ │
-                                              │ │  Ya → Buka │ │
-                                              │ │  SEB App   │ │
-                                              │ │           │ │
-                                              │ │ Tidak →   │ │
-                                              │ │ Browser   │ │
-                                              │ │ Biasa     │ │
-                                              │ └───────────┘ │
-                                              └───────┬───────┘
-                                                      │
-                                                      ▼
-                                        ┌─────────────────────┐
-                                        │  HASIL UJIAN        │
-                                        │                     │
-                                        │  Lulus ──▶ Download  │
-                                        │           Sertifikat │
-                                        │                     │
-                                        │  Belum ──▶ Selesai / │
-                                        │           Remedial   │
-                                        └─────────────────────┘
-```
+## 3.4 Mengakses Materi Pelatihan (Multi-Media)
+1. Klik menu **"Sesi Saya"** di navigasi kiri.
+2. Klik tombol **"Buka Sesi"** pada sesi yang statusnya berlabel hijau **"Sedang Berlangsung"**.
+3. Di sana terdapat urutan pelajaran (Disebut **Modul Pembelajaran**). Pelajaran dapat berupa:
+   - **Teks Biasa & Gambar.**
+   - **Video YouTube:** Layar video akan tertanam di halaman tersebut, tekan logo "Play" di tengah video.
+   - **File Dokumen:** Terkadang admin menyertakan lampiran (seperti Word, Excel, Modul PDF). Klik dokumen tersebut untuk mengunduhnya (*Download*).
+4. Setelah Anda selesai membaca dan menekan tombol lanjut, progres di atas akan perlahan penuh (dari 0% ke 50%, lalu 100%).
+
+## 3.5 Mengerjakan Ujian (Dan Fitur Keamanan SEB)
+Setelah materi selesai dibaca, Anda akan dihadapkan pada **Ujian**.
+
+**TENTANG SEB (SAFE EXAM BROWSER)**
+- Jika ujian ini dilindungi oleh keamanan tingkat tinggi, Admin akan menyalakan pengaman "SEB".
+- Anda akan melihat tulisan "Mohon luncurkan Safe Exam Browser". Jika belum memiliki aplikasinya, klik tautan yang disediakan untuk mengunduh, lalu instal aplikasinya di Windows Anda.
+- Setelah aktif, klik tombol "Buka via SEB". Komputer Anda akan **terkunci penuh** (Lockdown Mode). Anda tidak bisa pindah membuka aplikasi Chrome lain, tidak bisa mencari jawaban di Google, dan tidak bisa menekan `Alt + Tab`. Layar baru bisa ditutup jika ujian sudah diselesaikan (Submit).
+
+**SAAT MENGERJAKAN UJIAN (Dengan Pemantauan Webcam)**
+- Ketika Anda mengeklik "Mulai Ujian", peramban (browser) akan meminta izin (Prompt) berbunyi: *"Izinkan penggunaan Kamera/Webcam?"*. Wajib diklik **Allow/Izinkan**.
+- Fitur *Live Proctoring* aktif. Setiap 30 detik, lampu webcam laptop Anda akan berkedip. Sistem sedang memotret Anda agar diawasi oleh Admin bahwa Anda tidak digantikan oleh orang lain. Jangan matikan kamera!
+
+**SISTEM PENILAIAN OTOMATIS & ESAI**
+- Bacalah durasi waktu di sudut kanan atas (berfungsi sebagai hitung mundur). Apabila waktu habis (00:00), jawaban Anda akan otomatis diserahkan paksa ke Admin (Auto-Submit).
+- **Soal Pilihan Ganda** langsung dinilai oleh mesin saat itu juga.
+- **Soal Esai** tidak dinilai secara instan. Anda harus mengetik jawaban menggunakan argumen sendiri, dan Trainer akan menilainya secara manual di kemudian hari.
+
+## 3.6 Mengunduh Sertifikat (Otomatis & Profesional)
+Setelah ujian selesai, Anda akan menerima **Skor**. 
+1. Jika "Passing Grade" (Batas lulus) adalah 70 dan Anda mendapat 80, maka saat Anda membuka *Overview* atau menu Profil Anda, akan langsung muncul tombol **"Download Sertifikat"** berwarna Hijau Emas.
+2. Klik tombol itu. Berkas PDF dengan desain Premium, berisikan Nama Anda dan tanggal yang sah otomatis diunduh!
+3. Jika nilainya hanya 60, tombol Sertifikat tersebut tidak akan pernah muncul.
+4. **Catatan:** Di Sertifikat tersebut tersemat keamanan tambahan (integrasi algoritma yang rumit) yang memastikan sertifikat itu secara sah diterbitkan oleh server pusat, sehingga mustahil untuk dipalsukan.
 
 ---
 
----
+# BAB 4 — PANDUAN LENGKAP UNTUK ADMINISTRATOR / TRAINER
 
-# BAB 4 — PANDUAN PENGGUNAAN SISTEM (USER MANUAL)
+Jika Anda adalah Admin atau Trainer, panduan ini menjelaskan cara menyetel "Sekolah Digital" dan membuat semua mekanisme berjalan dari awal hingga peserta lulus.
 
-## 4.1 Akses Sistem (Login)
+## 4.1 Memahami Halaman Dashboard Admin
+Masuk menggunakan akun Admin. Halaman depan akan menyajikan kendali lengkap:
+- 4 Angka Sentral: Menunjukkan total peserta yang terdaftar, total soal ujian di pangkalan data (*database*), jumlah materi, dan jumlah kelas (sesi) operasional.
+- **Fitur Analitik Trend:** Grafik ini bukan hanya hiasan. Grafik mengkalkulasi aktivitas siswa 14 hari ke belakang. Jika grafiknya menurun, Anda bisa mengevaluasi partisipasi peserta. Terdapat pula diagram "Rasio Kelulusan" untuk membandingkan persentase siswa lulus berbanding yang gagal.
 
-### Langkah-langkah Login
+## 4.2 Pembuatan Materi Latihan Multi-Media Terintegrasi (Menu Content)
+Ini saatnya menyusun materi pembelajaran.
+1. Masuk ke menu **Content**. Klik tombol besar "Tambah Baru".
+2. Tulis Judul. Misalnya: "Modul Keselamatan Kerja Tahap 1".
+3. **Editor Visual Kaya Fitur:** Di sini Anda tidak harus mengerti koding. Bisa menebalkan teks (*Bold*), memberi warna, membuat daftar tak berurut (*Bullet-list*). Ini didukung penuh oleh teknologi *TipTap Editor*.
+4. **Fitur Media Attachment Manager:** Di bawah kotak pengetikan teks, ada area khusus unggah dokumen pendukung. Anda bebas menyematkan gambar, dokumen PDF, hingga menempelkan (*Paste*) URL YouTube. Tautan YouTube dan modul PDF akan dapat diputar dan diunduh langsung oleh peserta.
 
-1. Buka **browser** Anda (Chrome, Firefox, atau Edge — versi terbaru direkomendasikan).
-2. Masukkan **alamat URL** sistem yang telah diberikan oleh administrator.
-3. Anda akan diarahkan ke **Halaman Login** yang menampilkan form masuk.
+## 4.3 Pembuatan Bank Soal Ekstensif (Menu Exams)
+1. Pergi ke menu **Exams**. Klik Buat Ujian Baru.
+2. Beri nama Ujian tersebut. Setel "Durasi" (contoh: 60 Menit) dan "Batas Kelulusan" (contoh: 75%).
+3. Masuk ke mode *"Kelola Soal"*. Buat jenisnya:
+   - **Pilihan Ganda:** Tulis pertanyaannya. Tulis Opsi A, B, C, D. Tekan tanda centang hijau di sebelah jawaban yang Benar. (Ini agar sistem bisa otomatis mencoret jawaban yang salah bagi peserta ujian).
+   - **Tipe Esai:** Anda tinggal mencentang Tipe Esai. Tulis pertanyaan panjang. Peran "Trainer" akan masuk belakangan untuk membacanya.
 
-   > [Masukkan Screenshot Halaman Login di sini]
+## 4.4 Pengaturan Modul (Packaging)
+Materi dan Ujian yang dibuat terpisah harus disatukan. Wadah penyatuan ini dinamakan "Modul" (Menu **Modules**).
+- Anda dapat menyusun item Materi 1 agar berada di posisi paling atas. Di bawahnya, letakkan Ujian Akhir.
+- Peserta dijamin mutlak tidak akan bisa melompat maju ke *"Ujian"* jika belum menuntaskan dan membaca *"Materi 1"* terlebih dahulu.
 
-4. Isi data berikut:
-   - **Username** — Nama pengguna yang diberikan oleh administrator.
-   - **Password** — Kata sandi akun Anda.
-5. Klik tombol **"Masuk ke Dashboard"**.
-6. Sistem akan mengarahkan Anda ke halaman yang sesuai:
-   - **Admin** → Dashboard Administrator (Overview Statistik).
-   - **Trainee** → Dashboard Peserta (Kalender & Sesi).
+## 4.5 Jadwal Presisi Otomatis dengan "Sensor Waktu"
+Masuk ke menu **Sessions**. Ini adalah meja komando Admin untuk mendistribusikan kelas.
+1. Buat sesi baru, misalnya "Sesi Juli: K3". Pilih "Modul Keselamatan Kerja".
+2. Fitur krusial: Atur Tanggal Mulai dan Tanggal Berakhir (**Start & End Date/Time**). 
+   - **Logika Otomatis LMS:** Bila saat ini tanggal 1 Juli, sedangkan Sesi diatur mulai tanggal 3 Juli, sesi itu berlabel **Kuning (Akan Datang)**. Murid bisa melihatnya tetapi dikunci rapat.
+   - Saat tanggal 3 Juli tepat jam 08.00 pagi, LMS mencabut kunci tersebut, mengubah status menjadi **Hijau (Sedang Berjalan)**.
+   - Saat batas tanggal terlewati, Sesi berubah menjadi **Hitam (Selesai)**. Akses tertutup secara permanen. Pengaturan otomatis inilah yang dirancang agar Admin cukup bekerja satu kali saja.
+3. Centang opsi **"Wajibkan Safe Exam Browser (SEB)"** jika sesi ini memerlukan perlindungan ujian paling ketat (Anti-Cheating).
 
-### Lupa Password
+## 4.6 Dashboard Pemantauan Kamera (Live Proctoring Real-time)
+Ini adalah fitur unggulan untuk mengawasi kejujuran peserta secara waktu nyata.
+1. Saat ujian massal, Administrator dapat masuk ke menu **Monitoring**.
+2. Pilih Kelas yang baru berjalan.
+3. Halaman ini akan membagi layar menjadi kotak-kotak kecil tempat foto wajah peserta direkam.
+4. Setiap 30 detik, foto tersebut disegarkan (*Auto-Refresh Snapshot*), dan seketika wajah peserta yang terbaru ditampilkan. Jika layar peserta hitam, tandanya ada masalah pengaturan izin pada peramban mereka atau mereka sengaja menutup kamera. Administrator bebas menegur peserta tersebut.
 
-> Saat ini, fitur **"Lupa Password"** tidak tersedia secara mandiri untuk peserta. Jika Anda lupa kata sandi, silakan hubungi **Administrator** untuk melakukan reset melalui panel **User Management**.
+## 4.7 Penilaian Esai Manual / Grading (Peran Trainer)
+Sistem belum memberikan skor otomatis pada jawaban Esai.
+1. Admin atau Pelatih (**Trainer**) wajib masuk ke menu "Overview Nilai Sesi / Papan Skor".
+2. Di sana naskah/argumen para siswa terhampar dengan jelas. 
+3. Trainer membaca naskah dan memberlakukan penilaian numerik, misalnya memberikan skor "55".
+4. Begitu Trainer menekan tombol Simpan, algoritma mesin bekerja otomatis menyatukan nilai Pilihan Ganda (misal 40) dengan Esai (55) menjadi "95". Kalkulasi nilai total secara otomatis mendeteksi status kelulusan peserta, memicu peluncuran Sertifikat Emas jika nilai akhir mencapai "Passing Grade".
 
-### Penting Diperhatikan
+## 4.8 Ekspor Data Mentah Ke Excel
+Jika pelaporan (*Reporting*) dibutuhkan untuk keperluan korporat:
+- Buka Halaman *Overview Sessions*.
+- Klik pada tombol kanan atas bertuliskan lambang *Spreadsheet*: **"Download Excel"**.
+- Semua rekam jejak, mencakup status ketercapaian, progres siswa (misal 50%), serta hasil nilai murni direndahkan ke dalam format yang bebas diolah lebih lanjut.
 
-- Jangan membagikan username dan password Anda kepada siapa pun.
-- Sistem akan menampilkan pesan error jika kredensial salah: *"Login gagal"*.
-- Jika terjadi masalah koneksi, pesan *"Terjadi kesalahan koneksi"* akan muncul.
-
----
-
-## 4.2 Pengenalan Antarmuka
-
-### A. Antarmuka Administrator
-
-Setelah berhasil login sebagai Admin, Anda akan melihat **Dashboard Overview** yang terdiri dari:
-
-> [Masukkan Screenshot Dashboard Admin di sini]
-
-| Komponen              | Posisi         | Fungsi                                                        |
-|-----------------------|----------------|---------------------------------------------------------------|
-| **Sidebar (Navigasi)**| Sisi kiri      | Berisi menu navigasi ke semua modul sistem.                   |
-| **Header**            | Atas           | Menampilkan judul halaman aktif dan aksi cepat.               |
-| **Panel Statistik**   | Atas konten    | 4 kartu: Total Materi, Bank Soal, Sesi Ujian, Total Peserta. |
-| **Grafik Analitik**   | Tengah         | Tren partisipasi 14 hari terakhir & rasio kelulusan.          |
-| **Sesi Terkini**      | Bawah kiri     | Daftar 5 sesi terakhir beserta statusnya.                     |
-| **Aksi Cepat**        | Bawah kanan    | Shortcut ke pembuatan materi, soal, dan sesi baru.            |
-
-**Menu Sidebar Administrator:**
-
-1. **Overview** — Ringkasan statistik sistem.
-2. **Content (Materi)** — Buat dan kelola artikel pelatihan.
-3. **Modules** — Susun modul yang menggabungkan materi dan ujian.
-4. **Exams (Ujian)** — Atur parameter ujian dan bank soal.
-5. **Sessions (Sesi)** — Jadwalkan kelas dan pasangkan peserta.
-6. **Participants (Peserta)** — Kelola data peserta pelatihan.
-7. **Users (Pengguna)** — Kelola akun Admin dan Trainer.
-8. **Monitoring** — Pantau ujian secara langsung (Live Proctoring).
-
-### B. Antarmuka Peserta (Trainee)
-
-> [Masukkan Screenshot Dashboard Peserta di sini]
-
-| Komponen            | Posisi        | Fungsi                                                            |
-|---------------------|---------------|-------------------------------------------------------------------|
-| **Sidebar**         | Sisi kiri     | Navigasi: Overview, Sesi Saya, Profil, Riwayat, Leaderboard.     |
-| **Statistik Cepat** | Atas konten   | 3 kartu: Sesi Berjalan, Akan Datang, dan Selesai.                |
-| **Kalender**        | Tengah kiri   | Visualisasi jadwal ujian dan pelatihan.                           |
-| **Sesi Terbaru**    | Tengah kanan  | Daftar sesi aktif dengan progress bar.                            |
+## 4.9 Menjamin Integritas: Tabel Audit Log (Rekam Jejak)
+Fitur **"Audit Logging"** mengamankan sistem atas segala manuver Admin nakal/ceroboh:
+- Halaman fungsi mutakhir ini merekam aktivitas secara tersembunyi.
+- Misal Admin 'budi_mgr' menekan tombol Hapus Akun Murid bernama Rudi.
+- Komputer akan mencatatnya di Pangkalan Data: *"Akun budi_mgr telah memusnahkan ID #50 a.n Rudi pada pk. 14.05 dengan perintah DELETE"*.
+- Layar log ini dapat ditinjau kapan pun oleh Pimpinan (*SuperAdmin utama*) untuk memberikan kepastian keamanan tingkat lanjut.
 
 ---
 
-## 4.3 Fitur Utama — Panel Administrator
+# BAB 5 — PERTANYAAN PALING SERING DIAJUKAN (F.A.Q & TROUBLESHOOTING UMUM)
 
-### ALUR 1: Membuat Sesi Ujian (Dari Awal Hingga Monitoring)
+*Jika Anda menghadapi kendala, periksalah daftar masalah umum ini sebelum melapor ke Tim IT:*
 
-Ini merupakan **alur kerja utama** seorang Administrator. Berikut langkah-langkahnya secara berurutan:
+### 1. Peserta terhambat pada halaman Loading lambat (Spinner Berputar Terus Tanpa Henti)
+**Penyebab:** Umumnya dikarenakan penumpukan *Cache* (Memori Sementara) pada peramban/browser, sehingga kode tersangkut.
+**Solusi Cepat:** Arahkan murid untuk menekan persimpangan `Ctrl + Shift + Del` dari papan ketiknya. Centang fitur *"Cached images and files/Hapus Tembolok"*. Klik *"Hapus Data"*. Kemudian perintahkan tekan tombol `F5` *(Refresh layar)*.
 
----
+### 2. Peserta protes: "Pak, Sertifikat belum Keluar Padahal Nilai sudah 90?!" (Batas Passing Grade 75)
+**Solusi:** Evaluasi progresnya melalui Dashboard Anda. Kelulusan sejati bukan bersandar tunggal pada angka! Sesi pembelajaran mensyaratkan bar Progres biru "100%". Apabila peserta menekan langsung fitur ujian esai dan membiarkan *Course Video* terlewat, dia menyalahi aturan sistem. Garis Progres muridnya terhenti di titik "70%". Suruh murid membuka serta menyelesaikan materi yang belum memiliki tanda centang komplit.
 
-#### Langkah 1 — Buat Materi Pelatihan
+### 3. Layar Live Proctoring Monitoring Peserta A Terus-Menerus Hitam / Tidak Ada Gambar!
+**Solusi:** Ada tiga sumber potensial: a) Peserta sejatinya belum sama sekali mengeklik tombol "Mulai Ujian" di layar SEB-nya. b) Cek persetujuan di dekat kotak isian URL Chrome. Konfigurasi gembok kameranya harus disetel pada "*Allowed*" atau "*Diizinkan*". Windows 11 terkadang menyembunyikan tombol fisik blokir kamera, pastikan pelindung fisik dibuka. c) Koneksi peserta putus/jatuh ke titik kelemahan absolut sehingga tangkapan foto ukuran kilobyte tidak sanggup terkirim.
 
-1. Masuk ke menu **Content (Materi)** melalui sidebar.
-
-   > [Masukkan Screenshot Halaman Materi di sini]
-
-2. Klik tombol **"Buat Materi Baru"** di pojok kanan atas.
-3. Isi **Judul Materi** pada formulir yang muncul.
-4. Gunakan **editor visual** untuk menyusun konten:
-   - Anda dapat mengetik teks, menambahkan **gambar**, mengatur **format** (bold, italic, heading), dan menyisipkan **tautan video**.
-5. Setelah konten selesai, klik **"Simpan"**.
-
-| Informasi | Detail |
-|-----------|--------|
-| **Menu**      | Sidebar → Content |
-| **Aksi**      | Buat Materi Baru |
-| **Input**     | Judul + konten HTML (via editor visual) |
-| **Output**    | Materi tersimpan dan siap dipasangkan ke Modul |
+### 4. Bisakah Administrator "Batch Insert" (Menyebarkan Akun Serentak Ratusan Peserta) tanpa harus repot Chat WhatsApp 1x1?
+Sebuah prosedur *Automated Credentials Dispatching* dapat menuntaskan perihal ini. Membekali sistem dengan fungsi pengirim SMTP, Administrator tinggal mendaftarkan profil pengguna. Secara instan, kode sandi rahasia dikirimkan ke *Email Personal* masing-masing, tak butuh jerih payah mendistribusikan kata sandi via jalur pribadi. 
 
 ---
 
-#### Langkah 2 — Buat Bank Soal (Ujian)
+# BAB 6 — DOKUMENTASI TEKNIS SISTEM (UNTUK IT / DEVELOPER)
 
-1. Masuk ke menu **Exams (Ujian)** melalui sidebar.
+Bab ini disusun khusus untuk referensi pengembang sistem (Developer) dalam memelihara dan mengembangkan platform di masa mendatang.
 
-   > [Masukkan Screenshot Halaman Ujian di sini]
+## 6.1 Stack Teknologi Utama
+Sistem LMS ini dibangun menggunakan arsitektur modern berkinerja tinggi, mengikuti tren rekayasa web (Web Engineering) tahun 2026:
+- **Framework Frontend & Backend:** Next.js (Versi 16.1.6) dengan arsitektur *App Router* dan kompilator baru `babel-plugin-react-compiler`. React v19.2.3.
+- **Bahasa Pemrograman:** Ekstensif menggunakan TypeScript penuh (*Full Type Safety*).
+- **Database & Konektor:** Basis data Relasional menggunakan konektor `mysql2` (MySQL / MariaDB).
+- **Library Tampilan (UI/UX):** Mewarisi sistem desain dari `shadcn/ui`, diramu dengan `Tailwind CSS v4` untuk proses pendesainan tampilan yang sangat lincah.
+- **Keamanan (Authentication):** Metode token murni JSON Web Token (JWT) yang dienkripsi melalui modul `jose` dan `bcryptjs` untuk perlindungan kriptografi kata sandi pengguna.
+- **PDF Engine & Visual Editor:** Menggunakan `puppeteer` (Headless Browser PDF Generation), `jspdf`, `html2canvas`, dan integrasi fitur pengolah kata (Rich Text) dari kerangka modern `@tiptap/react` dan ekstensi komplit tip-tap lainnya.
 
-2. Klik **"Buat Ujian Baru"**.
-3. Isi parameter ujian:
+## 6.2 Konfigurasi Lingkungan Pengembang (Environment Setup)
+Untuk meluncurkan kode ini secara lokal di perangkat Server atau Komputer Pengembang:
+1. Pastikan Anda telah memasang **Node.js (Versi 20.x ke atas)**.
+2. Salin atau ambil kode sumber platform lalu jalankan terminal pada direktori proyek untuk menginstal seluruh dependensi:
+   `npm install`
+3. Konfigurasikan pelantar variabel lokal Anda di berkas `.env.local`:
+   Variabel kunci yang dibutuhkan meliputi:
+   - Akses pangkalan data (misal: `DATABASE_URL / MYSQL_URL`).
+   - Kata Kunci Token (JWT Secret).
+   - Pengaturan kredensial pengirim perpesanan (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`).
+4. Setelah instalasi selesai, jalankan server mode pengembangan lokal:
+   `npm run dev`
 
-| Parameter         | Keterangan                                                |
-|-------------------|-----------------------------------------------------------|
-| **Judul Ujian**   | Nama identitas ujian (contoh: "Ujian Akhir Modul 1").     |
-| **Durasi (Menit)**| Batas waktu pengerjaan. Jawaban otomatis terkirim saat habis.|
-| **Passing Grade** | Persentase minimum untuk lulus (contoh: 70%).             |
+## 6.3 Ringkasan Arsitektur Database Terpilih
+Sistem memuat relasi inti layaknya sistem ERP terpusat:
+1. **t_users:** Tabel induk utama entitas pengguna (Role Admin, Trainer, Trainee).
+2. **t_courses / t_materials:** Menampung struktur naskah dan modul dengan *Longtext* penyokong konten HTML ekstensif.
+3. **t_media_attachments:** Skema tabel penyimpan dokumen terpisah untuk melampung media seperti berkas tautan MP4 YouTube, Doc Word, maupun berkas gambar.
+4. **t_exams & t_questions:** Mesin Bank Soal berlapis, memisahkan rincian pertanyaan Pilihan Ganda/Esai, Opsi A/B/C/D, hingga kerahasiaan Kunci Jawaban.
+5. **t_user_progress:** Barisan tabel pivot kritikal untuk mengabarkan sejauh mana traksi pembelajaran peserta (Nilai progres direkam di antara nilai 0.0 hingga 100.0).
+6. **t_audit_logs:** Catatan rekam transaksional untuk melacak pergerakan spesifik Administrator (Menyimpan format *Action*, *Timestamp*, dan *Target Table*).
 
-4. Setelah parameter tersimpan, klik tombol **"Kelola Soal"** pada ujian yang baru dibuat.
-5. Tambahkan soal satu per satu:
-   - **Pilihan Ganda**: Tulis pertanyaan, opsi jawaban (A/B/C/D), dan tandai jawaban yang benar. Sistem akan **menilai secara otomatis**.
-   - **Esai**: Tulis pertanyaan terbuka. Admin/Trainer akan **menilai secara manual** setelah peserta selesai.
+## 6.4 Struktur Direktori Source Code
+- `/src/app`: Wadah *routing* antarmuka utama (Pemetaan halaman dari fitur *Next.js App Router*).
+- `/src/components`: Wadah penyimpan kumpulan antarmuka ringkas ber-arsitektur UI-Components spesifik platform (Kancing/Tombol, Kotak Dialog Cepat, *Form Input*).
+- `/src/lib`: Menyimpan modul fungsionalitas inti dan utilitas murni pendukung konektivitas, seperti skrip pengiriman Email Nodemailer *transport* dan adaptasi pangkalan data koneksi (Database connection singleton).
+- `/src/app/api`: Pintu antarmuka belakang (*Backend API Handler*) meredam serta mengeksekusi permintaan beban *GET/POST/PUT/DELETE* layaknya peladen antarmuka (*RESTful endpoint*).
 
----
-
-#### Langkah 3 — Susun Modul Pembelajaran
-
-1. Masuk ke menu **Modules** melalui sidebar.
-2. Klik **"Buat Modul Baru"**.
-3. Masukkan **Judul Modul**.
-4. **Pasangkan item** ke dalam modul:
-   - Tambahkan **Materi** yang telah dibuat sebelumnya (Content).
-   - Tambahkan **Ujian** yang telah dibuat sebelumnya (Exams).
-   - Atur **urutan item** (peserta wajib menyelesaikan materi sebelum ujian).
-5. Simpan Modul.
-
----
-
-#### Langkah 4 — Jadwalkan Sesi (Sessions)
-
-1. Masuk ke menu **Sessions** melalui sidebar.
-
-   > [Masukkan Screenshot Halaman Sesi di sini]
-
-2. Klik **"Buat Sesi Baru"**.
-3. Isi formulir sesi:
-
-| Field              | Keterangan                                                    |
-|--------------------|---------------------------------------------------------------|
-| **Judul Sesi**     | Nama identitas sesi (contoh: "Batch 1 — Pelatihan K3").      |
-| **Pilih Modul**    | Modul pembelajaran yang akan diajarkan di sesi ini.           |
-| **Waktu Mulai**    | Tanggal dan jam sesi mulai aktif.                             |
-| **Waktu Selesai**  | Tanggal dan jam sesi berakhir (otomatis terkunci setelahnya). |
-| **Require SEB**    | Centang jika ujian wajib menggunakan Safe Exam Browser.       |
-
-4. Masukkan **peserta** yang berhak mengikuti sesi ini. Anda dapat memilih secara individu atau massal.
-5. Klik **"Simpan Sesi"**.
-
-**Status Sesi Otomatis:**
-
-| Status             | Indikator Warna | Kondisi                                    |
-|--------------------|-----------------|--------------------------------------------|
-| **Akan Datang**    | 🟡 Kuning      | Waktu saat ini < Waktu Mulai.              |
-| **Berlangsung**    | 🟢 Hijau       | Waktu saat ini berada di antara Mulai & Selesai.|
-| **Selesai**        | ⚫ Abu-abu      | Waktu saat ini > Waktu Selesai.            |
+## 6.5 Guideline Deployment / Go-Live Server
+- Dalam fase produksi peluncuran (*Production Launch*), Anda diwajibkan untuk mengkompilasikan set sistem ini supaya rasio kecepatannya teroptimalkan maksimal:
+  Beri instruksi komando pembuat susunan struktur peluncuran:
+  `npm run build`
+- Perintah kompilasi di atas akan menjalankan perakitan ratusan struktur berkas menjadi padat (*optimizing assets minification*).
+- Untuk mengaktifkannya secara tangguh sebagai server permanen konstan, jalankan komitmen akhir di server terminal:
+  `npm start`
 
 ---
-
-#### Langkah 5 — Pantau Ujian (Live Proctoring)
-
-1. Masuk ke menu **Monitoring** melalui sidebar.
-
-   > [Masukkan Screenshot Halaman Monitoring di sini]
-
-2. Pilih **Sesi** yang sedang berlangsung melalui dropdown (sesi aktif ditandai dengan ikon 🟢).
-3. Klik tombol **🔄 Refresh** untuk memperbarui data secara manual, atau biarkan sistem melakukan **refresh otomatis setiap 30 detik**.
-4. Halaman menampilkan **Grid Snapshot Webcam** peserta:
-
-   | Informasi           | Keterangan                                              |
-   |---------------------|---------------------------------------------------------|
-   | **Foto Webcam**     | Tangkapan layar wajah peserta (otomatis diambil).       |
-   | **Nama & Username** | Identitas peserta di bawah setiap foto.                 |
-   | **Waktu Capture**   | Stempel waktu saat foto diambil.                        |
-
-5. Jika tidak ada foto yang muncul, kemungkinan:
-   - Peserta belum memulai ujian.
-   - Browser peserta tidak mendukung webcam.
-   - SEB tidak diaktifkan pada sesi tersebut.
-
----
-
-#### Langkah 6 — Export Laporan
-
-1. Masuk ke menu **Sessions** → Klik sesi yang ingin dilaporkan.
-2. Pada halaman **Detail Sesi**, Anda akan melihat tabel peserta dengan kolom:
-   - Username, Nama Lengkap, Progress (%), dan Status (Belum / Mengerjakan / Selesai).
-3. Klik tombol **"Export Laporan Excel"** di pojok kanan atas tabel peserta.
-4. File Excel akan terunduh secara otomatis.
-
----
-
-### ALUR 2: Mengelola Akun Pengguna
-
-1. Masuk ke menu **Users** melalui sidebar.
-
-   > [Masukkan Screenshot Halaman Users di sini]
-
-2. Halaman menampilkan tabel seluruh akun **Admin** dan **Trainer** yang terdaftar.
-3. Gunakan **kolom pencarian** untuk menemukan pengguna spesifik.
-
-**Menambah Pengguna Baru:**
-1. Klik **"Tambah Pengguna"**.
-2. Isi formulir:
-   - **Nama Lengkap**
-   - **Username** (digunakan untuk login).
-   - **Password** (password awal yang dapat diubah pengguna).
-   - **Role**: Pilih antara *Administrator* atau *Pelatih/Trainer*.
-3. Klik **Simpan**.
-
-**Mengedit / Menghapus:**
-- Klik ikon **✏️ (Edit)** untuk mengubah data pengguna.
-- Klik ikon **🗑️ (Hapus)** untuk menghapus akun secara permanen (memerlukan konfirmasi).
-- **Catatan:** Akun Administrator utama (`admin`) tidak dapat dihapus sebagai mekanisme keamanan.
-
----
-
-## 4.4 Fitur Utama — Dashboard Peserta (Trainee)
-
-### A. Halaman Overview
-
-> [Masukkan Screenshot Dashboard Peserta di sini]
-
-Setelah login, peserta akan melihat halaman **Overview** yang berisi:
-- **3 Kartu Statistik**: Jumlah sesi yang Berjalan, Akan Datang, dan Selesai.
-- **Kalender Interaktif**: Menampilkan jadwal pelatihan secara visual. Peserta dapat mengklik tanggal untuk melihat sesi pada hari tersebut.
-- **Widget "Lanjutkan Belajar"**: Shortcut langsung ke halaman daftar sesi aktif.
-- **Daftar Sesi Terbaru**: 4 sesi terkini dengan informasi nama modul.
-
-### B. Halaman "Sesi Saya"
-
-> [Masukkan Screenshot Halaman Sesi Peserta di sini]
-
-1. Klik menu **"Sesi Saya"** di sidebar.
-2. Halaman menampilkan seluruh sesi yang diikuti peserta, dikelompokkan berdasarkan status:
-
-| Kelompok              | Ikon  | Keterangan                                           |
-|-----------------------|-------|------------------------------------------------------|
-| **Sedang Berlangsung**| 🟢    | Sesi aktif. Klik untuk mengakses materi dan ujian.   |
-| **Akan Datang**       | 🔵    | Sesi terjadwal. Dikunci hingga waktu mulai tiba.     |
-| **Selesai (100%)**    | ✅    | Seluruh item telah diselesaikan.                     |
-| **Berakhir**          | ⚫    | Sesi telah melewati batas waktu tanpa 100% progres.  |
-
-3. Setiap baris sesi menampilkan **Progress Bar** yang menunjukkan persentase item yang telah diselesaikan (misal: 3/5 item = 60%).
-
-### C. Mengerjakan Sesi
-
-1. Klik sesi yang berstatus **"Sedang Berlangsung"**.
-2. Anda akan melihat daftar item dalam modul:
-   - **Materi** — Klik untuk membaca. Setelah dibaca, item akan ditandai selesai secara otomatis.
-   - **Ujian** — Klik untuk memulai pengerjaan soal. Jika SEB diwajibkan, pastikan aplikasi SEB telah terinstal di komputer Anda.
-3. Selesaikan seluruh item untuk mencapai **progres 100%**.
-
-### D. Mengunduh Sertifikat
-
-Jika Anda telah menyelesaikan seluruh sesi dengan skor ujian di atas Passing Grade:
-1. Tombol **"Download Sertifikat"** akan muncul pada halaman profil atau detail sesi.
-2. Klik tombol tersebut. File **PDF** akan terunduh secara otomatis.
-
----
-
-## 4.5 Pengaturan Profil & Keamanan
-
-> [Masukkan Screenshot Halaman Profil di sini]
-
-1. Klik menu **"Profil & Pengaturan"** di sidebar.
-2. Halaman terbagi menjadi dua bagian:
-
-### Bagian 1 — Data Personal
-
-| Field             | Keterangan                                      | Bisa Diubah? |
-|-------------------|-------------------------------------------------|:------------:|
-| Nama Lengkap      | Nama resmi yang tertera di sertifikat.           | ✅ Ya        |
-| Username           | Identitas login. Ditetapkan oleh Admin.          | ❌ Tidak     |
-| Nomor Telepon      | Kontak pribadi.                                  | ✅ Ya        |
-| Jenis Kelamin      | Pilih: Laki-Laki (L) atau Perempuan (P).         | ✅ Ya        |
-| Tanggal Lahir      | Format: YYYY-MM-DD.                              | ✅ Ya        |
-| Institusi          | Nama instansi/perusahaan asal.                   | ✅ Ya        |
-| Alamat Lengkap     | Alamat domisili.                                 | ✅ Ya        |
-
-### Bagian 2 — Keamanan Akun (Ganti Password)
-
-1. Isi **"Password Saat Ini"** — untuk verifikasi identitas.
-2. Isi **"Password Baru"**.
-3. Isi **"Konfirmasi Password Baru"** — harus sama persis dengan password baru.
-4. Klik **"Simpan Perubahan"**.
-
-> **Catatan:** Jika Anda tidak ingin mengganti password, **kosongkan** ketiga field tersebut. Data personal tetap dapat disimpan tanpa mengubah kata sandi.
-
----
-
----
-
-# BAB 5 — TROUBLESHOOTING & FAQ
-
-### Masalah 1: Tidak bisa login (pesan: "Login gagal")
-
-| Aspek     | Detail                                                                  |
-|-----------|-------------------------------------------------------------------------|
-| **Gejala**    | Muncul pesan error merah: *"Login gagal"* setelah klik tombol Masuk.    |
-| **Penyebab**  | Username atau password salah; akun belum didaftarkan oleh admin.        |
-| **Solusi**    | 1. Periksa kembali penulisan username (huruf besar/kecil sensitif). 2. Pastikan password tidak mengandung spasi di awal/akhir. 3. Hubungi Admin untuk reset password atau konfirmasi status akun. |
-
-### Masalah 2: Halaman monitoring tidak menampilkan foto webcam
-
-| Aspek     | Detail                                                                  |
-|-----------|-------------------------------------------------------------------------|
-| **Gejala**    | Grid monitoring kosong, muncul pesan: *"Tidak Ada Tangkapan Layar"*.    |
-| **Penyebab**  | Peserta belum memulai ujian; webcam tidak diizinkan; SEB tidak aktif.   |
-| **Solusi**    | 1. Pastikan peserta sudah klik "Mulai Ujian". 2. Pastikan SEB diaktifkan pada pengaturan sesi. 3. Minta peserta untuk mengizinkan akses kamera di browser/SEB. |
-
-### Masalah 3: Sertifikat tidak muncul meskipun ujian sudah selesai
-
-| Aspek     | Detail                                                                  |
-|-----------|-------------------------------------------------------------------------|
-| **Gejala**    | Tombol "Download Sertifikat" tidak tersedia di dashboard peserta.       |
-| **Penyebab**  | Progres belum 100%; skor ujian di bawah Passing Grade.                  |
-| **Solusi**    | 1. Pastikan seluruh item materi dalam modul sudah dibaca. 2. Periksa apakah skor ujian mencapai passing grade yang ditentukan. 3. Hubungi admin untuk pengecekan manual pada data `user_progress`. |
-
-### Masalah 4: Halaman loading terus-menerus (tidak selesai memuat)
-
-| Aspek     | Detail                                                                  |
-|-----------|-------------------------------------------------------------------------|
-| **Gejala**    | Layar menampilkan animasi loading (spinner) tanpa henti.                |
-| **Penyebab**  | Koneksi internet lambat; server sedang mengalami beban tinggi.          |
-| **Solusi**    | 1. Periksa koneksi internet Anda. 2. Coba refresh halaman (tekan `F5` atau `Ctrl+R`). 3. Bersihkan cache browser: `Ctrl+Shift+Delete` → centang "Cached images and files" → hapus. 4. Jika masih berlanjut, hubungi tim IT. |
-
----
-
----
-
-# BAB 6 — PENUTUP & PUSAT BANTUAN
-
-## 6.1 Penutup
-
-Sistem E-Learning ini dirancang untuk mempermudah seluruh aspek operasional pelatihan dengan jaminan keamanan tinggi dan pengalaman pengguna yang modern. Dengan mematuhi panduan dalam dokumen ini, diharapkan seluruh pihak (Pengelola, Pengajar, dan Peserta) dapat memanfaatkan sistem secara optimal dan mandiri.
-
-Kami berkomitmen untuk terus meningkatkan kualitas sistem berdasarkan umpan balik pengguna.
-
-## 6.2 Pusat Bantuan & Kontak
-
-Jika Anda mengalami kendala teknis atau membutuhkan informasi lebih lanjut, silakan hubungi tim dukungan kami:
-
-| Saluran          | Detail                                        |
-|------------------|-----------------------------------------------|
-| **Email**        | support@lms-system.com                        |
-| **WhatsApp**     | +62 812-34XX-XXXX                             |
-| **Jam Operasional** | Senin — Jumat, 08.00 — 17.00 WIB          |
-| **Respon Darurat**| Sabtu & Minggu hanya untuk isu kritis sistem. |
-
-> **Catatan:** Untuk permintaan **reset password**, sertakan username dan nama lengkap Anda pada pesan agar proses dapat dipercepat.
-
----
-
----
-
-*Dokumen ini disusun sebagai aset intelektual resmi untuk proses serah terima (Handover) Sistem E-Learning LMS.*
-*Versi 1.0 — April 2026*
+*Demikian Panduan Teknis Komprehensif Antigravity Sistem E-Learning LMS ini terjalin. Rangkuman operasional dirancang tanpa terminologi linguistik yang rancu demi meminimalisasi jurang celah miskonsepsi pemahaman, didampingi pilar kokoh kerangka arsitektur IT unggulan masa depan (Dokumentasi v2.1 Beresolusi Penuh).*

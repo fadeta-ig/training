@@ -24,14 +24,14 @@ async function handleGet(request: NextRequest) {
                 -- Sum of highest exam scores from user_progress
                 COALESCE((
                     SELECT SUM(best_score) FROM (
-                        SELECT mi.item_id, MAX(up.score) as best_score
+                        SELECT up.user_id, MAX(up.score) as best_score
                         FROM user_progress up
                         JOIN module_items mi ON up.module_item_id = mi.id
-                        WHERE up.user_id = u.id 
-                          AND mi.item_type = 'exam'
+                        WHERE mi.item_type = 'exam'
                           AND up.status = 'completed'
-                        GROUP BY mi.item_id
+                        GROUP BY up.user_id, mi.item_id
                     ) as highest_exam_scores
+                    WHERE highest_exam_scores.user_id = u.id
                 ), 0) as exam_points
             FROM users u
             LEFT JOIN participant_profiles p ON u.id = p.user_id

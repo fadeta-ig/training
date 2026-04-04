@@ -159,6 +159,7 @@ export default function RiwayatPage() {
                                             courseName={s.title}
                                             completionDate={new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                                             certificateId={`WIG-${s.id.split('-')[0].toUpperCase()}-${new Date().getFullYear()}`}
+                                            finalScore={progress}
                                         />
                                     </div>
                                 )}

@@ -3,572 +3,667 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buku Panduan & Guideline — Sistem E-Learning LMS</title>
+    <title>Buku Panduan Ekstensif — Sistem E-Learning LMS v2.2</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         @page { size: A4; margin: 2.5cm 2cm; }
-        @media print {
-            body { font-size: 10.5pt; }
-            .page-break { page-break-before: always; }
-            .no-break { page-break-inside: avoid; }
-            h2 { page-break-after: avoid; }
-            h3, h4 { page-break-after: avoid; }
-        }
-
+        @media print { body { font-size: 10.5pt; } .page-break { page-break-before: always; } .no-break { page-break-inside: avoid; } h2 { page-break-after: avoid; } h3, h4 { page-break-after: avoid; } }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            color: #1a1a1a;
-            line-height: 1.75;
-            font-size: 14px;
-            background: #fff;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 3rem 2.5rem;
-        }
-
-        /* ── COVER ── */
-        .cover {
-            min-height: 85vh;
-            display: flex; flex-direction: column;
-            justify-content: center;
-            border-bottom: 3px solid #111;
-            padding-bottom: 3rem;
-            margin-bottom: 3rem;
-        }
-        .cover h1 {
-            font-size: 2.4rem; font-weight: 700;
-            line-height: 1.2; letter-spacing: -0.03em;
-            margin-bottom: 0.75rem;
-        }
-        .cover .subtitle {
-            font-size: 1.1rem; color: #555; margin-bottom: 2.5rem;
-        }
-        .cover .meta {
-            font-size: 0.85rem; color: #888;
-            border-top: 1px solid #ddd; padding-top: 1.5rem;
-            margin-top: auto;
-        }
-
-        /* ── HEADINGS ── */
-        h2 {
-            font-size: 1.5rem; font-weight: 700;
-            margin: 3.5rem 0 1.25rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #111;
-            letter-spacing: -0.02em;
-        }
-        h3 {
-            font-size: 1.1rem; font-weight: 600;
-            margin: 2rem 0 0.75rem;
-            color: #111;
-        }
-        h4 {
-            font-size: 0.95rem; font-weight: 600;
-            margin: 1.5rem 0 0.5rem;
-            color: #333;
-        }
-
-        /* ── TEXT ── */
+        body { font-family: 'Inter', -apple-system, sans-serif; color: #1a1a1a; line-height: 1.75; font-size: 14px; background: #fff; max-width: 800px; margin: 0 auto; padding: 3rem 2.5rem; }
+        .cover { min-height: 85vh; display: flex; flex-direction: column; justify-content: center; border-bottom: 3px solid #111; padding-bottom: 3rem; margin-bottom: 3rem; }
+        .cover h1 { font-size: 2.4rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.03em; margin-bottom: 0.75rem; }
+        .cover .subtitle { font-size: 1.1rem; color: #555; margin-bottom: 2.5rem; }
+        .cover .meta { font-size: 0.85rem; color: #888; border-top: 1px solid #ddd; padding-top: 1.5rem; margin-top: auto; }
+        h2 { font-size: 1.5rem; font-weight: 700; margin: 3.5rem 0 1.25rem; padding-bottom: 0.5rem; border-bottom: 2px solid #111; letter-spacing: -0.02em; }
+        h3 { font-size: 1.1rem; font-weight: 600; margin: 2rem 0 0.75rem; color: #111; }
+        h4 { font-size: 0.95rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #333; }
         p { margin-bottom: 0.85rem; color: #333; }
         strong { color: #111; }
-        code {
-            background: #f5f5f5; padding: 0.1rem 0.35rem;
-            border-radius: 3px; font-size: 0.88em;
-            font-family: 'Courier New', monospace;
-        }
-
-        /* ── LISTS ── */
+        code { background: #f5f5f5; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.88em; font-family: 'Courier New', monospace; }
         ol, ul { margin: 0.5rem 0 1rem 1.5rem; color: #333; }
         li { margin-bottom: 0.35rem; }
-
-        /* ── TABLES ── */
-        table {
-            width: 100%; border-collapse: collapse;
-            margin: 0.75rem 0 1.5rem; font-size: 0.88rem;
-        }
-        th {
-            text-align: left; padding: 0.6rem 0.75rem;
-            font-weight: 600; font-size: 0.78rem;
-            text-transform: uppercase; letter-spacing: 0.03em;
-            color: #555; border-bottom: 2px solid #ddd;
-            background: #fafafa;
-        }
-        td {
-            padding: 0.55rem 0.75rem;
-            border-bottom: 1px solid #eee;
-            vertical-align: top;
-        }
-
-        /* ── SPECIAL BLOCKS ── */
-        .note {
-            padding: 0.75rem 1rem;
-            border-left: 3px solid #111;
-            background: #fafafa;
-            margin: 1rem 0;
-            font-size: 0.9rem;
-            color: #444;
-        }
+        table { width: 100%; border-collapse: collapse; margin: 0.75rem 0 1.5rem; font-size: 0.88rem; }
+        th { text-align: left; padding: 0.6rem 0.75rem; font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: #555; border-bottom: 2px solid #ddd; background: #fafafa; }
+        td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #eee; vertical-align: top; }
+        .note { padding: 0.75rem 1rem; border-left: 3px solid #111; background: #fafafa; margin: 1rem 0; font-size: 0.9rem; color: #444; }
         .note strong { color: #111; }
-
-        .screenshot {
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 1.25rem;
-            text-align: center;
-            color: #999;
-            font-size: 0.85rem;
-            font-style: italic;
-            margin: 0.75rem 0;
-            background: #fafafa;
-        }
-
-        .swatch {
-            display: inline-block; width: 14px; height: 14px;
-            border-radius: 3px; vertical-align: middle;
-            margin-right: 0.4rem; border: 1px solid #ddd;
-        }
-
-        .flow-box {
-            background: #fafafa; border: 1px solid #eee;
-            border-radius: 4px; padding: 1.25rem;
-            margin: 1rem 0; font-family: 'Courier New', monospace;
-            font-size: 0.8rem; line-height: 1.5;
-            white-space: pre; overflow-x: auto;
-        }
-
-        .step-label {
-            display: inline-block;
-            background: #111; color: #fff;
-            width: 24px; height: 24px; border-radius: 50%;
-            text-align: center; line-height: 24px;
-            font-size: 0.75rem; font-weight: 700;
-            margin-right: 0.5rem; flex-shrink: 0;
-        }
-
         .toc { list-style: none; padding: 0; margin: 1rem 0; }
         .toc li { padding: 0.35rem 0; border-bottom: 1px dotted #ddd; font-size: 0.92rem; }
         .toc .indent { padding-left: 1.5rem; }
-
-        hr { border: none; border-top: 1px solid #eee; margin: 2.5rem 0; }
-
-        footer {
-            margin-top: 4rem; padding-top: 1.5rem;
-            border-top: 2px solid #111;
-            font-size: 0.8rem; color: #888; text-align: center;
-        }
+        .toc .indent2 { padding-left: 3rem; }
+        .flow-box { background: #fafafa; border: 1px solid #eee; border-radius: 4px; padding: 1.25rem; margin: 1rem 0; font-family: 'Courier New', monospace; font-size: 0.8rem; line-height: 1.5; white-space: pre; overflow-x: auto; }
+        footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 2px solid #111; font-size: 0.8rem; color: #888; text-align: center; }
     </style>
 </head>
 <body>
 
-<!-- ════════════════════════ COVER ════════════════════════ -->
+<!-- COVER -->
 <div class="cover">
     <h1>Buku Panduan &amp;<br>Guideline Sistem Website</h1>
     <p class="subtitle">Sistem E-Learning — Learning Management System (LMS)</p>
     <div class="meta">
-        Edisi Resmi &middot; Dokumen Serah Terima (Handover)<br>
-        Versi 1.0 — April 2026
+        Edisi Ekstensif &amp; Komprehensif &middot; Dokumen Serah Terima<br>
+        Versi 2.2 — April 2026
     </div>
 </div>
 
-<!-- ════════════════════════ DAFTAR ISI ════════════════════════ -->
+<!-- DAFTAR ISI -->
 <h2>Daftar Isi</h2>
 <ul class="toc">
-    <li><strong>1.</strong> Pendahuluan</li>
-    <li class="indent">1.1 Tujuan Dokumen</li>
-    <li class="indent">1.2 Deskripsi Sistem</li>
-    <li class="indent">1.3 Target Audiens</li>
-    <li><strong>2.</strong> Brand &amp; UI Guidelines</li>
-    <li class="indent">2.1 Palet Warna</li>
-    <li class="indent">2.2 Tipografi</li>
-    <li class="indent">2.3 Komponen UI</li>
-    <li><strong>3.</strong> Alur Pengguna (User Flow)</li>
-    <li class="indent">3.1 Alur Administrator</li>
-    <li class="indent">3.2 Alur Peserta</li>
-    <li><strong>4.</strong> Panduan Penggunaan Sistem</li>
-    <li class="indent">4.1 Akses Sistem (Login)</li>
-    <li class="indent">4.2 Pengenalan Antarmuka</li>
-    <li class="indent">4.3 Fitur Utama — Panel Administrator</li>
-    <li class="indent">4.4 Fitur Utama — Dashboard Peserta</li>
-    <li class="indent">4.5 Pengaturan Profil &amp; Keamanan</li>
-    <li><strong>5.</strong> Troubleshooting &amp; FAQ</li>
-    <li><strong>6.</strong> Penutup &amp; Pusat Bantuan</li>
+    <li><strong>BAB 1</strong> — Pendahuluan &amp; Konsep Dasar</li>
+    <li><strong>BAB 2</strong> — Hak Akses Pengguna (Role) &amp; Alur Kerja</li>
+    <li class="indent">2.1 Role: Administrator (SuperAdmin)</li>
+    <li class="indent">2.2 Role: Trainer (Pengajar)</li>
+    <li class="indent">2.3 Role: Trainee (Peserta)</li>
+    <li class="indent">2.4 Diagram Alur Kerja Administrator</li>
+    <li class="indent">2.5 Diagram Alur Kerja Trainer</li>
+    <li class="indent">2.6 Diagram Alur Kerja Peserta</li>
+    <li><strong>BAB 3</strong> — Referensi Menu &amp; Tombol: Panel Administrator</li>
+    <li class="indent">3.1 Sidebar: Overview</li>
+    <li class="indent">3.2 Sidebar: Trainings (Materi)</li>
+    <li class="indent">3.3 Sidebar: Exams (Bank Soal)</li>
+    <li class="indent">3.4 Sidebar: Module Builder</li>
+    <li class="indent">3.5 Sidebar: Session Manager</li>
+    <li class="indent">3.6 Sidebar: Live Proctoring</li>
+    <li class="indent">3.7 Sidebar: Kelola Peserta</li>
+    <li class="indent">3.8 Sidebar: Kelola Pengguna (Admin Only)</li>
+    <li class="indent">3.9 Sidebar: Audit Trail (Admin Only)</li>
+    <li><strong>BAB 4</strong> — Referensi Menu &amp; Tombol: Portal Peserta</li>
+    <li class="indent">4.1 Sidebar: Overview</li>
+    <li class="indent">4.2 Sidebar: Sesi Pelatihan</li>
+    <li class="indent">4.3 Sidebar: Klasemen Top 100</li>
+    <li class="indent">4.4 Sidebar: Riwayat Ujian</li>
+    <li class="indent">4.5 Sidebar: Profil &amp; Pengaturan</li>
+    <li><strong>BAB 5</strong> — Fitur Pendukung Sistem</li>
+    <li class="indent">5.1 Automated Email Credentials</li>
+    <li class="indent">5.2 Sertifikasi PDF Otomatis</li>
+    <li class="indent">5.3 Safe Exam Browser (SEB)</li>
+    <li class="indent">5.4 Audit Logging</li>
+    <li><strong>BAB 6</strong> — FAQ &amp; Troubleshooting</li>
+    <li><strong>BAB 7</strong> — Dokumentasi Teknis (IT/Developer)</li>
 </ul>
 
 <div class="page-break"></div>
 
-<!-- ════════════════════════ BAB 1 ════════════════════════ -->
-<h2>1 — Pendahuluan</h2>
-
+<!-- BAB 1 -->
+<h2>1 — Pendahuluan &amp; Konsep Dasar</h2>
 <h3>1.1 Tujuan Dokumen</h3>
-<p>Dokumen ini merupakan <strong>panduan resmi</strong> pengoperasian dan <strong>pedoman visual</strong> untuk Sistem E-Learning (LMS). Fungsi utamanya:</p>
+<p>Dokumen ini adalah <strong>panduan operasional paling komprehensif</strong> untuk platform E-Learning (LMS). Setiap tombol, menu, dan fitur terkecil dalam sistem dijelaskan satu per satu, dilengkapi diagram alur kerja per peran (role), agar pengguna awam sekalipun dapat memahami sistem secara mandiri.</p>
+
+<h3>1.2 Konsep Dasar Sistem</h3>
+<p>LMS ini ibarat Sekolah Digital yang berjalan 24 jam:</p>
 <ol>
-    <li><strong>User Manual</strong> — Langkah operasional harian bagi Admin, Trainer, dan Peserta.</li>
-    <li><strong>UI Guideline</strong> — Standar visual (warna, tipografi, komponen) untuk konsistensi pengembangan.</li>
-    <li><strong>Referensi Tunggal</strong> — Seluruh informasi teknis dan operasional dalam satu dokumen.</li>
+    <li><strong>Admin</strong> = Kepala Sekolah. Membuat jadwal pelajaran, menyusun soal ujian, mendaftarkan murid, memantau CCTV, dan mengelola seluruh konfigurasi sistem.</li>
+    <li><strong>Trainer</strong> = Guru Pengawas. Memantau progres murid dan memberikan nilai ujian esai. Tidak bisa mengubah konfigurasi inti sistem.</li>
+    <li><strong>Trainee</strong> = Murid. Membaca materi, menonton video, mengerjakan ujian, dan mengunduh sertifikat jika lulus.</li>
 </ol>
 
-<h3>1.2 Deskripsi Sistem</h3>
-<p>Platform manajemen pembelajaran berbasis web yang mendukung siklus pelatihan menyeluruh: penyusunan materi, pelaksanaan ujian aman, pemantauan peserta secara langsung, hingga penerbitan sertifikat otomatis.</p>
+<div class="page-break"></div>
 
+<!-- BAB 2 -->
+<h2>2 — Hak Akses Pengguna (Role) &amp; Alur Kerja</h2>
+
+<h3>2.1 Role: Administrator (SuperAdmin)</h3>
+<p>Admin memiliki kendali penuh (100%) atas seluruh fitur sistem.</p>
 <table>
-    <thead><tr><th>Fitur</th><th>Deskripsi</th></tr></thead>
+    <thead><tr><th>Kemampuan</th><th>Keterangan</th></tr></thead>
     <tbody>
-        <tr><td><strong>Manajemen Materi</strong></td><td>Konten pelatihan (teks, gambar, video) via editor visual.</td></tr>
-        <tr><td><strong>Bank Soal &amp; Ujian</strong></td><td>Pilihan ganda (otomatis dinilai) dan esai (manual).</td></tr>
-        <tr><td><strong>Penjadwalan Sesi</strong></td><td>Jadwal kelas/ujian dengan status otomatis (Aktif/Selesai).</td></tr>
-        <tr><td><strong>Safe Exam Browser</strong></td><td>Penguncian komputer peserta selama ujian berlangsung.</td></tr>
-        <tr><td><strong>Live Proctoring</strong></td><td>Snapshot webcam peserta setiap 30 detik.</td></tr>
-        <tr><td><strong>Sertifikasi Otomatis</strong></td><td>PDF sertifikat saat syarat kelulusan terpenuhi.</td></tr>
-        <tr><td><strong>Analitik &amp; Laporan</strong></td><td>Grafik tren partisipasi dan rasio kelulusan.</td></tr>
+        <tr><td>Membuat materi pelatihan</td><td>Menyusun konten teks, gambar, video YouTube, dan lampiran (Word, PDF, Excel)</td></tr>
+        <tr><td>Membuat bank soal ujian</td><td>Soal pilihan ganda (koreksi otomatis) dan soal esai (koreksi manual)</td></tr>
+        <tr><td>Menyusun modul pembelajaran</td><td>Menggabungkan materi + ujian menjadi satu paket berurutan</td></tr>
+        <tr><td>Menjadwalkan sesi kelas</td><td>Mengatur waktu mulai, waktu selesai, dan peserta yang terdaftar</td></tr>
+        <tr><td>Mengaktifkan Safe Exam Browser</td><td>Mengunci komputer peserta selama ujian berlangsung</td></tr>
+        <tr><td>Memantau ujian (Live Proctoring)</td><td>Melihat foto webcam peserta secara real-time setiap 30 detik</td></tr>
+        <tr><td>Mengelola akun pengguna</td><td>Membuat/mengedit/menghapus akun Admin dan Trainer</td></tr>
+        <tr><td>Mengelola data peserta</td><td>Mendaftarkan peserta baru, mengedit profil, mengirim kredensial via email</td></tr>
+        <tr><td>Mengekspor laporan Excel</td><td>Mengunduh data progres peserta per sesi</td></tr>
+        <tr><td>Mengakses Audit Trail</td><td>Melihat rekam jejak seluruh tindakan administratif</td></tr>
     </tbody>
 </table>
 
-<h3>1.3 Target Audiens</h3>
-<ul>
-    <li><strong>Administrator</strong> — Mengelola seluruh aspek operasional.</li>
-    <li><strong>Trainer</strong> — Memantau perkembangan peserta (akses baca).</li>
-    <li><strong>Trainee (Peserta)</strong> — Mengakses materi, ujian, dan sertifikat.</li>
-    <li><strong>Tim IT / Developer</strong> — Menjaga konsistensi visual dalam pengembangan.</li>
-</ul>
+<h3>2.2 Role: Trainer (Pengajar)</h3>
+<p>Trainer memiliki akses terbatas. Menu "Kelola Pengguna" dan "Audit Trail" <strong>disembunyikan</strong> dari layar Trainer.</p>
+<table>
+    <thead><tr><th>Kemampuan</th><th>Keterangan</th></tr></thead>
+    <tbody>
+        <tr><td>Melihat daftar materi &amp; modul</td><td>Akses baca untuk meninjau konten pelatihan</td></tr>
+        <tr><td>Melihat daftar sesi &amp; peserta</td><td>Memantau siapa yang sedang belajar dan sejauh mana progresnya</td></tr>
+        <tr><td>Memantau ujian (Live Proctoring)</td><td>Melihat foto webcam peserta saat ujian berlangsung</td></tr>
+        <tr><td>Memberikan nilai esai</td><td>Membuka jawaban esai peserta dan memasukkan skor numerik</td></tr>
+        <tr><td><em>Tidak bisa:</em></td><td>Menghapus data, membuat sesi, mengubah konfigurasi, atau mengelola akun</td></tr>
+    </tbody>
+</table>
+
+<h3>2.3 Role: Trainee (Peserta)</h3>
+<table>
+    <thead><tr><th>Kemampuan</th><th>Keterangan</th></tr></thead>
+    <tbody>
+        <tr><td>Login ke Portal Peserta</td><td>Menggunakan Username &amp; Password yang dikirim via email</td></tr>
+        <tr><td>Melihat dashboard overview</td><td>Statistik sesi, kalender jadwal, dan shortcut lanjut belajar</td></tr>
+        <tr><td>Membaca materi multi-media</td><td>Teks, gambar, video YouTube, unduh dokumen Word/PDF/Excel</td></tr>
+        <tr><td>Mengerjakan ujian</td><td>Pilihan ganda dan esai, dengan timer dan auto-submit</td></tr>
+        <tr><td>Melihat klasemen (Leaderboard)</td><td>Peringkat Top 100 peserta berdasarkan skor</td></tr>
+        <tr><td>Melihat riwayat ujian</td><td>Daftar seluruh ujian yang pernah dikerjakan beserta hasilnya</td></tr>
+        <tr><td>Mengedit profil &amp; ganti password</td><td>Mengubah nama, telepon, alamat, dan kata sandi</td></tr>
+        <tr><td>Mengunduh sertifikat</td><td>PDF otomatis tersedia jika progres 100% dan nilai di atas passing grade</td></tr>
+    </tbody>
+</table>
+
+<h3>2.4 Diagram Alur Kerja Administrator</h3>
+<div class="flow-box">LOGIN
+  |
+  v
+DASHBOARD ADMIN (Overview Statistik)
+  |
+  |--- [1] Buat Materi ----> Menu: Trainings (Materi)
+  |                           Tombol: "+ Buat Materi Baru"
+  |                           Aksi: Judul + Editor Visual + Lampiran Media
+  |
+  |--- [2] Buat Soal ------> Menu: Exams (Bank Soal)
+  |                           Tombol: "+ Buat Ujian Baru"
+  |                           Aksi: Nama + Durasi + Passing Grade
+  |                           Lalu: "Kelola Soal" -> Tambah PG / Esai
+  |
+  |--- [3] Rakit Modul ----> Menu: Module Builder
+  |                           Tombol: "+ Buat Modul"
+  |                           Aksi: Pilih Materi + Pilih Ujian -> Atur Urutan
+  |
+  |--- [4] Buat Sesi ------> Menu: Session Manager
+  |                           Tombol: "+ Buat Sesi"
+  |                           Aksi: Pilih Modul + Tanggal + Peserta + SEB
+  |
+  |--- [5] Pantau Ujian ---> Menu: Live Proctoring
+  |                           Aksi: Pilih Sesi -> Lihat Grid Webcam
+  |
+  |--- [6] Kelola Peserta -> Menu: Kelola Peserta
+  |                           Tombol: "+ Tambah Peserta"
+  |                           Tombol: "Kirim Kredensial" (Email Otomatis)
+  |
+  |--- [7] Kelola Admin ---> Menu: Kelola Pengguna (Admin Only)
+  |                           Tombol: "+ Tambah Pengguna"
+  |
+  |--- [8] Audit Log ------> Menu: Audit Trail (Admin Only)
+  |                           Aksi: Lihat rekam jejak semua aksi admin
+  |
+  v
+EXPORT LAPORAN EXCEL (di halaman detail Sesi)</div>
+
+<h3>2.5 Diagram Alur Kerja Trainer</h3>
+<div class="flow-box">LOGIN
+  |
+  v
+DASHBOARD ADMIN (Overview Statistik - Mode Baca)
+  |
+  |--- Lihat Materi --------> Menu: Trainings (baca saja, tidak bisa edit)
+  |--- Lihat Bank Soal -----> Menu: Exams (baca saja)
+  |--- Lihat Modul ----------> Menu: Module Builder (baca saja)
+  |--- Lihat Sesi -----------> Menu: Session Manager -> Detail Sesi
+  |                             Aksi: Buka papan nilai -> Isi skor Esai
+  |--- Pantau Ujian ---------> Menu: Live Proctoring (Grid Webcam)
+  |--- Lihat Peserta --------> Menu: Kelola Peserta (baca saja)
+  |
+  v
+TIDAK ADA AKSES KE: Kelola Pengguna, Audit Trail</div>
+
+<h3>2.6 Diagram Alur Kerja Peserta (Trainee)</h3>
+<div class="flow-box">TERIMA EMAIL KREDENSIAL (Username + Password)
+  |
+  v
+LOGIN DI HALAMAN DEPAN WEBSITE
+  |
+  v
+PORTAL PESERTA (Dashboard Overview)
+  |
+  |--- [1] Overview ---> Kartu Statistik + Kalender + Shortcut Belajar
+  |
+  |--- [2] Sesi Pelatihan --> Lihat daftar sesi -> Klik "Buka Sesi"
+  |                            |
+  |                            |-- Baca Materi (Teks/Video/Dokumen)
+  |                            |   Progres naik setiap item selesai
+  |                            |
+  |                            |-- Kerjakan Ujian
+  |                            |   Browser minta izin Webcam -> Izinkan
+  |                            |   SEB aktif? -> Komputer terkunci
+  |                            |   Timer berjalan -> Auto-submit saat habis
+  |                            |
+  |                            |-- Progres 100% + Nilai >= Passing Grade
+  |                                 v
+  |                            TOMBOL "Download Sertifikat" MUNCUL
+  |
+  |--- [3] Klasemen Top 100 -> Papan peringkat nilai tertinggi
+  |
+  |--- [4] Riwayat Ujian ---> Daftar ujian yang pernah dikerjakan
+  |
+  |--- [5] Profil ----------> Edit: Nama, Telepon, Gender, Tanggal Lahir
+  |                            Ganti Kata Sandi
+  |
+  v
+SELESAI</div>
 
 <div class="page-break"></div>
 
-<!-- ════════════════════════ BAB 2 ════════════════════════ -->
-<h2>2 — Brand &amp; UI Guidelines</h2>
+<!-- BAB 3 -->
+<h2>3 — Referensi Menu &amp; Tombol: Panel Administrator</h2>
+<p>Berikut adalah penjelasan lengkap untuk <strong>setiap menu di sidebar</strong> panel Administrator, termasuk setiap tombol dan fungsinya.</p>
 
-<h3>2.1 Palet Warna</h3>
-<p>Sistem menggunakan pendekatan <strong>monokrom mewah</strong> dengan aksen fungsional minimal.</p>
-
-<table>
-    <thead><tr><th>Kategori</th><th>Token</th><th>HEX</th><th>Keterangan</th></tr></thead>
-    <tbody>
-        <tr><td>Primary</td><td><code>--primary</code></td><td><span class="swatch" style="background:#000"></span>#000000</td><td>Tombol utama dan elemen aksi.</td></tr>
-        <tr><td>Background</td><td><code>--background</code></td><td><span class="swatch" style="background:#f8f9fa"></span>#F8F9FA</td><td>Latar belakang halaman.</td></tr>
-        <tr><td>Foreground</td><td><code>--foreground</code></td><td><span class="swatch" style="background:#111"></span>#111111</td><td>Teks utama dan heading.</td></tr>
-        <tr><td>Muted</td><td><code>--muted-foreground</code></td><td><span class="swatch" style="background:#6b7280"></span>#6B7280</td><td>Teks pendukung, placeholder.</td></tr>
-        <tr><td>Destructive</td><td><code>--destructive</code></td><td><span class="swatch" style="background:#ef4444"></span>#EF4444</td><td>Peringatan, error, hapus.</td></tr>
-        <tr><td>Card</td><td><code>--card</code></td><td><span class="swatch" style="background:#fff"></span>#FFFFFF</td><td>Latar kartu komponen.</td></tr>
-        <tr><td>Border</td><td><code>--border</code></td><td>rgba(0,0,0,0.08)</td><td>Garis pembatas halus.</td></tr>
-    </tbody>
-</table>
-
-<div class="note">
-    <strong>Aksen Fungsional:</strong> Hijau (#10B981) untuk sukses, Biru (#2563EB) untuk info, Kuning (#F59E0B) untuk peringatan — hanya untuk indikator status.
-</div>
-
-<h3>2.2 Tipografi</h3>
-<table>
-    <thead><tr><th>Elemen</th><th>Font</th><th>Ukuran</th><th>Weight</th></tr></thead>
-    <tbody>
-        <tr><td>Heading 1</td><td>Helvetica Neue, sans-serif</td><td>2.0 — 3.5 rem</td><td>700 — 800</td></tr>
-        <tr><td>Heading 2</td><td>Helvetica Neue, sans-serif</td><td>1.25 — 2.2 rem</td><td>600 — 700</td></tr>
-        <tr><td>Body Text</td><td>Helvetica Neue, sans-serif</td><td>0.875 — 1.1 rem</td><td>400</td></tr>
-        <tr><td>Caption</td><td>Helvetica Neue, sans-serif</td><td>0.65 — 0.85 rem</td><td>500 — 700</td></tr>
-        <tr><td>Monospace</td><td>Geist Mono, monospace</td><td>0.75 — 0.85 rem</td><td>400</td></tr>
-    </tbody>
-</table>
-
-<h3>2.3 Komponen UI</h3>
-
-<h4>Tombol (Buttons)</h4>
-<table>
-    <thead><tr><th>Tipe</th><th>Gaya Visual</th></tr></thead>
-    <tbody>
-        <tr><td>Primary</td><td>BG: #000, Teks: #FFF, Radius: 0.75rem, Shadow halus.</td></tr>
-        <tr><td>Secondary</td><td>BG: transparan, Border: rgba(0,0,0,0.08), Teks: #111.</td></tr>
-        <tr><td>Destructive</td><td>BG: #EF4444/10, Teks: #EF4444. Untuk aksi hapus.</td></tr>
-    </tbody>
-</table>
-
-<h4>Kartu &amp; Form Input</h4>
-<table>
-    <thead><tr><th>Komponen</th><th>Spesifikasi</th></tr></thead>
-    <tbody>
-        <tr><td>Glass Card</td><td>BG: #FFF, Border: 1px solid rgba(0,0,0,0.05), Radius: 1.35rem.</td></tr>
-        <tr><td>Form Input</td><td>BG: rgba(255,255,255,0.5), Focus: border #000 + ring 2px, Radius: 0.75rem.</td></tr>
-    </tbody>
-</table>
-
-<div class="page-break"></div>
-
-<!-- ════════════════════════ BAB 3 ════════════════════════ -->
-<h2>3 — Alur Pengguna (User Flow)</h2>
-
-<h3>3.1 Alur Administrator</h3>
-<div class="flow-box">LOGIN ──▶ DASHBOARD OVERVIEW
-  │
-  ├── Buat Materi (Content)
-  ├── Buat Ujian &amp; Bank Soal (Exams)
-  ├── Susun Modul (Modules)
-  ├── Kelola Peserta (Participants)
-  │
-  └── Buat Sesi (Sessions)
-        │  Gabungkan: Modul + Peserta + Jadwal
-        │  Opsi: Aktifkan Safe Exam Browser
-        │
-        ├── MONITORING LIVE PROCTORING
-        │   Webcam snapshot setiap 30 detik
-        │
-        └── EXPORT LAPORAN &amp; SERTIFIKASI
-            Unduh Excel + Sertifikat otomatis</div>
-
-<h3>3.2 Alur Peserta (Trainee)</h3>
-<div class="flow-box">LOGIN ──▶ DASHBOARD OVERVIEW
-  │   (Kalender, Statistik, Sesi Terbaru)
-  │
-  └── PILIH SESI AKTIF
-        │
-        ├── Baca Materi (item per item, progress %)
-        ├── Kerjakan Ujian
-        │     ├─ SEB Aktif → Buka aplikasi SEB
-        │     └─ SEB Tidak → Browser biasa
-        │
-        └── HASIL
-              ├─ Lulus → Download Sertifikat (PDF)
-              └─ Belum → Cek ulang / Remedial</div>
-
-<div class="page-break"></div>
-
-<!-- ════════════════════════ BAB 4 ════════════════════════ -->
-<h2>4 — Panduan Penggunaan Sistem</h2>
-
-<h3>4.1 Akses Sistem (Login)</h3>
-<div class="screenshot">[ Masukkan Screenshot Halaman Login di sini ]</div>
-<ol>
-    <li>Buka browser (Chrome / Firefox / Edge versi terbaru).</li>
-    <li>Masukkan <strong>alamat URL</strong> sistem yang diberikan administrator.</li>
-    <li>Isi <strong>Username</strong> dan <strong>Password</strong>.</li>
-    <li>Klik tombol <strong>"Masuk ke Dashboard"</strong>.</li>
-    <li>Sistem mengarahkan sesuai peran:
-        <ul>
-            <li><strong>Admin</strong> → Dashboard Administrator.</li>
-            <li><strong>Trainee</strong> → Dashboard Peserta.</li>
-        </ul>
-    </li>
-</ol>
-
-<div class="note">
-    <strong>Lupa Password?</strong> Hubungi Administrator untuk reset melalui panel User Management. Fitur reset mandiri belum tersedia.
-</div>
-
-<hr>
-
-<h3>4.2 Pengenalan Antarmuka</h3>
-
-<h4>A. Dashboard Administrator</h4>
-<div class="screenshot">[ Masukkan Screenshot Dashboard Admin di sini ]</div>
-<table>
-    <thead><tr><th>Komponen</th><th>Posisi</th><th>Fungsi</th></tr></thead>
-    <tbody>
-        <tr><td>Sidebar Navigasi</td><td>Kiri</td><td>Menu ke semua modul sistem.</td></tr>
-        <tr><td>Panel Statistik</td><td>Atas</td><td>4 kartu: Materi, Soal, Sesi, Peserta.</td></tr>
-        <tr><td>Grafik Analitik</td><td>Tengah</td><td>Tren partisipasi 14 hari &amp; rasio lulus.</td></tr>
-        <tr><td>Sesi Terkini</td><td>Bawah kiri</td><td>5 sesi terakhir beserta status.</td></tr>
-        <tr><td>Aksi Cepat</td><td>Bawah kanan</td><td>Shortcut buat materi, soal, sesi baru.</td></tr>
-    </tbody>
-</table>
-<p><strong>Menu Sidebar:</strong> Overview, Content, Modules, Exams, Sessions, Participants, Users, Monitoring.</p>
-
-<h4>B. Dashboard Peserta</h4>
-<div class="screenshot">[ Masukkan Screenshot Dashboard Peserta di sini ]</div>
+<h3>3.1 Menu: Overview</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu pertama (ikon Dashboard).</p>
+<p>Halaman ini adalah beranda utama setelah login sebagai Admin. Isinya:</p>
 <table>
     <thead><tr><th>Komponen</th><th>Fungsi</th></tr></thead>
     <tbody>
-        <tr><td>3 Kartu Statistik</td><td>Sesi Berjalan, Akan Datang, Selesai.</td></tr>
-        <tr><td>Kalender Interaktif</td><td>Visualisasi jadwal pelatihan.</td></tr>
-        <tr><td>Widget Lanjutkan Belajar</td><td>Shortcut ke sesi aktif.</td></tr>
-        <tr><td>Daftar Sesi Terbaru</td><td>4 sesi terkini dengan progress.</td></tr>
+        <tr><td>4 Kartu Statistik</td><td>Menampilkan angka total: Materi, Bank Soal, Sesi Ujian, dan Peserta Terdaftar</td></tr>
+        <tr><td>Grafik Tren Partisipasi (14 Hari)</td><td>Diagram garis yang menunjukkan jumlah peserta aktif per hari dalam 2 minggu terakhir</td></tr>
+        <tr><td>Diagram Rasio Kelulusan</td><td>Persentase peserta yang Lulus vs Tidak Lulus secara keseluruhan</td></tr>
+        <tr><td>Daftar 5 Sesi Terkini</td><td>Menampilkan 5 sesi terakhir beserta status (Akan Datang / Berlangsung / Selesai)</td></tr>
+        <tr><td>Panel Aksi Cepat</td><td>3 tombol shortcut: "+ Buat Materi", "+ Buat Soal", "+ Buat Sesi"</td></tr>
+    </tbody>
+</table>
+
+<h3>3.2 Menu: Trainings (Materi)</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu kedua (ikon Buku).</p>
+<p>Halaman ini menampilkan seluruh materi pelatihan yang telah dibuat.</p>
+<table>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><strong>"+ Buat Materi Baru"</strong></td><td>Membuka formulir pembuatan materi baru</td></tr>
+        <tr><td>Kolom Pencarian (Search)</td><td>Mencari materi berdasarkan judul</td></tr>
+        <tr><td>Kartu Materi (per baris)</td><td>Menampilkan judul, tanggal dibuat, dan jumlah lampiran media</td></tr>
+        <tr><td>Tombol "Edit" (ikon pensil)</td><td>Membuka halaman edit materi: mengubah judul, isi konten, dan lampiran</td></tr>
+        <tr><td>Tombol "Hapus" (ikon tempat sampah)</td><td>Menghapus materi secara permanen (muncul dialog konfirmasi)</td></tr>
+    </tbody>
+</table>
+<h4>Halaman Buat/Edit Materi</h4>
+<table>
+    <thead><tr><th>Komponen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td>Input "Judul Materi"</td><td>Nama materi yang akan ditampilkan kepada peserta</td></tr>
+        <tr><td>Editor Visual (TipTap)</td><td>Area penulisan konten dengan toolbar: Bold, Italic, Underline, Heading, Alignment, Warna Teks, Highlight, Sisipkan Gambar, Sisipkan Link</td></tr>
+        <tr><td>Media Attachment Manager</td><td>Area unggah file lampiran tambahan: Gambar (JPG/PNG), PDF, Word (DOC/DOCX), Excel (XLS/XLSX), dan URL Video YouTube</td></tr>
+        <tr><td>Tombol "Simpan"</td><td>Menyimpan materi ke database</td></tr>
+    </tbody>
+</table>
+
+<h3>3.3 Menu: Exams (Bank Soal)</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu ketiga (ikon Pena).</p>
+<table>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><strong>"+ Buat Ujian Baru"</strong></td><td>Membuka formulir pembuatan ujian baru</td></tr>
+        <tr><td>Kolom Pencarian</td><td>Mencari ujian berdasarkan judul</td></tr>
+        <tr><td>Kartu Ujian</td><td>Menampilkan judul ujian, durasi, passing grade, dan jumlah soal</td></tr>
+        <tr><td>Tombol "Kelola Soal"</td><td>Masuk ke halaman pengelolaan soal untuk ujian tersebut</td></tr>
+        <tr><td>Tombol "Edit"</td><td>Mengubah parameter ujian (judul, durasi, passing grade)</td></tr>
+        <tr><td>Tombol "Hapus"</td><td>Menghapus ujian dan seluruh soalnya secara permanen</td></tr>
+    </tbody>
+</table>
+<h4>Halaman Kelola Soal</h4>
+<table>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><strong>"+ Tambah Soal"</strong></td><td>Membuka formulir penambahan soal baru</td></tr>
+        <tr><td>Pilihan Tipe: "Pilihan Ganda"</td><td>Menampilkan kolom Pertanyaan + 4 Opsi (A/B/C/D) + centang Jawaban Benar. Dinilai otomatis oleh sistem.</td></tr>
+        <tr><td>Pilihan Tipe: "Esai"</td><td>Menampilkan kolom Pertanyaan saja. Peserta mengetik jawaban panjang. Dinilai manual oleh Trainer.</td></tr>
+        <tr><td>Tombol "Simpan Soal"</td><td>Menambahkan soal ke dalam bank soal ujian</td></tr>
+        <tr><td>Tombol "Hapus Soal"</td><td>Menghapus soal individual dari bank soal</td></tr>
+    </tbody>
+</table>
+
+<h3>3.4 Menu: Module Builder</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu keempat (ikon Kubus).</p>
+<table>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><strong>"+ Buat Modul"</strong></td><td>Membuat modul baru: menggabungkan materi dan ujian</td></tr>
+        <tr><td>Input "Judul Modul"</td><td>Nama paket pembelajaran</td></tr>
+        <tr><td>Daftar Item Modul</td><td>Menampilkan urutan materi dan ujian yang sudah dipasangkan</td></tr>
+        <tr><td>Tombol "Tambah Item"</td><td>Memilih materi atau ujian dari daftar yang tersedia untuk dimasukkan ke modul</td></tr>
+        <tr><td>Drag &amp; Drop / Pengaturan Urutan</td><td>Mengatur urutan item. Peserta wajib menyelesaikan item secara berurutan (tidak bisa loncat)</td></tr>
+        <tr><td>Tombol "Simpan Modul"</td><td>Menyimpan susunan modul</td></tr>
+    </tbody>
+</table>
+
+<h3>3.5 Menu: Session Manager</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu kelima (ikon Kalender).</p>
+<table>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><strong>"+ Buat Sesi"</strong></td><td>Membuka formulir pembuatan sesi (kelas) baru</td></tr>
+        <tr><td>Input "Judul Sesi"</td><td>Nama kelas (contoh: "Batch 1 Pelatihan K3")</td></tr>
+        <tr><td>Dropdown "Pilih Modul"</td><td>Memilih modul pembelajaran yang akan diajarkan di sesi ini</td></tr>
+        <tr><td>Input "Waktu Mulai"</td><td>Tanggal dan jam sesi mulai aktif</td></tr>
+        <tr><td>Input "Waktu Selesai"</td><td>Tanggal dan jam sesi berakhir (sistem mengunci otomatis setelahnya)</td></tr>
+        <tr><td>Checkbox "Wajibkan SEB"</td><td>Mengaktifkan kewajiban Safe Exam Browser untuk ujian di sesi ini</td></tr>
+        <tr><td>Daftar Peserta (Multi-select)</td><td>Memilih peserta yang berhak mengikuti sesi</td></tr>
+        <tr><td>Tombol "Simpan Sesi"</td><td>Membuat sesi dan mengaktifkan timer otomatis</td></tr>
+    </tbody>
+</table>
+<p><strong>Status Sesi Otomatis Berdasarkan Waktu:</strong></p>
+<table>
+    <thead><tr><th>Status</th><th>Warna</th><th>Kondisi</th></tr></thead>
+    <tbody>
+        <tr><td>Akan Datang</td><td>Kuning</td><td>Waktu sekarang belum mencapai Waktu Mulai. Peserta bisa melihat tapi tidak bisa masuk.</td></tr>
+        <tr><td>Sedang Berlangsung</td><td>Hijau</td><td>Waktu sekarang berada di antara Mulai dan Selesai. Peserta bisa mengakses materi dan ujian.</td></tr>
+        <tr><td>Selesai</td><td>Abu-abu/Hitam</td><td>Waktu sekarang sudah melewati Waktu Selesai. Akses tertutup permanen.</td></tr>
+    </tbody>
+</table>
+<h4>Halaman Detail Sesi</h4>
+<table>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td>Tabel Peserta</td><td>Menampilkan username, nama lengkap, progres (%), dan status pengerjaan (Belum Mulai / Mengerjakan / Selesai)</td></tr>
+        <tr><td><strong>"Export Laporan Excel"</strong></td><td>Mengunduh seluruh data progres peserta dalam format file .xlsx (Excel)</td></tr>
+        <tr><td>Tombol "Lihat Nilai" per peserta</td><td>Membuka detail skor peserta: nilai PG otomatis, nilai Esai (jika sudah dinilai), dan nilai total</td></tr>
+    </tbody>
+</table>
+
+<h3>3.6 Menu: Live Proctoring</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu keenam (ikon Kamera).</p>
+<table>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td>Dropdown "Pilih Sesi"</td><td>Memilih sesi yang sedang berlangsung untuk dipantau</td></tr>
+        <tr><td>Tombol "Refresh"</td><td>Memperbarui data snapshot secara manual</td></tr>
+        <tr><td>Auto-Refresh (30 detik)</td><td>Sistem otomatis memperbarui foto webcam tanpa perlu klik manual</td></tr>
+        <tr><td>Grid Snapshot Webcam</td><td>Kotak-kotak kecil berisi foto wajah peserta diambil secara otomatis, disertai nama, username, dan waktu pengambilan foto</td></tr>
+    </tbody>
+</table>
+
+<h3>3.7 Menu: Kelola Peserta</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri (ikon Orang).</p>
+<table>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><strong>"+ Tambah Peserta"</strong></td><td>Membuka formulir pendaftaran peserta baru: Nama, Username, Password, Email, Telepon, Gender, Tanggal Lahir, Institusi, Alamat</td></tr>
+        <tr><td>Kolom Pencarian</td><td>Mencari peserta berdasarkan nama atau username</td></tr>
+        <tr><td>Tabel Peserta</td><td>Daftar seluruh peserta terdaftar dengan kolom: Nama, Username, Email, Gender, Institusi</td></tr>
+        <tr><td>Tombol "Edit" (ikon pensil)</td><td>Mengubah data profil peserta yang dipilih</td></tr>
+        <tr><td>Tombol "Hapus" (ikon sampah)</td><td>Menghapus akun peserta secara permanen (dengan dialog konfirmasi)</td></tr>
+        <tr><td><strong>Tombol "Kirim Kredensial"</strong></td><td>Mengirim ulang Username dan Password ke email peserta secara otomatis via sistem SMTP</td></tr>
+    </tbody>
+</table>
+
+<h3>3.8 Menu: Kelola Pengguna (Admin Only)</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri (ikon Grup Orang). <em>Menu ini hanya tampil untuk role Admin, tersembunyi dari Trainer.</em></p>
+<table>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><strong>"+ Tambah Pengguna"</strong></td><td>Membuat akun Admin atau Trainer baru: Nama Lengkap, Username, Password, Role (Administrator / Trainer)</td></tr>
+        <tr><td>Tabel Pengguna</td><td>Daftar akun admin dan trainer terdaftar</td></tr>
+        <tr><td>Tombol "Edit"</td><td>Mengubah data pengguna (nama, role, password)</td></tr>
+        <tr><td>Tombol "Hapus"</td><td>Menghapus akun (akun admin utama tidak bisa dihapus sebagai mekanisme keamanan)</td></tr>
+    </tbody>
+</table>
+
+<h3>3.9 Menu: Audit Trail (Admin Only)</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri (ikon Aktivitas). <em>Menu ini hanya tampil untuk role Admin, tersembunyi dari Trainer.</em></p>
+<table>
+    <thead><tr><th>Komponen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td>Tabel Log Aktivitas</td><td>Menampilkan daftar seluruh tindakan administratif yang tercatat oleh sistem</td></tr>
+        <tr><td>Kolom "Waktu"</td><td>Tanggal dan jam aksi dilakukan</td></tr>
+        <tr><td>Kolom "Pengguna"</td><td>Username admin/trainer yang melakukan aksi</td></tr>
+        <tr><td>Kolom "Aksi"</td><td>Jenis tindakan: CREATE, UPDATE, DELETE</td></tr>
+        <tr><td>Kolom "Target"</td><td>Data apa yang terpengaruh (nama tabel/ID rekaman)</td></tr>
     </tbody>
 </table>
 
 <div class="page-break"></div>
 
-<h3>4.3 Fitur Utama — Panel Administrator</h3>
-<p>Berikut alur kerja utama Administrator dari awal hingga akhir:</p>
+<!-- BAB 4 -->
+<h2>4 — Referensi Menu &amp; Tombol: Portal Peserta</h2>
+<p>Berikut penjelasan lengkap untuk <strong>setiap menu di sidebar</strong> Portal Peserta (Trainee).</p>
 
-<h4><span class="step-label">1</span> Buat Materi Pelatihan</h4>
-<p>Sidebar → <strong>Content</strong> → klik "Buat Materi Baru" → isi judul → gunakan editor visual (teks, gambar, video) → Simpan.</p>
-<div class="screenshot">[ Masukkan Screenshot Editor Materi di sini ]</div>
-
-<h4><span class="step-label">2</span> Buat Bank Soal (Ujian)</h4>
-<p>Sidebar → <strong>Exams</strong> → klik "Buat Ujian Baru" → isi parameter:</p>
+<h3>4.1 Menu: Overview</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu pertama (ikon Dashboard).</p>
 <table>
-    <thead><tr><th>Parameter</th><th>Keterangan</th></tr></thead>
+    <thead><tr><th>Komponen</th><th>Fungsi</th></tr></thead>
     <tbody>
-        <tr><td>Judul Ujian</td><td>Nama identitas (contoh: "Ujian Akhir Modul 1").</td></tr>
-        <tr><td>Durasi (Menit)</td><td>Batas waktu. Jawaban otomatis terkirim saat habis.</td></tr>
-        <tr><td>Passing Grade</td><td>Skor minimum untuk lulus (contoh: 70%).</td></tr>
-    </tbody>
-</table>
-<p>Setelah simpan, klik <strong>"Kelola Soal"</strong> → tambah soal pilihan ganda (dinilai otomatis) atau esai (dinilai manual).</p>
-
-<h4><span class="step-label">3</span> Susun Modul Pembelajaran</h4>
-<p>Sidebar → <strong>Modules</strong> → "Buat Modul Baru" → pasangkan Materi + Ujian → atur urutan → Simpan.</p>
-
-<h4><span class="step-label">4</span> Jadwalkan Sesi</h4>
-<p>Sidebar → <strong>Sessions</strong> → "Buat Sesi Baru":</p>
-<div class="screenshot">[ Masukkan Screenshot Form Sesi di sini ]</div>
-<table>
-    <thead><tr><th>Field</th><th>Keterangan</th></tr></thead>
-    <tbody>
-        <tr><td>Judul Sesi</td><td>Nama kelas (contoh: "Batch 1 — Pelatihan K3").</td></tr>
-        <tr><td>Pilih Modul</td><td>Modul yang akan diajarkan.</td></tr>
-        <tr><td>Waktu Mulai / Selesai</td><td>Otomatis terkunci setelah waktu selesai.</td></tr>
-        <tr><td>Require SEB</td><td>Centang jika ujian wajib via Safe Exam Browser.</td></tr>
-    </tbody>
-</table>
-<p>Masukkan peserta (individu atau massal) → klik Simpan.</p>
-
-<p><strong>Status Sesi Otomatis:</strong></p>
-<table>
-    <thead><tr><th>Status</th><th>Kondisi</th></tr></thead>
-    <tbody>
-        <tr><td>Akan Datang</td><td>Waktu saat ini belum mencapai waktu mulai.</td></tr>
-        <tr><td>Berlangsung</td><td>Waktu saat ini berada di antara mulai dan selesai.</td></tr>
-        <tr><td>Selesai</td><td>Waktu saat ini sudah melewati batas selesai.</td></tr>
+        <tr><td>3 Kartu Statistik</td><td>"Sedang Berjalan" (sesi aktif), "Akan Datang" (sesi terjadwal), "Selesai" (sesi rampung)</td></tr>
+        <tr><td>Kalender Interaktif</td><td>Visualisasi jadwal. Titik berwarna pada tanggal menandakan ada sesi di hari itu. Klik tanggal untuk melihat detail.</td></tr>
+        <tr><td>Widget "Lanjutkan Belajar"</td><td>Tombol pintas langsung menuju halaman daftar sesi aktif</td></tr>
+        <tr><td>Daftar Sesi Terbaru</td><td>4 sesi terkini dengan nama modul dan status</td></tr>
     </tbody>
 </table>
 
-<h4><span class="step-label">5</span> Live Proctoring (Monitoring Ujian)</h4>
-<p>Sidebar → <strong>Monitoring</strong> → pilih sesi aktif dari dropdown. Sistem menampilkan grid snapshot webcam peserta dengan refresh otomatis setiap 30 detik.</p>
-<div class="screenshot">[ Masukkan Screenshot Halaman Monitoring di sini ]</div>
+<h3>4.2 Menu: Sesi Pelatihan</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu kedua (ikon Topi Wisuda).</p>
 <table>
-    <thead><tr><th>Informasi</th><th>Keterangan</th></tr></thead>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
     <tbody>
-        <tr><td>Foto Webcam</td><td>Tangkapan wajah peserta (diambil otomatis).</td></tr>
-        <tr><td>Nama &amp; Username</td><td>Identitas di bawah setiap foto.</td></tr>
-        <tr><td>Waktu Capture</td><td>Stempel waktu saat foto diambil.</td></tr>
+        <tr><td>Daftar Sesi yang Diikuti</td><td>Semua sesi peserta, dikelompokkan: Sedang Berlangsung (Hijau), Akan Datang (Kuning), Selesai (Centang), Berakhir (Hitam)</td></tr>
+        <tr><td>Progress Bar (per sesi)</td><td>Menunjukkan persentase item yang telah diselesaikan (contoh: 3/5 item = 60%)</td></tr>
+        <tr><td>Tombol "Buka Sesi"</td><td>Masuk ke halaman detail sesi untuk membaca materi dan mengerjakan ujian</td></tr>
+    </tbody>
+</table>
+<h4>Di Dalam Halaman Sesi:</h4>
+<table>
+    <thead><tr><th>Tombol / Elemen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td>Daftar Item Modul (Urutan)</td><td>Menampilkan item Materi dan Ujian secara berurutan. Item yang belum dibuka ditandai gembok.</td></tr>
+        <tr><td>Tombol "Baca Materi"</td><td>Membuka halaman konten materi (teks, gambar, video YouTube, lampiran dokumen)</td></tr>
+        <tr><td>Tombol "Unduh Lampiran"</td><td>Mengunduh file Word/PDF/Excel yang dilampirkan admin</td></tr>
+        <tr><td>Pemutar Video YouTube</td><td>Video tertanam langsung di halaman. Tekan Play untuk menonton.</td></tr>
+        <tr><td>Tombol "Mulai Ujian"</td><td>Memulai pengerjaan ujian. Browser meminta izin webcam. Timer mulai berjalan.</td></tr>
+        <tr><td>Timer Ujian (pojok kanan atas)</td><td>Hitung mundur durasi yang ditentukan admin. Saat 00:00, jawaban otomatis dikumpulkan (Auto-Submit).</td></tr>
+        <tr><td>Navigasi Soal</td><td>Tombol nomor soal di bagian atas untuk berpindah antar soal</td></tr>
+        <tr><td>Tombol "Kumpulkan Ujian" (Submit)</td><td>Menyerahkan jawaban secara manual sebelum waktu habis</td></tr>
+        <tr><td>Tombol "Download Sertifikat"</td><td>Muncul otomatis jika progres 100% dan nilai total >= passing grade. Mengunduh PDF sertifikat.</td></tr>
     </tbody>
 </table>
 
-<h4><span class="step-label">6</span> Export Laporan Excel</h4>
-<p>Sessions → klik sesi → halaman Detail Sesi → tombol <strong>"Export Laporan Excel"</strong>. File berisi daftar peserta, progress (%), dan status pengerjaan.</p>
+<h3>4.3 Menu: Klasemen Top 100</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu ketiga (ikon Mahkota).</p>
+<table>
+    <thead><tr><th>Komponen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td>Tabel Peringkat</td><td>Menampilkan 100 peserta dengan skor tertinggi. Kolom: Peringkat, Nama, Skor Rata-rata</td></tr>
+    </tbody>
+</table>
+
+<h3>4.4 Menu: Riwayat Ujian</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu keempat (ikon Jam).</p>
+<table>
+    <thead><tr><th>Komponen</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td>Tabel Riwayat</td><td>Daftar seluruh ujian yang pernah dikerjakan peserta, beserta: Nama Ujian, Tanggal, Skor, dan Status (Lulus / Tidak Lulus)</td></tr>
+    </tbody>
+</table>
+
+<h3>4.5 Menu: Profil &amp; Pengaturan</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu kelima (ikon Orang).</p>
+<table>
+    <thead><tr><th>Field / Tombol</th><th>Fungsi</th><th>Bisa Diubah?</th></tr></thead>
+    <tbody>
+        <tr><td>Nama Lengkap</td><td>Nama resmi yang tercetak di sertifikat</td><td>Ya</td></tr>
+        <tr><td>Username</td><td>Identitas login, ditetapkan oleh Admin</td><td>Tidak</td></tr>
+        <tr><td>Nomor Telepon</td><td>Kontak pribadi peserta</td><td>Ya</td></tr>
+        <tr><td>Jenis Kelamin</td><td>Laki-laki / Perempuan</td><td>Ya</td></tr>
+        <tr><td>Tanggal Lahir</td><td>Format: YYYY-MM-DD</td><td>Ya</td></tr>
+        <tr><td>Institusi</td><td>Nama organisasi/perusahaan asal</td><td>Ya</td></tr>
+        <tr><td>Alamat</td><td>Alamat domisili lengkap</td><td>Ya</td></tr>
+        <tr><td>Input "Password Saat Ini"</td><td>Verifikasi identitas sebelum mengganti password</td><td>—</td></tr>
+        <tr><td>Input "Password Baru"</td><td>Kata sandi baru yang diinginkan</td><td>—</td></tr>
+        <tr><td>Input "Konfirmasi Password"</td><td>Harus sama persis dengan password baru</td><td>—</td></tr>
+        <tr><td>Tombol "Simpan Perubahan"</td><td>Menyimpan semua perubahan profil dan/atau kata sandi baru</td><td>—</td></tr>
+    </tbody>
+</table>
+<div class="note"><strong>Tips:</strong> Kosongkan 3 field password jika hanya ingin memperbarui data personal tanpa mengganti kata sandi.</div>
 
 <div class="page-break"></div>
 
-<h3>4.4 Fitur Utama — Dashboard Peserta</h3>
+<!-- BAB 5 -->
+<h2>5 — Fitur Pendukung Sistem</h2>
 
-<h4>A. Halaman "Sesi Saya"</h4>
-<div class="screenshot">[ Masukkan Screenshot Sesi Peserta di sini ]</div>
-<p>Seluruh sesi yang diikuti ditampilkan berdasarkan status:</p>
-<table>
-    <thead><tr><th>Kelompok</th><th>Keterangan</th></tr></thead>
-    <tbody>
-        <tr><td><strong>Sedang Berlangsung</strong></td><td>Klik untuk akses materi dan ujian.</td></tr>
-        <tr><td><strong>Akan Datang</strong></td><td>Terkunci hingga waktu mulai tiba.</td></tr>
-        <tr><td><strong>Selesai (100%)</strong></td><td>Semua item telah diselesaikan.</td></tr>
-        <tr><td><strong>Berakhir</strong></td><td>Sudah melewati batas waktu.</td></tr>
-    </tbody>
-</table>
-<p>Setiap baris sesi menampilkan <strong>Progress Bar</strong> (contoh: 3/5 item = 60%).</p>
+<h3>5.1 Automated Email Credentials</h3>
+<p>Saat Admin mendaftarkan peserta baru, sistem secara otomatis mengirim email berisi <strong>Username</strong> dan <strong>Password</strong> ke alamat email peserta yang didaftarkan. Admin juga bisa mengirim ulang kredensial dengan menekan tombol "Kirim Kredensial" di halaman Kelola Peserta. Fitur ini menggunakan protokol SMTP yang dikonfigurasi di server backend.</p>
 
-<h4>B. Mengerjakan Sesi</h4>
+<h3>5.2 Sertifikasi PDF Otomatis</h3>
+<p>Sertifikat PDF diterbitkan secara otomatis oleh server ketika seorang peserta memenuhi <strong>dua syarat sekaligus</strong>:</p>
 <ol>
-    <li>Klik sesi berstatus <strong>"Sedang Berlangsung"</strong>.</li>
-    <li>Baca <strong>Materi</strong> — otomatis ditandai selesai setelah dibaca.</li>
-    <li>Kerjakan <strong>Ujian</strong> — jika SEB diwajibkan, pastikan aplikasi SEB terinstal.</li>
-    <li>Selesaikan seluruh item untuk progres <strong>100%</strong>.</li>
+    <li>Progres modul mencapai <strong>100%</strong> (semua materi telah dibaca dan semua ujian telah dikerjakan).</li>
+    <li>Nilai total ujian (Pilihan Ganda + Esai) mencapai atau melebihi <strong>Passing Grade</strong> yang ditentukan Admin.</li>
 </ol>
+<p>PDF sertifikat dihasilkan dengan desain profesional menggunakan engine Puppeteer dan berisi nama peserta, nama modul, tanggal penerbitan, dan elemen keamanan dokumen.</p>
 
-<h4>C. Unduh Sertifikat</h4>
-<p>Jika progres 100% dan skor ≥ Passing Grade → tombol <strong>"Download Sertifikat"</strong> muncul → klik untuk unduh PDF.</p>
+<h3>5.3 Safe Exam Browser (SEB)</h3>
+<p>SEB adalah aplikasi desktop yang harus diinstal di komputer peserta <strong>sebelum</strong> ujian dimulai. Ketika diaktifkan oleh Admin pada sebuah sesi:</p>
+<ul>
+    <li>Peserta tidak bisa membuka aplikasi lain (browser, chat, dll)</li>
+    <li>Tombol Alt+Tab, Ctrl+Alt+Del, dan Print Screen dinonaktifkan</li>
+    <li>Layar terkunci penuh hingga peserta menekan "Kumpulkan Ujian"</li>
+    <li>Kombinasi ini menjamin integritas ujian tanpa pengawas fisik</li>
+</ul>
 
-<hr>
-
-<h3>4.5 Pengaturan Profil &amp; Keamanan</h3>
-<div class="screenshot">[ Masukkan Screenshot Halaman Profil di sini ]</div>
-
-<h4>Data Personal</h4>
+<h3>5.4 Audit Logging</h3>
+<p>Setiap tindakan administratif dicatat secara otomatis dan permanen oleh sistem. Informasi yang direkam:</p>
 <table>
-    <thead><tr><th>Field</th><th>Keterangan</th><th>Dapat Diubah</th></tr></thead>
+    <thead><tr><th>Data yang Dicatat</th><th>Contoh</th></tr></thead>
     <tbody>
-        <tr><td>Nama Lengkap</td><td>Nama resmi yang tertera di sertifikat.</td><td>Ya</td></tr>
-        <tr><td>Username</td><td>Identitas login, ditetapkan oleh Admin.</td><td>Tidak</td></tr>
-        <tr><td>Nomor Telepon</td><td>Kontak pribadi.</td><td>Ya</td></tr>
-        <tr><td>Jenis Kelamin</td><td>L (Laki-Laki) / P (Perempuan).</td><td>Ya</td></tr>
-        <tr><td>Tanggal Lahir</td><td>Format: YYYY-MM-DD.</td><td>Ya</td></tr>
-        <tr><td>Institusi</td><td>Instansi / perusahaan asal.</td><td>Ya</td></tr>
-        <tr><td>Alamat</td><td>Alamat domisili.</td><td>Ya</td></tr>
+        <tr><td>Siapa yang melakukan</td><td>admin_budi</td></tr>
+        <tr><td>Jenis aksi</td><td>DELETE</td></tr>
+        <tr><td>Target data</td><td>Peserta ID #50 (Rudi Hartono)</td></tr>
+        <tr><td>Waktu</td><td>2026-04-02 14:05:33</td></tr>
     </tbody>
 </table>
-
-<h4>Ganti Password</h4>
-<ol>
-    <li>Isi <strong>"Password Saat Ini"</strong> untuk verifikasi.</li>
-    <li>Isi <strong>"Password Baru"</strong> dan <strong>"Konfirmasi"</strong> (harus sama).</li>
-    <li>Klik <strong>"Simpan Perubahan"</strong>.</li>
-</ol>
-<div class="note"><strong>Tips:</strong> Kosongkan field password jika hanya ingin memperbarui data personal tanpa mengganti kata sandi.</div>
+<p>Fitur ini memberikan transparansi penuh dan mencegah penyalahgunaan wewenang oleh administrator.</p>
 
 <div class="page-break"></div>
 
-<!-- ════════════════════════ BAB 5 ════════════════════════ -->
-<h2>5 — Troubleshooting &amp; FAQ</h2>
+<!-- BAB 6 -->
+<h2>6 — FAQ &amp; Troubleshooting</h2>
 
 <div class="no-break">
-<h4>Masalah 1: Tidak bisa login — "Login gagal"</h4>
+<h4>1. Peserta tidak bisa login (pesan: "Kredensial Tidak Valid")</h4>
 <table>
     <tbody>
-        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Username atau password salah; akun belum terdaftar.</td></tr>
-        <tr><td><strong>Solusi</strong></td><td>Periksa huruf besar/kecil. Pastikan tidak ada spasi. Hubungi Admin untuk reset.</td></tr>
+        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Username atau password salah (huruf besar/kecil sensitif), atau akun belum didaftarkan admin.</td></tr>
+        <tr><td><strong>Solusi</strong></td><td>Periksa kembali penulisan. Pastikan tidak ada spasi di awal/akhir. Hubungi Admin untuk verifikasi atau kirim ulang kredensial via email.</td></tr>
     </tbody>
 </table>
 </div>
 
 <div class="no-break">
-<h4>Masalah 2: Monitoring tidak menampilkan foto webcam</h4>
+<h4>2. Halaman loading terus-menerus (spinner berputar tanpa henti)</h4>
 <table>
     <tbody>
-        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Peserta belum mulai ujian; webcam tidak diizinkan; SEB tidak aktif.</td></tr>
-        <tr><td><strong>Solusi</strong></td><td>Pastikan peserta klik "Mulai Ujian". Aktifkan SEB di sesi. Izinkan akses kamera.</td></tr>
+        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Cache browser menumpuk atau koneksi internet lambat.</td></tr>
+        <tr><td><strong>Solusi</strong></td><td>Tekan <code>Ctrl + Shift + Del</code>, centang "Hapus Cache/Cached Images", klik Hapus. Lalu tekan <code>F5</code> untuk memuat ulang halaman.</td></tr>
     </tbody>
 </table>
 </div>
 
 <div class="no-break">
-<h4>Masalah 3: Sertifikat tidak muncul setelah ujian selesai</h4>
+<h4>3. Sertifikat tidak muncul meskipun nilai sudah di atas passing grade</h4>
 <table>
     <tbody>
-        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Progres belum 100%; skor di bawah Passing Grade.</td></tr>
-        <tr><td><strong>Solusi</strong></td><td>Pastikan seluruh materi dibaca. Periksa skor ujian. Hubungi Admin.</td></tr>
+        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Progres modul belum 100%. Peserta melewatkan beberapa item materi tanpa membacanya.</td></tr>
+        <tr><td><strong>Solusi</strong></td><td>Peserta harus kembali ke halaman Sesi Pelatihan dan membuka setiap item materi yang belum ditandai selesai (centang hijau).</td></tr>
     </tbody>
 </table>
 </div>
 
 <div class="no-break">
-<h4>Masalah 4: Halaman loading terus-menerus</h4>
+<h4>4. Foto webcam tidak muncul di halaman Live Proctoring</h4>
 <table>
     <tbody>
-        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Koneksi lambat; server beban tinggi.</td></tr>
-        <tr><td><strong>Solusi</strong></td><td>Cek koneksi internet. Refresh (<code>F5</code>). Hapus cache (<code>Ctrl+Shift+Del</code>). Hubungi IT.</td></tr>
+        <tr><td style="width:100px"><strong>Penyebab</strong></td><td>Peserta belum klik "Mulai Ujian", izin kamera ditolak, atau kamera ditutup oleh pelindung fisik.</td></tr>
+        <tr><td><strong>Solusi</strong></td><td>Pastikan peserta sudah klik "Mulai Ujian". Periksa ikon kamera di sebelah bar URL Chrome: harus "Allowed/Diizinkan". Pada Windows 11, pastikan privacy toggle kamera dalam posisi aktif.</td></tr>
+    </tbody>
+</table>
+</div>
+
+<div class="no-break">
+<h4>5. Peserta kehabisan waktu ujian sebelum selesai mengerjakan</h4>
+<table>
+    <tbody>
+        <tr><td style="width:100px"><strong>Penjelasan</strong></td><td>Ini adalah perilaku normal. Sistem secara otomatis melakukan Auto-Submit saat timer mencapai 00:00. Jawaban yang sudah terisi akan disimpan dan dinilai.</td></tr>
     </tbody>
 </table>
 </div>
 
 <div class="page-break"></div>
 
-<!-- ════════════════════════ BAB 6 ════════════════════════ -->
-<h2>6 — Penutup &amp; Pusat Bantuan</h2>
+<!-- BAB 7 -->
+<h2>7 — Dokumentasi Teknis (IT / Developer)</h2>
 
-<h3>6.1 Penutup</h3>
-<p>Sistem E-Learning ini dirancang untuk mempermudah seluruh siklus pelatihan dengan jaminan keamanan dan pengalaman pengguna yang modern. Dengan mematuhi panduan ini, seluruh pihak dapat memanfaatkan sistem secara optimal dan mandiri.</p>
-
-<h3>6.2 Pusat Bantuan</h3>
+<h3>7.1 Stack Teknologi</h3>
 <table>
+    <thead><tr><th>Komponen</th><th>Teknologi</th><th>Versi</th></tr></thead>
     <tbody>
-        <tr><td style="width:140px"><strong>Email</strong></td><td>support@lms-system.com</td></tr>
-        <tr><td><strong>WhatsApp</strong></td><td>+62 812-34XX-XXXX</td></tr>
-        <tr><td><strong>Jam Operasional</strong></td><td>Senin — Jumat, 08.00 — 17.00 WIB</td></tr>
-        <tr><td><strong>Respon Darurat</strong></td><td>Sabtu &amp; Minggu hanya untuk isu kritis.</td></tr>
+        <tr><td>Framework</td><td>Next.js (App Router)</td><td>16.1.6</td></tr>
+        <tr><td>Bahasa</td><td>TypeScript (Full Type Safety)</td><td>5.x</td></tr>
+        <tr><td>UI Library</td><td>React</td><td>19.2.3</td></tr>
+        <tr><td>CSS Framework</td><td>Tailwind CSS</td><td>4.x</td></tr>
+        <tr><td>Komponen UI</td><td>shadcn/ui (Radix/Base UI)</td><td>4.0.2</td></tr>
+        <tr><td>Database</td><td>MySQL / MariaDB (via mysql2)</td><td>3.19.1</td></tr>
+        <tr><td>Autentikasi</td><td>JWT via jose + bcryptjs hashing</td><td>6.2.1 / 3.0.3</td></tr>
+        <tr><td>Rich Text Editor</td><td>TipTap (@tiptap/react + ekstensi)</td><td>3.20.x</td></tr>
+        <tr><td>Validasi Data</td><td>Zod</td><td>4.3.6</td></tr>
+        <tr><td>PDF Generator</td><td>Puppeteer (Headless Chrome)</td><td>24.40.0</td></tr>
+        <tr><td>Laporan Excel</td><td>xlsx (SheetJS)</td><td>0.18.5</td></tr>
+        <tr><td>Email Sender</td><td>Nodemailer (SMTP)</td><td>8.0.2</td></tr>
+        <tr><td>Grafik/Chart</td><td>Recharts</td><td>3.8.1</td></tr>
     </tbody>
 </table>
-<div class="note"><strong>Tips Reset Password:</strong> Sertakan username dan nama lengkap pada pesan agar proses lebih cepat.</div>
+
+<h3>7.2 Struktur Direktori</h3>
+<table>
+    <thead><tr><th>Path</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><code>/src/app</code></td><td>Routing utama (Next.js App Router). Setiap folder = satu halaman.</td></tr>
+        <tr><td><code>/src/app/admin</code></td><td>Seluruh halaman panel Administrator (overview, content, exams, modules, sessions, participants, users, monitoring, audit-logs)</td></tr>
+        <tr><td><code>/src/app/dashboard</code></td><td>Seluruh halaman Portal Peserta (overview, sesi, leaderboard, riwayat, profil, notifikasi)</td></tr>
+        <tr><td><code>/src/app/api</code></td><td>Backend API Routes (RESTful endpoints: GET/POST/PUT/DELETE)</td></tr>
+        <tr><td><code>/src/components</code></td><td>Komponen UI yang dapat dipakai ulang (Button, Modal, Sidebar, Header, dll)</td></tr>
+        <tr><td><code>/src/lib</code></td><td>Utilitas inti: koneksi database (singleton), helper email (Nodemailer transport), dan fungsi-fungsi bersama</td></tr>
+        <tr><td><code>/database</code></td><td>Skema SQL dan file migrasi database</td></tr>
+    </tbody>
+</table>
+
+<h3>7.3 Konfigurasi Environment (.env.local)</h3>
+<table>
+    <thead><tr><th>Variabel</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><code>DATABASE_URL</code></td><td>Connection string ke MySQL/MariaDB</td></tr>
+        <tr><td><code>JWT_SECRET</code></td><td>Kunci rahasia untuk enkripsi token autentikasi</td></tr>
+        <tr><td><code>SMTP_HOST</code></td><td>Alamat server email (contoh: smtp.gmail.com)</td></tr>
+        <tr><td><code>SMTP_PORT</code></td><td>Port server email (contoh: 587)</td></tr>
+        <tr><td><code>SMTP_USER</code></td><td>Alamat email pengirim</td></tr>
+        <tr><td><code>SMTP_PASS</code></td><td>Password atau App Password email pengirim</td></tr>
+    </tbody>
+</table>
+
+<h3>7.4 Perintah Operasional</h3>
+<table>
+    <thead><tr><th>Perintah</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><code>npm install</code></td><td>Menginstal seluruh dependensi proyek</td></tr>
+        <tr><td><code>npm run dev</code></td><td>Menjalankan server development di localhost:3000</td></tr>
+        <tr><td><code>npm run build</code></td><td>Mengompilasi kode untuk mode produksi (optimasi aset)</td></tr>
+        <tr><td><code>npm start</code></td><td>Menjalankan server produksi setelah proses build selesai</td></tr>
+    </tbody>
+</table>
+
+<h3>7.5 Skema Tabel Database</h3>
+<table>
+    <thead><tr><th>Nama Tabel</th><th>Fungsi</th></tr></thead>
+    <tbody>
+        <tr><td><code>t_users</code></td><td>Menyimpan data akun pengguna (admin, trainer, trainee), termasuk kredensial login dan role</td></tr>
+        <tr><td><code>t_courses / t_materials</code></td><td>Menyimpan konten materi pelatihan (judul + isi HTML dari editor visual)</td></tr>
+        <tr><td><code>t_media_attachments</code></td><td>Menyimpan data lampiran media yang terkait dengan materi (file path, tipe: image/pdf/doc/youtube)</td></tr>
+        <tr><td><code>t_exams</code></td><td>Menyimpan konfigurasi ujian (judul, durasi, passing grade)</td></tr>
+        <tr><td><code>t_questions</code></td><td>Menyimpan soal ujian (pertanyaan, tipe PG/esai, opsi jawaban, kunci jawaban)</td></tr>
+        <tr><td><code>t_modules</code></td><td>Menyimpan data modul (paket gabungan materi + ujian)</td></tr>
+        <tr><td><code>t_sessions</code></td><td>Menyimpan data sesi/kelas (modul yang dipakai, waktu mulai/selesai, konfigurasi SEB)</td></tr>
+        <tr><td><code>t_user_progress</code></td><td>Menyimpan status dan progres peserta per sesi (persentase penyelesaian, skor ujian)</td></tr>
+        <tr><td><code>t_audit_logs</code></td><td>Menyimpan rekam jejak tindakan administratif (pengguna, aksi, target, waktu)</td></tr>
+    </tbody>
+</table>
 
 <footer>
-    Dokumen Panduan &amp; Guideline — Sistem E-Learning LMS<br>
-    Versi 1.0 — April 2026
+    Dokumen Panduan &amp; Guideline Ekstensif — Sistem E-Learning LMS<br>
+    Versi 2.2 — April 2026
 </footer>
 
 </body>

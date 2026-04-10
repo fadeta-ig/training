@@ -47,7 +47,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
     const [currentIdx, setCurrentIdx] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
-    const [result, setResult] = useState<{ score: number; passed: boolean; earnedPoints: number; totalPoints: number } | null>(null);
+    const [result, setResult] = useState<{ score?: number; passed: boolean; earnedPoints?: number; totalPoints?: number; show_score?: boolean } | null>(null);
     const [isSeb, setIsSeb] = useState(false);
 
     useEffect(() => {
@@ -170,19 +170,35 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         return (
             <div className="max-w-lg mx-auto space-y-8 pt-10">
                 <div className="glass-card p-8 text-center space-y-6">
-                    <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center ${result.passed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {result.passed ? <Tick01Icon size={40} /> : <AlertCircleIcon size={40} />}
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold">{result.passed ? 'Selamat, Anda Lulus!' : 'Belum Lulus'}</h1>
-                        <p className="text-muted-foreground text-sm mt-1">
-                            {result.passed ? 'Anda berhasil melewati batas nilai minimum.' : 'Nilai Anda belum mencapai batas minimum.'}
-                        </p>
-                    </div>
-                    <div className="text-5xl font-bold tracking-tight">{result.score}%</div>
-                    <div className="text-sm text-muted-foreground">
-                        {result.earnedPoints} / {result.totalPoints} poin benar
-                    </div>
+                    {result.show_score !== false ? (
+                        <>
+                            <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center ${result.passed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                {result.passed ? <Tick01Icon size={40} /> : <AlertCircleIcon size={40} />}
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold">{result.passed ? 'Selamat, Anda Lulus!' : 'Belum Lulus'}</h1>
+                                <p className="text-muted-foreground text-sm mt-1">
+                                    {result.passed ? 'Anda berhasil melewati batas nilai minimum.' : 'Nilai Anda belum mencapai batas minimum.'}
+                                </p>
+                            </div>
+                            <div className="text-5xl font-bold tracking-tight">{result.score}%</div>
+                            <div className="text-sm text-muted-foreground">
+                                {result.earnedPoints} / {result.totalPoints} poin benar
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="w-20 h-20 rounded-full mx-auto flex items-center justify-center bg-primary/10 text-primary">
+                                <Tick01Icon size={40} />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold">Ujian Selesai!</h1>
+                                <p className="text-muted-foreground text-sm mt-1">
+                                    Jawaban Anda telah berhasil disimpan ke dalam sistem.
+                                </p>
+                            </div>
+                        </>
+                    )}
                     <div className="flex flex-col gap-3">
                         <Link
                             href={`/dashboard/sesi/${sessionId}`}

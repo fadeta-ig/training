@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, PencilEdit01Icon, Logout01Icon, Download01Icon, MailSend01Icon, AlertCircleIcon, Cancel01Icon } from 'hugeicons-react';
+import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, PencilEdit01Icon, Logout01Icon, Download01Icon, MailSend01Icon, AlertCircleIcon, Cancel01Icon, ViewIcon, ViewOffIcon } from 'hugeicons-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -23,6 +23,7 @@ type SessionDetail = {
     start_time: string;
     end_time: string;
     require_seb: boolean;
+    show_score: boolean;
     seb_config_key: string | null;
     created_at: string;
     participants: User[];
@@ -219,6 +220,26 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                             </p>
                                         </div>
                                     )}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                                    {session.show_score ? <ViewIcon size={16} /> : <ViewOffIcon size={16} />} Tampilkan Nilai
+                                </h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">Visibilitas Nilai Peserta</p>
+                                        {session.show_score ? (
+                                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 mt-1">
+                                                <ViewIcon size={12} /> DITAMPILKAN
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md bg-orange-100 text-orange-700 mt-1">
+                                                <ViewOffIcon size={12} /> DISEMBUNYIKAN
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

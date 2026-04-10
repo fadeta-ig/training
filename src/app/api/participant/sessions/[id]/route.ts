@@ -104,7 +104,7 @@ async function handleGet(
                 item_title: item.item_title,
                 duration_minutes: item.duration_minutes,
                 progress_status: progressStatus,
-                score: item.score,
+                score: session.show_score ? item.score : null,
                 can_retake: canRetake,
                 attempts_count: item.attempts_count || 0,
                 max_attempts: item.max_attempts || 1
@@ -115,6 +115,7 @@ async function handleGet(
             success: true,
             data: {
                 ...session,
+                show_score: !!session.show_score,
                 items: mappedItems,
             },
         });

@@ -132,6 +132,7 @@ CREATE TABLE sessions (
   start_time     DATETIME     NOT NULL,
   end_time       DATETIME     NOT NULL,
   require_seb    BOOLEAN      DEFAULT FALSE,
+  show_score     BOOLEAN      DEFAULT TRUE,
   seb_config_key VARCHAR(255) NULL,
   created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_sessions_module

@@ -204,15 +204,24 @@ async function handlePost(
 
             await connection.commit();
 
+            // Use show_score from the session already fetched by validateSessionTiming
+            const isScoreVisible = !!session.show_score;
+
             return NextResponse.json({
                 success: true,
-                data: {
-                    score: Math.round(score * 100) / 100,
-                    passed,
-                    earnedPoints,
-                    totalPoints,
-                    passingGrade,
-                },
+                data: isScoreVisible
+                    ? {
+                          score: Math.round(score * 100) / 100,
+                          passed,
+                          earnedPoints,
+                          totalPoints,
+                          passingGrade,
+                          show_score: true,
+                      }
+                    : {
+                          passed,
+                          show_score: false,
+                      },
             });
         } catch (txError) {
             await connection.rollback();

@@ -88,6 +88,7 @@ export interface Session {
     start_time: string;
     end_time: string;
     require_seb: boolean;
+    show_score: boolean;
     seb_config_key: string | null;
     created_at: string;
 }

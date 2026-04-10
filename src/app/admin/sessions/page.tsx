@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { PlusSignIcon, Calendar02Icon, Time02Icon, SecurityLockIcon, PencilEdit01Icon, Delete02Icon, ViewIcon } from 'hugeicons-react';
+import { PlusSignIcon, Calendar02Icon, Time02Icon, SecurityLockIcon, PencilEdit01Icon, Delete02Icon, ViewIcon, ViewOffIcon } from 'hugeicons-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -17,6 +17,7 @@ type Session = {
     start_time: string;
     end_time: string;
     require_seb: boolean;
+    show_score: boolean;
     created_at: string;
 };
 
@@ -164,6 +165,12 @@ export default function SessionsPage() {
                                                     </span>
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">-</span>
+                                                )}
+                                                {!session.show_score && (
+                                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-orange-100 text-orange-700 ml-1">
+                                                        <ViewOffIcon size={12} />
+                                                        NILAI TERSEMBUNYI
+                                                    </span>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">

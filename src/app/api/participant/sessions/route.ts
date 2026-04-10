@@ -16,6 +16,7 @@ async function handleGet(_request: NextRequest, user: AuthenticatedUser) {
                 s.start_time,
                 s.end_time,
                 s.require_seb,
+                s.show_score,
                 m.title AS module_title,
                 m.id AS module_id,
                 (SELECT COUNT(*) FROM module_items mi WHERE mi.module_id = m.id) AS total_items,

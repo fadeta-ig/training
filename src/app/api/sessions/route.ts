@@ -8,7 +8,7 @@ import { sessionSchema } from '@/lib/validations/sessionSchema';
 async function handleGet(_request: NextRequest) {
     try {
         const sessions = await executeQuery(
-            `SELECT id, module_id, title, start_time, end_time, require_seb, created_at FROM sessions ORDER BY start_time DESC`
+            `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, created_at FROM sessions ORDER BY start_time DESC`
         );
         return NextResponse.json({ success: true, data: sessions });
     } catch (error) {
@@ -30,7 +30,7 @@ async function handlePost(request: NextRequest) {
             );
         }
 
-        const { module_id, title, start_time, end_time, require_seb, participant_ids } = parsed.data;
+        const { module_id, title, start_time, end_time, require_seb, show_score, participant_ids } = parsed.data;
         const sessionId = uuidv4();
 
         const sebConfigKey = require_seb ? process.env.SEB_CONFIG_KEY_HASH || null : null;
@@ -39,8 +39,8 @@ async function handlePost(request: NextRequest) {
         await connection.beginTransaction();
 
         await connection.execute(
-            `INSERT INTO sessions (id, module_id, title, start_time, end_time, require_seb, seb_config_key) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO sessions (id, module_id, title, start_time, end_time, require_seb, show_score, seb_config_key) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 sessionId,
                 module_id,
@@ -49,6 +49,7 @@ async function handlePost(request: NextRequest) {
                 start_time.replace('T', ' ') + ':00',
                 end_time.replace('T', ' ') + ':00',
                 require_seb,
+                show_score,
                 sebConfigKey
             ]
         );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { withAuth } from '@/lib/api-auth';
+import logger from '@/lib/logger';
 
 async function handleGet() {
     try {
@@ -51,7 +52,7 @@ async function handleGet() {
             },
         });
     } catch (error: any) {
-        console.error('Download template error:', error);
+        logger.error('PARTICIPANT_TEMPLATE_DOWNLOAD', 'Gagal membuat file template peserta', error);
         return NextResponse.json(
             { success: false, error: 'Gagal membuat file template' },
             { status: 500 }

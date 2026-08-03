@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { logActivity } from '@/lib/audit';
+import logger from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
     try {
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Password berhasil direset. Silakan login dengan password baru Anda.' });
 
     } catch (error) {
-        console.error('Reset password error:', error);
-        return NextResponse.json({ success: false, error: 'Terjadi kesalahan pada server' }, { status: 500 });
+        logger.error('AUTH_RESET_PASSWORD', 'Terjadi kesalahan saat mereset password', error);
+        return NextResponse.json({ success: false, error: 'Terjadi kesalahan pada server saat mereset password.' }, { status: 500 });
     }
 }

@@ -6,6 +6,7 @@ import { executeQuery } from '@/lib/db';
  */
 export type AuditActionType =
     | 'USER_LOGIN'
+    | 'LOGIN_FAILED'
     | 'USER_LOGOUT'
     | 'CREATE_USER'
     | 'UPDATE_USER'
@@ -17,7 +18,10 @@ export type AuditActionType =
     | 'BULK_IMPORT_USERS'
     | 'BULK_IMPORT_PARTICIPANTS'
     | 'RESET_PASSWORD'
-    | 'SEND_CREDENTIALS';
+    | 'SEND_CREDENTIALS'
+    | 'SUBMIT_EXAM'
+    | 'START_EXAM'
+    | 'UPLOAD_MEDIA';
 
 /**
  * Core function to log an activity to the audit_logs table.

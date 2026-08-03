@@ -6,6 +6,7 @@ import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { logActivity } from '@/lib/audit';
 import { sendCredentialEmail } from '@/lib/email';
 import pool from '@/lib/db';
+import logger from '@/lib/logger';
 
 interface UserImportItem {
     name: string;
@@ -166,7 +167,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             await connection.commit();
         } catch (dbError) {
             await connection.rollback();
-            console.error('User Bulk Import Transaction Error:', dbError);
+            logger.error('BULK_IMPORT_USERS', 'Transaksi import massal pengguna gagal', dbError, authUser.id);
             throw dbError;
         } finally {
             connection.release();
@@ -182,7 +183,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         if (sendEmail) {
             Promise.allSettled(
                 credentials.map(c => sendCredentialEmail(c.email, c.name, c.password))
-            ).catch(err => console.error('Asynchronous bulk user email send error:', err));
+            ).catch(err => logger.error('BULK_IMPORT_USERS', 'Gagal mengirim email kredensial pengguna secara asinkron', err, authUser.id));
         }
 
         return NextResponse.json({
@@ -195,7 +196,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         }, { status: 201 });
 
     } catch (error: any) {
-        console.error('User bulk import error:', error);
+        logger.error('BULK_IMPORT_USERS', 'Kesalahan sistem saat import massal pengguna', error);
         return NextResponse.json(
             { success: false, error: error.message || 'Terjadi kesalahan sistem saat import pengguna' },
             { status: 500 }

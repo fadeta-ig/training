@@ -3,6 +3,7 @@ import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { sendSessionReminderEmail } from '@/lib/email';
 import { logActivity } from '@/lib/audit';
+import logger from '@/lib/logger';
 
 async function handlePost(
     request: NextRequest,
@@ -53,8 +54,8 @@ async function handlePost(
 
         return NextResponse.json({ success: true, message: `Berhasil nge-blast pengingat jadwal ke ${emailAddresses.length} peserta` });
     } catch (error) {
-        console.error('Email Blast Error:', error);
-        return NextResponse.json({ success: false, error: 'Terjadi kesalahan internal ketika memproses broadcast' }, { status: 500 });
+        logger.error('SESSION_REMIND', 'Gagal mengirimkan email blast pengingat jadwal sesi', error);
+        return NextResponse.json({ success: false, error: 'Terjadi kesalahan saat mengirimkan pengingat email ke peserta.' }, { status: 500 });
     }
 }
 

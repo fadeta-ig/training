@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
 import { AuditLog } from '@/types';
+import logger from '@/lib/logger';
 
 // Pagination limit
 const LIMIT = 20;
@@ -61,8 +62,8 @@ async function handleGet(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error('Audit Trail Get Error:', error);
-        return NextResponse.json({ success: false, error: 'Gagal mengambil data audit trail.' }, { status: 500 });
+        logger.error('AUDIT_LOGS', 'Gagal mengambil data audit trail dari database', error);
+        return NextResponse.json({ success: false, error: 'Gagal mengambil data riwayat aktivitas sistem.' }, { status: 500 });
     }
 }
 

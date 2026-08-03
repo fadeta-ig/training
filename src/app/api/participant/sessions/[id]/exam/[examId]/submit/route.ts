@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from '@/lib/db';
 import { verifyEnrollment, validateSessionTiming, validateSebAccess, ParticipantError } from '@/lib/participant-helpers';
 import { checkRateLimit } from '@/lib/rate-limit';
+import logger from '@/lib/logger';
 
 /** Max 5 submissions per minute per IP to prevent abuse */
 const SUBMIT_RATE_LIMIT = { windowMs: 60_000, maxRequests: 5 };
@@ -218,6 +219,16 @@ async function handlePost(
 
             await connection.commit();
 
+            // Audit trail: log exam submission
+            await logger.audit(user.id, 'SUBMIT_EXAM', 'exams', examId, {
+                sessionId,
+                attemptNumber,
+                score: Math.round(score * 100) / 100,
+                passed,
+                earnedPoints,
+                totalPoints,
+            }, 'EXAM_SUBMIT');
+
             // Use show_score from the session already fetched by validateSessionTiming
             const isScoreVisible = !!session.show_score;
 
@@ -245,10 +256,11 @@ async function handlePost(
         }
     } catch (error) {
         if (error instanceof ParticipantError) {
+            logger.warn('EXAM_SUBMIT', `Participant error: ${error.message}`, undefined, user.id);
             return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
         }
-        const message = error instanceof Error ? error.message : 'Internal Server Error';
-        return NextResponse.json({ success: false, error: message }, { status: 500 });
+        logger.error('EXAM_SUBMIT', 'Gagal memproses pengiriman jawaban ujian', error, user.id);
+        return NextResponse.json({ success: false, error: 'Terjadi kesalahan sistem saat mengirim jawaban ujian. Silakan coba lagi.' }, { status: 500 });
     }
 }
 

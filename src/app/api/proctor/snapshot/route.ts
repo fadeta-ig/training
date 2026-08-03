@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import logger from '@/lib/logger';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -73,9 +74,8 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
 
         return NextResponse.json({ success: true, id: snapshotId }, { status: 201 });
     } catch (error) {
-        const message = error instanceof Error ? error.message : 'Internal server error';
-        console.error('[PROCTOR_API]', message);
-        return NextResponse.json({ error: message }, { status: 500 });
+        logger.error('PROCTOR_SNAPSHOT', 'Gagal menyimpan snapshot proktor', error);
+        return NextResponse.json({ success: false, error: 'Gagal menyimpan data snapshot proktor.' }, { status: 500 });
     }
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
+import logger from '@/lib/logger';
 
 // ----------------------------------------------------------------------
 // GET: Laman Utama Analytics Dashboard Admin
@@ -55,8 +56,8 @@ async function handleGet(request: NextRequest) {
         return NextResponse.json({ success: true, data: responseData });
 
     } catch (error) {
-        console.error('Analytics Fetch Error:', error);
-        return NextResponse.json({ success: false, error: 'Gagal memuat data analytics' }, { status: 500 });
+        logger.error('ADMIN_ANALYTICS', 'Gagal memuat data analytics dashboard', error);
+        return NextResponse.json({ success: false, error: 'Gagal memuat data analytics. Silakan coba beberapa saat lagi.' }, { status: 500 });
     }
 }
 

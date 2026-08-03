@@ -3,6 +3,7 @@ import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
 import { sendCredentialEmail } from '@/lib/email';
 import { logActivity } from '@/lib/audit';
+import logger from '@/lib/logger';
 
 async function handlePost(request: NextRequest) {
     try {
@@ -43,7 +44,7 @@ async function handlePost(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Kredensial berhasil dikirimkan dari sistem ke email tujuan!' });
 
     } catch (error) {
-        console.error('Send Credentials Error:', error);
+        logger.error('SEND_CREDENTIALS', 'Gagal mengirimkan email kredensial pengguna', error);
         return NextResponse.json({ success: false, error: 'Terjadi kesalahan sistem saat mengirim email kredensial.' }, { status: 500 });
     }
 }

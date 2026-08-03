@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
-import { withAuth } from '@/lib/api-auth';
+import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { z } from 'zod';
+import logger from '@/lib/logger';
 
 const gradeSchema = z.object({
     session_id: z.string().uuid(),
@@ -26,7 +27,7 @@ interface ExamScoreResult {
  * 2. Recalculates the user's total score for that specific exam session.
  * 3. Updates `user_progress.score`.
  */
-async function handlePost(request: NextRequest) {
+async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
     try {
         const body = await request.json();
         const parsed = gradeSchema.safeParse(body);
@@ -100,11 +101,19 @@ async function handlePost(request: NextRequest) {
             });
         }
 
+        // Audit Trail: log grading action
+        await logger.audit(authUser.id, 'MANUAL_GRADE_EXAM', 'exam_answers', question_id, {
+            session_id,
+            user_id,
+            question_id,
+            is_correct,
+        }, 'ADMIN_GRADING');
+
         return NextResponse.json({ success: true, message: 'Status jawaban diperbarui, tapi gagal kalkulasi ulang skor total' });
 
     } catch (error) {
-        console.error('Grading Error:', error);
-        return NextResponse.json({ success: false, error: 'Terjadi kesalahan pada server' }, { status: 500 });
+        logger.error('ADMIN_GRADING', 'Terjadi kesalahan saat proses penilaian manual', error);
+        return NextResponse.json({ success: false, error: 'Terjadi kesalahan pada server saat memproses penilaian.' }, { status: 500 });
     }
 }
 

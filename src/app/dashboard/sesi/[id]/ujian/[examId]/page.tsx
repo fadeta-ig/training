@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import {
     ArrowLeft01Icon,
     Clock01Icon,
@@ -127,11 +128,16 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             const data = await res.json();
             if (data.success) {
                 setResult(data.data);
+                toast.success('Jawaban Ujian Berhasil Dikirim!');
             } else {
-                setError(data.error || 'Gagal submit');
+                const errMsg = data.error || 'Gagal mengirimkan jawaban ujian';
+                setError(errMsg);
+                toast.error('Gagal Mengirim Ujian', { description: errMsg });
             }
         } catch {
-            setError('Kesalahan jaringan saat submit');
+            const errMsg = 'Kesalahan koneksi jaringan saat mengirimkan jawaban';
+            setError(errMsg);
+            toast.error('Kesalahan Jaringan', { description: errMsg });
         } finally {
             setSubmitting(false);
         }

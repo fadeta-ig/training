@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
 import { escapeHtml } from '@/lib/sanitize';
+import logger from '@/lib/logger';
 
 export const GET = withAuth(async (
     request: NextRequest,
@@ -116,9 +117,9 @@ export const GET = withAuth(async (
         });
 
     } catch (error) {
-        console.error('Excel Export Error:', error);
+        logger.error('SESSION_EXPORT', 'Gagal mengekspor data sesi ke Excel', error);
         return NextResponse.json(
-            { success: false, message: 'Gagal mengekspor data' },
+            { success: false, message: 'Gagal mengekspor data sesi. Silakan coba lagi.' },
             { status: 500 }
         );
     }

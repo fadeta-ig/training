@@ -3,6 +3,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { withAuth } from '@/lib/api-auth';
+import logger from '@/lib/logger';
 
 /** Maps MIME types to the media_type enum used by training_media */
 const ALLOWED_TYPES: Record<string, string> = {
@@ -73,6 +74,14 @@ async function handlePost(request: NextRequest) {
 
         const fileUrl = `/uploads/${uniqueFilename}`;
 
+        logger.info('FILE_UPLOAD', `File berhasil diunggah: ${file.name} -> ${uniqueFilename}`, {
+            originalName: file.name,
+            mimeType: file.type,
+            sizeBytes: file.size,
+            mediaCategory,
+            url: fileUrl,
+        });
+
         return NextResponse.json({
             success: true,
             url: fileUrl,
@@ -82,8 +91,8 @@ async function handlePost(request: NextRequest) {
             message: 'File berhasil diunggah.',
         });
     } catch (error) {
-        const message = error instanceof Error ? error.message : 'Internal Server Error';
-        console.error('[UPLOAD_ERROR]', message);
+        logger.error('FILE_UPLOAD', 'Gagal mengunggah file', error);
+        const message = error instanceof Error ? error.message : 'Kesalahan sistem';
         return NextResponse.json(
             { success: false, error: `Gagal mengunggah file: ${message}` },
             { status: 500 }

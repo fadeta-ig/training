@@ -3,6 +3,7 @@ import { executeQuery } from '@/lib/db';
 import crypto from 'crypto';
 import { sendPasswordResetEmail } from '@/lib/email';
 import { logActivity } from '@/lib/audit';
+import logger from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
     try {
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Instruksi reset password telah dikirim ke email Anda.' });
 
     } catch (error) {
-        console.error('Forgot password error:', error);
-        return NextResponse.json({ success: false, error: 'Terjadi kesalahan pada server' }, { status: 500 });
+        logger.error('AUTH_FORGOT_PASSWORD', 'Terjadi kesalahan saat memproses permintaan reset password', error);
+        return NextResponse.json({ success: false, error: 'Terjadi kesalahan pada server saat memproses permintaan Anda.' }, { status: 500 });
     }
 }

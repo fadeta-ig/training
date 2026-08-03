@@ -3,6 +3,7 @@ import { executeQuery } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
+import logger from '@/lib/logger';
 
 /** Max 10 login attempts per minute per IP */
 const LOGIN_RATE_LIMIT = { windowMs: 60_000, maxRequests: 10, message: 'Terlalu banyak percobaan login. Coba lagi dalam 1 menit.' };
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
         );
 
         if (!Array.isArray(users) || users.length === 0) {
+            logger.warn('AUTH_LOGIN', `Percobaan login gagal: Username "${username}" tidak ditemukan`);
             return NextResponse.json(
                 { success: false, error: 'Kredensial tidak valid' },
                 { status: 401 }
@@ -40,6 +42,8 @@ export async function POST(request: NextRequest) {
         // Verifikasi password
         const passwordMatch = await bcrypt.compare(password, user.password_hash);
         if (!passwordMatch) {
+            logger.warn('AUTH_LOGIN', `Percobaan login gagal: Password salah untuk user "${username}"`, undefined, user.id);
+            await logger.audit(user.id, 'LOGIN_FAILED', 'users', user.id, { username }, 'AUTH_LOGIN');
             return NextResponse.json(
                 { success: false, error: 'Kredensial tidak valid' },
                 { status: 401 }
@@ -52,6 +56,9 @@ export async function POST(request: NextRequest) {
             username: user.username,
             role: user.role,
         });
+
+        // Audit Log Login Sukses
+        await logger.audit(user.id, 'USER_LOGIN', 'users', user.id, { username: user.username, role: user.role }, 'AUTH_LOGIN');
 
         // Set token in HTTP-only cookie
         const response = NextResponse.json({
@@ -75,9 +82,9 @@ export async function POST(request: NextRequest) {
         return response;
 
     } catch (error) {
-        console.error('Login error:', error);
+        logger.error('AUTH_LOGIN', 'Terjadi kesalahan sistem saat proses login', error);
         return NextResponse.json(
-            { success: false, error: 'Terjadi kesalahan sistem' },
+            { success: false, error: 'Terjadi kesalahan sistem saat proses login' },
             { status: 500 }
         );
     }

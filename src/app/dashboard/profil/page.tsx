@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { UserCircleIcon, Tick01Icon, AlertCircleIcon } from 'hugeicons-react';
+import { toast } from 'sonner';
 
 export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
@@ -39,7 +40,10 @@ export default function ProfilePage() {
                     }));
                 }
             })
-            .catch(() => setMessage({ type: 'error', text: 'Gagal memuat profil' }))
+            .catch(() => {
+                setMessage({ type: 'error', text: 'Gagal memuat data profil. Periksa koneksi jaringan Anda.' });
+                toast.error('Gagal Memuat Profil', { description: 'Periksa koneksi jaringan Anda dan coba muat ulang halaman.' });
+            })
             .finally(() => setLoading(false));
     }, []);
 
@@ -53,6 +57,7 @@ export default function ProfilePage() {
 
         if (formData.new_password && formData.new_password !== formData.confirm_password) {
             setMessage({ type: 'error', text: 'Konfirmasi password baru tidak cocok' });
+            toast.warning('Peringatan', { description: 'Konfirmasi password baru tidak cocok dengan password baru yang Anda masukkan.' });
             return;
         }
 
@@ -67,12 +72,16 @@ export default function ProfilePage() {
 
             if (data.success) {
                 setMessage({ type: 'success', text: 'Profil berhasil diperbarui' });
+                toast.success('Profil Berhasil Diperbarui!', { description: 'Perubahan data profil dan keamanan akun Anda telah tersimpan.' });
                 setFormData(prev => ({ ...prev, current_password: '', new_password: '', confirm_password: '' }));
             } else {
-                setMessage({ type: 'error', text: data.error || 'Terjadi kesalahan' });
+                const errMsg = data.error || 'Terjadi kesalahan saat menyimpan perubahan';
+                setMessage({ type: 'error', text: errMsg });
+                toast.error('Gagal Menyimpan Profil', { description: errMsg });
             }
         } catch {
-            setMessage({ type: 'error', text: 'Terjadi kesalahan jaringan' });
+            setMessage({ type: 'error', text: 'Terjadi kesalahan koneksi jaringan' });
+            toast.error('Kesalahan Jaringan', { description: 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.' });
         } finally {
             setSubmitting(false);
         }

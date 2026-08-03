@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
+import logger from '@/lib/logger';
 
 export const GET = withAuth(async (
     request: NextRequest,
@@ -69,9 +70,9 @@ export const GET = withAuth(async (
             },
         });
     } catch (error) {
-        console.error('SEB Generator Error:', error);
+        logger.error('SEB_CONFIG', 'Gagal membuat file konfigurasi SEB', error);
         return NextResponse.json(
-            { success: false, message: 'Terjadi kesalahan sistem' },
+            { success: false, message: 'Gagal membuat konfigurasi Safe Exam Browser. Silakan coba lagi.' },
             { status: 500 }
         );
     }

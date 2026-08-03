@@ -8,7 +8,8 @@ import {
     RefreshIcon,
     Alert02Icon,
     PlusSignIcon,
-    Search01Icon
+    Search01Icon,
+    CloudUploadIcon
 } from 'hugeicons-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -128,12 +129,13 @@ export default function UsersManagerPage() {
                 </div>
                 
                 {/* Tombol Import Massal */}
-                <button
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="flex shrink-0 items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-4 py-2.5 rounded-xl text-sm border border-blue-200 transition-colors"
+                <Link
+                    href="/admin/users/import"
+                    className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-emerald-600/10 text-emerald-800 border border-emerald-600/20 hover:bg-emerald-600/20 transition-colors flex items-center gap-2 shadow-sm active:scale-95 shrink-0"
                 >
-                    <FileExportIcon size={18} /> Import Massal
-                </button>
+                    <CloudUploadIcon size={18} />
+                    Import Massal
+                </Link>
             </div>
 
             {error && (

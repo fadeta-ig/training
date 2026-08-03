@@ -90,7 +90,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                 setExams(eRes.data.map((e: any) => ({ ...e, type: 'exam' })));
             }
             setIsLoading(false);
-        }).catch(err => {
+        }).catch(() => {
             setError('Gagal memuat data modul');
             setIsLoading(false);
         });

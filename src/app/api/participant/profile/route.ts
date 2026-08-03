@@ -3,6 +3,31 @@ import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
+import { z } from 'zod';
+
+const optionalText = (max: number) => z.union([z.string().trim().max(max), z.null()]).optional();
+const dateOnlySchema = z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal lahir tidak valid')
+    .refine((value) => {
+        const date = new Date(`${value}T00:00:00Z`);
+        return !Number.isNaN(date.getTime())
+            && date.toISOString().slice(0, 10) === value
+            && date.getTime() <= Date.now();
+    }, 'Tanggal lahir tidak valid');
+const profileUpdateSchema = z.object({
+    full_name: z.string().trim().min(3).max(100),
+    phone_number: optionalText(30),
+    address: optionalText(500),
+    date_of_birth: z.union([
+        z.literal(''),
+        z.null(),
+        dateOnlySchema,
+    ]).optional(),
+    gender: z.union([z.enum(['L', 'P']), z.literal(''), z.null()]).optional(),
+    institution: optionalText(150),
+    current_password: z.string().max(128).optional(),
+    new_password: z.string().min(8).max(128).optional(),
+});
 
 /**
  * GET /api/participant/profile
@@ -41,8 +66,15 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
  */
 async function handlePut(request: NextRequest, user: AuthenticatedUser) {
     try {
-        const body = await request.json();
-        const { full_name, phone_number, address, date_of_birth, gender, institution, current_password, new_password } = body;
+        const parsed = profileUpdateSchema.safeParse(await request.json());
+        if (!parsed.success) {
+            return NextResponse.json(
+                { success: false, error: 'Data profil tidak valid', details: parsed.error.issues },
+                { status: 400 }
+            );
+        }
+
+        const { full_name, phone_number, address, date_of_birth, gender, institution, current_password, new_password } = parsed.data;
 
         // 1. Update User Table (full_name) and handle Password Change
         if (new_password) {
@@ -102,5 +134,5 @@ async function handlePut(request: NextRequest, user: AuthenticatedUser) {
     }
 }
 
-export const GET = withAuth(handleGet);
-export const PUT = withAuth(handlePut);
+export const GET = withAuth(handleGet, { allowedRoles: ['trainee'] });
+export const PUT = withAuth(handlePut, { allowedRoles: ['trainee'] });

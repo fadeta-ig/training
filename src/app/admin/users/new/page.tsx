@@ -105,9 +105,9 @@ export default function NewUserPage() {
                         <input
                             type="password"
                             required
-                            minLength={6}
+                            minLength={8}
                             className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
-                            placeholder="Minimal 6 karakter"
+                            placeholder="Minimal 8 karakter"
                             value={formData.password}
                             onChange={e => setFormData({ ...formData, password: e.target.value })}
                         />

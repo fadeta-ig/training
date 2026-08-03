@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
-import { verifyEnrollment, validateSessionTiming, ParticipantError } from '@/lib/participant-helpers';
+import {
+    assertCurrentItemAccessible,
+    getItemProgress,
+    getSessionModuleItem,
+    verifyEnrollment,
+    validateSessionTiming,
+    ParticipantError,
+} from '@/lib/participant-helpers';
+import { sanitizeRichHtml } from '@/lib/sanitize';
 
 /**
  * GET /api/participant/sessions/[id]/training/[trainingId]
@@ -16,11 +24,20 @@ async function handleGet(
         const { id: sessionId, trainingId } = await context.params;
 
         await verifyEnrollment(sessionId, user.id);
-        const { isUpcoming } = await validateSessionTiming(sessionId);
+        const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId);
 
         if (isUpcoming) {
             return NextResponse.json({ success: false, error: 'Sesi belum dimulai' }, { status: 400 });
         }
+
+        const moduleItem = await getSessionModuleItem(session.module_id, 'training', trainingId);
+        if (isEnded) {
+            const progress = await getItemProgress(sessionId, user.id, moduleItem.id);
+            if (progress?.status !== 'completed') {
+                return NextResponse.json({ success: false, error: 'Sesi sudah berakhir' }, { status: 400 });
+            }
+        }
+        await assertCurrentItemAccessible(sessionId, user.id, session, moduleItem, true);
 
         // Fetch training content
         const training = await executeQuery<any[]>(
@@ -39,7 +56,11 @@ async function handleGet(
 
         return NextResponse.json({
             success: true,
-            data: { ...training[0], media: media || [] },
+            data: {
+                ...training[0],
+                content_html: sanitizeRichHtml(training[0].content_html),
+                media: media || [],
+            },
         });
     } catch (error) {
         if (error instanceof ParticipantError) {

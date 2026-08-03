@@ -6,11 +6,9 @@ import {
     ArrowLeft01Icon,
     UserCircleIcon,
     Tick01Icon,
-    Cancel01Icon,
     Book01Icon,
     Edit01Icon,
     AlertCircleIcon,
-    Award01Icon,
     Clock01Icon
 } from 'hugeicons-react';
 import { PageHeader } from '@/components/ui/PageHeader';

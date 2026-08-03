@@ -23,8 +23,6 @@ export default function EditParticipantPage() {
         gender: '',
         institution: ''
     });
-    const [error, setError] = useState<string | null>(null);
-
     useEffect(() => {
         const fetchParticipant = async () => {
             try {
@@ -46,7 +44,7 @@ export default function EditParticipantPage() {
                     throw new Error(result.error || 'Peserta tidak ditemukan');
                 }
             } catch (err: any) {
-                setError(err.message);
+                toast.error('Gagal memuat peserta', { description: err.message });
             } finally {
                 setIsFetching(false);
             }
@@ -58,7 +56,6 @@ export default function EditParticipantPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setError(null);
 
         try {
             const res = await fetch(`/api/admin/participants/${participantId}`, {

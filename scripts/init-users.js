@@ -2,6 +2,11 @@ const mysql = require('mysql2/promise');
 require('dotenv').config({ path: '.env.local' });
 
 async function setup() {
+    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+    if (!adminPassword || adminPassword.length < 12) {
+        throw new Error('DEFAULT_ADMIN_PASSWORD wajib diisi minimal 12 karakter sebelum menjalankan script ini.');
+    }
+
     const pool = mysql.createPool({
         host: process.env.DB_HOST,
         user: process.env.DB_USER,
@@ -15,22 +20,21 @@ async function setup() {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id VARCHAR(36) PRIMARY KEY,
-                username VARCHAR(50) UNIQUE NOT NULL,
+                username VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 full_name VARCHAR(100) NOT NULL,
-                role ENUM('admin', 'participant') NOT NULL DEFAULT 'participant',
+                role ENUM('admin', 'trainer', 'trainee') NOT NULL DEFAULT 'trainee',
+                reset_token VARCHAR(255) NULL,
+                reset_token_expires DATETIME NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             );
         `);
         console.log('Users table created or already exists.');
 
-        console.log('Inserting default admin user (admin / admin123)...');
-        // $2a$10$wT/3G.V6R.XmD5/J.n6y0O32cO./zT0F0vI0N3WqVqVqVqVqVqVq
-        // We will just use standard bcrypt hashing in JS, but since this is a quick setup, we can just insert a known hash for 'admin123'
-        // bcrypt hash for 'admin123' = $2b$10$nEqV6D7R.I19yP6.XW.yqO4HjD6T9/wT.w3P5X9N9/Q8.uN9.XN9O
+        console.log('Inserting default admin user from DEFAULT_ADMIN_PASSWORD...');
         const bcrypt = require('bcryptjs');
-        const hash = await bcrypt.hash('admin123', 10);
+        const hash = await bcrypt.hash(adminPassword, 10);
 
         await pool.query(`
             INSERT IGNORE INTO users (id, username, password_hash, full_name, role)

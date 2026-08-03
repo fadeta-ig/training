@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
-import { withAuth } from '@/lib/api-auth';
+import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { sendCredentialEmail } from '@/lib/email';
 import { logActivity } from '@/lib/audit';
 import logger from '@/lib/logger';
+import bcrypt from 'bcryptjs';
+import { checkRateLimit } from '@/lib/rate-limit';
 
-async function handlePost(request: NextRequest) {
+const SEND_CREDENTIALS_RATE_LIMIT = { windowMs: 60_000, maxRequests: 10 };
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
+    const blocked = checkRateLimit(request, { ...SEND_CREDENTIALS_RATE_LIMIT, identifier: authUser.id });
+    if (blocked) return blocked;
+
     try {
         const body = await request.json();
         const { username, password } = body;
@@ -14,9 +22,12 @@ async function handlePost(request: NextRequest) {
             return NextResponse.json({ success: false, error: 'Username dan password wajib disediakan' }, { status: 400 });
         }
 
-        // Optional: you can fetch user's full name to personalize it
+        if (!EMAIL_REGEX.test(username)) {
+            return NextResponse.json({ success: false, error: 'Format username harus berupa alamat email untuk menerima kredensial.' }, { status: 400 });
+        }
+
         const users = await executeQuery<any[]>(
-            `SELECT id, full_name FROM users WHERE username = ?`,
+            `SELECT id, full_name, password_hash FROM users WHERE username = ?`,
             [username]
         );
 
@@ -27,17 +38,14 @@ async function handlePost(request: NextRequest) {
         const user = users[0];
         const fullName = user.full_name || 'Peserta';
 
-        // Check valid email format before dispatching
-        const isEmailFormat = /\S+@\S+\.\S+/.test(username);
-        if (!isEmailFormat) {
-            return NextResponse.json({ success: false, error: 'Format username harus berupa alamat email untuk menerima kredensial.' }, { status: 400 });
+        const passwordMatches = await bcrypt.compare(String(password), user.password_hash);
+        if (!passwordMatches) {
+            return NextResponse.json({ success: false, error: 'Password tidak cocok dengan kredensial akun.' }, { status: 403 });
         }
 
-        // Memicu email dispatch
         await sendCredentialEmail(username, fullName, password);
 
-        // Audit Trail Action
-        await logActivity('admin', 'SEND_CREDENTIALS', 'users', user.id, {
+        await logActivity(authUser.id, 'SEND_CREDENTIALS', 'users', user.id, {
             info: 'New participant credentials sent proactively to user email.'
         });
 
@@ -49,5 +57,4 @@ async function handlePost(request: NextRequest) {
     }
 }
 
-// Ensure the endpoint is secured behind token authorization
-export const POST = withAuth(handlePost, { allowedRoles: ['admin', 'trainer'] });
+export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });

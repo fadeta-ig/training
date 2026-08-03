@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
     UserGroupIcon,
     PencilEdit02Icon,
     Delete02Icon,
     RefreshIcon,
     Alert02Icon,
-    PlusSignIcon,
     Search01Icon,
     CloudUploadIcon
 } from 'hugeicons-react';
@@ -19,8 +18,6 @@ import { ActionButton } from '@/components/ui/ActionButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useConfirm } from '@/hooks/useConfirm';
 import { Pagination } from '@/components/ui/Pagination';
-import { BulkImportModal } from './_components/BulkImportModal';
-import { FileExportIcon } from 'hugeicons-react';
 
 type User = {
     id: string;
@@ -37,10 +34,9 @@ export default function UsersManagerPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchUsers = async (targetPage = page, search = searchQuery) => {
+    const fetchUsers = useCallback(async (targetPage: number, search: string) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -60,11 +56,11 @@ export default function UsersManagerPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchUsers(page, searchQuery);
-    }, [page, searchQuery]);
+    }, [page, searchQuery, fetchUsers]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
@@ -106,12 +102,6 @@ export default function UsersManagerPage() {
                 actionHref="/admin/users/new"
                 onRefresh={() => fetchUsers(page, searchQuery)}
                 isRefreshing={isLoading}
-            />
-
-            <BulkImportModal 
-                isOpen={isImportModalOpen}
-                onClose={() => setIsImportModalOpen(false)}
-                onSuccess={() => fetchUsers(1, '')}
             />
 
             <div className="flex items-center gap-4 mb-4">

@@ -4,19 +4,24 @@ import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import logger from '@/lib/logger';
+import { validateMutationOrigin } from '@/lib/api-auth';
 
 /** Max 10 login attempts per minute per IP */
 const LOGIN_RATE_LIMIT = { windowMs: 60_000, maxRequests: 10, message: 'Terlalu banyak percobaan login. Coba lagi dalam 1 menit.' };
 
 export async function POST(request: NextRequest) {
+    const invalidOrigin = validateMutationOrigin(request);
+    if (invalidOrigin) return invalidOrigin;
+
     const blocked = checkRateLimit(request, LOGIN_RATE_LIMIT);
     if (blocked) return blocked;
 
     try {
         const body = await request.json();
-        const { username, password } = body;
+        const username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : '';
+        const password = typeof body.password === 'string' ? body.password : '';
 
-        if (!username || !password) {
+        if (!username || username.length > 255 || !password || password.length > 128) {
             return NextResponse.json(
                 { success: false, error: 'Username dan password wajib diisi' },
                 { status: 400 }

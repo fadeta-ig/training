@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, use, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import WebcamProctor from '@/components/proctor/WebcamProctor';
+import { useAntiCheat } from '@/hooks/useAntiCheat';
 import {
     ArrowLeft01Icon,
     Clock01Icon,
@@ -32,8 +33,6 @@ type ExamData = {
 
 export default function UjianPage({ params }: { params: Promise<{ id: string; examId: string }> }) {
     const { id: sessionId, examId } = use(params);
-    const router = useRouter();
-
     const [examData, setExamData] = useState<ExamData | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -50,6 +49,50 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const [timeLeft, setTimeLeft] = useState(0);
     const [result, setResult] = useState<{ score?: number; passed: boolean; earnedPoints?: number; totalPoints?: number; show_score?: boolean } | null>(null);
     const [isSeb, setIsSeb] = useState(false);
+
+    useAntiCheat(!!examData && !result && !error);
+
+    const handleAnswerChange = useCallback((questionId: string, value: string) => {
+        setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    }, []);
+
+    const handleProctorError = useCallback((message: string) => {
+        toast.error('Kamera proctoring tidak aktif', { description: message });
+    }, []);
+
+    const handleSubmit = useCallback(async () => {
+        if (!examData || submitting) return;
+        setSubmitting(true);
+
+        const payload = examData.questions.map((q) => ({
+            question_id: q.id,
+            selected_option: answersRef.current[q.id] || '',
+        }));
+
+        try {
+            const res = await fetch(`/api/participant/sessions/${sessionId}/exam/${examId}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answers: payload }),
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                setResult(data.data);
+                toast.success('Jawaban Ujian Berhasil Dikirim!');
+            } else {
+                const errMsg = data.error || 'Gagal mengirimkan jawaban ujian';
+                setError(errMsg);
+                toast.error('Gagal Mengirim Ujian', { description: errMsg });
+            }
+        } catch {
+            const errMsg = 'Kesalahan koneksi jaringan saat mengirimkan jawaban';
+            setError(errMsg);
+            toast.error('Kesalahan Jaringan', { description: errMsg });
+        } finally {
+            setSubmitting(false);
+        }
+    }, [examData, submitting, sessionId, examId]);
 
     useEffect(() => {
         if (typeof window !== 'undefined' && (
@@ -90,58 +133,20 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
     // Rock-solid Timer Interval
     useEffect(() => {
-        if (timeLeft <= 0 || result || !examData) return;
+        if (timeLeft <= 0 || result || error || !examData) return;
         const timer = setInterval(() => {
-            setTimeLeft((prev) => prev - 1);
+            setTimeLeft((prev) => Math.max(0, prev - 1));
         }, 1000);
         return () => clearInterval(timer);
-    }, [result, examData]); // Only rebind if result/examData changes
+    }, [timeLeft, result, error, examData]);
 
     // Auto-submit monitor
     useEffect(() => {
-        if (examData && timeLeft <= 0 && !result && !submitting && timeLeft !== null) {
+        if (examData && timeLeft <= 0 && !result && !error && !submitting) {
             // Waktu habis
             handleSubmit();
         }
-    }, [timeLeft, examData, result, submitting]);
-
-    const handleAnswerChange = useCallback((questionId: string, value: string) => {
-        setAnswers((prev) => ({ ...prev, [questionId]: value }));
-    }, []);
-
-    const handleSubmit = useCallback(async () => {
-        if (!examData || submitting) return;
-        setSubmitting(true);
-
-        const payload = examData.questions.map((q) => ({
-            question_id: q.id,
-            selected_option: answersRef.current[q.id] || '',
-        }));
-
-        try {
-            const res = await fetch(`/api/participant/sessions/${sessionId}/exam/${examId}/submit`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ answers: payload }),
-            });
-
-            const data = await res.json();
-            if (data.success) {
-                setResult(data.data);
-                toast.success('Jawaban Ujian Berhasil Dikirim!');
-            } else {
-                const errMsg = data.error || 'Gagal mengirimkan jawaban ujian';
-                setError(errMsg);
-                toast.error('Gagal Mengirim Ujian', { description: errMsg });
-            }
-        } catch {
-            const errMsg = 'Kesalahan koneksi jaringan saat mengirimkan jawaban';
-            setError(errMsg);
-            toast.error('Kesalahan Jaringan', { description: errMsg });
-        } finally {
-            setSubmitting(false);
-        }
-    }, [examData, submitting, sessionId, examId]);
+    }, [timeLeft, examData, result, error, submitting, handleSubmit]);
 
     const formatTime = (s: number) => {
         const mins = Math.floor(s / 60);
@@ -261,6 +266,12 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
     return (
         <div className="max-w-3xl mx-auto space-y-6 pb-12">
+            <WebcamProctor
+                sessionId={sessionId}
+                isActive={!!examData && !result && !error}
+                onError={handleProctorError}
+            />
+
             {/* Timer Bar */}
             <div className="glass-card p-4 flex items-center justify-between sticky top-0 z-20">
                 <div>

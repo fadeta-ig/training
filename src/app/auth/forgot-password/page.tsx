@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
             } else {
                 setError(data.error || 'Terjadi kesalahan. Coba lagi.');
             }
-        } catch (err) {
+        } catch {
             setError('Gagal terhubung ke server.');
         } finally {
             setIsLoading(false);

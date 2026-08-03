@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
     CubeIcon,
     PencilEdit02Icon,
@@ -34,7 +34,7 @@ export default function ModulesManagerPage() {
     const [totalPages, setTotalPages] = useState(1);
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchModules = async (targetPage = page) => {
+    const fetchModules = useCallback(async (targetPage: number) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -54,11 +54,11 @@ export default function ModulesManagerPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchModules(page);
-    }, [page]);
+    }, [page, fetchModules]);
 
     useEffect(() => {
         fetch('/api/auth/me').then(res => res.json()).then(data => {
@@ -97,7 +97,7 @@ export default function ModulesManagerPage() {
                 icon={<CubeIcon size={28} className="text-muted-foreground" />}
                 actionLabel={userRole === 'admin' ? "Rakit Modul Baru" : undefined}
                 actionHref={userRole === 'admin' ? "/admin/modules/new" : undefined}
-                onRefresh={fetchModules}
+                onRefresh={() => fetchModules(page)}
                 isRefreshing={isLoading}
             />
 

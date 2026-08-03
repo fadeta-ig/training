@@ -18,7 +18,7 @@ import {
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { CertificateTemplate } from '@/app/dashboard/_components/CertificateTemplate';
-import AlertCustom, { useAlert } from '@/app/dashboard/_components/AlertCustom';
+import { useAlert } from '@/app/dashboard/_components/AlertCustom';
 
 type ModuleItem = {
     module_item_id: string;

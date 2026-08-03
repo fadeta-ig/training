@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { PlusSignIcon, Calendar02Icon, Time02Icon, SecurityLockIcon, PencilEdit01Icon, Delete02Icon, ViewIcon, ViewOffIcon } from 'hugeicons-react';
+import { Calendar02Icon, Time02Icon, SecurityLockIcon, PencilEdit01Icon, Delete02Icon, ViewIcon, ViewOffIcon } from 'hugeicons-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -69,7 +68,7 @@ export default function SessionsPage() {
             } else {
                 toast.error('Gagal menghapus sesi');
             }
-        } catch (error) {
+        } catch {
             toast.error('Terjadi kesalahan saat menghapus sesi');
         }
     };

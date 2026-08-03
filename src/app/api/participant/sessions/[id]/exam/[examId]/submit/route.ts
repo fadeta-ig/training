@@ -3,7 +3,13 @@ import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '@/lib/db';
-import { verifyEnrollment, validateSessionTiming, validateSebAccess, ParticipantError } from '@/lib/participant-helpers';
+import {
+    getSessionModuleItem,
+    verifyEnrollment,
+    validateSessionTiming,
+    validateSebAccess,
+    ParticipantError,
+} from '@/lib/participant-helpers';
 import { checkRateLimit } from '@/lib/rate-limit';
 import logger from '@/lib/logger';
 
@@ -12,6 +18,8 @@ const SUBMIT_RATE_LIMIT = { windowMs: 60_000, maxRequests: 5 };
 
 /** Grace period: allow submission up to 5 minutes after session ends */
 const LATE_GRACE_MS = 5 * 60 * 1000;
+/** Small network grace after exam duration expires. */
+const EXAM_DURATION_GRACE_MS = 30 * 1000;
 
 /**
  * POST /api/participant/sessions/[id]/exam/[examId]/submit
@@ -22,7 +30,7 @@ async function handlePost(
     user: AuthenticatedUser,
     context: { params: Promise<{ id: string; examId: string }> }
 ) {
-    const blocked = checkRateLimit(request, SUBMIT_RATE_LIMIT);
+    const blocked = checkRateLimit(request, { ...SUBMIT_RATE_LIMIT, identifier: user.id });
     if (blocked) return blocked;
 
     let connection;
@@ -34,9 +42,12 @@ async function handlePost(
         if (!answers || !Array.isArray(answers)) {
             return NextResponse.json({ success: false, error: 'Jawaban tidak valid' }, { status: 400 });
         }
+        if (answers.length > 1000) {
+            return NextResponse.json({ success: false, error: 'Jumlah jawaban melebihi batas' }, { status: 400 });
+        }
 
         await verifyEnrollment(sessionId, user.id);
-        const { session, isActive, isUpcoming, isEnded } = await validateSessionTiming(sessionId);
+        const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId);
 
         // Enforce session timing — block if session hasn't started
         if (isUpcoming) {
@@ -60,6 +71,7 @@ async function handlePost(
 
         // Enforce SEB if required
         validateSebAccess(request, session);
+        const sessionModuleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
 
         // Fetch all questions for grading
         const questions = await executeQuery<any[]>(
@@ -69,10 +81,31 @@ async function handlePost(
         );
 
         const questionMap = new Map(questions.map((q: any) => [q.id, q]));
+        const submittedQuestionIds = new Set<string>();
+
+        if (answers.length > questions.length) {
+            return NextResponse.json({ success: false, error: 'Jumlah jawaban tidak valid' }, { status: 400 });
+        }
+
+        for (const answer of answers) {
+            if (!answer || typeof answer.question_id !== 'string' || typeof answer.selected_option !== 'string') {
+                return NextResponse.json({ success: false, error: 'Format jawaban tidak valid' }, { status: 400 });
+            }
+            if (answer.question_id.length > 100 || answer.selected_option.length > 20_000) {
+                return NextResponse.json({ success: false, error: 'Ukuran jawaban melebihi batas' }, { status: 400 });
+            }
+            if (!questionMap.has(answer.question_id)) {
+                return NextResponse.json({ success: false, error: 'Jawaban mengandung soal yang tidak valid' }, { status: 400 });
+            }
+            if (submittedQuestionIds.has(answer.question_id)) {
+                return NextResponse.json({ success: false, error: 'Jawaban duplikat terdeteksi' }, { status: 400 });
+            }
+            submittedQuestionIds.add(answer.question_id);
+        }
 
         // Fetch exam rules (passing grade, max attempts, remedial permission)
         const exam = await executeQuery<any[]>(
-            `SELECT passing_grade, max_attempts, allow_remedial FROM exams WHERE id = ?`,
+            `SELECT passing_grade, max_attempts, allow_remedial, duration_minutes FROM exams WHERE id = ?`,
             [examId]
         );
         const passingGrade = exam?.[0]?.passing_grade || 70;
@@ -85,23 +118,42 @@ async function handlePost(
 
             // Get attempt number and apply Row-Level Lock to prevent race condition (Lost Update)
             const [progressRes] = await connection.execute<any[]>(
-                `SELECT up.id, up.attempts_count 
-                 FROM user_progress up
-                 JOIN module_items mi ON up.module_item_id = mi.id
-                 WHERE up.user_id = ? AND up.session_id = ? AND mi.item_type = 'exam' AND mi.item_id = ?
-                 FOR UPDATE`,
-                [user.id, sessionId, examId]
+                `SELECT id, attempts_count, last_attempt_start, status, score
+                 FROM user_progress
+                 WHERE user_id = ? AND session_id = ? AND module_item_id = ?
+                  FOR UPDATE`,
+                [user.id, sessionId, sessionModuleItem.id]
             );
             let attemptNumber = 1;
-            let progressId = null;
+            let progressId: string | null = null;
 
-            if (progressRes && progressRes.length > 0) {
-                attemptNumber = (progressRes[0].attempts_count || 0) + 1;
-                progressId = progressRes[0].id;
+            if (!progressRes || progressRes.length === 0 || !progressRes[0].last_attempt_start) {
+                await connection.rollback();
+                return NextResponse.json(
+                    { success: false, error: 'Attempt ujian belum dimulai dari halaman ujian.' },
+                    { status: 403 }
+                );
             }
 
-            // Enforce max attempts limit unless remedial is allowed
-            if (attemptNumber > maxAttempts && !allowRemedial) {
+            const progressRow = progressRes[0];
+            attemptNumber = (progressRow.attempts_count || 0) + 1;
+            progressId = progressRow.id;
+
+            const previousScore = Number(progressRow.score ?? 0);
+            const canRetake = progressRow.status === 'completed'
+                && allowRemedial
+                && previousScore < Number(passingGrade)
+                && Number(progressRow.attempts_count || 0) < Number(maxAttempts);
+
+            if (progressRow.status === 'completed' && !canRetake) {
+                await connection.rollback();
+                return NextResponse.json(
+                    { success: false, error: 'Ujian sudah diselesaikan.' },
+                    { status: 403 }
+                );
+            }
+
+            if (attemptNumber > maxAttempts) {
                 await connection.rollback();
                 return NextResponse.json(
                     {
@@ -112,13 +164,29 @@ async function handlePost(
                 );
             }
 
+            const attemptStartedAt = new Date(progressRow.last_attempt_start).getTime();
+            const durationMs = Number(exam?.[0]?.duration_minutes || 0) * 60 * 1000;
+            if (durationMs > 0 && Date.now() - attemptStartedAt > durationMs + EXAM_DURATION_GRACE_MS) {
+                await connection.rollback();
+                return NextResponse.json(
+                    { success: false, error: 'Durasi ujian telah habis.' },
+                    { status: 400 }
+                );
+            }
+
             // Delete existing answers only for the current attempt (allows resume-then-submit flow safely)
             await connection.execute(
-                `DELETE FROM exam_answers WHERE user_id = ? AND session_id = ? AND attempt_number = ?`,
-                [user.id, sessionId, attemptNumber]
+                `DELETE ea
+                 FROM exam_answers ea
+                 INNER JOIN questions q ON q.id = ea.question_id
+                 WHERE ea.user_id = ?
+                   AND ea.session_id = ?
+                   AND ea.attempt_number = ?
+                   AND q.exam_id = ?`,
+                [user.id, sessionId, attemptNumber, examId]
             );
 
-            let totalPoints = 0;
+            const totalPoints = questions.reduce((sum: number, q: any) => sum + (Number(q.points) || 1), 0);
             let earnedPoints = 0;
 
             const answerValues: any[] = [];
@@ -127,8 +195,6 @@ async function handlePost(
             for (const answer of answers) {
                 const q = questionMap.get(answer.question_id);
                 if (!q) continue;
-
-                totalPoints += q.points || 1;
 
                 let isCorrect = false;
 
@@ -140,7 +206,9 @@ async function handlePost(
                     case 'multiple_select': {
                         const parsed = typeof q.options_json === 'string' ? JSON.parse(q.options_json) : q.options_json;
                         const correctIndices = (parsed?.correct_indices || []).sort().join(',');
-                        const selectedIndices = answer.selected_option.split(',').map(Number).sort().join(',');
+                        const selectedIndices = answer.selected_option.trim()
+                            ? answer.selected_option.split(',').map(Number).sort().join(',')
+                            : '';
                         isCorrect = correctIndices === selectedIndices;
                         break;
                     }
@@ -194,28 +262,12 @@ async function handlePost(
             const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
             const passed = score >= passingGrade;
 
-            // Update user_progress for this exam module_item
-            const [moduleItem] = await connection.execute<any[]>(
-                `SELECT mi.id FROM module_items mi
-                 JOIN sessions s ON s.module_id = mi.module_id
-                 WHERE s.id = ? AND mi.item_type = 'exam' AND mi.item_id = ?`,
-                [sessionId, examId]
+            await connection.execute(
+                `UPDATE user_progress
+                 SET status = 'completed', score = ?, attempts_count = attempts_count + 1, last_attempt_start = NULL
+                 WHERE id = ?`,
+                [score, progressId]
             );
-
-            if (moduleItem && moduleItem.length > 0) {
-                if (progressId) {
-                    await connection.execute(
-                        `UPDATE user_progress SET status = 'completed', score = ?, attempts_count = attempts_count + 1, last_attempt_start = NULL WHERE id = ?`,
-                        [score, progressId]
-                    );
-                } else {
-                    await connection.execute(
-                        `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status, score, attempts_count)
-                         VALUES (?, ?, ?, ?, 'completed', ?, 1)`,
-                        [uuidv4(), user.id, sessionId, moduleItem[0].id, score]
-                    );
-                }
-            }
 
             await connection.commit();
 

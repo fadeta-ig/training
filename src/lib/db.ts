@@ -19,7 +19,6 @@ const poolConfig: PoolOptions = {
 };
 
 declare global {
-  // eslint-disable-next-line no-var
   var __dbPool: Pool | undefined;
 }
 
@@ -48,7 +47,7 @@ const pool = getPool();
  */
 export async function executeQuery<T>(
   query: string,
-  values: (string | number | boolean | null)[] = [],
+  values: (string | number | boolean | Date | Buffer | null)[] = [],
 ): Promise<T> {
   try {
     const [results] = await pool.execute(query, values);

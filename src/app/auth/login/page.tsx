@@ -39,7 +39,7 @@ export default function LoginPage() {
             } else {
                 setError(result.error || 'Login gagal');
             }
-        } catch (err: any) {
+        } catch {
             setError('Terjadi kesalahan koneksi');
         } finally {
             setIsLoading(false);

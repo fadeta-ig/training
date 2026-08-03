@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
     UserGroupIcon,
@@ -38,7 +38,7 @@ export default function ParticipantsManagerPage() {
     const [userRole, setUserRole] = useState<string>('');
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchParticipants = async (targetPage = page, search = searchQuery) => {
+    const fetchParticipants = useCallback(async (targetPage: number, search: string) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -58,11 +58,11 @@ export default function ParticipantsManagerPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchParticipants(page, searchQuery);
-    }, [page, searchQuery]);
+    }, [page, searchQuery, fetchParticipants]);
 
     useEffect(() => {
         fetch('/api/auth/me').then(res => res.json()).then(data => {

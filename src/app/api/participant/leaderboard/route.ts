@@ -6,7 +6,7 @@ import { withAuth } from '@/lib/api-auth';
  * GET /api/participant/leaderboard
  * Calculate ranking points based on training completions and exam high scores
  */
-async function handleGet(request: NextRequest) {
+async function handleGet(_request: NextRequest) {
     try {
         const query = `
             SELECT 

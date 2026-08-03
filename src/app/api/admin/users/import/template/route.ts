@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
+import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api-auth';
 import logger from '@/lib/logger';
+import { objectsToCsv } from '@/lib/csv';
 
 async function handleGet() {
     try {
@@ -24,28 +24,20 @@ async function handleGet() {
             }
         ];
 
-        const worksheet = XLSX.utils.json_to_sheet(sampleData);
+        const csv = objectsToCsv(sampleData, [
+            'Nama Lengkap',
+            'Email Aktif (Username)',
+            'Role (admin/trainer)',
+            'Password (opsional)',
+            'No HP',
+            'Institusi',
+        ]);
 
-        // Adjust column widths for readability
-        worksheet['!cols'] = [
-            { wch: 25 }, // Nama Lengkap
-            { wch: 32 }, // Email Aktif (Username)
-            { wch: 22 }, // Role
-            { wch: 24 }, // Password
-            { wch: 18 }, // No HP
-            { wch: 25 }, // Institusi
-        ];
-
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Template Import Pengguna');
-
-        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-        return new NextResponse(buffer, {
+        return new NextResponse(csv, {
             status: 200,
             headers: {
-                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition': 'attachment; filename="Template_Import_Pengguna_LMS.xlsx"',
+                'Content-Type': 'text/csv; charset=utf-8',
+                'Content-Disposition': 'attachment; filename="Template_Import_Pengguna_LMS.csv"',
             },
         });
     } catch (error: any) {

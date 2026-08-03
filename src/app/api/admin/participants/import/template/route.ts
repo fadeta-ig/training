@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
+import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api-auth';
 import logger from '@/lib/logger';
+import { objectsToCsv } from '@/lib/csv';
 
 async function handleGet() {
     try {
@@ -26,29 +26,21 @@ async function handleGet() {
             }
         ];
 
-        const worksheet = XLSX.utils.json_to_sheet(sampleData);
+        const csv = objectsToCsv(sampleData, [
+            'Nama Lengkap',
+            'Email Aktif',
+            'No HP',
+            'Institusi',
+            'Tanggal Lahir (YYYY-MM-DD)',
+            'Jenis Kelamin (L/P)',
+            'Alamat',
+        ]);
 
-        // Adjust column widths for easy reading
-        worksheet['!cols'] = [
-            { wch: 25 }, // Nama Lengkap
-            { wch: 32 }, // Email Aktif
-            { wch: 18 }, // No HP
-            { wch: 25 }, // Institusi
-            { wch: 25 }, // Tanggal Lahir
-            { wch: 20 }, // Jenis Kelamin
-            { wch: 35 }, // Alamat
-        ];
-
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Template Import Peserta');
-
-        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-        return new NextResponse(buffer, {
+        return new NextResponse(csv, {
             status: 200,
             headers: {
-                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition': 'attachment; filename="Template_Import_Peserta_LMS.xlsx"',
+                'Content-Type': 'text/csv; charset=utf-8',
+                'Content-Disposition': 'attachment; filename="Template_Import_Peserta_LMS.csv"',
             },
         });
     } catch (error: any) {

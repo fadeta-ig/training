@@ -5,8 +5,8 @@ import { z } from 'zod';
 import { withAuth } from '@/lib/api-auth';
 
 const userUpdateSchema = z.object({
-    username: z.string().min(3, 'Username minimal 3 karakter').max(50),
-    password: z.string().min(6, 'Password minimal 6 karakter').optional().or(z.literal('')),
+    username: z.string().min(3, 'Username minimal 3 karakter').max(255),
+    password: z.string().min(8, 'Password minimal 8 karakter').optional().or(z.literal('')),
     full_name: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(100),
     role: z.enum(['admin', 'trainer'])
 });

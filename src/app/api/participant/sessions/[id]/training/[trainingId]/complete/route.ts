@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { v4 as uuidv4 } from 'uuid';
-import { verifyEnrollment, validateSessionTiming, ParticipantError } from '@/lib/participant-helpers';
+import {
+    assertCurrentItemAccessible,
+    getSessionModuleItem,
+    verifyEnrollment,
+    validateSessionTiming,
+    ParticipantError,
+} from '@/lib/participant-helpers';
 
 /**
  * POST /api/participant/sessions/[id]/training/[trainingId]/complete
@@ -24,17 +30,9 @@ async function handlePost(
             return NextResponse.json({ success: false, error: 'Sesi tidak aktif' }, { status: 400 });
         }
 
-        // Find corresponding module_item
-        const moduleItem = await executeQuery<any[]>(
-            `SELECT id, sequence_order FROM module_items
-             WHERE module_id = ? AND item_type = 'training' AND item_id = ?`,
-            [session.module_id, trainingId]
-        );
-        if (!moduleItem || moduleItem.length === 0) {
-            return NextResponse.json({ success: false, error: 'Item materi tidak ditemukan di modul' }, { status: 404 });
-        }
-
-        const moduleItemId = moduleItem[0].id;
+        const moduleItem = await getSessionModuleItem(session.module_id, 'training', trainingId);
+        await assertCurrentItemAccessible(sessionId, user.id, session, moduleItem, true);
+        const moduleItemId = moduleItem.id;
 
         // Check if already completed
         const existing = await executeQuery<any[]>(

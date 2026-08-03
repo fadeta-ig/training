@@ -150,7 +150,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                         <label className="text-sm font-bold text-foreground">Password Baru</label>
                         <input
                             type="password"
-                            minLength={6}
+                            minLength={8}
                             className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
                             placeholder="Biarkan kosong jika tidak ingin mengubah"
                             value={formData.password}

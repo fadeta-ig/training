@@ -84,7 +84,7 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                 } else {
                     setError('Sesi tidak ditemukan atau gagal dimuat');
                 }
-            } catch (err) {
+            } catch {
                 console.error("Failed to fetch reference data");
                 setError('Kesalahan jaringan saat memuat data referensi');
             } finally {

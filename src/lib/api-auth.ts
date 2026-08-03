@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
+import { executeQuery } from '@/lib/db';
 
 export type AuthRole = 'admin' | 'trainer' | 'trainee';
 
@@ -16,8 +17,45 @@ interface AuthOptions {
     skipCsrf?: boolean;
 }
 
-/** Allowed origins for CSRF protection. */
-const ALLOWED_ORIGIN = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+function normalizeOrigin(value: string | null | undefined): string | null {
+    if (!value) return null;
+    try {
+        return new URL(value).origin;
+    } catch {
+        return null;
+    }
+}
+
+function getAllowedOrigins(request: NextRequest): Set<string> {
+    const origins = new Set<string>();
+    const envOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
+
+    if (envOrigin) {
+        origins.add(envOrigin);
+        return origins;
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+        const requestOrigin = normalizeOrigin(request.nextUrl.origin);
+        if (requestOrigin) origins.add(requestOrigin);
+    }
+
+    return origins;
+}
+
+export function validateMutationOrigin(request: NextRequest): NextResponse | null {
+    const origin = normalizeOrigin(request.headers.get('origin'));
+    const allowedOrigins = getAllowedOrigins(request);
+
+    if (!origin || !allowedOrigins.has(origin)) {
+        return NextResponse.json(
+            { success: false, error: 'Request origin tidak diizinkan' },
+            { status: 403 }
+        );
+    }
+
+    return null;
+}
 
 /**
  * Higher-order function to protect API routes with JWT authentication.
@@ -39,62 +77,61 @@ export function withAuth(
     options: AuthOptions = {}
 ) {
     return async (request: NextRequest, context?: any): Promise<NextResponse> => {
-        try {
-            // CSRF Protection: validate Origin header on mutation methods
-            const method = request.method.toUpperCase();
-            const isMutation = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+        // CSRF Protection: validate Origin header on mutation methods
+        const method = request.method.toUpperCase();
+        const isMutation = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
 
-            if (isMutation && !options.skipCsrf) {
-                const origin = request.headers.get('origin');
-                if (origin && !origin.startsWith(ALLOWED_ORIGIN)) {
-                    return NextResponse.json(
-                        { success: false, error: 'Request origin tidak diizinkan' },
-                        { status: 403 }
-                    );
-                }
-            }
+        if (isMutation && !options.skipCsrf) {
+            const invalidOrigin = validateMutationOrigin(request);
+            if (invalidOrigin) return invalidOrigin;
+        }
 
-            const token = request.cookies.get('training_session')?.value;
+        const token = request.cookies.get('training_session')?.value;
 
-            if (!token) {
-                return NextResponse.json(
-                    { success: false, error: 'Autentikasi diperlukan' },
-                    { status: 401 }
-                );
-            }
-
-            const payload = await verifyToken(token);
-
-            if (!payload || !payload.sub) {
-                return NextResponse.json(
-                    { success: false, error: 'Token tidak valid atau kedaluwarsa' },
-                    { status: 401 }
-                );
-            }
-
-            const user: AuthenticatedUser = {
-                id: payload.sub,
-                username: payload.username,
-                role: payload.role as AuthRole,
-            };
-
-            // Role-based access control
-            if (options.allowedRoles && options.allowedRoles.length > 0) {
-                if (!options.allowedRoles.includes(user.role)) {
-                    return NextResponse.json(
-                        { success: false, error: 'Anda tidak memiliki akses ke resource ini' },
-                        { status: 403 }
-                    );
-                }
-            }
-
-            return handler(request, user, context);
-        } catch (error) {
+        if (!token) {
             return NextResponse.json(
-                { success: false, error: 'Kesalahan autentikasi' },
+                { success: false, error: 'Autentikasi diperlukan' },
                 { status: 401 }
             );
         }
+
+        const payload = await verifyToken(token);
+        if (!payload || !payload.sub) {
+            return NextResponse.json(
+                { success: false, error: 'Token tidak valid atau kedaluwarsa' },
+                { status: 401 }
+            );
+        }
+
+        let currentUsers: Array<{ id: string; username: string; role: AuthRole }>;
+        try {
+            currentUsers = await executeQuery(
+                `SELECT id, username, role FROM users WHERE id = ? LIMIT 1`,
+                [payload.sub],
+            );
+        } catch {
+            return NextResponse.json(
+                { success: false, error: 'Layanan autentikasi sementara tidak tersedia' },
+                { status: 503 }
+            );
+        }
+
+        const user = currentUsers[0];
+        if (!user || !['admin', 'trainer', 'trainee'].includes(user.role)) {
+            return NextResponse.json(
+                { success: false, error: 'Akun tidak aktif atau tidak ditemukan' },
+                { status: 401 }
+            );
+        }
+
+        if (options.allowedRoles?.length && !options.allowedRoles.includes(user.role)) {
+            return NextResponse.json(
+                { success: false, error: 'Anda tidak memiliki akses ke resource ini' },
+                { status: 403 }
+            );
+        }
+
+        return handler(request, user, context);
     };
 }
 

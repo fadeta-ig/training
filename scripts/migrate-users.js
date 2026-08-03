@@ -2,6 +2,11 @@ const mysql = require('mysql2/promise');
 require('dotenv').config({ path: '.env.local' });
 
 async function run() {
+    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+    if (!adminPassword || adminPassword.length < 12) {
+        throw new Error('DEFAULT_ADMIN_PASSWORD wajib diisi minimal 12 karakter sebelum menjalankan script ini.');
+    }
+
     const pool = mysql.createPool({
         host: process.env.DB_HOST || 'localhost',
         user: process.env.DB_USER || 'root',
@@ -31,7 +36,7 @@ async function run() {
 
         console.log('Seeding default administrator...');
         const bcrypt = require('bcryptjs');
-        const hash = await bcrypt.hash('admin123', 10);
+        const hash = await bcrypt.hash(adminPassword, 10);
         // Use REPLACE to overwrite the dummy admin with correct password hash format if it was generated incorrectly before
         await pool.query('REPLACE INTO users (id, username, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)', ['admin-uuid-001', 'admin', hash, 'Administrator Sistem', 'admin']);
 

@@ -4,6 +4,12 @@ import { withAuth } from '@/lib/api-auth';
 import { escapeHtml } from '@/lib/sanitize';
 import logger from '@/lib/logger';
 
+function excelSafeHtml(value: unknown): string {
+    const text = value === null || value === undefined ? '' : String(value);
+    const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+    return escapeHtml(safeText);
+}
+
 export const GET = withAuth(async (
     request: NextRequest,
     user,
@@ -36,14 +42,16 @@ export const GET = withAuth(async (
         `;
         
         const results = await executeQuery<any[]>(q, [sessionId]);
-        const sessionTitle = results.length > 0 ? results[0].session_title : 'Sesi Ujian';
-        const currentDate = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+        const sessionTitle = excelSafeHtml(results.length > 0 ? results[0].session_title : 'Sesi Ujian');
+        const safeSessionId = excelSafeHtml(sessionId);
+        const safeFilenameId = sessionId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const currentDate = excelSafeHtml(new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' }));
 
         let htmlRows = '';
         if (results && results.length > 0) {
             results.forEach((row, index) => {
-                const name = escapeHtml(row.full_name) || '-';
-                const username = escapeHtml(row.username) || '-';
+                const name = excelSafeHtml(row.full_name) || '-';
+                const username = excelSafeHtml(row.username) || '-';
                 
                 let statusStr = 'BELUM';
                 let statusColor = '#64748b'; // slate-500
@@ -57,7 +65,7 @@ export const GET = withAuth(async (
 
                 const scoreStr = row.score !== null ? row.score : '-';
                 const attemptsStr = row.attempts_count || '0';
-                const dateStr = row.updated_at ? new Date(row.updated_at).toLocaleString('id-ID') : '-';
+                const dateStr = row.updated_at ? excelSafeHtml(new Date(row.updated_at).toLocaleString('id-ID')) : '-';
                 
                 htmlRows += `
                 <tr>
@@ -90,7 +98,7 @@ export const GET = withAuth(async (
         <body>
             <table>
                 <tr><td colspan="7" class="title-row" style="height: 40px; vertical-align: middle; padding-left: 10px;">Laporan Hasil Sesi: ${sessionTitle}</td></tr>
-                <tr><td colspan="7" class="meta-row">ID Sesi: ${sessionId}</td></tr>
+                <tr><td colspan="7" class="meta-row">ID Sesi: ${safeSessionId}</td></tr>
                 <tr><td colspan="7" class="meta-row">Diunduh pada: ${currentDate}</td></tr>
                 <tr><td colspan="7"></td></tr>
                 <tr>
@@ -112,7 +120,7 @@ export const GET = withAuth(async (
             status: 200,
             headers: {
                 'Content-Type': 'application/vnd.ms-excel',
-                'Content-Disposition': `attachment; filename="Laporan_Sesi_${sessionId}.xls"`,
+                'Content-Disposition': `attachment; filename="Laporan_Sesi_${safeFilenameId}.xls"`,
             },
         });
 

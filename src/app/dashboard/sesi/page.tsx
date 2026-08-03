@@ -3,11 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-    RocketIcon,
     LockIcon,
-    Tick01Icon,
-    PlayIcon,
-    Clock01Icon,
     Calendar01Icon,
     BookOpen01Icon,
     ArrowRight01Icon,

@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, PencilEdit01Icon, Logout01Icon, Download01Icon, MailSend01Icon, AlertCircleIcon, Cancel01Icon, ViewIcon, ViewOffIcon } from 'hugeicons-react';
+import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, Logout01Icon, Download01Icon, MailSend01Icon, ViewIcon, ViewOffIcon } from 'hugeicons-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -53,7 +53,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                 } else {
                     setError('Terjadi kesalahan saat memuat data sesi.');
                 }
-            } catch (err) {
+            } catch {
                 setError('Masalah koneksi jaringan.');
             } finally {
                 setLoading(false);
@@ -64,7 +64,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                 const res = await fetch('/api/auth/me');
                 const data = await res.json();
                 if (data.success) { setUserRole(data.data.role); }
-            } catch (err) {}
+            } catch {}
         };
         fetchSession();
         fetchRole();

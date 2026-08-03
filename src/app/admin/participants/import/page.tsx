@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import * as XLSX from 'xlsx';
 import {
     CloudUploadIcon,
     Download01Icon,
@@ -13,12 +11,11 @@ import {
     Key01Icon,
     MailSend01Icon,
     RefreshIcon,
-    Copy01Icon,
-    FilterIcon,
     UserGroupIcon
 } from 'hugeicons-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
+import { objectsToCsv, parseCsvToObjects } from '@/lib/csv';
 
 interface ParsedRow {
     index: number;
@@ -46,7 +43,6 @@ interface FailedResult {
 }
 
 export default function BulkImportParticipantsPage() {
-    const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -77,91 +73,85 @@ export default function BulkImportParticipantsPage() {
         processFile(file);
     };
 
-    const processFile = (file: File) => {
+    const processFile = async (file: File) => {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            toast.error('Format file tidak didukung. Gunakan file .csv dari template sistem.');
+            return;
+        }
+
         setFileName(file.name);
-        const reader = new FileReader();
+        try {
+            const data = parseCsvToObjects(await file.text());
 
-        reader.onload = (evt) => {
-            try {
-                const bstr = evt.target?.result;
-                const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
-                const wsname = wb.SheetNames[0];
-                const ws = wb.Sheets[wsname];
-                const data: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            if (!data || data.length === 0) {
+                toast.error('File kosong atau format tidak sesuai');
+                return;
+            }
 
-                if (!data || data.length === 0) {
-                    toast.error('File kosong atau format tidak sesuai');
-                    return;
-                }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const seenEmails = new Set<string>();
 
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                const seenEmails = new Set<string>();
-
-                const rows: ParsedRow[] = data.map((item, idx) => {
-                    // Normalize keys (case insensitive / trimmed)
-                    const normalized: Record<string, string> = {};
-                    Object.keys(item).forEach(key => {
-                        const cleanKey = key.trim().toLowerCase();
-                        normalized[cleanKey] = String(item[key]).trim();
-                    });
-
-                    const name = normalized['nama lengkap'] || normalized['nama'] || normalized['name'] || '';
-                    const email = (normalized['email aktif'] || normalized['email'] || '').toLowerCase();
-                    const phone_number = normalized['no hp'] || normalized['telepon'] || normalized['phone'] || '';
-                    const institution = normalized['institusi'] || normalized['instansi'] || normalized['institution'] || '';
-
-                    let date_of_birth = normalized['tanggal lahir (yyyy-mm-dd)'] || normalized['tanggal lahir'] || normalized['date_of_birth'] || '';
-                    if (date_of_birth && date_of_birth.includes('T')) {
-                        date_of_birth = date_of_birth.split('T')[0];
-                    }
-
-                    let gender = (normalized['jenis kelamin (l/p)'] || normalized['jenis kelamin'] || normalized['gender'] || '').toUpperCase();
-                    if (gender !== 'L' && gender !== 'P') {
-                        gender = '';
-                    }
-
-                    const address = normalized['alamat'] || normalized['address'] || '';
-
-                    let isValid = true;
-                    let errorReason = '';
-
-                    if (!name || name.length < 3) {
-                        isValid = false;
-                        errorReason = 'Nama lengkap minimal 3 karakter';
-                    } else if (!email || !emailRegex.test(email)) {
-                        isValid = false;
-                        errorReason = 'Format email tidak valid';
-                    } else if (seenEmails.has(email)) {
-                        isValid = false;
-                        errorReason = 'Duplikasi email dalam file';
-                    } else {
-                        seenEmails.add(email);
-                    }
-
-                    return {
-                        index: idx + 1,
-                        name,
-                        email,
-                        phone_number,
-                        institution,
-                        date_of_birth,
-                        gender,
-                        address,
-                        isValid,
-                        errorReason,
-                    };
+            const rows: ParsedRow[] = data.map((item, idx) => {
+                const normalized: Record<string, string> = {};
+                Object.keys(item).forEach(key => {
+                    const cleanKey = key.trim().toLowerCase();
+                    normalized[cleanKey] = String(item[key]).trim();
                 });
 
-                setParsedRows(rows);
-                setStep(2);
-                toast.success(`Berhasil membaca ${rows.length} baris data dari file`);
-            } catch (err: any) {
-                console.error(err);
-                toast.error('Gagal membaca file Excel/CSV. Pastikan format file sesuai.');
-            }
-        };
+                const name = normalized['nama lengkap'] || normalized['nama'] || normalized['name'] || '';
+                const email = (normalized['email aktif'] || normalized['email'] || '').toLowerCase();
+                const phone_number = normalized['no hp'] || normalized['telepon'] || normalized['phone'] || '';
+                const institution = normalized['institusi'] || normalized['instansi'] || normalized['institution'] || '';
 
-        reader.readAsBinaryString(file);
+                let date_of_birth = normalized['tanggal lahir (yyyy-mm-dd)'] || normalized['tanggal lahir'] || normalized['date_of_birth'] || '';
+                if (date_of_birth && date_of_birth.includes('T')) {
+                    date_of_birth = date_of_birth.split('T')[0];
+                }
+
+                let gender = (normalized['jenis kelamin (l/p)'] || normalized['jenis kelamin'] || normalized['gender'] || '').toUpperCase();
+                if (gender !== 'L' && gender !== 'P') {
+                    gender = '';
+                }
+
+                const address = normalized['alamat'] || normalized['address'] || '';
+
+                let isValid = true;
+                let errorReason = '';
+
+                if (!name || name.length < 3) {
+                    isValid = false;
+                    errorReason = 'Nama lengkap minimal 3 karakter';
+                } else if (!email || !emailRegex.test(email)) {
+                    isValid = false;
+                    errorReason = 'Format email tidak valid';
+                } else if (seenEmails.has(email)) {
+                    isValid = false;
+                    errorReason = 'Duplikasi email dalam file';
+                } else {
+                    seenEmails.add(email);
+                }
+
+                return {
+                    index: idx + 1,
+                    name,
+                    email,
+                    phone_number,
+                    institution,
+                    date_of_birth,
+                    gender,
+                    address,
+                    isValid,
+                    errorReason,
+                };
+            });
+
+            setParsedRows(rows);
+            setStep(2);
+            toast.success(`Berhasil membaca ${rows.length} baris data dari file`);
+        } catch (err) {
+            console.error(err);
+            toast.error('Gagal membaca file CSV. Pastikan format file sesuai.');
+        }
     };
 
     // Step 2: Submit Valid Rows to Backend
@@ -211,7 +201,7 @@ export default function BulkImportParticipantsPage() {
         }
     };
 
-    // Download Credentials Report (.xlsx)
+    // Download Credentials Report (.csv)
     const handleDownloadReport = () => {
         if (!importResults || importResults.credentials.length === 0) return;
 
@@ -223,19 +213,14 @@ export default function BulkImportParticipantsPage() {
             'Status': 'Berhasil Diimport'
         }));
 
-        const ws = XLSX.utils.json_to_sheet(reportData);
-        ws['!cols'] = [
-            { wch: 6 },
-            { wch: 25 },
-            { wch: 32 },
-            { wch: 18 },
-            { wch: 18 },
-        ];
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Kredensial Peserta');
-
-        XLSX.writeFile(wb, `Rekap_Kredensial_Import_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        const csv = objectsToCsv(reportData, ['No', 'Nama Lengkap', 'Username (Email)', 'Password Baru', 'Status']);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Rekap_Kredensial_Import_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
         toast.success('Rekap kredensial berhasil diunduh');
     };
 
@@ -264,7 +249,7 @@ export default function BulkImportParticipantsPage() {
                         Import Massal Peserta
                     </h1>
                     <p className="text-muted-foreground mt-1 text-sm">
-                        Unggah berkas Excel/CSV untuk mendaftarkan banyak peserta pelatihan secara sekaligus.
+                        Unggah berkas CSV untuk mendaftarkan banyak peserta pelatihan secara sekaligus.
                     </p>
                 </div>
             </div>
@@ -292,7 +277,7 @@ export default function BulkImportParticipantsPage() {
                         <div>
                             <h2 className="text-xl font-bold">Unggah File Data Peserta</h2>
                             <p className="text-sm text-muted-foreground mt-1">
-                                Mendukung format <strong>.xlsx</strong>, <strong>.xls</strong>, atau <strong>.csv</strong>.
+                                Mendukung format <strong>.csv</strong> dari template sistem.
                             </p>
                         </div>
 
@@ -312,7 +297,7 @@ export default function BulkImportParticipantsPage() {
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept=".xlsx, .xls, .csv"
+                                accept=".csv,text/csv"
                                 onChange={handleFileChange}
                                 className="hidden"
                             />
@@ -326,7 +311,7 @@ export default function BulkImportParticipantsPage() {
                             </div>
                             <h3 className="text-lg font-bold">Belum Punya Template?</h3>
                             <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                                Unduh contoh berkas Excel resmi yang sudah disesuaikan dengan struktur sistem agar proses import berjalan tanpa error.
+                                Unduh contoh berkas CSV resmi yang sudah disesuaikan dengan struktur sistem agar proses import berjalan tanpa error.
                             </p>
                         </div>
 
@@ -336,7 +321,7 @@ export default function BulkImportParticipantsPage() {
                             className="w-full px-5 py-3 text-sm font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center justify-center gap-2 active:scale-95 shadow-sm"
                         >
                             <Download01Icon size={18} />
-                            Unduh Template (.xlsx)
+                            Unduh Template (.csv)
                         </a>
                     </GlassCard>
                 </div>
@@ -524,7 +509,7 @@ export default function BulkImportParticipantsPage() {
                                 className="w-full py-3.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
                             >
                                 <Download01Icon size={18} />
-                                Unduh Rekap Kredensial Peserta (.xlsx)
+                                Unduh Rekap Kredensial Peserta (.csv)
                             </button>
                         )}
 

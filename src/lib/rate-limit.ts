@@ -40,6 +40,8 @@ interface RateLimitConfig {
     maxRequests: number;
     /** Custom error message */
     message?: string;
+    /** Stable authenticated identifier; falls back to client IP when omitted. */
+    identifier?: string;
 }
 
 /**
@@ -65,9 +67,9 @@ export function checkRateLimit(
     request: NextRequest,
     config: RateLimitConfig
 ): NextResponse | null {
-    const { windowMs, maxRequests, message } = config;
-    const ip = getClientIp(request);
-    const key = `${ip}:${request.nextUrl.pathname}`;
+    const { windowMs, maxRequests, message, identifier } = config;
+    const clientKey = identifier || getClientIp(request);
+    const key = `${clientKey}:${request.nextUrl.pathname}`;
     const now = Date.now();
 
     cleanupStaleEntries(windowMs);

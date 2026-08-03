@@ -49,11 +49,6 @@ async function handlePut(
             question_type,
             question_text,
             question_image,
-            options,
-            correct_option_index,
-            correct_option_indices,
-            correct_answer,
-            matching_pairs,
             points,
         } = parsed.data;
 

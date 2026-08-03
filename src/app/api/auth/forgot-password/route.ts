@@ -4,14 +4,38 @@ import crypto from 'crypto';
 import { sendPasswordResetEmail } from '@/lib/email';
 import { logActivity } from '@/lib/audit';
 import logger from '@/lib/logger';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { validateMutationOrigin } from '@/lib/api-auth';
+import { getAppBaseUrl } from '@/lib/app-url';
+
+const RESET_REQUEST_RATE_LIMIT = { windowMs: 60_000, maxRequests: 5 };
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const GENERIC_RESET_RESPONSE = {
+    success: true,
+    message: 'Jika akun ditemukan, link reset telah dikirim ke email tersebut.',
+};
+
+function hashResetToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 export async function POST(request: NextRequest) {
+    const invalidOrigin = validateMutationOrigin(request);
+    if (invalidOrigin) return invalidOrigin;
+
+    const blocked = checkRateLimit(request, RESET_REQUEST_RATE_LIMIT);
+    if (blocked) return blocked;
+
     try {
         const body = await request.json();
-        const { username } = body;
+        const username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : '';
 
-        if (!username) {
+        if (!username || username.length > 255) {
             return NextResponse.json({ success: false, error: 'Username atau email wajib diisi' }, { status: 400 });
+        }
+
+        if (!EMAIL_REGEX.test(username)) {
+            return NextResponse.json(GENERIC_RESET_RESPONSE);
         }
 
         // Cari user berdasarkan username
@@ -22,38 +46,31 @@ export async function POST(request: NextRequest) {
 
         if (!users || users.length === 0) {
             // Untuk keamanan, jangan beri tahu jika user tidak ada, tetapi cukup return success text.
-            return NextResponse.json({ success: true, message: 'Jika akun ditemukan, link reset telah dikirim ke email tersebut.' });
+            return NextResponse.json(GENERIC_RESET_RESPONSE);
         }
 
         const user = users[0];
 
-        // Sebagai simulasi/praktek, kita anggap username adalah email, 
-        // Jika username bukan format email, aplikasi enterprise umumnya punya kolom `email` terpisah.
-        // Pada LMS ini username dipakai sebagai identifier utama (Email).
-        const isEmailFormat = /\S+@\S+\.\S+/.test(user.username);
-        if (!isEmailFormat) {
-            return NextResponse.json({ success: false, error: 'Username tidak dalam format email yang valid untuk dikirimi link.' }, { status: 400 });
-        }
-
         // Generate token
         const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenHash = hashResetToken(resetToken);
         
         await executeQuery(
             `UPDATE users SET reset_token = ?, reset_token_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE id = ?`,
-            [resetToken, user.id]
+            [resetTokenHash, user.id]
         );
 
         // Buat reset link
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const baseUrl = getAppBaseUrl();
         const resetLink = `${baseUrl}/auth/reset-password?token=${resetToken}`;
 
         // Kirim email
         await sendPasswordResetEmail(user.username, resetLink);
 
         // Log Aktifitas
-        await logActivity('system', 'RESET_PASSWORD', 'users', user.id, { info: 'Reset password requested' });
+        await logActivity(null, 'RESET_PASSWORD', 'users', user.id, { info: 'Reset password requested' });
 
-        return NextResponse.json({ success: true, message: 'Instruksi reset password telah dikirim ke email Anda.' });
+        return NextResponse.json(GENERIC_RESET_RESPONSE);
 
     } catch (error) {
         logger.error('AUTH_FORGOT_PASSWORD', 'Terjadi kesalahan saat memproses permintaan reset password', error);

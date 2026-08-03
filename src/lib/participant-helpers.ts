@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { executeQuery } from '@/lib/db';
-import type { Session, SessionParticipant } from '@/types';
+import type { ModuleItem, Session, SessionParticipant } from '@/types';
 
 /**
  * Shared helpers for participant API routes.
@@ -85,6 +85,90 @@ export function validateSebAccess(
                 403
             );
         }
+    }
+}
+
+export async function getSessionModuleItem(
+    moduleId: string,
+    itemType: 'training' | 'exam',
+    itemId: string
+): Promise<ModuleItem> {
+    const rows = await executeQuery<ModuleItem[]>(
+        `SELECT id, module_id, item_type, item_id, sequence_order
+         FROM module_items
+         WHERE module_id = ? AND item_type = ? AND item_id = ?
+         LIMIT 1`,
+        [moduleId, itemType, itemId]
+    );
+
+    if (!rows || rows.length === 0) {
+        throw new ParticipantError('Item tidak termasuk dalam sesi ini', 403);
+    }
+
+    return rows[0];
+}
+
+export async function hasBlockingPreviousItems(
+    sessionId: string,
+    userId: string,
+    moduleId: string,
+    sequenceOrder: number
+): Promise<boolean> {
+    const rows = await executeQuery<{ count: number }[]>(
+        `SELECT COUNT(*) AS count
+         FROM module_items mi
+         LEFT JOIN user_progress up
+           ON up.module_item_id = mi.id
+          AND up.user_id = ?
+          AND up.session_id = ?
+          AND up.status = 'completed'
+         WHERE mi.module_id = ?
+           AND mi.sequence_order < ?
+           AND up.id IS NULL`,
+        [userId, sessionId, moduleId, sequenceOrder]
+    );
+
+    return Number(rows?.[0]?.count || 0) > 0;
+}
+
+export async function getItemProgress(
+    sessionId: string,
+    userId: string,
+    moduleItemId: string
+): Promise<{ id: string; status: string; score: number | null; attempts_count: number; last_attempt_start: string | null } | null> {
+    const rows = await executeQuery<{ id: string; status: string; score: number | null; attempts_count: number; last_attempt_start: string | null }[]>(
+        `SELECT id, status, score, attempts_count, last_attempt_start
+         FROM user_progress
+         WHERE user_id = ? AND session_id = ? AND module_item_id = ?
+         LIMIT 1`,
+        [userId, sessionId, moduleItemId]
+    );
+
+    return rows?.[0] || null;
+}
+
+export async function assertCurrentItemAccessible(
+    sessionId: string,
+    userId: string,
+    session: Session,
+    moduleItem: ModuleItem,
+    allowCompleted = true
+): Promise<void> {
+    const progress = await getItemProgress(sessionId, userId, moduleItem.id);
+
+    if (allowCompleted && progress?.status === 'completed') {
+        return;
+    }
+
+    const blocked = await hasBlockingPreviousItems(
+        sessionId,
+        userId,
+        session.module_id,
+        moduleItem.sequence_order
+    );
+
+    if (blocked) {
+        throw new ParticipantError('Selesaikan item sebelumnya terlebih dahulu', 403);
     }
 }
 

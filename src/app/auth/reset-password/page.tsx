@@ -29,8 +29,8 @@ function ResetPasswordForm() {
         if (newPassword !== confirmPassword) {
             return setError('Password baru dan konfirmasi tidak cocok.');
         }
-        if (newPassword.length < 6) {
-            return setError('Password minimal terdiri dari 6 karakter.');
+        if (newPassword.length < 8) {
+            return setError('Password minimal terdiri dari 8 karakter.');
         }
 
         setIsLoading(true);
@@ -51,7 +51,7 @@ function ResetPasswordForm() {
             } else {
                 setError(data.error || 'Terjadi kesalahan. Token mungkin sudah kedaluwarsa.');
             }
-        } catch (err) {
+        } catch {
             setError('Gagal terhubung ke server.');
         } finally {
             setIsLoading(false);
@@ -93,7 +93,7 @@ function ResetPasswordForm() {
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
-                            placeholder="Minimal 6 karakter"
+                            placeholder="Minimal 8 karakter"
                         />
                     </div>
                     

@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
-    Clock01Icon,
-    Tick01Icon,
     Cancel01Icon,
     ArrowRight01Icon,
     BookOpen01Icon,
@@ -15,7 +13,7 @@ import {
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { CertificateTemplate } from '@/app/dashboard/_components/CertificateTemplate';
-import AlertCustom, { useAlert } from '@/app/dashboard/_components/AlertCustom';
+import { useAlert } from '@/app/dashboard/_components/AlertCustom';
 
 type HistoryItem = {
     id: string;

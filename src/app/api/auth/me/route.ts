@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         }
 
         return NextResponse.json({ success: true, data: users[0] });
-    } catch (error) {
+    } catch {
         return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 });
     }
 }

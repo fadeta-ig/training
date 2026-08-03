@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Camera01Icon, AlertCircleIcon, Calendar01Icon, RefreshIcon } from 'hugeicons-react';
 
 interface Session {
@@ -16,7 +16,7 @@ interface Snapshot {
     id: string;
     user_id: string;
     session_id: string;
-    image_base64: string;
+    image_url: string;
     captured_at: string;
     full_name: string;
     username: string;
@@ -29,32 +29,15 @@ export default function MonitoringDashboard() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    useEffect(() => {
-        fetchSessions();
-    }, []);
-
-    useEffect(() => {
-        if (selectedSessionId) {
-            fetchSnapshots(selectedSessionId);
-            
-            // Auto-refresh every 30 seconds
-            const interval = setInterval(() => {
-                fetchSnapshots(selectedSessionId, true);
-            }, 30000);
-            
-            return () => clearInterval(interval);
-        }
-    }, [selectedSessionId]);
-
-    const fetchSessions = async () => {
+    const fetchSessions = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch('/api/admin/monitoring');
             const data = await res.json();
             if (data.success && data.data) {
                 setSessions(data.data);
-                if (data.data.length > 0 && !selectedSessionId) {
-                    setSelectedSessionId(data.data[0].id);
+                if (data.data.length > 0) {
+                    setSelectedSessionId((current) => current || data.data[0].id);
                 }
             }
         } catch (error) {
@@ -62,9 +45,9 @@ export default function MonitoringDashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const fetchSnapshots = async (sessionId: string, isSilentRefresh = false) => {
+    const fetchSnapshots = useCallback(async (sessionId: string, isSilentRefresh = false) => {
         if (!isSilentRefresh) setLoading(true);
         else setRefreshing(true);
         
@@ -80,7 +63,22 @@ export default function MonitoringDashboard() {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchSessions();
+    }, [fetchSessions]);
+
+    useEffect(() => {
+        if (!selectedSessionId) return;
+
+        fetchSnapshots(selectedSessionId);
+        const interval = setInterval(() => {
+            fetchSnapshots(selectedSessionId, true);
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [selectedSessionId, fetchSnapshots]);
 
     const handleManualRefresh = () => {
         if (selectedSessionId) {
@@ -166,9 +164,9 @@ export default function MonitoringDashboard() {
                         <div key={snap.id} className="glass-card overflow-hidden group hover:shadow-lg transition-all border-black/5">
                             <div className="relative aspect-[4/3] bg-black">
                                 {/* Base64 Image */}
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                { }
                                 <img
-                                    src={`data:image/jpeg;base64,${snap.image_base64}`}
+                                    src={snap.image_url}
                                     alt={`Snapshot of ${snap.full_name}`}
                                     className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
                                 />

@@ -3,13 +3,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import { examSchema } from '@/lib/validations/examSchema';
 import { withAuth } from '@/lib/api-auth';
+import { parsePagination } from '@/lib/sanitize';
 
 async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
-        const page = parseInt(searchParams.get('page') || '1', 10);
-        const limit = parseInt(searchParams.get('limit') || '10', 10);
-        const offset = (page - 1) * limit;
+        const { page, limit, offset } = parsePagination(searchParams);
 
         const countResult = await executeQuery<{ total: number }[]>(`SELECT COUNT(*) as total FROM exams`);
         const total = countResult[0]?.total || 0;

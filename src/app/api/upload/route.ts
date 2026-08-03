@@ -2,35 +2,76 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { withAuth } from '@/lib/api-auth';
+import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import logger from '@/lib/logger';
+import { checkRateLimit } from '@/lib/rate-limit';
 
-/** Maps MIME types to the media_type enum used by training_media */
-const ALLOWED_TYPES: Record<string, string> = {
-    'image/jpeg': 'image',
-    'image/png': 'image',
-    'image/gif': 'image',
-    'image/webp': 'image',
-    'application/pdf': 'pdf',
-    'application/msword': 'document',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'document',
-    'application/vnd.ms-powerpoint': 'document',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'document',
+/** Maps MIME types to the media_type enum and server-controlled extension. */
+const ALLOWED_TYPES: Record<string, { mediaType: string; extension: string }> = {
+    'image/jpeg': { mediaType: 'image', extension: 'jpg' },
+    'image/png': { mediaType: 'image', extension: 'png' },
+    'image/gif': { mediaType: 'image', extension: 'gif' },
+    'image/webp': { mediaType: 'image', extension: 'webp' },
+    'application/pdf': { mediaType: 'pdf', extension: 'pdf' },
+    'application/msword': { mediaType: 'document', extension: 'doc' },
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { mediaType: 'document', extension: 'docx' },
+    'application/vnd.ms-powerpoint': { mediaType: 'document', extension: 'ppt' },
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': { mediaType: 'document', extension: 'pptx' },
 };
 
 const MAX_FILE_SIZE_IMAGE = 5 * 1024 * 1024;    // 5 MB
 const MAX_FILE_SIZE_DOCUMENT = 20 * 1024 * 1024; // 20 MB
+const UPLOAD_RATE_LIMIT = { windowMs: 60_000, maxRequests: 20 };
 
-function getMaxSize(mimeType: string): number {
-    const mediaType = ALLOWED_TYPES[mimeType];
+function getMaxSize(mediaType: string): number {
     return mediaType === 'image' ? MAX_FILE_SIZE_IMAGE : MAX_FILE_SIZE_DOCUMENT;
+}
+
+function startsWithBytes(buffer: Buffer, bytes: number[]): boolean {
+    return bytes.every((byte, index) => buffer[index] === byte);
+}
+
+function hasExpectedSignature(mimeType: string, buffer: Buffer): boolean {
+    if (mimeType === 'image/jpeg') return startsWithBytes(buffer, [0xff, 0xd8, 0xff]);
+    if (mimeType === 'image/png') return startsWithBytes(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    if (mimeType === 'image/gif') {
+        const signature = buffer.subarray(0, 6).toString('ascii');
+        return signature === 'GIF87a' || signature === 'GIF89a';
+    }
+    if (mimeType === 'image/webp') {
+        return buffer.length > 12
+            && buffer.subarray(0, 4).toString('ascii') === 'RIFF'
+            && buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+    }
+    if (mimeType === 'application/pdf') {
+        return buffer.subarray(0, 4).toString('ascii') === '%PDF';
+    }
+    if (mimeType === 'application/msword' || mimeType === 'application/vnd.ms-powerpoint') {
+        return startsWithBytes(buffer, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+    }
+    if (
+        mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        || mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    ) {
+        return startsWithBytes(buffer, [0x50, 0x4b, 0x03, 0x04])
+            || startsWithBytes(buffer, [0x50, 0x4b, 0x05, 0x06])
+            || startsWithBytes(buffer, [0x50, 0x4b, 0x07, 0x08]);
+    }
+    return false;
+}
+
+function sanitizeOriginalFilename(name: string): string {
+    return name.replace(/[^\w.\- ()]/g, '_').slice(0, 255) || 'upload';
 }
 
 /**
  * Handles file upload for rich text editor, question images, and training media.
  * Stores files in `public/uploads/` and returns the accessible URL.
  */
-async function handlePost(request: NextRequest) {
+async function handlePost(request: NextRequest, user: AuthenticatedUser) {
+    const blocked = checkRateLimit(request, { ...UPLOAD_RATE_LIMIT, identifier: user.id });
+    if (blocked) return blocked;
+
     try {
         const formData = await request.formData();
         const file = formData.get('file') as File | null;
@@ -42,8 +83,8 @@ async function handlePost(request: NextRequest) {
             );
         }
 
-        const mediaCategory = ALLOWED_TYPES[file.type];
-        if (!mediaCategory) {
+        const allowedType = ALLOWED_TYPES[file.type];
+        if (!allowedType) {
             const allowed = Object.keys(ALLOWED_TYPES).join(', ');
             return NextResponse.json(
                 { success: false, error: `Tipe file tidak diizinkan: ${file.type}. Tipe yang diizinkan: ${allowed}` },
@@ -51,7 +92,7 @@ async function handlePost(request: NextRequest) {
             );
         }
 
-        const maxSize = getMaxSize(file.type);
+        const maxSize = getMaxSize(allowedType.mediaType);
         if (file.size > maxSize) {
             const limitMB = Math.round(maxSize / (1024 * 1024));
             return NextResponse.json(
@@ -60,16 +101,23 @@ async function handlePost(request: NextRequest) {
             );
         }
 
-        const fileExtension = file.name.split('.').pop() || 'bin';
-        const uniqueFilename = `${uuidv4()}.${fileExtension}`;
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+
+        if (!hasExpectedSignature(file.type, buffer)) {
+            return NextResponse.json(
+                { success: false, error: 'Isi file tidak sesuai dengan tipe file yang dikirim.' },
+                { status: 400 }
+            );
+        }
+
+        const originalFilename = sanitizeOriginalFilename(file.name);
+        const uniqueFilename = `${uuidv4()}.${allowedType.extension}`;
 
         const uploadDir = path.join(process.cwd(), 'public', 'uploads');
         await mkdir(uploadDir, { recursive: true });
 
         const filePath = path.join(uploadDir, uniqueFilename);
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-
         await writeFile(filePath, buffer);
 
         const fileUrl = `/uploads/${uniqueFilename}`;
@@ -78,7 +126,7 @@ async function handlePost(request: NextRequest) {
             originalName: file.name,
             mimeType: file.type,
             sizeBytes: file.size,
-            mediaCategory,
+            mediaCategory: allowedType.mediaType,
             url: fileUrl,
         });
 
@@ -86,8 +134,8 @@ async function handlePost(request: NextRequest) {
             success: true,
             url: fileUrl,
             filename: uniqueFilename,
-            original_filename: file.name,
-            media_type: mediaCategory,
+            original_filename: originalFilename,
+            media_type: allowedType.mediaType,
             message: 'File berhasil diunggah.',
         });
     } catch (error) {

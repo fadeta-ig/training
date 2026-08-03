@@ -6,7 +6,7 @@ import logger from '@/lib/logger';
 // ----------------------------------------------------------------------
 // GET: Laman Utama Analytics Dashboard Admin
 // ----------------------------------------------------------------------
-async function handleGet(request: NextRequest) {
+async function handleGet(_request: NextRequest) {
     try {
         // 1. Total statistik keseluruhan
         const totalUsers = await executeQuery<any[]>(`SELECT COUNT(*) as count FROM users WHERE role = 'trainee'`);

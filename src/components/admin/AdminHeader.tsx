@@ -34,7 +34,7 @@ export function AdminHeader({ toggleSidebar, user }: AdminHeaderProps) {
                     setNotifications(data.data);
                     setUnreadCount(data.unreadCount);
                 }
-            } catch (err) { }
+            } catch { }
         };
         fetchNotifications();
 
@@ -56,7 +56,7 @@ export function AdminHeader({ toggleSidebar, user }: AdminHeaderProps) {
             await fetch('/api/notifications', { method: 'PUT', body: JSON.stringify({ mark_all: true }) });
             setUnreadCount(0);
             setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-        } catch (err) { }
+        } catch { }
     };
 
     const handleLogout = async () => {

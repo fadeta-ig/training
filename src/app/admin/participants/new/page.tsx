@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { UserAdd01Icon, FloppyDiskIcon, ArrowLeft01Icon, Copy01Icon, Tick01Icon, Key01Icon, MailSend01Icon } from 'hugeicons-react';
 import Link from 'next/link';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -13,7 +12,6 @@ type Credentials = {
 };
 
 export default function NewParticipantPage() {
-    const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [credentials, setCredentials] = useState<Credentials | null>(null);

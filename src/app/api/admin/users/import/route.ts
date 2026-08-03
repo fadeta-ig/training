@@ -7,6 +7,7 @@ import { logActivity } from '@/lib/audit';
 import { sendCredentialEmail } from '@/lib/email';
 import pool from '@/lib/db';
 import logger from '@/lib/logger';
+import crypto from 'crypto';
 
 interface UserImportItem {
     name: string;
@@ -17,11 +18,11 @@ interface UserImportItem {
     institution?: string | null;
 }
 
-function generateRandomPassword(length = 8) {
+function generateRandomPassword(length = 14) {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
     let password = '';
     for (let i = 0; i < length; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
+        password += chars.charAt(crypto.randomInt(chars.length));
     }
     return password;
 }
@@ -134,7 +135,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             await connection.beginTransaction();
 
             for (const item of readyToInsert) {
-                const finalPassword = item.password && item.password.length >= 6 ? item.password : generateRandomPassword();
+                const finalPassword = item.password && item.password.length >= 8 ? item.password : generateRandomPassword();
                 const passwordHash = await bcrypt.hash(finalPassword, 10);
                 const userId = uuidv4();
                 const profileId = uuidv4();

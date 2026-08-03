@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
     AlertCircleIcon,
     Tick01Icon,
@@ -20,18 +20,16 @@ interface AlertProps {
 export default function AlertCustom({ message, type, onClose, duration = 5000 }: AlertProps) {
     const [isVisible, setIsVisible] = useState(true);
 
+    const handleClose = useCallback(() => {
+        setIsVisible(false);
+        setTimeout(onClose, 300);
+    }, [onClose]);
+
     useEffect(() => {
-        const timer = setTimeout(() => {
-            handleClose();
-        }, duration);
+        const timer = setTimeout(handleClose, duration);
 
         return () => clearTimeout(timer);
-    }, [duration]);
-
-    const handleClose = () => {
-        setIsVisible(false);
-        setTimeout(onClose, 300); // Wait for fade out animation
-    };
+    }, [duration, handleClose]);
 
     const icons = {
         success: <Tick01Icon className="text-emerald-500" size={20} />,

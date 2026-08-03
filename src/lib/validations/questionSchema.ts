@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isSafePublicUrl } from '@/lib/sanitize';
 
 /** Supported question types for the modular bank soal */
 const QUESTION_TYPES = [
@@ -16,10 +17,16 @@ export const questionSchema = z.object({
     exam_id: z.string().uuid('ID Ujian tidak valid'),
     question_type: z.enum(QUESTION_TYPES, { message: 'Tipe soal tidak valid' }),
     question_text: z.string().min(3, 'Teks pertanyaan minimal 3 karakter'),
-    question_image: z.string().nullable().optional(),
+    question_image: z.string()
+        .nullable()
+        .optional()
+        .refine((value) => !value || isSafePublicUrl(value), 'URL gambar soal tidak aman atau tidak valid'),
     options: z.array(z.object({
         text: z.string(),
-        image: z.string().nullable().optional(),
+        image: z.string()
+            .nullable()
+            .optional()
+            .refine((value) => !value || isSafePublicUrl(value), 'URL gambar opsi tidak aman atau tidak valid'),
     })).optional(),
     correct_option_index: z.number().int().min(0).optional(),
     correct_option_indices: z.array(z.number().int().min(0)).optional(),

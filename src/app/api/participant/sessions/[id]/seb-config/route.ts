@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
 import logger from '@/lib/logger';
+import { escapeHtml } from '@/lib/sanitize';
 
 export const GET = withAuth(async (
     request: NextRequest,
@@ -35,8 +36,16 @@ export const GET = withAuth(async (
             return NextResponse.json({ success: false, message: 'Sesi ini tidak mewajibkan SEB' }, { status: 400 });
         }
 
-        const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        const startUrl = `${origin}/dashboard/sesi/${session.id}`;
+        const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+        if (!configuredAppUrl && process.env.NODE_ENV === 'production') {
+            throw new Error('NEXT_PUBLIC_APP_URL wajib diatur di production');
+        }
+
+        const origin = new URL(configuredAppUrl || request.nextUrl.origin).origin;
+        const startUrl = `${origin}/dashboard/sesi/${encodeURIComponent(session.id)}`;
+        const safeStartUrl = escapeHtml(startUrl);
+        const safeQuitUrl = escapeHtml(`${origin}/dashboard/riwayat`);
+        const safeConfigKey = escapeHtml(session.seb_config_key || '');
         
         // PList XML Generator as per SEB documentation
         const sebXML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -46,13 +55,13 @@ export const GET = withAuth(async (
     <key>origin</key>
     <string>WIG Antigravity LMS</string>
     <key>startURL</key>
-    <string>${startUrl}</string>
+    <string>${safeStartUrl}</string>
     <key>sendBrowserExamKey</key>
     <true/>
     <key>browserExamKey</key>
-    <string>${session.seb_config_key || ''}</string>
+    <string>${safeConfigKey}</string>
     <key>quitURL</key>
-    <string>${origin}/dashboard/riwayat</string>
+    <string>${safeQuitUrl}</string>
     <key>allowQuit</key>
     <true/>
     <key>showTaskBar</key>
@@ -62,11 +71,17 @@ export const GET = withAuth(async (
   </dict>
 </plist>`;
 
+        const safeFilename = String(session.title || 'Ujian')
+            .normalize('NFKD')
+            .replace(/[^a-zA-Z0-9_-]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .slice(0, 80) || 'Ujian';
+
         return new NextResponse(sebXML, {
             status: 200,
             headers: {
                 'Content-Type': 'application/seb',
-                'Content-Disposition': `attachment; filename="Ujian_${session.title.replace(/\s+/g, '_')}.seb"`,
+                'Content-Disposition': `attachment; filename="Ujian_${safeFilename}.seb"`,
             },
         });
     } catch (error) {
@@ -76,4 +91,4 @@ export const GET = withAuth(async (
             { status: 500 }
         );
     }
-}, { allowedRoles: ['trainee', 'admin', 'trainer'] });
+}, { allowedRoles: ['trainee'] });

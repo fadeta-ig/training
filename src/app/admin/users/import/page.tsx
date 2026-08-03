@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react';
 import Link from 'next/link';
-import * as XLSX from 'xlsx';
 import {
     CloudUploadIcon,
     Download01Icon,
@@ -16,6 +15,7 @@ import {
 } from 'hugeicons-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
+import { objectsToCsv, parseCsvToObjects } from '@/lib/csv';
 
 interface ParsedUserRow {
     index: number;
@@ -73,80 +73,75 @@ export default function BulkImportUsersPage() {
         processFile(file);
     };
 
-    const processFile = (file: File) => {
+    const processFile = async (file: File) => {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            toast.error('Format file tidak didukung. Gunakan file .csv dari template sistem.');
+            return;
+        }
+
         setFileName(file.name);
-        const reader = new FileReader();
+        try {
+            const data = parseCsvToObjects(await file.text());
 
-        reader.onload = (evt) => {
-            try {
-                const bstr = evt.target?.result;
-                const wb = XLSX.read(bstr, { type: 'binary' });
-                const wsname = wb.SheetNames[0];
-                const ws = wb.Sheets[wsname];
-                const data: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            if (!data || data.length === 0) {
+                toast.error('File kosong atau format tidak sesuai');
+                return;
+            }
 
-                if (!data || data.length === 0) {
-                    toast.error('File kosong atau format tidak sesuai');
-                    return;
-                }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const seenEmails = new Set<string>();
 
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                const seenEmails = new Set<string>();
-
-                const rows: ParsedUserRow[] = data.map((item, idx) => {
-                    const normalized: Record<string, string> = {};
-                    Object.keys(item).forEach(key => {
-                        const cleanKey = key.trim().toLowerCase();
-                        normalized[cleanKey] = String(item[key]).trim();
-                    });
-
-                    const name = normalized['nama lengkap'] || normalized['nama'] || normalized['name'] || '';
-                    const email = (normalized['email aktif (username)'] || normalized['email aktif'] || normalized['username'] || normalized['email'] || '').toLowerCase();
-                    const rawRole = (normalized['role (admin/trainer)'] || normalized['role'] || normalized['peran'] || 'trainer').toLowerCase();
-                    const role: 'admin' | 'trainer' = (rawRole.includes('admin') || rawRole === 'administrator') ? 'admin' : 'trainer';
-                    const password = normalized['password (opsional)'] || normalized['password'] || '';
-                    const phone_number = normalized['no hp'] || normalized['telepon'] || normalized['phone'] || '';
-                    const institution = normalized['institusi'] || normalized['instansi'] || normalized['institution'] || '';
-
-                    let isValid = true;
-                    let errorReason = '';
-
-                    if (!name || name.length < 3) {
-                        isValid = false;
-                        errorReason = 'Nama lengkap minimal 3 karakter';
-                    } else if (!email || !emailRegex.test(email)) {
-                        isValid = false;
-                        errorReason = 'Format email (username) tidak valid';
-                    } else if (seenEmails.has(email)) {
-                        isValid = false;
-                        errorReason = 'Duplikasi email dalam file';
-                    } else {
-                        seenEmails.add(email);
-                    }
-
-                    return {
-                        index: idx + 1,
-                        name,
-                        email,
-                        role,
-                        password,
-                        phone_number,
-                        institution,
-                        isValid,
-                        errorReason,
-                    };
+            const rows: ParsedUserRow[] = data.map((item, idx) => {
+                const normalized: Record<string, string> = {};
+                Object.keys(item).forEach(key => {
+                    const cleanKey = key.trim().toLowerCase();
+                    normalized[cleanKey] = String(item[key]).trim();
                 });
 
-                setParsedRows(rows);
-                setStep(2);
-                toast.success(`Berhasil membaca ${rows.length} baris data dari file`);
-            } catch (err: any) {
-                console.error(err);
-                toast.error('Gagal membaca file Excel/CSV. Pastikan format file sesuai.');
-            }
-        };
+                const name = normalized['nama lengkap'] || normalized['nama'] || normalized['name'] || '';
+                const email = (normalized['email aktif (username)'] || normalized['email aktif'] || normalized['username'] || normalized['email'] || '').toLowerCase();
+                const rawRole = (normalized['role (admin/trainer)'] || normalized['role'] || normalized['peran'] || 'trainer').toLowerCase();
+                const role: 'admin' | 'trainer' = (rawRole.includes('admin') || rawRole === 'administrator') ? 'admin' : 'trainer';
+                const password = normalized['password (opsional)'] || normalized['password'] || '';
+                const phone_number = normalized['no hp'] || normalized['telepon'] || normalized['phone'] || '';
+                const institution = normalized['institusi'] || normalized['instansi'] || normalized['institution'] || '';
 
-        reader.readAsBinaryString(file);
+                let isValid = true;
+                let errorReason = '';
+
+                if (!name || name.length < 3) {
+                    isValid = false;
+                    errorReason = 'Nama lengkap minimal 3 karakter';
+                } else if (!email || !emailRegex.test(email)) {
+                    isValid = false;
+                    errorReason = 'Format email (username) tidak valid';
+                } else if (seenEmails.has(email)) {
+                    isValid = false;
+                    errorReason = 'Duplikasi email dalam file';
+                } else {
+                    seenEmails.add(email);
+                }
+
+                return {
+                    index: idx + 1,
+                    name,
+                    email,
+                    role,
+                    password,
+                    phone_number,
+                    institution,
+                    isValid,
+                    errorReason,
+                };
+            });
+
+            setParsedRows(rows);
+            setStep(2);
+            toast.success(`Berhasil membaca ${rows.length} baris data dari file`);
+        } catch (err) {
+            console.error(err);
+            toast.error('Gagal membaca file CSV. Pastikan format file sesuai.');
+        }
     };
 
     // Step 2: Submit Valid Rows to Backend
@@ -195,7 +190,7 @@ export default function BulkImportUsersPage() {
         }
     };
 
-    // Download Credentials Report (.xlsx)
+    // Download Credentials Report (.csv)
     const handleDownloadReport = () => {
         if (!importResults || importResults.credentials.length === 0) return;
 
@@ -208,20 +203,14 @@ export default function BulkImportUsersPage() {
             'Status': 'Berhasil Diimport'
         }));
 
-        const ws = XLSX.utils.json_to_sheet(reportData);
-        ws['!cols'] = [
-            { wch: 6 },
-            { wch: 25 },
-            { wch: 32 },
-            { wch: 20 },
-            { wch: 18 },
-            { wch: 18 },
-        ];
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Kredensial Pengguna');
-
-        XLSX.writeFile(wb, `Rekap_Kredensial_Pengguna_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        const csv = objectsToCsv(reportData, ['No', 'Nama Lengkap', 'Username (Email)', 'Peran (Role)', 'Password Baru', 'Status']);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Rekap_Kredensial_Pengguna_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
         toast.success('Rekap kredensial pengguna berhasil diunduh');
     };
 
@@ -250,7 +239,7 @@ export default function BulkImportUsersPage() {
                         Import Massal Pengguna (Admin & Trainer)
                     </h1>
                     <p className="text-muted-foreground mt-1 text-sm">
-                        Unggah berkas Excel/CSV untuk mendaftarkan akun Administrator atau Pelatih (Trainer) secara sekaligus.
+                        Unggah berkas CSV untuk mendaftarkan akun Administrator atau Pelatih (Trainer) secara sekaligus.
                     </p>
                 </div>
             </div>
@@ -278,7 +267,7 @@ export default function BulkImportUsersPage() {
                         <div>
                             <h2 className="text-xl font-bold">Unggah File Data Pengguna</h2>
                             <p className="text-sm text-muted-foreground mt-1">
-                                Mendukung format <strong>.xlsx</strong>, <strong>.xls</strong>, atau <strong>.csv</strong>.
+                                Mendukung format <strong>.csv</strong> dari template sistem.
                             </p>
                         </div>
 
@@ -298,7 +287,7 @@ export default function BulkImportUsersPage() {
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept=".xlsx, .xls, .csv"
+                                accept=".csv,text/csv"
                                 onChange={handleFileChange}
                                 className="hidden"
                             />
@@ -312,7 +301,7 @@ export default function BulkImportUsersPage() {
                             </div>
                             <h3 className="text-lg font-bold">Belum Punya Template?</h3>
                             <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                                Unduh contoh berkas Excel resmi untuk pendaftaran Admin/Trainer agar format data langsung sesuai dengan sistem.
+                                Unduh contoh berkas CSV resmi untuk pendaftaran Admin/Trainer agar format data langsung sesuai dengan sistem.
                             </p>
                         </div>
 
@@ -322,7 +311,7 @@ export default function BulkImportUsersPage() {
                             className="w-full px-5 py-3 text-sm font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center justify-center gap-2 active:scale-95 shadow-sm"
                         >
                             <Download01Icon size={18} />
-                            Unduh Template (.xlsx)
+                            Unduh Template (.csv)
                         </a>
                     </GlassCard>
                 </div>
@@ -516,7 +505,7 @@ export default function BulkImportUsersPage() {
                                 className="w-full py-3.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
                             >
                                 <Download01Icon size={18} />
-                                Unduh Rekap Kredensial Pengguna (.xlsx)
+                                Unduh Rekap Kredensial Pengguna (.csv)
                             </button>
                         )}
 

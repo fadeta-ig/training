@@ -34,7 +34,7 @@ export default function DashboardCalendar({ sessions }: { sessions: Session[] })
     startDate.setDate(startDate.getDate() - startDate.getDay()); // Adjust to start on Sunday
 
     const calendarDays = [];
-    let currentDayIter = new Date(startDate);
+    const currentDayIter = new Date(startDate);
     while (currentDayIter <= endOfMonth || calendarDays.length % 7 !== 0) {
         calendarDays.push(new Date(currentDayIter));
         currentDayIter.setDate(currentDayIter.getDate() + 1);

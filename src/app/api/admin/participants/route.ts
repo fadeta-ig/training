@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { logActivity } from '@/lib/audit';
 import pool from '@/lib/db';
+import crypto from 'crypto';
+import { parsePagination } from '@/lib/sanitize';
 
 const participantSchema = z.object({
     name: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(100),
@@ -17,11 +19,11 @@ const participantSchema = z.object({
     institution: z.string().optional().nullable(),
 });
 
-function generateRandomPassword(length = 8) {
+function generateRandomPassword(length = 14) {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
     let password = '';
     for (let i = 0; i < length; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
+        password += chars.charAt(crypto.randomInt(chars.length));
     }
     return password;
 }
@@ -29,10 +31,8 @@ function generateRandomPassword(length = 8) {
 async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
-        const page = parseInt(searchParams.get('page') || '1', 10);
-        const limit = parseInt(searchParams.get('limit') || '10', 10);
+        const { page, limit, offset } = parsePagination(searchParams);
         const search = searchParams.get('search') || '';
-        const offset = (page - 1) * limit;
 
         let countQuery = `
       SELECT COUNT(*) as total 

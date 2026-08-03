@@ -3,7 +3,6 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-    UserCircleIcon, 
     ArrowLeft01Icon, 
     CheckmarkBadge01Icon,
     Cancel01Icon,
@@ -88,8 +87,6 @@ export default function GradeParticipantPage({
 
     // Filter only essay questions
     const essayAnswers = answers.filter(a => a.question_type === 'essay');
-    const autoGradedAnswers = answers.filter(a => a.question_type !== 'essay');
-
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
             <button

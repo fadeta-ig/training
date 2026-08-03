@@ -7,6 +7,7 @@ import { logActivity } from '@/lib/audit';
 import { sendCredentialEmail } from '@/lib/email';
 import pool from '@/lib/db';
 import logger from '@/lib/logger';
+import crypto from 'crypto';
 
 interface ImportItem {
     name: string;
@@ -18,11 +19,11 @@ interface ImportItem {
     address?: string | null;
 }
 
-function generateRandomPassword(length = 8) {
+function generateRandomPassword(length = 14) {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
     let password = '';
     for (let i = 0; i < length; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
+        password += chars.charAt(crypto.randomInt(chars.length));
     }
     return password;
 }

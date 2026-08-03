@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useCallback, useState, useEffect, use } from 'react';
 import {
     HelpCircleIcon,
-    ArrowLeft01Icon,
     PlusSignIcon,
     PencilEdit02Icon,
     Delete02Icon,
@@ -15,8 +14,6 @@ import {
     ViewOffIcon,
     CheckmarkCircle02Icon,
     Cancel01Icon,
-    Clock01Icon,
-    Target01Icon,
     StarIcon,
     Tick02Icon,
 } from 'hugeicons-react';
@@ -63,7 +60,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [userRole, setUserRole] = useState<string>('');
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
@@ -77,7 +74,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
             if (eData.success) setExam(eData.data);
         } catch (err: any) { setError(err.message); }
         finally { setIsLoading(false); }
-    };
+    }, [examId]);
 
     useEffect(() => { 
         fetchData(); 
@@ -86,7 +83,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                 setUserRole(data.data.role);
             }
         }).catch(() => {});
-    }, [examId]);
+    }, [fetchData]);
     useEffect(() => { if (successMsg) { const t = setTimeout(() => setSuccessMsg(null), 3000); return () => clearTimeout(t); } }, [successMsg]);
 
     const deleteQuestion = async (id: string) => {
@@ -99,7 +96,12 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
         } catch (err: any) { toast.error(err.message || 'Gagal menghapus soal'); }
     };
 
-    const toggleExpand = (id: string) => setExpandedIds(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    const toggleExpand = (id: string) => setExpandedIds(p => {
+        const next = new Set(p);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+    });
     const expandAll = () => setExpandedIds(new Set(questions.map(q => q.id)));
     const collapseAll = () => setExpandedIds(new Set());
 

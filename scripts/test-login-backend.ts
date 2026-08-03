@@ -5,8 +5,12 @@ import { signToken } from '../src/lib/auth';
 async function testLogin() {
     try {
         console.log('Testing login logic...');
-        const username = 'admin';
-        const password = 'admin123';
+        const username = process.env.TEST_ADMIN_USERNAME || 'admin';
+        const password = process.env.TEST_ADMIN_PASSWORD;
+
+        if (!password) {
+            throw new Error('TEST_ADMIN_PASSWORD wajib diisi untuk menjalankan test login backend.');
+        }
 
         const users = await executeQuery<any[]>(
             `SELECT id, username, password_hash, role, full_name FROM users WHERE username = ?`,

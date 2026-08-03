@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Pagination } from '@/components/ui/Pagination';
@@ -25,7 +25,7 @@ export default function AuditLogsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
-    const fetchLogs = async (targetPage = page, search = searchQuery) => {
+    const fetchLogs = useCallback(async (targetPage: number, search: string) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -46,11 +46,11 @@ export default function AuditLogsPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchLogs(page, searchQuery);
-    }, [page, searchQuery]);
+    }, [page, searchQuery, fetchLogs]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);

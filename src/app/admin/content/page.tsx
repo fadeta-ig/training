@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
     Book01Icon,
     PencilEdit02Icon,
@@ -33,7 +33,7 @@ export default function ContentManagerPage() {
     const [totalPages, setTotalPages] = useState(1);
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchTrainings = async (targetPage = page) => {
+    const fetchTrainings = useCallback(async (targetPage: number) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -53,11 +53,11 @@ export default function ContentManagerPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchTrainings(page);
-    }, [page]);
+    }, [page, fetchTrainings]);
 
     useEffect(() => {
         fetch('/api/auth/me').then(res => res.json()).then(data => {
@@ -96,7 +96,7 @@ export default function ContentManagerPage() {
                 icon={<Book01Icon size={28} className="text-muted-foreground" />}
                 actionLabel={userRole === 'admin' ? "Buat Materi Baru" : undefined}
                 actionHref={userRole === 'admin' ? "/admin/content/new" : undefined}
-                onRefresh={fetchTrainings}
+                onRefresh={() => fetchTrainings(page)}
                 isRefreshing={isLoading}
             />
 

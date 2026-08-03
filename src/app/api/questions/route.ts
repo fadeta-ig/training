@@ -4,15 +4,14 @@ import { executeQuery } from '@/lib/db';
 import { questionSchema } from '@/lib/validations/questionSchema';
 import { buildQuestionData } from '@/lib/question-helpers';
 import { withAuth } from '@/lib/api-auth';
+import { parsePagination } from '@/lib/sanitize';
 
 async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const examId = searchParams.get('examId');
 
-        const page = parseInt(searchParams.get('page') || '1', 10);
-        const limit = parseInt(searchParams.get('limit') || '100', 10);
-        const offset = (page - 1) * limit;
+        const { page, limit, offset } = parsePagination(searchParams, 100, 200);
 
         let countQuery = `SELECT COUNT(*) as total FROM questions`;
         const countParams: (string | number)[] = [];
@@ -64,11 +63,6 @@ async function handlePost(request: NextRequest) {
             question_type,
             question_text,
             question_image,
-            options,
-            correct_option_index,
-            correct_option_indices,
-            correct_answer,
-            matching_pairs,
             points,
         } = parsed.data;
 

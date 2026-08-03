@@ -6,7 +6,6 @@ const SNAPSHOT_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
 
 interface WebcamProctorProps {
     sessionId: string;
-    userId: string;
     /** Whether proctoring is actively capturing snapshots */
     isActive: boolean;
     /** Callback when a snapshot is successfully sent */
@@ -24,7 +23,6 @@ interface WebcamProctorProps {
  */
 export default function WebcamProctor({
     sessionId,
-    userId,
     isActive,
     onSnapshotSent,
     onError,
@@ -94,7 +92,6 @@ export default function WebcamProctor({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     sessionId,
-                    userId,
                     imageBase64,
                 }),
             });
@@ -108,7 +105,7 @@ export default function WebcamProctor({
             const message = error instanceof Error ? error.message : 'Snapshot send failed';
             console.error('[PROCTOR]', message);
         }
-    }, [captureSnapshot, sessionId, userId, onSnapshotSent]);
+    }, [captureSnapshot, sessionId, onSnapshotSent]);
 
     /** Start/stop the periodic capture interval */
     useEffect(() => {

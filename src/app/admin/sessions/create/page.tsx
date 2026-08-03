@@ -49,7 +49,7 @@ export default function CreateSessionPage() {
                     }));
                     setAvailableUsers(participants);
                 }
-            } catch (err) {
+            } catch {
                 console.error("Failed to fetch reference data");
             }
         };

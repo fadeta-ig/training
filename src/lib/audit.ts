@@ -32,7 +32,7 @@ export type AuditActionType =
  * @param details - Any extra JSON-serializable info to store.
  */
 export async function logActivity(
-    userId: string,
+    userId: string | null,
     actionType: AuditActionType,
     entity: string,
     entityId: string | null = null,

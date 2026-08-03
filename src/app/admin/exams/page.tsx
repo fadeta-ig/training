@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
     Edit01Icon,
     PencilEdit02Icon,
@@ -35,7 +35,7 @@ export default function ExamsManagerPage() {
     const [totalPages, setTotalPages] = useState(1);
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchExams = async (targetPage = page) => {
+    const fetchExams = useCallback(async (targetPage: number) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -55,11 +55,11 @@ export default function ExamsManagerPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchExams(page);
-    }, [page]);
+    }, [page, fetchExams]);
 
     useEffect(() => {
         fetch('/api/auth/me').then(res => res.json()).then(data => {
@@ -98,7 +98,7 @@ export default function ExamsManagerPage() {
                 icon={<Edit01Icon size={28} className="text-muted-foreground" />}
                 actionLabel={userRole === 'admin' ? "Buat Ujian Baru" : undefined}
                 actionHref={userRole === 'admin' ? "/admin/exams/new" : undefined}
-                onRefresh={fetchExams}
+                onRefresh={() => fetchExams(page)}
                 isRefreshing={isLoading}
             />
 

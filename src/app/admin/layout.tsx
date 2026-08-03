@@ -17,7 +17,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 if (data.success) {
                     setUser(data.data);
                 }
-            } catch (err) { }
+            } catch { }
         };
         fetchUser();
     }, []);

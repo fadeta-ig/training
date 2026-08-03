@@ -23,7 +23,9 @@ CREATE TABLE users (
   password_hash       VARCHAR(255) NOT NULL,
   reset_token         VARCHAR(255) NULL,
   reset_token_expires DATETIME NULL,
-  created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_users_role_created (role, created_at),
+  INDEX idx_users_reset_token (reset_token)
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
@@ -97,6 +99,7 @@ CREATE TABLE questions (
   correct_option_index INT NULL,
   correct_answer       TEXT NULL,
   points               INT NOT NULL DEFAULT 1,
+  INDEX idx_questions_exam (exam_id),
   CONSTRAINT fk_questions_exam
     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -120,6 +123,8 @@ CREATE TABLE module_items (
   item_type      ENUM('training', 'exam') NOT NULL,
   item_id        VARCHAR(36) NOT NULL,
   sequence_order INT         NOT NULL,
+  INDEX idx_module_items_module_order (module_id, sequence_order),
+  INDEX idx_module_items_lookup (module_id, item_type, item_id),
   CONSTRAINT fk_module_items_module
     FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -137,6 +142,7 @@ CREATE TABLE sessions (
   show_score     BOOLEAN      DEFAULT TRUE,
   seb_config_key VARCHAR(255) NULL,
   created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_sessions_module_time (module_id, start_time, end_time),
   CONSTRAINT fk_sessions_module
     FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -149,6 +155,7 @@ CREATE TABLE session_participants (
   session_id  VARCHAR(36) NOT NULL,
   user_id     VARCHAR(36) NOT NULL,
   UNIQUE KEY uq_session_user (session_id, user_id),
+  INDEX idx_session_participants_user (user_id),
   CONSTRAINT fk_sp_session
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
   CONSTRAINT fk_sp_user
@@ -169,6 +176,7 @@ CREATE TABLE user_progress (
   last_attempt_start DATETIME      NULL,
   updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_user_session (user_id, session_id),
+  INDEX idx_progress_session_item (session_id, module_item_id),
   UNIQUE KEY uq_progress (user_id, session_id, module_item_id),
   CONSTRAINT fk_progress_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -208,6 +216,7 @@ CREATE TABLE proctor_snapshots (
   session_id  VARCHAR(36) NOT NULL,
   image_url   VARCHAR(500) NOT NULL,
   captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_proctor_session_user_time (session_id, user_id, captured_at),
   CONSTRAINT fk_proctor_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_proctor_session
@@ -226,6 +235,22 @@ CREATE TABLE notifications (
   is_read     TINYINT(1) NOT NULL DEFAULT 0,
   link_url    VARCHAR(500) NULL,
   created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_notifications_user_created (user_id, created_at),
+  INDEX idx_notifications_user_read (user_id, is_read),
   CONSTRAINT fk_notification_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 14. Audit Logs (Aktivitas Kritis)
+CREATE TABLE audit_logs (
+  id          VARCHAR(36) PRIMARY KEY,
+  user_id     VARCHAR(36) NULL,
+  action_type VARCHAR(50) NOT NULL,
+  entity      VARCHAR(50) NOT NULL,
+  entity_id   VARCHAR(36) NULL,
+  details     JSON NULL,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_created (created_at),
+  INDEX idx_audit_user_created (user_id, created_at),
+  INDEX idx_audit_entity (entity, entity_id)
 ) ENGINE=InnoDB;

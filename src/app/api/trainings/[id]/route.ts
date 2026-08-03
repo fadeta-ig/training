@@ -4,6 +4,7 @@ import { executeQuery } from '@/lib/db';
 import { trainingSchema } from '@/lib/validations/trainingSchema';
 import { withAuth } from '@/lib/api-auth';
 import type { TrainingMedia } from '@/types';
+import { sanitizeRichHtml } from '@/lib/sanitize';
 
 async function handleGet(
     request: NextRequest,
@@ -28,7 +29,11 @@ async function handleGet(
 
         return NextResponse.json({
             success: true,
-            data: { ...result[0], media: media || [] }
+            data: {
+                ...result[0],
+                content_html: sanitizeRichHtml(result[0].content_html),
+                media: media || [],
+            }
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';

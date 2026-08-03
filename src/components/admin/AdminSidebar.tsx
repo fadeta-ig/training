@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { NavLink } from '@/components/ui/NavLink';
 import { usePathname } from 'next/navigation';
 import {
@@ -34,18 +34,13 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
         pathname.startsWith('/admin/exams') ||
         pathname.startsWith('/admin/modules');
 
-    const [isLearningExpanded, setIsLearningExpanded] = useState<boolean>(isLearningActive);
-
-    useEffect(() => {
-        if (isLearningActive) {
-            setIsLearningExpanded(true);
-        }
-    }, [isLearningActive]);
+    const [isLearningExpanded, setIsLearningExpanded] = useState<boolean>(false);
+    const showLearningItems = isLearningActive || isLearningExpanded;
 
     return (
         <>
             {/* Mobile Overlay */}
-            {!isOpen && (
+            {isOpen && (
                 <div
                     className="md:hidden fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
                     onClick={onClose}
@@ -104,13 +99,13 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                             </div>
                             {isOpen && (
                                 <span className="text-muted-foreground text-xs">
-                                    {isLearningExpanded ? <ArrowUp01Icon size={16} /> : <ArrowDown01Icon size={16} />}
+                                    {showLearningItems ? <ArrowUp01Icon size={16} /> : <ArrowDown01Icon size={16} />}
                                 </span>
                             )}
                         </button>
 
                         {/* Submenu Items */}
-                        {(isLearningExpanded || !isOpen) && (
+                        {(showLearningItems || !isOpen) && (
                             <div className={`space-y-1 transition-all ${isOpen ? 'pl-4 border-l-2 border-primary/15 ml-4 mt-1' : ''}`}>
                                 <NavLink
                                     href="/admin/content"

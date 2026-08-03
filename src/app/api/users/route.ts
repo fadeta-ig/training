@@ -4,10 +4,11 @@ import bcrypt from 'bcryptjs';
 import { executeQuery } from '@/lib/db';
 import { z } from 'zod';
 import { withAuth } from '@/lib/api-auth';
+import { parsePagination } from '@/lib/sanitize';
 
 const userSchema = z.object({
-    username: z.string().min(3, 'Username minimal 3 karakter').max(50),
-    password: z.string().min(6, 'Password minimal 6 karakter').optional(),
+    username: z.string().min(3, 'Username minimal 3 karakter').max(255),
+    password: z.string().min(8, 'Password minimal 8 karakter').optional(),
     full_name: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(100),
     role: z.enum(['admin', 'trainer'])
 });
@@ -15,10 +16,8 @@ const userSchema = z.object({
 async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
-        const page = parseInt(searchParams.get('page') || '1', 10);
-        const limit = parseInt(searchParams.get('limit') || '10', 10);
+        const { page, limit, offset } = parsePagination(searchParams);
         const search = searchParams.get('search') || '';
-        const offset = (page - 1) * limit;
 
         let countQuery = `SELECT COUNT(*) as total FROM users WHERE role IN ('admin', 'trainer')`;
         const countParams: (string | number)[] = [];

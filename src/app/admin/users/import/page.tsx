@@ -103,7 +103,7 @@ export default function BulkImportUsersPage() {
                     const name = normalized['nama lengkap'] || normalized['nama'] || normalized['name'] || '';
                     const email = (normalized['email aktif (username)'] || normalized['email aktif'] || normalized['username'] || normalized['email'] || '').toLowerCase();
                     const rawRole = (normalized['role (admin/trainer)'] || normalized['role'] || normalized['peran'] || 'trainer').toLowerCase();
-                    const role: 'admin' | 'trainer' = rawRole === 'admin' ? 'admin' : 'trainer';
+                    const role: 'admin' | 'trainer' = (rawRole.includes('admin') || rawRole === 'administrator') ? 'admin' : 'trainer';
                     const password = normalized['password (opsional)'] || normalized['password'] || '';
                     const phone_number = normalized['no hp'] || normalized['telepon'] || normalized['phone'] || '';
                     const institution = normalized['institusi'] || normalized['instansi'] || normalized['institution'] || '';

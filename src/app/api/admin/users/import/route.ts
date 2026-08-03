@@ -72,7 +72,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             }
 
             const rawRole = (item.role || 'trainer').toLowerCase();
-            const role = rawRole === 'admin' ? 'admin' : 'trainer';
+            const role: 'admin' | 'trainer' = (rawRole.includes('admin') || rawRole === 'administrator') ? 'admin' : 'trainer';
 
             seenEmails.add(cleanEmail);
             validQueue.push({

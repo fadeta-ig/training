@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { NavLink } from '@/components/ui/NavLink';
 import { usePathname } from 'next/navigation';
 import {
@@ -10,7 +13,10 @@ import {
     Camera01Icon,
     UserCircleIcon,
     UserGroupIcon,
-    Activity01Icon
+    Activity01Icon,
+    ArrowDown01Icon,
+    ArrowUp01Icon,
+    FolderLibraryIcon
 } from 'hugeicons-react';
 import type { AuthPayload } from '@/types';
 
@@ -22,6 +28,19 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
     const pathname = usePathname();
+
+    const isLearningActive =
+        pathname.startsWith('/admin/content') ||
+        pathname.startsWith('/admin/exams') ||
+        pathname.startsWith('/admin/modules');
+
+    const [isLearningExpanded, setIsLearningExpanded] = useState<boolean>(isLearningActive);
+
+    useEffect(() => {
+        if (isLearningActive) {
+            setIsLearningExpanded(true);
+        }
+    }, [isLearningActive]);
 
     return (
         <>
@@ -65,9 +84,59 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                 {/* Navigation Links */}
                 <nav className="flex-1 space-y-1.5 p-3 overflow-y-auto overflow-x-hidden">
                     <NavLink href="/admin" label="Overview" icon={<DashboardSquare01Icon size={20} />} isOpen={isOpen} active={pathname === '/admin'} />
-                    <NavLink href="/admin/content" label="Trainings (Materi)" icon={<Book01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/content')} />
-                    <NavLink href="/admin/exams" label="Exams (Bank Soal)" icon={<Edit01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/exams')} />
-                    <NavLink href="/admin/modules" label="Module Builder" icon={<CubeIcon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/modules')} />
+
+                    {/* Group Menu: Manajemen Pembelajaran */}
+                    <div className="space-y-1">
+                        <button
+                            onClick={() => setIsLearningExpanded((prev) => !prev)}
+                            title={!isOpen ? 'Manajemen Pembelajaran' : undefined}
+                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group active:scale-95 ${
+                                isLearningActive
+                                    ? 'bg-primary/10 text-primary font-semibold'
+                                    : 'text-muted-foreground hover:bg-black/5 hover:text-foreground'
+                            } ${!isOpen && 'justify-center'}`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className={`${isLearningActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'} transition-colors shrink-0`}>
+                                    <FolderLibraryIcon size={20} />
+                                </span>
+                                {isOpen && <span className="truncate">Manajemen Pembelajaran</span>}
+                            </div>
+                            {isOpen && (
+                                <span className="text-muted-foreground text-xs">
+                                    {isLearningExpanded ? <ArrowUp01Icon size={16} /> : <ArrowDown01Icon size={16} />}
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Submenu Items */}
+                        {(isLearningExpanded || !isOpen) && (
+                            <div className={`space-y-1 transition-all ${isOpen ? 'pl-4 border-l-2 border-primary/15 ml-4 mt-1' : ''}`}>
+                                <NavLink
+                                    href="/admin/content"
+                                    label="Trainings (Materi)"
+                                    icon={<Book01Icon size={18} />}
+                                    isOpen={isOpen}
+                                    active={pathname.startsWith('/admin/content')}
+                                />
+                                <NavLink
+                                    href="/admin/exams"
+                                    label="Exams (Bank Soal)"
+                                    icon={<Edit01Icon size={18} />}
+                                    isOpen={isOpen}
+                                    active={pathname.startsWith('/admin/exams')}
+                                />
+                                <NavLink
+                                    href="/admin/modules"
+                                    label="Module Builder"
+                                    icon={<CubeIcon size={18} />}
+                                    isOpen={isOpen}
+                                    active={pathname.startsWith('/admin/modules')}
+                                />
+                            </div>
+                        )}
+                    </div>
+
                     <NavLink href="/admin/sessions" label="Session Manager" icon={<Calendar01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/sessions')} />
                     <NavLink href="/admin/monitoring" label="Live Proctoring" icon={<Camera01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/monitoring')} />
                     

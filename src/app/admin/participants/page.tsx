@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
     UserGroupIcon,
     PencilEdit02Icon,
     Delete02Icon,
     RefreshIcon,
     Alert02Icon,
-    Search01Icon
+    Search01Icon,
+    CloudUploadIcon
 } from 'hugeicons-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -122,7 +124,7 @@ export default function ParticipantsManagerPage() {
                 </div>
             )}
 
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center justify-between gap-4 mb-4">
                 <div className="relative flex-1 max-w-sm">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                         <Search01Icon size={18} />
@@ -135,6 +137,16 @@ export default function ParticipantsManagerPage() {
                         className="w-full glass-input pl-11 pr-4 py-2.5 rounded-xl text-sm focus:outline-none"
                     />
                 </div>
+
+                {userRole === 'admin' && (
+                    <Link
+                        href="/admin/participants/import"
+                        className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-emerald-600/10 text-emerald-800 border border-emerald-600/20 hover:bg-emerald-600/20 transition-colors flex items-center gap-2 shadow-sm active:scale-95 shrink-0"
+                    >
+                        <CloudUploadIcon size={18} />
+                        Import Massal
+                    </Link>
+                )}
             </div>
 
             <GlassCard className="overflow-hidden">

@@ -69,12 +69,14 @@ async function handlePost(
 
         const questionMap = new Map(questions.map((q: any) => [q.id, q]));
 
-        // Fetch exam passing grade
+        // Fetch exam rules (passing grade, max attempts, remedial permission)
         const exam = await executeQuery<any[]>(
-            `SELECT passing_grade FROM exams WHERE id = ?`,
+            `SELECT passing_grade, max_attempts, allow_remedial FROM exams WHERE id = ?`,
             [examId]
         );
         const passingGrade = exam?.[0]?.passing_grade || 70;
+        const maxAttempts = exam?.[0]?.max_attempts || 1;
+        const allowRemedial = !!exam?.[0]?.allow_remedial;
 
         connection = await pool.getConnection();
         try {
@@ -95,6 +97,18 @@ async function handlePost(
             if (progressRes && progressRes.length > 0) {
                 attemptNumber = (progressRes[0].attempts_count || 0) + 1;
                 progressId = progressRes[0].id;
+            }
+
+            // Enforce max attempts limit unless remedial is allowed
+            if (attemptNumber > maxAttempts && !allowRemedial) {
+                await connection.rollback();
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: `Batas pengulangan ujian (${maxAttempts}x) telah tercapai.`
+                    },
+                    { status: 403 }
+                );
             }
 
             // Delete existing answers only for the current attempt (allows resume-then-submit flow safely)

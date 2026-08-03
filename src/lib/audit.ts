@@ -15,6 +15,7 @@ export type AuditActionType =
     | 'DELETE_SESSION'
     | 'MANUAL_GRADE_EXAM'
     | 'BULK_IMPORT_USERS'
+    | 'BULK_IMPORT_PARTICIPANTS'
     | 'RESET_PASSWORD'
     | 'SEND_CREDENTIALS';
 

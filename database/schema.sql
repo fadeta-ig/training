@@ -16,12 +16,14 @@ USE lms_antigravity;
 -- 1. Users
 -- ─────────────────────────────────────────────
 CREATE TABLE users (
-  id            VARCHAR(36)  PRIMARY KEY,
-  role          ENUM('admin', 'trainer', 'trainee') NOT NULL DEFAULT 'trainee',
-  full_name     VARCHAR(100) NOT NULL,
-  username      VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  id                  VARCHAR(36)  PRIMARY KEY,
+  role                ENUM('admin', 'trainer', 'trainee') NOT NULL DEFAULT 'trainee',
+  full_name           VARCHAR(100) NOT NULL,
+  username            VARCHAR(255) UNIQUE NOT NULL,
+  password_hash       VARCHAR(255) NOT NULL,
+  reset_token         VARCHAR(255) NULL,
+  reset_token_expires DATETIME NULL,
+  created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
@@ -204,7 +206,7 @@ CREATE TABLE proctor_snapshots (
   id          VARCHAR(36) PRIMARY KEY,
   user_id     VARCHAR(36) NOT NULL,
   session_id  VARCHAR(36) NOT NULL,
-  image_base64 LONGTEXT   NOT NULL,
+  image_url   VARCHAR(500) NOT NULL,
   captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_proctor_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

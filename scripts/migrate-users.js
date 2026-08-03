@@ -13,10 +13,10 @@ async function run() {
         console.log('Renaming name to full_name...');
         await pool.query('ALTER TABLE users CHANGE name full_name VARCHAR(100) NOT NULL');
 
-        console.log('Updating role ENUM values and standardizing participants...');
-        await pool.query("ALTER TABLE users MODIFY role ENUM('admin', 'participant', 'trainee') NOT NULL DEFAULT 'participant'");
-        await pool.query("UPDATE users SET role = 'participant' WHERE role = 'trainee'");
-        await pool.query("ALTER TABLE users MODIFY role ENUM('admin', 'participant') NOT NULL DEFAULT 'participant'");
+        console.log('Updating role ENUM values and standardizing trainees...');
+        await pool.query("ALTER TABLE users MODIFY role ENUM('admin', 'trainer', 'trainee', 'participant') NOT NULL DEFAULT 'trainee'");
+        await pool.query("UPDATE users SET role = 'trainee' WHERE role = 'participant'");
+        await pool.query("ALTER TABLE users MODIFY role ENUM('admin', 'trainer', 'trainee') NOT NULL DEFAULT 'trainee'");
 
         console.log('Adding updated_at column...');
         try {

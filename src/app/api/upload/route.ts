@@ -10,7 +10,6 @@ const ALLOWED_TYPES: Record<string, string> = {
     'image/png': 'image',
     'image/gif': 'image',
     'image/webp': 'image',
-    'image/svg+xml': 'image',
     'application/pdf': 'pdf',
     'application/msword': 'document',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'document',

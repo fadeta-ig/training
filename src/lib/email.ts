@@ -10,6 +10,16 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
+    const mailOptions = {
+        from: `"LMS System" <${process.env.SMTP_USER}>`,
+        to,
+        subject,
+        html,
+    };
+    return transporter.sendMail(mailOptions);
+}
+
 export async function sendPasswordResetEmail(to: string, resetLink: string) {
     const mailOptions = {
         from: `"LMS System" <${process.env.SMTP_USER}>`,

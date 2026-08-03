@@ -1,0 +1,207 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
+import { executeQuery } from '@/lib/db';
+import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import { logActivity } from '@/lib/audit';
+import { sendCredentialEmail } from '@/lib/email';
+import pool from '@/lib/db';
+
+interface ImportItem {
+    name: string;
+    email: string;
+    phone_number?: string | null;
+    institution?: string | null;
+    date_of_birth?: string | null;
+    gender?: 'L' | 'P' | null;
+    address?: string | null;
+}
+
+function generateRandomPassword(length = 8) {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
+    try {
+        const body = await request.json();
+        const { participants, sendEmail } = body as { participants: ImportItem[]; sendEmail?: boolean };
+
+        if (!Array.isArray(participants) || participants.length === 0) {
+            return NextResponse.json(
+                { success: false, error: 'Data peserta tidak boleh kosong' },
+                { status: 400 }
+            );
+        }
+
+        if (participants.length > 500) {
+            return NextResponse.json(
+                { success: false, error: 'Maksimal 500 peserta dalam sekali import' },
+                { status: 400 }
+            );
+        }
+
+        // 1. Structural & Format Validation (Pre-flight)
+        const failed: { name: string; email: string; reason: string }[] = [];
+        const validQueue: ImportItem[] = [];
+        const seenEmails = new Set<string>();
+
+        for (let i = 0; i < participants.length; i++) {
+            const item = participants[i];
+            const cleanName = (item.name || '').trim();
+            const cleanEmail = (item.email || '').trim().toLowerCase();
+
+            if (!cleanName || cleanName.length < 3) {
+                failed.push({ name: item.name || `Baris ${i + 1}`, email: cleanEmail || '-', reason: 'Nama lengkap minimal 3 karakter' });
+                continue;
+            }
+
+            if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+                failed.push({ name: cleanName, email: cleanEmail || '-', reason: 'Format email tidak valid' });
+                continue;
+            }
+
+            if (seenEmails.has(cleanEmail)) {
+                failed.push({ name: cleanName, email: cleanEmail, reason: 'Duplikasi email di dalam file import' });
+                continue;
+            }
+
+            seenEmails.add(cleanEmail);
+            validQueue.push({
+                ...item,
+                name: cleanName,
+                email: cleanEmail,
+                phone_number: item.phone_number ? String(item.phone_number).trim() : null,
+                institution: item.institution ? String(item.institution).trim() : null,
+                date_of_birth: item.date_of_birth ? String(item.date_of_birth).trim() : null,
+                gender: item.gender === 'L' || item.gender === 'P' ? item.gender : null,
+                address: item.address ? String(item.address).trim() : null,
+            });
+        }
+
+        if (validQueue.length === 0) {
+            return NextResponse.json({
+                success: false,
+                error: 'Tidak ada data peserta yang valid untuk diimport',
+                importedCount: 0,
+                failedCount: failed.length,
+                failed,
+            }, { status: 400 });
+        }
+
+        // 2. DB Check for existing emails
+        const emailsToCheck = validQueue.map(q => q.email);
+        const placeholders = emailsToCheck.map(() => '?').join(',');
+        const existingUsers = await executeQuery<{ username: string }[]>(
+            `SELECT username FROM users WHERE username IN (${placeholders})`,
+            emailsToCheck
+        );
+
+        const existingSet = new Set((existingUsers || []).map(u => u.username.toLowerCase()));
+
+        const readyToInsert: ImportItem[] = [];
+        for (const item of validQueue) {
+            if (existingSet.has(item.email)) {
+                failed.push({ name: item.name, email: item.email, reason: 'Email sudah terdaftar di sistem' });
+            } else {
+                readyToInsert.push(item);
+            }
+        }
+
+        if (readyToInsert.length === 0) {
+            return NextResponse.json({
+                success: false,
+                error: 'Semua email peserta sudah terdaftar di database',
+                importedCount: 0,
+                failedCount: failed.length,
+                failed,
+            }, { status: 400 });
+        }
+
+        // 3. Batch DB Transaction Execution
+        const connection = await pool.getConnection();
+        const credentials: { name: string; email: string; password: string }[] = [];
+
+        try {
+            await connection.beginTransaction();
+
+            for (const participant of readyToInsert) {
+                const rawPassword = generateRandomPassword();
+                const passwordHash = await bcrypt.hash(rawPassword, 10);
+                const userId = uuidv4();
+                const profileId = uuidv4();
+
+                await connection.execute(
+                    `INSERT INTO users (id, username, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)`,
+                    [userId, participant.email, passwordHash, participant.name, 'trainee']
+                );
+
+                await connection.execute(
+                    `INSERT INTO participant_profiles (id, user_id, phone_number, address, date_of_birth, gender, institution) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        profileId,
+                        userId,
+                        participant.phone_number || null,
+                        participant.address || null,
+                        participant.date_of_birth || null,
+                        participant.gender || null,
+                        participant.institution || null,
+                    ]
+                );
+
+                credentials.push({
+                    name: participant.name,
+                    email: participant.email,
+                    password: rawPassword,
+                });
+            }
+
+            await connection.commit();
+        } catch (dbError) {
+            await connection.rollback();
+            console.error('Bulk Import Transaction Error:', dbError);
+            throw dbError;
+        } finally {
+            connection.release();
+        }
+
+        // 4. Audit Log
+        await logActivity(authUser.id, 'BULK_IMPORT_PARTICIPANTS', 'users', 'batch', {
+            importedCount: credentials.length,
+            failedCount: failed.length,
+        });
+
+        // 5. Send Emails if requested
+        if (sendEmail) {
+            // Trigger emails asynchronously without blocking response
+            Promise.allSettled(
+                credentials.map(c => sendCredentialEmail(c.email, c.name, c.password))
+            ).catch(err => console.error('Asynchronous bulk email send error:', err));
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: `Berhasil mengimport ${credentials.length} peserta`,
+            importedCount: credentials.length,
+            failedCount: failed.length,
+            credentials,
+            failed,
+        }, { status: 201 });
+
+    } catch (error: any) {
+        console.error('Bulk import error:', error);
+        return NextResponse.json(
+            { success: false, error: error.message || 'Terjadi kesalahan sistem saat import' },
+            { status: 500 }
+        );
+    }
+}
+
+export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });

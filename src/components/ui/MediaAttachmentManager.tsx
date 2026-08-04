@@ -110,11 +110,11 @@ export default function MediaAttachmentManager({ items, onChange }: MediaAttachm
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <label className="text-sm font-bold text-foreground">
                     Media Lampiran <span className="text-muted-foreground font-normal">(Opsional)</span>
                 </label>
-                <div className="relative">
+                <div className="relative self-start sm:self-auto">
                     <button
                         type="button"
                         onClick={() => { setShowMenu(!showMenu); setShowVideoInput(false); }}
@@ -165,13 +165,13 @@ export default function MediaAttachmentManager({ items, onChange }: MediaAttachm
 
             {/* YouTube URL input */}
             {showVideoInput && (
-                <div className="flex items-center gap-2 p-3 rounded-xl border border-black/10 bg-white/60">
+                <div className="flex flex-col gap-2 rounded-xl border border-black/10 bg-white/60 p-3 sm:flex-row sm:items-center">
                     <input
                         type="url"
                         placeholder="https://youtube.com/watch?v=..."
                         value={videoUrlInput}
                         onChange={(e) => setVideoUrlInput(e.target.value)}
-                        className="flex-1 glass-input px-3 py-2 rounded-lg text-xs focus:outline-none"
+                        className="min-w-0 flex-1 glass-input px-3 py-2 rounded-lg text-xs focus:outline-none"
                         autoFocus
                     />
                     <button
@@ -221,7 +221,8 @@ export default function MediaAttachmentManager({ items, onChange }: MediaAttachm
                                 <button
                                     type="button"
                                     onClick={() => removeItem(idx)}
-                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                                    aria-label={`Hapus ${item.original_filename || config.label}`}
                                 >
                                     <Delete02Icon size={14} />
                                 </button>

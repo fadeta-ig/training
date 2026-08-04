@@ -138,7 +138,7 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                 <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
                     <ArrowLeft01Icon size={14} /> Kembali
                 </Link>
-                <div className="glass-card p-8 text-center">
+                <div className="glass-card p-4 text-center sm:p-6 md:p-8">
                     <AlertCircleIcon size={36} className="mx-auto text-destructive mb-3" />
                     <p className="text-sm text-destructive font-semibold">{error || 'Sesi tidak ditemukan'}</p>
                 </div>

@@ -3,10 +3,11 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
+import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 import type { AuthPayload } from '@/types';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const { isSidebarOpen, closeSidebar, toggleSidebar } = useResponsiveSidebar();
     const [user, setUser] = useState<AuthPayload | null>(null);
 
     useEffect(() => {
@@ -23,20 +24,20 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <div className="flex h-screen bg-background text-foreground font-sans overflow-hidden">
+        <div className="flex h-dvh bg-background text-foreground font-sans overflow-hidden">
             <AdminSidebar 
                 isOpen={isSidebarOpen} 
-                onClose={() => setIsSidebarOpen(false)} 
+                onClose={closeSidebar}
                 user={user} 
             />
 
             <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-background">
                 <AdminHeader 
-                    toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
+                    toggleSidebar={toggleSidebar}
                     user={user} 
                 />
 
-                <div className="flex-1 overflow-auto p-6 md:p-10 page-transition bg-transparent relative">
+                <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-4 sm:p-6 md:p-10 page-transition bg-transparent relative">
                     {children}
                 </div>
             </main>

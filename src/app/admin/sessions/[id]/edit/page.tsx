@@ -309,8 +309,8 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                         />
                     </div>
 
-                    <div className="border border-black/10 rounded-xl overflow-hidden bg-white/50 max-h-[400px] overflow-y-auto">
-                        <table className="w-full text-sm text-left">
+                    <div className="max-h-[400px] overflow-auto rounded-xl border border-black/10 bg-white/50">
+                        <table className="w-full min-w-[32rem] text-sm text-left">
                             <thead className="text-xs text-muted-foreground uppercase bg-black/5 sticky top-0 z-10 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-4 py-3 w-12 text-center">
@@ -353,11 +353,11 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                     </div>
                 </GlassCard>
 
-                <div className="flex justify-end pt-4">
+                <div className="flex justify-stretch pt-4 sm:justify-end">
                     <button
                         type="submit"
                         disabled={loading}
-                        className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-6 py-3 mr-auto md:mr-0 rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 min-w-[200px]"
+                        className="flex w-full min-w-0 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg disabled:opacity-50 sm:w-auto sm:min-w-[200px]"
                     >
                         {loading ? (
                             <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>

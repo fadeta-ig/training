@@ -47,10 +47,10 @@ export default function AlertCustom({ message, type, onClose, duration = 5000 }:
 
     return (
         <div
-            className={`fixed top-6 right-6 z-50 transition-all duration-300 transform ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
+            className={`fixed inset-x-3 top-3 z-50 transition-all duration-300 transform sm:inset-x-auto sm:right-6 sm:top-6 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
                 }`}
         >
-            <div className={`glass-card p-4 min-w-[300px] max-w-md border-2 shadow-2xl flex items-start gap-3 backdrop-blur-xl ${styles[type]}`}>
+            <div className={`glass-card w-full min-w-0 max-w-md border-2 p-4 shadow-2xl flex items-start gap-3 backdrop-blur-xl sm:min-w-[300px] ${styles[type]}`}>
                 <div className="shrink-0 mt-0.5">
                     {icons[type]}
                 </div>
@@ -63,6 +63,8 @@ export default function AlertCustom({ message, type, onClose, duration = 5000 }:
                     </p>
                 </div>
                 <button
+                    type="button"
+                    aria-label="Tutup notifikasi"
                     onClick={handleClose}
                     className="shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
                 >

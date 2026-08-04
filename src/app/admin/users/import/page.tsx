@@ -226,14 +226,14 @@ export default function BulkImportUsersPage() {
     return (
         <div className="space-y-8 max-w-6xl">
             {/* Header */}
-            <div className="flex items-center gap-4 border-b border-black/5 pb-6">
+            <div className="flex items-start gap-3 border-b border-black/5 pb-5 sm:items-center sm:gap-4 sm:pb-6">
                 <Link
                     href="/admin/users"
-                    className="p-2.5 rounded-xl bg-white border border-black/10 text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors shadow-sm"
+                    className="shrink-0 p-2.5 rounded-xl bg-white border border-black/10 text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors shadow-sm"
                 >
                     <ArrowLeft01Icon size={20} />
                 </Link>
-                <div>
+                <div className="min-w-0">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
                         <UserGroupIcon size={28} className="text-muted-foreground" />
                         Import Massal Pengguna (Admin & Trainer)
@@ -245,16 +245,16 @@ export default function BulkImportUsersPage() {
             </div>
 
             {/* Stepper Progress */}
-            <div className="grid grid-cols-3 gap-4 text-center">
-                <div className={`p-3 rounded-xl border text-sm font-semibold flex items-center justify-center gap-2 transition-all ${step === 1 ? 'bg-foreground text-background border-foreground shadow-sm' : 'bg-black/5 border-transparent text-muted-foreground'}`}>
+            <div className="grid grid-cols-3 gap-2 text-center sm:gap-4">
+                <div className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-2 text-[11px] font-semibold transition-all sm:flex-row sm:gap-2 sm:p-3 sm:text-sm ${step === 1 ? 'bg-foreground text-background border-foreground shadow-sm' : 'bg-black/5 border-transparent text-muted-foreground'}`}>
                     <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center text-xs">1</span>
                     Unggah Berkas
                 </div>
-                <div className={`p-3 rounded-xl border text-sm font-semibold flex items-center justify-center gap-2 transition-all ${step === 2 ? 'bg-foreground text-background border-foreground shadow-sm' : 'bg-black/5 border-transparent text-muted-foreground'}`}>
+                <div className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-2 text-[11px] font-semibold transition-all sm:flex-row sm:gap-2 sm:p-3 sm:text-sm ${step === 2 ? 'bg-foreground text-background border-foreground shadow-sm' : 'bg-black/5 border-transparent text-muted-foreground'}`}>
                     <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center text-xs">2</span>
                     Pratinjau & Validasi
                 </div>
-                <div className={`p-3 rounded-xl border text-sm font-semibold flex items-center justify-center gap-2 transition-all ${step === 3 ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-black/5 border-transparent text-muted-foreground'}`}>
+                <div className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-2 text-[11px] font-semibold transition-all sm:flex-row sm:gap-2 sm:p-3 sm:text-sm ${step === 3 ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-black/5 border-transparent text-muted-foreground'}`}>
                     <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center text-xs">3</span>
                     Hasil & Kredensial
                 </div>
@@ -263,7 +263,7 @@ export default function BulkImportUsersPage() {
             {/* STEP 1: Upload & Download Template */}
             {step === 1 && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <GlassCard className="p-8 md:col-span-2 space-y-6">
+                    <GlassCard className="space-y-6 p-4 sm:p-6 md:col-span-2 md:p-8">
                         <div>
                             <h2 className="text-xl font-bold">Unggah File Data Pengguna</h2>
                             <p className="text-sm text-muted-foreground mt-1">
@@ -275,7 +275,7 @@ export default function BulkImportUsersPage() {
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={handleDrop}
                             onClick={() => fileInputRef.current?.click()}
-                            className="border-2 border-dashed border-black/15 rounded-2xl p-10 text-center hover:border-foreground/50 hover:bg-black/[0.02] transition-all cursor-pointer space-y-4"
+                            className="cursor-pointer space-y-4 rounded-2xl border-2 border-dashed border-black/15 p-6 text-center transition-all hover:border-foreground/50 hover:bg-black/[0.02] sm:p-10"
                         >
                             <div className="w-16 h-16 rounded-2xl bg-black/5 text-muted-foreground flex items-center justify-center mx-auto">
                                 <CloudUploadIcon size={32} />
@@ -294,7 +294,7 @@ export default function BulkImportUsersPage() {
                         </div>
                     </GlassCard>
 
-                    <GlassCard className="p-8 space-y-6 flex flex-col justify-between">
+                    <GlassCard className="flex flex-col justify-between space-y-6 p-4 sm:p-6 md:p-8">
                         <div>
                             <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
                                 <Download01Icon size={24} />
@@ -322,7 +322,7 @@ export default function BulkImportUsersPage() {
                 <div className="space-y-6">
                     {/* Summary Bar */}
                     <GlassCard className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-6">
+                        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                             <div>
                                 <p className="text-xs font-bold text-muted-foreground uppercase">File Terbaca</p>
                                 <p className="text-base font-bold text-foreground mt-0.5">{fileName}</p>
@@ -372,7 +372,7 @@ export default function BulkImportUsersPage() {
                     </GlassCard>
 
                     {/* Email Option Checkbox */}
-                    <GlassCard className="p-5 flex items-center justify-between">
+                    <GlassCard className="flex flex-col items-stretch justify-between gap-3 p-4 sm:flex-row sm:items-center sm:p-5">
                         <label className="flex items-center gap-3 cursor-pointer select-none">
                             <input
                                 type="checkbox"
@@ -472,7 +472,7 @@ export default function BulkImportUsersPage() {
 
             {/* STEP 3: Results & Download Credentials Report */}
             {step === 3 && importResults && (
-                <GlassCard className="p-8 max-w-2xl mx-auto space-y-8 text-center">
+                <GlassCard className="mx-auto max-w-2xl space-y-8 p-4 text-center sm:p-6 md:p-8">
                     <div className="w-20 h-20 rounded-3xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-sm">
                         <Key01Icon size={40} />
                     </div>
@@ -484,7 +484,7 @@ export default function BulkImportUsersPage() {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 text-left">
+                    <div className="grid grid-cols-1 gap-4 text-left sm:grid-cols-2">
                         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
                             <p className="text-xs font-bold text-emerald-700 uppercase">Berhasil Diimport</p>
                             <p className="text-3xl font-extrabold text-emerald-900 mt-1">{importResults.importedCount}</p>

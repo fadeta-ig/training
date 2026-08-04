@@ -101,7 +101,7 @@ export default function NewParticipantPage() {
     if (credentials) {
         return (
             <div className="space-y-8 max-w-lg mx-auto pt-8">
-                <GlassCard className="p-8 space-y-6 text-center">
+                <GlassCard className="space-y-6 p-4 text-center sm:p-6 md:p-8">
                     <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
                         <Key01Icon size={32} />
                     </div>
@@ -217,7 +217,7 @@ export default function NewParticipantPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                <GlassCard className="p-8">
+                <GlassCard className="p-4 sm:p-6 md:p-8">
                     <h2 className="text-lg font-bold mb-6 border-b border-black/5 pb-2">Informasi Akun & Kontak Lengkap</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">

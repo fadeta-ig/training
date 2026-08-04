@@ -114,7 +114,7 @@ export default function EditParticipantPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                <GlassCard className="p-8">
+                <GlassCard className="p-4 sm:p-6 md:p-8">
                     <h2 className="text-lg font-bold mb-6 border-b border-black/5 pb-2">Informasi Akun & Kontak Lengkap</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">

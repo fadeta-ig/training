@@ -36,8 +36,8 @@ export class ErrorBoundary extends Component<Props, State> {
     public render() {
         if (this.state.hasError) {
             return (
-                <div className="min-h-[400px] flex items-center justify-center p-6 text-center">
-                    <div className="max-w-md w-full glass-card p-8 rounded-3xl space-y-6 shadow-xl border border-black/10">
+                <div className="min-h-[400px] flex items-center justify-center p-3 sm:p-6 text-center">
+                    <div className="max-w-md w-full glass-card p-4 sm:p-8 rounded-3xl space-y-6 shadow-xl border border-black/10">
                         <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
                             <Alert02Icon size={32} />
                         </div>
@@ -57,7 +57,7 @@ export class ErrorBoundary extends Component<Props, State> {
                             </div>
                         )}
 
-                        <div className="flex gap-3 pt-2">
+                        <div className="flex flex-col gap-3 pt-2 sm:flex-row">
                             <button
                                 onClick={this.handleReset}
                                 className="flex-1 py-3 px-4 text-xs font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2 active:scale-95 shadow-sm"

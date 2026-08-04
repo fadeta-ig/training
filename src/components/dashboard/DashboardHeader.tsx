@@ -41,11 +41,13 @@ export function DashboardHeader({ toggleSidebar, user }: DashboardHeaderProps) {
     };
 
     return (
-        <header className="h-16 flex items-center justify-between px-6 border-b border-black/5 bg-white/60 backdrop-blur-md shrink-0 z-30">
-            <div className="flex items-center gap-4">
+        <header className="h-16 flex items-center justify-between gap-3 px-3 sm:px-6 border-b border-black/5 bg-white/60 backdrop-blur-md shrink-0 z-30">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-4">
                 <button
+                    type="button"
+                    aria-label="Buka atau tutup menu navigasi"
                     onClick={toggleSidebar}
-                    className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+                    className="flex size-10 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground rounded-lg hover:bg-black/5 transition-colors"
                 >
                     <Menu01Icon size={22} />
                 </button>
@@ -53,10 +55,12 @@ export function DashboardHeader({ toggleSidebar, user }: DashboardHeaderProps) {
                     Selamat datang, {user?.full_name?.split(' ')[0] || 'Peserta'}!
                 </h2>
             </div>
-            <div className="flex items-center gap-5 relative">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-3 relative">
                 {/* Notifications Dropdown */}
                 <div className="relative">
                     <button
+                        type="button"
+                        aria-label="Buka notifikasi"
                         onClick={() => setIsNotifOpen(!isNotifOpen)}
                         className={`p-2 rounded-xl transition-colors relative ${isNotifOpen ? 'bg-black/10 text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-black/5'}`}
                     >
@@ -69,7 +73,7 @@ export function DashboardHeader({ toggleSidebar, user }: DashboardHeaderProps) {
                     {isNotifOpen && (
                         <>
                             <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
-                            <div className="absolute right-0 mt-2 w-72 bg-background border border-black/10 shadow-xl rounded-2xl overflow-hidden z-50 glass-card">
+                            <div className="glass-card fixed inset-x-3 top-[4.5rem] z-50 w-auto overflow-hidden rounded-2xl border border-black/10 bg-background shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-72">
                                 <div className="p-4 border-b border-black/5 flex items-center justify-between">
                                     <h3 className="font-bold text-sm">Notifikasi</h3>
                                     {unreadNotifs > 0 && (
@@ -93,6 +97,8 @@ export function DashboardHeader({ toggleSidebar, user }: DashboardHeaderProps) {
                 {/* Profile Avatar & Dropdown */}
                 <div className="relative">
                     <button
+                        type="button"
+                        aria-label="Buka menu profil"
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
                         className="w-9 h-9 rounded-full bg-foreground flex items-center justify-center text-background text-xs font-bold hover:ring-2 hover:ring-foreground/20 transition-all border-2 border-transparent focus:border-white"
                     >
@@ -102,7 +108,7 @@ export function DashboardHeader({ toggleSidebar, user }: DashboardHeaderProps) {
                     {isProfileOpen && (
                         <>
                             <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)}></div>
-                            <div className="absolute right-0 mt-2 w-48 bg-background border border-black/10 shadow-xl rounded-2xl overflow-hidden z-50 py-1">
+                            <div className="absolute right-0 mt-2 w-[min(12rem,calc(100vw-1.5rem))] bg-background border border-black/10 shadow-xl rounded-2xl overflow-hidden z-50 py-1">
                                 <Link
                                     href="/dashboard/profil"
                                     onClick={() => setIsProfileOpen(false)}

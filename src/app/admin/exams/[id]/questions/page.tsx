@@ -121,7 +121,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
             case 'multiple_choice': {
                 if (!Array.isArray(parsed)) return null;
                 return (
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                         {parsed.map((opt: any, i: number) => {
                             const text = typeof opt === 'string' ? opt : opt.text;
                             const image = typeof opt === 'object' ? opt.image : null;
@@ -144,7 +144,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                 if (!parsed?.options) return null;
                 const ci: number[] = parsed.correct_indices || [];
                 return (
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                         {parsed.options.map((opt: any, i: number) => {
                             const text = typeof opt === 'string' ? opt : opt.text;
                             const ok = ci.includes(i);
@@ -225,7 +225,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
 
             {/* Stats */}
             {!isLoading && questions.length > 0 && (
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {[
                         { v: questions.length, l: 'Total Soal' },
                         { v: totalPts, l: 'Total Poin' },
@@ -243,13 +243,13 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
             {/* Search & Filter */}
             {!isLoading && questions.length > 0 && (
                 <GlassCard className="p-3 space-y-2.5">
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                         <div className="relative flex-1">
                             <Search01Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                             <input type="text" placeholder="Cari pertanyaan..." className="w-full pl-9 pr-8 py-2 rounded-lg bg-white/50 border border-black/10 text-xs focus:outline-none focus:ring-2 focus:ring-ring" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                             {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><Cancel01Icon size={12} /></button>}
                         </div>
-                        <button onClick={() => expandedIds.size === questions.length ? collapseAll() : expandAll()} className="px-3 py-2 text-[11px] font-semibold rounded-lg bg-white border border-black/10 hover:bg-black/5 flex items-center gap-1.5 shrink-0 transition-colors">
+                        <button onClick={() => expandedIds.size === questions.length ? collapseAll() : expandAll()} className="flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-2 text-[11px] font-semibold transition-colors hover:bg-black/5">
                             {expandedIds.size === questions.length ? <ViewOffIcon size={13} /> : <ViewIcon size={13} />}
                             {expandedIds.size === questions.length ? 'Tutup' : 'Buka'} Semua
                         </button>

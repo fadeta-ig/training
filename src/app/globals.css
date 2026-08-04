@@ -94,6 +94,9 @@
 
   html {
     @apply font-sans scroll-smooth antialiased;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   body {
@@ -102,12 +105,30 @@
     background-image: radial-gradient(circle at top right, #ffffff, #f8f9fa 60%, #eef0f3 100%);
     background-attachment: fixed;
     min-height: 100vh;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  img,
+  video,
+  canvas,
+  iframe {
+    max-width: 100%;
+  }
+
+  input,
+  textarea,
+  select {
+    min-width: 0;
   }
 }
 
 /* ── Glassmorphism Utility Classes ── */
 @layer utilities {
   .glass-card {
+    min-width: 0;
+    max-width: 100%;
     background: var(--glass);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
@@ -154,6 +175,16 @@
   /* Smooth page transitions */
   .page-transition {
     animation: pageFadeIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+}
+
+@media (max-width: 639px) {
+  h1.text-3xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    min-width: 0;
+    align-items: flex-start;
+    overflow-wrap: anywhere;
   }
 }
 

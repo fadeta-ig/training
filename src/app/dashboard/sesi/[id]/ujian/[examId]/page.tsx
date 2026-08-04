@@ -180,7 +180,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     if (result) {
         return (
             <div className="max-w-lg mx-auto space-y-8 pt-10">
-                <div className="glass-card p-8 text-center space-y-6">
+                <div className="glass-card p-4 text-center space-y-6 sm:p-6 md:p-8">
                     {result.show_score !== false ? (
                         <>
                             <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center ${result.passed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -273,14 +273,14 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             />
 
             {/* Timer Bar */}
-            <div className="glass-card p-4 flex items-center justify-between sticky top-0 z-20">
-                <div>
+            <div className="glass-card sticky top-0 z-20 flex items-center justify-between gap-3 p-3 sm:p-4">
+                <div className="min-w-0">
                     <h2 className="text-sm font-bold truncate">{examData.exam.title}</h2>
                     <p className="text-xs text-muted-foreground">
                         Soal {currentIdx + 1} dari {questions.length} · {answeredCount}/{questions.length} dijawab
                     </p>
                 </div>
-                <div className={`flex items-center gap-2 font-mono text-lg font-bold px-4 py-2 rounded-xl ${timeLeft < 300 ? 'bg-destructive/10 text-destructive animate-pulse' : 'bg-black/5 text-foreground'}`}>
+                <div className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 font-mono text-base font-bold sm:px-4 sm:text-lg ${timeLeft < 300 ? 'bg-destructive/10 text-destructive animate-pulse' : 'bg-black/5 text-foreground'}`}>
                     <Clock01Icon size={18} />
                     {formatTime(timeLeft)}
                 </div>
@@ -342,8 +342,8 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                                         onChange={() => handleAnswerChange(currentQ.id, String(idx))}
                                         className="w-4 h-4 text-foreground focus:ring-foreground"
                                     />
-                                    <div className="flex-1">
-                                        <span className="text-sm font-medium">{optText}</span>
+                                    <div className="min-w-0 flex-1">
+                                        <span className="break-words text-sm font-medium">{optText}</span>
                                         {optImage && (
                                             <img src={optImage} alt={`Opsi ${idx + 1}`} className="mt-2 rounded-lg max-h-32 object-contain" />
                                         )}
@@ -376,11 +376,11 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             </div>
 
             {/* Navigation */}
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
                 <button
                     onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))}
                     disabled={currentIdx === 0}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl border border-black/10 hover:bg-black/5 transition-colors disabled:opacity-30 active:scale-95"
+                    className="flex items-center gap-2 rounded-xl border border-black/10 px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-black/5 disabled:opacity-30 active:scale-95 sm:px-5"
                 >
                     <ArrowLeft01Icon size={16} />
                     Sebelumnya
@@ -389,7 +389,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 {currentIdx < questions.length - 1 ? (
                     <button
                         onClick={() => setCurrentIdx(currentIdx + 1)}
-                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors active:scale-95"
+                        className="flex items-center gap-2 rounded-xl bg-foreground px-3 py-2.5 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 active:scale-95 sm:px-5"
                     >
                         Selanjutnya
                         <ArrowRight01Icon size={16} />
@@ -398,7 +398,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     <button
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors active:scale-95 disabled:opacity-50"
+                        className="flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 active:scale-95 disabled:opacity-50 sm:px-6"
                     >
                         {submitting ? (
                             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>

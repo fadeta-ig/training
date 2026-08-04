@@ -176,14 +176,14 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
 
     return (
         <div className="space-y-8 pb-12">
-            <div className="flex items-center gap-4 border-b border-black/5 pb-6">
+            <div className="flex items-start gap-3 border-b border-black/5 pb-5 sm:items-center sm:gap-4 sm:pb-6">
                 <Link
                     href="/admin/modules"
-                    className="p-2.5 rounded-xl bg-white border border-black/10 text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors shadow-sm"
+                    className="shrink-0 p-2.5 rounded-xl bg-white border border-black/10 text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors shadow-sm"
                 >
                     <ArrowLeft01Icon size={20} />
                 </Link>
-                <div>
+                <div className="min-w-0">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
                         <CubeIcon size={28} className="text-muted-foreground" />
                         Edit Alur Modul
@@ -230,7 +230,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                     </div>
 
                     <div className="glass-card p-6 space-y-5">
-                        <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                        <div className="flex flex-col items-start gap-2 border-b border-black/5 pb-3 sm:flex-row sm:items-center sm:justify-between">
                             <h2 className="text-lg font-bold">2. Alur Pembelajaran (Sequence)</h2>
                             <span className="text-sm font-semibold text-muted-foreground bg-black/5 px-3 py-1 rounded-full">
                                 {selectedItems.length} Item Terpilih
@@ -238,25 +238,25 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                         </div>
 
                         {selectedItems.length === 0 ? (
-                            <div className="p-10 border-2 border-dashed border-black/10 rounded-2xl flex items-center justify-center text-center text-muted-foreground bg-black/5">
+                            <div className="flex items-center justify-center rounded-2xl border-2 border-dashed border-black/10 bg-black/5 p-5 text-center text-muted-foreground sm:p-10">
                                 Pilih Materi atau Ujian dari pustaka di sebelah kanan untuk menambahkannya.
                             </div>
                         ) : (
                             <div className="space-y-3">
                                 {selectedItems.map((item, index) => (
-                                    <div key={`${item.item_id}-${index}`} className="flex items-center gap-4 p-4 rounded-xl border border-black/10 bg-white/60 backdrop-blur-sm shadow-sm hover:border-black/20 transition-all group">
+                                    <div key={`${item.item_id}-${index}`} className="group flex flex-wrap items-center gap-3 rounded-xl border border-black/10 bg-white/60 p-3 shadow-sm backdrop-blur-sm transition-all hover:border-black/20 sm:flex-nowrap sm:gap-4 sm:p-4">
                                         <div className="font-bold text-xl text-black/20 w-8 text-center">{index + 1}</div>
 
                                         <div className="p-2 rounded-lg bg-black/5 text-muted-foreground">
                                             {item.item_type === 'training' ? <Book01Icon size={20} /> : <Edit01Icon size={20} />}
                                         </div>
 
-                                        <div className="flex-1">
-                                            <h4 className="font-semibold text-sm">{item.title}</h4>
+                                        <div className="min-w-[8rem] flex-1">
+                                            <h4 className="break-words font-semibold text-sm">{item.title}</h4>
                                             <p className="text-xs font-mono text-muted-foreground uppercase mt-0.5">{item.item_type}</p>
                                         </div>
 
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="ml-auto flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                                             <button
                                                 type="button"
                                                 onClick={() => moveItem(index, 'up')}
@@ -287,11 +287,11 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                             </div>
                         )}
 
-                        <div className="pt-6 mt-4 border-t border-black/5 flex justify-end">
+                        <div className="mt-4 flex justify-stretch border-t border-black/5 pt-6 sm:justify-end">
                             <button
                                 type="submit"
                                 disabled={isSaving || selectedItems.length === 0}
-                                className="px-8 py-3.5 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors focus:ring-2 focus:ring-ring focus:outline-none flex items-center gap-2 shadow-sm disabled:opacity-50"
+                                className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-8 py-3.5 text-sm font-semibold text-background shadow-sm transition-colors hover:bg-foreground/90 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 sm:w-auto"
                             >
                                 <FloppyDiskIcon size={20} />
                                 {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
@@ -302,7 +302,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
 
                 {/* Right Column */}
                 <div className="lg:col-span-4 space-y-6">
-                    <div className="glass-card flex flex-col h-[600px] overflow-hidden sticky top-8">
+                    <div className="glass-card flex h-[min(600px,70dvh)] flex-col overflow-hidden lg:sticky lg:top-8">
                         <div className="p-5 border-b border-black/5 bg-white/60 z-10">
                             <h3 className="font-bold text-lg">Pustaka Konten</h3>
                             <p className="text-xs text-muted-foreground mt-1">Klik item untuk menambahkannya.</p>

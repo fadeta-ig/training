@@ -70,7 +70,7 @@ export default function NewExamPage() {
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="glass-card p-8 space-y-6">
+            <form onSubmit={handleSubmit} className="glass-card space-y-6 p-4 sm:p-6 md:p-8">
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-foreground">Judul Ujian <span className="text-destructive">*</span></label>
                     <input

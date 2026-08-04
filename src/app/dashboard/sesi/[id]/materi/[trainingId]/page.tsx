@@ -190,7 +190,7 @@ export default function MateriViewerPage({ params }: { params: Promise<{ id: str
                 <Link href={`/dashboard/sesi/${sessionId}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
                     <ArrowLeft01Icon size={14} /> Kembali
                 </Link>
-                <div className="glass-card p-8 text-center">
+                <div className="glass-card p-4 text-center sm:p-6 md:p-8">
                     <AlertCircleIcon size={36} className="mx-auto text-destructive mb-3" />
                     <p className="text-sm text-destructive font-semibold">{error || 'Materi tidak ditemukan'}</p>
                 </div>
@@ -250,12 +250,12 @@ export default function MateriViewerPage({ params }: { params: Promise<{ id: str
                     </Link>
                 </div>
             ) : (
-                <div className="glass-card p-4 flex items-center justify-between gap-3">
+                <div className="glass-card flex flex-col items-stretch justify-between gap-3 p-4 sm:flex-row sm:items-center">
                     <p className="text-xs text-muted-foreground">Sudah selesai membaca?</p>
                     <button
                         onClick={handleMarkComplete}
                         disabled={marking}
-                        className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-5 py-2 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition-colors active:scale-95 disabled:opacity-50 shrink-0"
+                        className="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 active:scale-95 disabled:opacity-50 sm:w-auto"
                     >
                         {marking ? (
                             <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

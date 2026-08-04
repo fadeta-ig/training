@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         @page { size: A4; margin: 2.5cm 2cm; }
-        @media print { body { font-size: 10.5pt; } .page-break { page-break-before: always; } .no-break { page-break-inside: avoid; } h2 { page-break-after: avoid; } h3, h4 { page-break-after: avoid; } }
+        @media print { body { font-size: 10.5pt; } .page-break { page-break-before: always; } .no-break { page-break-inside: avoid; } h2 { page-break-after: avoid; } h3, h4 { page-break-after: avoid; } .flow-box { white-space: pre-wrap !important; overflow-wrap: anywhere; } }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, sans-serif; color: #1a1a1a; line-height: 1.75; font-size: 14px; background: #fff; max-width: 800px; margin: 0 auto; padding: 3rem 2.5rem; }
         .cover { min-height: 85vh; display: flex; flex-direction: column; justify-content: center; border-bottom: 3px solid #111; padding-bottom: 3rem; margin-bottom: 3rem; }
@@ -71,9 +71,8 @@
     <li><strong>BAB 4</strong> — Referensi Menu &amp; Tombol: Portal Peserta</li>
     <li class="indent">4.1 Sidebar: Overview</li>
     <li class="indent">4.2 Sidebar: Sesi Pelatihan</li>
-    <li class="indent">4.3 Sidebar: Klasemen Top 100</li>
-    <li class="indent">4.4 Sidebar: Riwayat Ujian</li>
-    <li class="indent">4.5 Sidebar: Profil &amp; Pengaturan</li>
+    <li class="indent">4.3 Sidebar: Riwayat Ujian</li>
+    <li class="indent">4.4 Sidebar: Profil &amp; Pengaturan</li>
     <li><strong>BAB 5</strong> — Fitur Pendukung Sistem</li>
     <li class="indent">5.1 Automated Email Credentials</li>
     <li class="indent">5.2 Sertifikasi PDF Otomatis</li>
@@ -142,7 +141,6 @@
         <tr><td>Melihat dashboard overview</td><td>Statistik sesi, kalender jadwal, dan shortcut lanjut belajar</td></tr>
         <tr><td>Membaca materi multi-media</td><td>Teks, gambar, video YouTube, unduh dokumen Word/PDF/Excel</td></tr>
         <tr><td>Mengerjakan ujian</td><td>Pilihan ganda dan esai, dengan timer dan auto-submit</td></tr>
-        <tr><td>Melihat klasemen (Leaderboard)</td><td>Peringkat Top 100 peserta berdasarkan skor</td></tr>
         <tr><td>Melihat riwayat ujian</td><td>Daftar seluruh ujian yang pernah dikerjakan beserta hasilnya</td></tr>
         <tr><td>Mengedit profil &amp; ganti password</td><td>Mengubah nama, telepon, alamat, dan kata sandi</td></tr>
         <tr><td>Mengunduh sertifikat</td><td>PDF otomatis tersedia jika progres 100% dan nilai di atas passing grade</td></tr>
@@ -230,11 +228,9 @@ PORTAL PESERTA (Dashboard Overview)
   |                                 v
   |                            TOMBOL "Download Sertifikat" MUNCUL
   |
-  |--- [3] Klasemen Top 100 -> Papan peringkat nilai tertinggi
+  |--- [3] Riwayat Ujian ---> Daftar ujian yang pernah dikerjakan
   |
-  |--- [4] Riwayat Ujian ---> Daftar ujian yang pernah dikerjakan
-  |
-  |--- [5] Profil ----------> Edit: Nama, Telepon, Gender, Tanggal Lahir
+  |--- [4] Profil ----------> Edit: Nama, Telepon, Gender, Tanggal Lahir
   |                            Ganti Kata Sandi
   |
   v
@@ -452,17 +448,8 @@ SELESAI</div>
     </tbody>
 </table>
 
-<h3>4.3 Menu: Klasemen Top 100</h3>
-<p><strong>Lokasi:</strong> Sidebar kiri, menu ketiga (ikon Mahkota).</p>
-<table>
-    <thead><tr><th>Komponen</th><th>Fungsi</th></tr></thead>
-    <tbody>
-        <tr><td>Tabel Peringkat</td><td>Menampilkan 100 peserta dengan skor tertinggi. Kolom: Peringkat, Nama, Skor Rata-rata</td></tr>
-    </tbody>
-</table>
-
-<h3>4.4 Menu: Riwayat Ujian</h3>
-<p><strong>Lokasi:</strong> Sidebar kiri, menu keempat (ikon Jam).</p>
+<h3>4.3 Menu: Riwayat Ujian</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu ketiga (ikon Jam).</p>
 <table>
     <thead><tr><th>Komponen</th><th>Fungsi</th></tr></thead>
     <tbody>
@@ -470,8 +457,8 @@ SELESAI</div>
     </tbody>
 </table>
 
-<h3>4.5 Menu: Profil &amp; Pengaturan</h3>
-<p><strong>Lokasi:</strong> Sidebar kiri, menu kelima (ikon Orang).</p>
+<h3>4.4 Menu: Profil &amp; Pengaturan</h3>
+<p><strong>Lokasi:</strong> Sidebar kiri, menu keempat (ikon Orang).</p>
 <table>
     <thead><tr><th>Field / Tombol</th><th>Fungsi</th><th>Bisa Diubah?</th></tr></thead>
     <tbody>
@@ -613,7 +600,7 @@ SELESAI</div>
     <tbody>
         <tr><td><code>/src/app</code></td><td>Routing utama (Next.js App Router). Setiap folder = satu halaman.</td></tr>
         <tr><td><code>/src/app/admin</code></td><td>Seluruh halaman panel Administrator (overview, content, exams, modules, sessions, participants, users, monitoring, audit-logs)</td></tr>
-        <tr><td><code>/src/app/dashboard</code></td><td>Seluruh halaman Portal Peserta (overview, sesi, leaderboard, riwayat, profil, notifikasi)</td></tr>
+        <tr><td><code>/src/app/dashboard</code></td><td>Seluruh halaman Portal Peserta (overview, sesi, riwayat, profil, notifikasi)</td></tr>
         <tr><td><code>/src/app/api</code></td><td>Backend API Routes (RESTful endpoints: GET/POST/PUT/DELETE)</td></tr>
         <tr><td><code>/src/components</code></td><td>Komponen UI yang dapat dipakai ulang (Button, Modal, Sidebar, Header, dll)</td></tr>
         <tr><td><code>/src/lib</code></td><td>Utilitas inti: koneksi database (singleton), helper email (Nodemailer transport), dan fungsi-fungsi bersama</td></tr>

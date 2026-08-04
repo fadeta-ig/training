@@ -139,7 +139,7 @@ export default function NewQuestionPage({ params }: { params: Promise<{ id: stri
                         <span className="w-6 h-6 rounded-md bg-foreground text-background flex items-center justify-center text-[11px] font-bold">1</span>
                         <h2 className="text-sm font-bold">Pilih Tipe Soal</h2>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                         {QUESTION_TYPES.map(qt => (
                             <button key={qt.value} type="button" onClick={() => setQuestionType(qt.value)}
                                 className={`p-3 rounded-xl border-2 text-left transition-all ${questionType === qt.value ? 'border-foreground bg-foreground/5 shadow-sm' : 'border-black/6 hover:border-black/15 bg-white/50'}`}>
@@ -164,7 +164,7 @@ export default function NewQuestionPage({ params }: { params: Promise<{ id: stri
                         <label className="text-xs font-bold">Teks Pertanyaan <span className="text-destructive">*</span></label>
                         <textarea required rows={3} className="w-full glass-input px-3 py-2.5 rounded-xl text-sm resize-y focus:outline-none" placeholder="Tulis pertanyaan di sini..." value={questionText} onChange={e => setQuestionText(e.target.value)} />
                     </div>
-                    <div className="flex gap-4">
+                    <div className="flex flex-col gap-4 sm:flex-row">
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold">Gambar <span className="text-muted-foreground font-normal">(Opsional)</span></label>
                             {questionImage ? (
@@ -201,7 +201,7 @@ export default function NewQuestionPage({ params }: { params: Promise<{ id: stri
                             {options.map((opt, idx) => (
                                 <div key={idx} className={`flex items-start gap-2.5 p-2.5 rounded-xl border-2 transition-all ${correctIndex === idx ? 'border-emerald-300 bg-emerald-50/50' : 'border-black/5 bg-white hover:border-black/10'}`}>
                                     <input type="radio" name="correct_mc" checked={correctIndex === idx} onChange={() => setCorrectIndex(idx)} className="w-4 h-4 accent-emerald-600 mt-1" />
-                                    <div className="flex-1 space-y-1.5">
+                                    <div className="min-w-0 flex-1 space-y-1.5">
                                         <div className="flex items-center gap-1.5">
                                             <span className="w-6 h-6 rounded-md bg-black/5 flex items-center justify-center text-[10px] font-bold text-black/25 shrink-0">{String.fromCharCode(65 + idx)}</span>
                                             <input type="text" required placeholder={`Ketik opsi ${String.fromCharCode(65 + idx)}...`} className="flex-1 glass-input px-2.5 py-1.5 rounded-lg text-xs focus:outline-none" value={opt.text} onChange={e => { const n = [...options]; n[idx] = { ...n[idx], text: e.target.value }; setOptions(n); }} />
@@ -223,7 +223,7 @@ export default function NewQuestionPage({ params }: { params: Promise<{ id: stri
                             {options.map((opt, idx) => (
                                 <div key={idx} className={`flex items-start gap-2.5 p-2.5 rounded-xl border-2 transition-all ${correctIndices.includes(idx) ? 'border-emerald-300 bg-emerald-50/50' : 'border-black/5 bg-white hover:border-black/10'}`}>
                                     <input type="checkbox" checked={correctIndices.includes(idx)} onChange={() => toggleCorrectIndex(idx)} className="w-4 h-4 accent-emerald-600 rounded mt-1" />
-                                    <div className="flex-1 space-y-1.5">
+                                    <div className="min-w-0 flex-1 space-y-1.5">
                                         <div className="flex items-center gap-1.5">
                                             <span className="w-6 h-6 rounded-md bg-black/5 flex items-center justify-center text-[10px] font-bold text-black/25 shrink-0">{String.fromCharCode(65 + idx)}</span>
                                             <input type="text" required placeholder={`Ketik opsi ${String.fromCharCode(65 + idx)}...`} className="flex-1 glass-input px-2.5 py-1.5 rounded-lg text-xs focus:outline-none" value={opt.text} onChange={e => { const n = [...options]; n[idx] = { ...n[idx], text: e.target.value }; setOptions(n); }} />

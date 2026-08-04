@@ -74,21 +74,25 @@ export function AdminHeader({ toggleSidebar, user }: AdminHeaderProps) {
     };
 
     return (
-        <header className="h-16 flex items-center justify-between px-6 border-b border-black/5 bg-white/95 backdrop-blur-md shrink-0 z-30 relative">
-            <div className="flex items-center gap-4">
+        <header className="h-16 flex items-center justify-between gap-3 px-3 sm:px-6 border-b border-black/5 bg-white/95 backdrop-blur-md shrink-0 z-30 relative">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-4">
                 <button
+                    type="button"
+                    aria-label="Buka atau tutup menu navigasi"
                     onClick={toggleSidebar}
-                    className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+                    className="flex size-10 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground rounded-lg hover:bg-black/5 transition-colors"
                 >
                     <Menu01Icon size={22} />
                 </button>
                 <h2 className="text-lg font-semibold tracking-tight hidden sm:block">Administrator Hub</h2>
             </div>
 
-            <div className="flex items-center gap-5">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-3">
                 {/* Notifications Dropdown */}
                 <div className="relative" ref={notificationRef}>
                     <button
+                        type="button"
+                        aria-label="Buka notifikasi"
                         onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                         className={`text-muted-foreground hover:text-foreground transition-colors relative p-1.5 rounded-lg ${isNotificationOpen ? 'bg-black/5' : ''}`}
                     >
@@ -99,7 +103,7 @@ export function AdminHeader({ toggleSidebar, user }: AdminHeaderProps) {
                     </button>
 
                     {isNotificationOpen && (
-                        <div className="absolute right-0 mt-2 w-80 bg-white border border-black/10 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="fixed inset-x-3 top-[4.5rem] z-50 w-auto overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80">
                             <div className="px-4 py-3 border-b border-black/10 bg-[#f8f9fa] flex justify-between items-center">
                                 <h3 className="font-semibold text-sm">Notifikasi {unreadCount > 0 && <span className="text-xs font-bold text-destructive">({unreadCount})</span>}</h3>
                                 {unreadCount > 0 && (
@@ -128,6 +132,8 @@ export function AdminHeader({ toggleSidebar, user }: AdminHeaderProps) {
                 {/* Profile Dropdown */}
                 <div className="relative" ref={profileRef}>
                     <button
+                        type="button"
+                        aria-label="Buka menu profil"
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
                         className="w-9 h-9 flex items-center justify-center rounded-full bg-black text-white hover:scale-105 active:scale-95 transition-all outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                     >
@@ -135,7 +141,7 @@ export function AdminHeader({ toggleSidebar, user }: AdminHeaderProps) {
                     </button>
 
                     {isProfileOpen && (
-                        <div className="absolute right-0 mt-2 w-56 bg-white border border-black/10 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="absolute right-0 mt-2 w-[min(14rem,calc(100vw-1.5rem))] bg-white border border-black/10 shadow-2xl rounded-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="px-4 py-4 border-b border-black/5 flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-black/5 flex flex-col items-center justify-center text-foreground">
                                     <UserCircleIcon size={24} />

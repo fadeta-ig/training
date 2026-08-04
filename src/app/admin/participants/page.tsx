@@ -124,8 +124,8 @@ export default function ParticipantsManagerPage() {
                 </div>
             )}
 
-            <div className="flex items-center justify-between gap-4 mb-4">
-                <div className="relative flex-1 max-w-sm">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <div className="relative w-full flex-1 sm:max-w-sm">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                         <Search01Icon size={18} />
                     </span>
@@ -141,7 +141,7 @@ export default function ParticipantsManagerPage() {
                 {userRole === 'admin' && (
                     <Link
                         href="/admin/participants/import"
-                        className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-emerald-600/10 text-emerald-800 border border-emerald-600/20 hover:bg-emerald-600/20 transition-colors flex items-center gap-2 shadow-sm active:scale-95 shrink-0"
+                        className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-600/20 bg-emerald-600/10 px-4 py-2.5 text-sm font-semibold text-emerald-800 shadow-sm transition-colors hover:bg-emerald-600/20 active:scale-95 sm:w-auto"
                     >
                         <CloudUploadIcon size={18} />
                         Import Massal

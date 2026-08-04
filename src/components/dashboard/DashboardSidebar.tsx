@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect } from 'react';
 import { NavLink } from '@/components/ui/NavLink';
 import { usePathname } from 'next/navigation';
 import {
@@ -6,7 +9,6 @@ import {
     DashboardSquare01Icon,
     Clock01Icon,
     UserCircleIcon,
-    CrownIcon,
 } from 'hugeicons-react';
 import type { AuthPayload } from '@/types';
 
@@ -19,11 +21,19 @@ interface DashboardSidebarProps {
 export function DashboardSidebar({ isOpen, onClose, user }: DashboardSidebarProps) {
     const pathname = usePathname();
 
+    useEffect(() => {
+        if (window.matchMedia('(max-width: 767px)').matches) {
+            onClose();
+        }
+    }, [pathname, onClose]);
+
     return (
         <>
             {/* Mobile Overlay */}
-            {!isOpen && (
-                <div
+            {isOpen && (
+                <button
+                    type="button"
+                    aria-label="Tutup menu navigasi"
                     className="md:hidden fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
                     onClick={onClose}
                 />
@@ -32,8 +42,8 @@ export function DashboardSidebar({ isOpen, onClose, user }: DashboardSidebarProp
             {/* Sidebar Pane */}
             <aside
                 className={`${
-                    isOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full md:w-20 md:translate-x-0'
-                } fixed md:relative z-50 h-full flex flex-col glass-sidebar transition-all duration-300 ease-in-out shrink-0`}
+                    isOpen ? 'translate-x-0 md:w-72' : '-translate-x-full md:w-20 md:translate-x-0'
+                } fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(18rem,calc(100vw-3rem))] shrink-0 flex-col overflow-hidden glass-sidebar transition-[transform,width] duration-300 ease-in-out md:relative md:inset-auto md:h-full`}
             >
                 {/* Logo Area */}
                 <div className={`flex items-center ${isOpen ? 'justify-between px-6' : 'justify-center'} py-5 border-b border-black/5`}>
@@ -51,6 +61,8 @@ export function DashboardSidebar({ isOpen, onClose, user }: DashboardSidebarProp
                     )}
 
                     <button
+                        type="button"
+                        aria-label="Tutup menu navigasi"
                         className="md:hidden text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-black/5"
                         onClick={onClose}
                     >
@@ -62,7 +74,6 @@ export function DashboardSidebar({ isOpen, onClose, user }: DashboardSidebarProp
                 <nav className="flex-1 space-y-1.5 p-3 overflow-y-auto overflow-x-hidden">
                     <NavLink href="/dashboard" label="Overview" icon={<DashboardSquare01Icon size={20} />} isOpen={isOpen} active={pathname === '/dashboard'} />
                     <NavLink href="/dashboard/sesi" label="Sesi Pelatihan" icon={<Mortarboard01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/dashboard/sesi')} />
-                    <NavLink href="/dashboard/leaderboard" label="Klasemen Top 100" icon={<CrownIcon size={20} />} isOpen={isOpen} active={pathname.startsWith('/dashboard/leaderboard')} />
                     <NavLink href="/dashboard/riwayat" label="Riwayat Ujian" icon={<Clock01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/dashboard/riwayat')} />
                     <NavLink href="/dashboard/profil" label="Profil & Pengaturan" icon={<UserCircleIcon size={20} />} isOpen={isOpen} active={pathname.startsWith('/dashboard/profil')} />
                 </nav>

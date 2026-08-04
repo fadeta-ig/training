@@ -370,17 +370,17 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
             {/* Custom Blast Confirmation Modal */}
             {showBlastConfirm && typeof window !== 'undefined' && createPortal(
                 <div 
-                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-3 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 sm:p-4"
                     style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
                 >
                     <div 
-                        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 relative"
+                        className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Decorative Top Bar */}
                         <div className="h-2 w-full bg-blue-600 absolute top-0 left-0"></div>
 
-                        <div className="p-6 text-center space-y-4 mt-2">
+                        <div className="mt-2 space-y-4 p-4 text-center sm:p-6">
                             <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
                                 <MailSend01Icon size={32} />
                             </div>
@@ -390,16 +390,16 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                             </p>
                         </div>
                         
-                        <div className="bg-slate-50 border-t border-black/5 p-4 flex gap-3 justify-end items-center">
+                        <div className="flex flex-col-reverse gap-2 border-t border-black/5 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
                             <button
                                 onClick={() => setShowBlastConfirm(false)}
-                                className="px-5 py-2.5 text-sm font-semibold rounded-xl text-slate-600 hover:bg-slate-200/50 transition-colors focus:ring-2 focus:ring-slate-200 outline-none"
+                                className="w-full rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-200/50 focus:ring-2 focus:ring-slate-200 outline-none sm:w-auto"
                             >
                                 Batal
                             </button>
                             <button
                                 onClick={handleBlastEmail}
-                                className="px-5 py-2.5 text-sm font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-md shadow-blue-500/20 focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 outline-none"
+                                className="w-full rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-500/20 transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 outline-none sm:w-auto"
                             >
                                 Ya, Kirim Sekarang
                             </button>

@@ -52,7 +52,7 @@ export default function TrainingDetailPage({ params }: { params: Promise<{ id: s
                 </div>
             </div>
 
-            <div className="glass-card p-8 min-h-[300px]">
+            <div className="glass-card min-h-[300px] p-4 sm:p-6 md:p-8">
                 <div 
                     className="prose prose-sm md:prose-base max-w-none text-foreground"
                     dangerouslySetInnerHTML={{ __html: training.content_html || '<p>Tidak ada konten teks.</p>' }}

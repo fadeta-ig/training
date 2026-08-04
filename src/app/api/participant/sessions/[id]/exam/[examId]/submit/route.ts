@@ -118,7 +118,12 @@ async function handlePost(
 
             // Get attempt number and apply Row-Level Lock to prevent race condition (Lost Update)
             const [progressRes] = await connection.execute<any[]>(
-                `SELECT id, attempts_count, last_attempt_start, status, score
+                `SELECT id,
+                        attempts_count,
+                        last_attempt_start,
+                        status,
+                        score,
+                        TIMESTAMPDIFF(SECOND, last_attempt_start, UTC_TIMESTAMP()) AS attempt_elapsed_seconds
                  FROM user_progress
                  WHERE user_id = ? AND session_id = ? AND module_item_id = ?
                   FOR UPDATE`,
@@ -164,9 +169,9 @@ async function handlePost(
                 );
             }
 
-            const attemptStartedAt = new Date(progressRow.last_attempt_start).getTime();
             const durationMs = Number(exam?.[0]?.duration_minutes || 0) * 60 * 1000;
-            if (durationMs > 0 && Date.now() - attemptStartedAt > durationMs + EXAM_DURATION_GRACE_MS) {
+            const elapsedMs = Math.max(0, Number(progressRow.attempt_elapsed_seconds || 0)) * 1000;
+            if (durationMs > 0 && elapsedMs > durationMs + EXAM_DURATION_GRACE_MS) {
                 await connection.rollback();
                 return NextResponse.json(
                     { success: false, error: 'Durasi ujian telah habis.' },

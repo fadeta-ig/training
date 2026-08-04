@@ -37,7 +37,6 @@ async function handleGet(
 
         await verifyEnrollment(sessionId, user.id);
         const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId);
-        const now = new Date();
 
         if (isUpcoming) {
             return NextResponse.json({ success: false, error: 'Sesi belum dimulai' }, { status: 400 });
@@ -71,49 +70,46 @@ async function handleGet(
 
         await assertCurrentItemAccessible(sessionId, user.id, session, moduleItem, canRetake);
 
-        const nowStr = now.toISOString().slice(0, 19).replace('T', ' ');
         await executeQuery(
             `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status, last_attempt_start)
-             VALUES (?, ?, ?, ?, 'open', ?)
+             VALUES (?, ?, ?, ?, 'open', UTC_TIMESTAMP())
              ON DUPLICATE KEY UPDATE id = id`,
-            [uuidv4(), user.id, sessionId, moduleItem.id, nowStr]
+            [uuidv4(), user.id, sessionId, moduleItem.id]
         );
 
-        // Get or initialize last_attempt_start
-        const progress = await executeQuery<any[]>(
-            `SELECT up.id, up.last_attempt_start, up.attempts_count 
-             FROM user_progress up
-             WHERE up.user_id = ? AND up.session_id = ? AND up.module_item_id = ?`,
+        // Initialize a remedial attempt once. Refreshing an active attempt must
+        // never reset its timer.
+        await executeQuery(
+            `UPDATE user_progress
+             SET last_attempt_start = UTC_TIMESTAMP()
+             WHERE user_id = ?
+               AND session_id = ?
+               AND module_item_id = ?
+               AND last_attempt_start IS NULL`,
             [user.id, sessionId, moduleItem.id]
         );
 
-        let attemptStart = now;
-        let attemptNumber = 1;
-        if (progress && progress.length > 0) {
-            const up = progress[0];
-            attemptNumber = (up.attempts_count || 0) + 1;
+        // Format UTC explicitly so mysql2 cannot interpret this DATETIME as
+        // local time when serializing it for the browser.
+        const progress = await executeQuery<Array<{
+            attempts_count: number;
+            attempt_start_utc: string;
+            server_time_utc: string;
+        }>>(
+            `SELECT up.attempts_count,
+                    DATE_FORMAT(up.last_attempt_start, '%Y-%m-%dT%H:%i:%sZ') AS attempt_start_utc,
+                    DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-%dT%H:%i:%sZ') AS server_time_utc
+             FROM user_progress up
+             WHERE up.user_id = ? AND up.session_id = ? AND up.module_item_id = ?
+             LIMIT 1`,
+            [user.id, sessionId, moduleItem.id]
+        );
 
-            if (!up.last_attempt_start) {
-                // Initialize start time for this attempt — convert Date to MySQL-compatible string
-                await executeQuery(
-                    `UPDATE user_progress SET last_attempt_start = ? WHERE id = ? AND last_attempt_start IS NULL`,
-                    [nowStr, up.id]
-                );
-                const refreshed = await executeQuery<Array<{ last_attempt_start: string }>>(
-                    `SELECT last_attempt_start FROM user_progress WHERE id = ? LIMIT 1`,
-                    [up.id]
-                );
-                attemptStart = new Date(refreshed[0]?.last_attempt_start || nowStr);
-            } else {
-                attemptStart = new Date(up.last_attempt_start);
-            }
-        } else {
-            await executeQuery(
-                `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status, last_attempt_start)
-                 VALUES (?, ?, ?, ?, 'open', ?)`,
-                [uuidv4(), user.id, sessionId, moduleItem.id, nowStr]
-            );
+        if (!progress[0]?.attempt_start_utc || !progress[0]?.server_time_utc) {
+            throw new Error('Waktu mulai attempt ujian gagal diinisialisasi');
         }
+
+        const attemptNumber = Number(progress[0].attempts_count || 0) + 1;
 
         // Fetch questions (without correct answers for security)
         const questions = await executeQuery<any[]>(
@@ -159,9 +155,9 @@ async function handleGet(
                 exam: exam[0],
                 questions: sanitized,
                 existingAnswers,
-                serverTime: now.toISOString(),
+                serverTime: progress[0].server_time_utc,
                 sessionEnd: session.end_time,
-                attemptStart: attemptStart.toISOString(),
+                attemptStart: progress[0].attempt_start_utc,
                 attemptNumber: attemptNumber,
             },
         });

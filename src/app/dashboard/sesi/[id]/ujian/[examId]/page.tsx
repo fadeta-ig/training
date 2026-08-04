@@ -29,6 +29,7 @@ type ExamData = {
     existingAnswers: { question_id: string; selected_option: string }[];
     serverTime: string;
     sessionEnd: string;
+    attemptStart: string;
 };
 
 export default function UjianPage({ params }: { params: Promise<{ id: string; examId: string }> }) {
@@ -47,6 +48,8 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
     const [currentIdx, setCurrentIdx] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
+    const deadlineRef = useRef<number | null>(null);
+    const serverClockOffsetRef = useRef(0);
     const [result, setResult] = useState<{ score?: number; passed: boolean; earnedPoints?: number; totalPoints?: number; show_score?: boolean } | null>(null);
     const [isSeb, setIsSeb] = useState(false);
 
@@ -108,7 +111,6 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             .then((res) => res.json())
             .then((data) => {
                 if (data.success) {
-                    setExamData(data.data);
                     // Restore existing answers
                     const restored: Record<string, string> = {};
                     data.data.existingAnswers.forEach((a: any) => {
@@ -116,13 +118,21 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     });
                     setAnswers(restored);
 
-                    // Calculate time left based solely on attemptStart and duration
-                    const durationMs = data.data.exam.duration_minutes * 60 * 1000;
+                    // Anchor the timer to the server's absolute UTC timestamps.
+                    const durationMs = Number(data.data.exam.duration_minutes) * 60 * 1000;
                     const serverNow = new Date(data.data.serverTime).getTime();
                     const attemptStart = new Date(data.data.attemptStart).getTime();
-                    const maxEnd = attemptStart + durationMs;
+                    const deadline = attemptStart + durationMs;
 
-                    setTimeLeft(Math.max(0, Math.floor((maxEnd - serverNow) / 1000)));
+                    if (![durationMs, serverNow, attemptStart, deadline].every(Number.isFinite) || durationMs <= 0) {
+                        setError('Konfigurasi waktu ujian tidak valid. Hubungi administrator.');
+                        return;
+                    }
+
+                    deadlineRef.current = deadline;
+                    serverClockOffsetRef.current = serverNow - Date.now();
+                    setTimeLeft(Math.max(0, Math.ceil((deadline - serverNow) / 1000)));
+                    setExamData(data.data);
                 } else {
                     setError(data.error || 'Gagal memuat ujian');
                 }
@@ -131,18 +141,33 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             .finally(() => setLoading(false));
     }, [sessionId, examId]);
 
-    // Rock-solid Timer Interval
+    // Recalculate from the absolute deadline so background-tab throttling does
+    // not make the displayed timer drift from the server.
     useEffect(() => {
-        if (timeLeft <= 0 || result || error || !examData) return;
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => Math.max(0, prev - 1));
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [timeLeft, result, error, examData]);
+        if (result || error || !examData || deadlineRef.current === null) return;
+
+        const syncTimer = () => {
+            const serverAdjustedNow = Date.now() + serverClockOffsetRef.current;
+            const remainingSeconds = Math.max(
+                0,
+                Math.ceil((deadlineRef.current! - serverAdjustedNow) / 1000)
+            );
+            setTimeLeft(remainingSeconds);
+        };
+
+        syncTimer();
+        const timer = window.setInterval(syncTimer, 1000);
+        document.addEventListener('visibilitychange', syncTimer);
+
+        return () => {
+            window.clearInterval(timer);
+            document.removeEventListener('visibilitychange', syncTimer);
+        };
+    }, [result, error, examData]);
 
     // Auto-submit monitor
     useEffect(() => {
-        if (examData && timeLeft <= 0 && !result && !error && !submitting) {
+        if (examData && deadlineRef.current !== null && timeLeft <= 0 && !result && !error && !submitting) {
             // Waktu habis
             handleSubmit();
         }

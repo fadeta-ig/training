@@ -59,6 +59,9 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                 const result = await res.json();
                 if (!result.success) throw new Error(result.error);
                 const q = result.data;
+                if (q.exam_id !== examId) {
+                    throw new Error('Soal tidak terdaftar pada ujian ini.');
+                }
                 const qType = (q.question_type || 'multiple_choice') as QuestionType;
                 setQuestionType(qType); setQuestionText(q.question_text); setQuestionImage(q.question_image || null); setPoints(q.points || 1);
                 const parsed = q.options_json ? (typeof q.options_json === 'string' ? JSON.parse(q.options_json) : q.options_json) : null;
@@ -72,7 +75,7 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
             } catch (err: any) { setError(err.message); }
             finally { setIsLoading(false); }
         })();
-    }, [questionId]);
+    }, [examId, questionId]);
 
     const uploadImage = async (file: File): Promise<string | null> => {
         const fd = new FormData(); fd.append('file', file);
@@ -90,7 +93,13 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault(); setIsSaving(true); setError(null);
-        const payload: Record<string, unknown> = { question_type: questionType, question_text: questionText, question_image: questionImage, points };
+        const payload: Record<string, unknown> = {
+            exam_id: examId,
+            question_type: questionType,
+            question_text: questionText,
+            question_image: questionImage,
+            points,
+        };
         switch (questionType) {
             case 'multiple_choice': payload.options = options; payload.correct_option_index = correctIndex; break;
             case 'multiple_select': payload.options = options; payload.correct_option_indices = correctIndices; break;
@@ -102,7 +111,12 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
             const res = await fetch(`/api/questions/${questionId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const result = await res.json();
             if (result.success) { router.push(`/admin/exams/${examId}/questions`); router.refresh(); }
-            else throw new Error(result.error || 'Gagal menyimpan');
+            else {
+                const validationDetails = result.details
+                    ? Object.values(result.details).flat().join('; ')
+                    : null;
+                throw new Error(validationDetails || result.error || 'Gagal menyimpan');
+            }
         } catch (err: any) { setError(err.message); } finally { setIsSaving(false); }
     };
 

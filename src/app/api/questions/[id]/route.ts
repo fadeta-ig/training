@@ -46,16 +46,29 @@ async function handlePut(
         }
 
         const {
+            exam_id,
             question_type,
             question_text,
             question_image,
             points,
         } = parsed.data;
 
+        const existingQuestion = await executeQuery<{ id: string }[]>(
+            `SELECT id FROM questions WHERE id = ? AND exam_id = ? LIMIT 1`,
+            [resolvedParams.id, exam_id]
+        );
+
+        if (!Array.isArray(existingQuestion) || existingQuestion.length === 0) {
+            return NextResponse.json(
+                { success: false, error: 'Soal tidak ditemukan pada ujian ini' },
+                { status: 404 }
+            );
+        }
+
         const { optionsJson, finalCorrectIndex, finalCorrectAnswer } = buildQuestionData(parsed.data);
 
-        const result = await executeQuery<{ affectedRows: number }>(
-            `UPDATE questions SET question_type = ?, question_text = ?, question_image = ?, options_json = ?, correct_option_index = ?, correct_answer = ?, points = ? WHERE id = ?`,
+        await executeQuery(
+            `UPDATE questions SET question_type = ?, question_text = ?, question_image = ?, options_json = ?, correct_option_index = ?, correct_answer = ?, points = ? WHERE id = ? AND exam_id = ?`,
             [
                 question_type,
                 question_text,
@@ -65,12 +78,9 @@ async function handlePut(
                 finalCorrectAnswer,
                 points,
                 resolvedParams.id,
+                exam_id,
             ]
         );
-
-        if (result && 'affectedRows' in result && result.affectedRows === 0) {
-            return NextResponse.json({ success: false, error: 'Soal tidak ditemukan' }, { status: 404 });
-        }
 
         return NextResponse.json({ success: true, message: 'Soal berhasil diperbarui' });
     } catch (error) {

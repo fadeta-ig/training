@@ -13,29 +13,33 @@ const QUESTION_TYPES = [
 
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
+const optionSchema = z.object({
+    text: z.string().trim().min(1, 'Teks opsi wajib diisi'),
+    image: z.string()
+        .nullable()
+        .optional()
+        .refine((value) => !value || isSafePublicUrl(value), 'URL gambar opsi tidak aman atau tidak valid'),
+});
+
+const matchingPairSchema = z.object({
+    left: z.string().trim().min(1, 'Item pasangan wajib diisi'),
+    right: z.string().trim().min(1, 'Jawaban pasangan wajib diisi'),
+});
+
 export const questionSchema = z.object({
     exam_id: z.string().uuid('ID Ujian tidak valid'),
     question_type: z.enum(QUESTION_TYPES, { message: 'Tipe soal tidak valid' }),
-    question_text: z.string().min(3, 'Teks pertanyaan minimal 3 karakter'),
+    question_text: z.string().trim().min(3, 'Teks pertanyaan minimal 3 karakter'),
     question_image: z.string()
         .nullable()
         .optional()
         .refine((value) => !value || isSafePublicUrl(value), 'URL gambar soal tidak aman atau tidak valid'),
-    options: z.array(z.object({
-        text: z.string(),
-        image: z.string()
-            .nullable()
-            .optional()
-            .refine((value) => !value || isSafePublicUrl(value), 'URL gambar opsi tidak aman atau tidak valid'),
-    })).optional(),
+    options: z.array(optionSchema).optional(),
     correct_option_index: z.number().int().min(0).optional(),
     correct_option_indices: z.array(z.number().int().min(0)).optional(),
-    correct_answer: z.string().optional(),
-    matching_pairs: z.array(z.object({
-        left: z.string(),
-        right: z.string(),
-    })).optional(),
-    points: z.number().int().min(1).default(1),
+    correct_answer: z.string().trim().optional(),
+    matching_pairs: z.array(matchingPairSchema).optional(),
+    points: z.number().int().min(1).max(100, 'Bobot poin maksimal 100').default(1),
 }).superRefine((data, ctx) => {
     const t = data.question_type;
 
@@ -56,12 +60,22 @@ export const questionSchema = z.object({
         }
         if (!data.correct_option_indices || data.correct_option_indices.length === 0) {
             ctx.addIssue({ code: 'custom', path: ['correct_option_indices'], message: 'Minimal 1 jawaban benar wajib dipilih' });
+        } else {
+            const uniqueIndices = new Set(data.correct_option_indices);
+            if (uniqueIndices.size !== data.correct_option_indices.length) {
+                ctx.addIssue({ code: 'custom', path: ['correct_option_indices'], message: 'Jawaban benar tidak boleh duplikat' });
+            }
+            if (data.options && data.correct_option_indices.some((index) => index >= data.options!.length)) {
+                ctx.addIssue({ code: 'custom', path: ['correct_option_indices'], message: 'Index jawaban benar melebihi jumlah opsi' });
+            }
         }
     }
 
     if (t === 'true_false') {
         if (data.correct_option_index === undefined || data.correct_option_index === null) {
             ctx.addIssue({ code: 'custom', path: ['correct_option_index'], message: 'Jawaban benar wajib dipilih (0=Benar, 1=Salah)' });
+        } else if (data.correct_option_index > 1) {
+            ctx.addIssue({ code: 'custom', path: ['correct_option_index'], message: 'Jawaban Benar/Salah hanya menerima nilai 0 atau 1' });
         }
     }
 

@@ -10,7 +10,8 @@ import {
     Image01Icon,
     File01Icon,
     Download01Icon,
-    Tick01Icon,
+    CheckmarkCircle02Icon,
+    ArrowRight01Icon,
 } from 'hugeicons-react';
 import { toast } from 'sonner';
 
@@ -27,6 +28,7 @@ type TrainingData = {
     title: string;
     content_html: string;
     media: MediaAttachment[];
+    is_completed?: boolean;
 };
 
 function extractYouTubeEmbedUrl(url: string): string | null {
@@ -42,18 +44,18 @@ function extractYouTubeEmbedUrl(url: string): string | null {
     return null;
 }
 
-/** Renders a single media attachment based on its type */
+/** Renders a single media attachment with clean modern styling */
 function MediaRenderer({ item }: { item: MediaAttachment }) {
     if (item.media_type === 'video') {
         const embedUrl = extractYouTubeEmbedUrl(item.media_url);
         if (!embedUrl) return null;
         return (
-            <div className="glass-card p-4 space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <VideoReplayIcon size={12} />
-                    Video
+            <div className="bg-white rounded-xl border border-black/5 p-4 space-y-3 shadow-2xs">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <VideoReplayIcon size={14} className="text-slate-600" />
+                    <span>Video Pembelajaran</span>
                 </div>
-                <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                <div className="aspect-video rounded-lg overflow-hidden bg-slate-900 border border-black/5">
                     <iframe
                         src={embedUrl}
                         className="w-full h-full"
@@ -67,21 +69,23 @@ function MediaRenderer({ item }: { item: MediaAttachment }) {
 
     if (item.media_type === 'image') {
         return (
-            <div className="glass-card p-4 space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <Image01Icon size={12} />
-                    Gambar
+            <div className="bg-white rounded-xl border border-black/5 p-4 space-y-3 shadow-2xs">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <Image01Icon size={14} className="text-slate-600" />
+                    <span>Gambar Lampiran</span>
                 </div>
-                <div className="rounded-lg overflow-hidden bg-black/5">
+                <div className="rounded-lg overflow-hidden bg-slate-50 border border-black/5 p-2">
                     <img
                         src={item.media_url}
                         alt={item.original_filename || 'Gambar materi'}
-                        className="w-full h-auto max-h-[500px] object-contain mx-auto"
+                        className="w-full h-auto max-h-[500px] object-contain mx-auto rounded"
                         loading="lazy"
                     />
                 </div>
                 {item.original_filename && (
-                    <p className="text-[10px] text-muted-foreground text-center">{item.original_filename}</p>
+                    <p className="text-[11px] text-muted-foreground text-center font-mono">
+                        {item.original_filename}
+                    </p>
                 )}
             </div>
         );
@@ -89,22 +93,22 @@ function MediaRenderer({ item }: { item: MediaAttachment }) {
 
     if (item.media_type === 'pdf') {
         return (
-            <div className="glass-card p-4 space-y-2">
+            <div className="bg-white rounded-xl border border-black/5 p-4 space-y-3 shadow-2xs">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                        <File01Icon size={12} />
-                        PDF
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                        <File01Icon size={14} className="text-slate-600" />
+                        <span>Dokumen PDF</span>
                     </div>
                     <a
                         href={item.media_url}
                         download={item.original_filename || 'document.pdf'}
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 transition-colors"
                     >
-                        <Download01Icon size={11} />
-                        Download
+                        <Download01Icon size={13} />
+                        Unduh PDF
                     </a>
                 </div>
-                <div className="rounded-lg overflow-hidden border border-black/5" style={{ height: '500px' }}>
+                <div className="rounded-lg overflow-hidden border border-black/5" style={{ height: '520px' }}>
                     <iframe
                         src={item.media_url}
                         className="w-full h-full"
@@ -115,24 +119,29 @@ function MediaRenderer({ item }: { item: MediaAttachment }) {
         );
     }
 
-    // document type (Word, PPT, etc.) — download link
+    // Document type (Word, PPT, etc.)
     return (
-        <div className="glass-card p-4">
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-violet-50 text-violet-500 flex items-center justify-center shrink-0">
-                    <File01Icon size={20} />
+        <div className="bg-white rounded-xl border border-black/5 p-4 shadow-2xs">
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                        <File01Icon size={18} />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">
+                            {item.original_filename || 'Dokumen Lampiran'}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">Berkas Pembelajaran</p>
+                    </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{item.original_filename || 'Dokumen'}</p>
-                    <p className="text-[10px] text-muted-foreground">Dokumen lampiran</p>
-                </div>
+
                 <a
                     href={item.media_url}
                     download={item.original_filename || 'document'}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors active:scale-95 shrink-0"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-all shrink-0 shadow-2xs active:scale-98"
                 >
                     <Download01Icon size={14} />
-                    Download
+                    Unduh
                 </a>
             </div>
         </div>
@@ -151,21 +160,29 @@ export default function MateriViewerPage({ params }: { params: Promise<{ id: str
         fetch(`/api/participant/sessions/${sessionId}/training/${trainingId}`)
             .then((res) => res.json())
             .then((data) => {
-                if (data.success) setTraining(data.data);
-                else setError(data.error || 'Gagal memuat materi');
+                if (data.success) {
+                    setTraining(data.data);
+                    if (data.data.is_completed) {
+                        setCompleted(true);
+                    }
+                } else {
+                    setError(data.error || 'Gagal memuat materi');
+                }
             })
-            .catch(() => setError('Kesalahan jaringan'))
+            .catch(() => setError('Kesalahan jaringan saat memuat materi'))
             .finally(() => setLoading(false));
     }, [sessionId, trainingId]);
 
     const handleMarkComplete = async () => {
         setMarking(true);
         try {
-            const res = await fetch(`/api/participant/sessions/${sessionId}/training/${trainingId}/complete`, { method: 'POST' });
+            const res = await fetch(`/api/participant/sessions/${sessionId}/training/${trainingId}/complete`, {
+                method: 'POST',
+            });
             const data = await res.json();
             if (data.success) {
                 setCompleted(true);
-                toast.success('Materi selesai! Lanjut ke item berikutnya.');
+                toast.success('Materi telah diselesaikan! Anda dapat melanjutkan ke item berikutnya.');
             } else {
                 toast.error(data.error || 'Gagal menandai selesai');
             }
@@ -178,94 +195,117 @@ export default function MateriViewerPage({ params }: { params: Promise<{ id: str
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center p-20">
-                <div className="w-8 h-8 border-4 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+            <div className="flex items-center justify-center p-20 text-xs font-medium text-muted-foreground animate-pulse">
+                Memuat materi pelatihan...
             </div>
         );
     }
 
     if (error || !training) {
         return (
-            <div className="max-w-2xl mx-auto space-y-4">
-                <Link href={`/dashboard/sesi/${sessionId}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
-                    <ArrowLeft01Icon size={14} /> Kembali
+            <div className="max-w-3xl mx-auto space-y-4 pt-4">
+                <Link
+                    href={`/dashboard/sesi/${sessionId}`}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+                >
+                    <ArrowLeft01Icon size={14} /> Kembali ke Sesi
                 </Link>
-                <div className="glass-card p-4 text-center sm:p-6 md:p-8">
-                    <AlertCircleIcon size={36} className="mx-auto text-destructive mb-3" />
-                    <p className="text-sm text-destructive font-semibold">{error || 'Materi tidak ditemukan'}</p>
+                <div className="bg-white rounded-xl border border-red-200/60 p-8 text-center space-y-3 shadow-2xs">
+                    <AlertCircleIcon size={32} className="mx-auto text-red-500" />
+                    <h3 className="text-sm font-semibold text-red-700">Akses Tidak Tersedia</h3>
+                    <p className="text-xs text-red-600 max-w-sm mx-auto">{error || 'Materi tidak ditemukan'}</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-2xl mx-auto space-y-4 pb-12">
-            <Link href={`/dashboard/sesi/${sessionId}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
-                <ArrowLeft01Icon size={14} /> Kembali ke Sesi
-            </Link>
+        <div className="max-w-3xl mx-auto space-y-5 pb-16">
+            {/* Top Navigation */}
+            <div className="flex items-center justify-between">
+                <Link
+                    href={`/dashboard/sesi/${sessionId}`}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+                >
+                    <ArrowLeft01Icon size={15} /> Kembali ke Sesi Pelatihan
+                </Link>
 
-            {/* Compact Title */}
-            <div className="glass-card p-4 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center shrink-0">
-                    <Book01Icon size={16} />
+                {completed && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[11px] font-medium">
+                        <CheckmarkCircle02Icon size={12} /> Selesai Dibaca
+                    </span>
+                )}
+            </div>
+
+            {/* Header Title Card */}
+            <div className="bg-white rounded-xl border border-black/5 p-5 sm:p-6 shadow-2xs space-y-2">
+                <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                        <Book01Icon size={16} />
+                    </div>
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Materi Pelatihan
+                    </span>
                 </div>
-                <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Materi Pelatihan</p>
-                    <h1 className="text-base font-bold tracking-tight truncate">{training.title}</h1>
-                </div>
+                <h1 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight leading-snug">
+                    {training.title}
+                </h1>
             </div>
 
             {/* Media Attachments */}
             {training.media && training.media.length > 0 && (
-                training.media.map((item) => (
-                    <MediaRenderer key={item.id} item={item} />
-                ))
+                <div className="space-y-4">
+                    {training.media.map((item) => (
+                        <MediaRenderer key={item.id} item={item} />
+                    ))}
+                </div>
             )}
 
-            {/* Content */}
+            {/* Main Article Content */}
             {training.content_html && (
-                <div className="glass-card p-5">
-                    <div
-                        className="prose prose-sm max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-p:leading-relaxed prose-a:text-primary"
+                <div className="bg-white rounded-xl border border-black/5 p-6 sm:p-8 shadow-2xs">
+                    <article
+                        className="prose prose-slate max-w-none text-xs sm:text-sm leading-relaxed prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-p:text-slate-700 prose-p:leading-relaxed prose-a:text-slate-900 prose-a:underline prose-strong:text-foreground prose-img:rounded-xl prose-img:border prose-img:border-black/5"
                         dangerouslySetInnerHTML={{ __html: training.content_html }}
                     />
                 </div>
             )}
 
-            {/* Mark Complete */}
-            {completed ? (
-                <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 p-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                        <Tick01Icon size={18} />
+            {/* Mark as Complete Action Bar */}
+            <div className="bg-white rounded-xl border border-black/5 p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                {completed ? (
+                    <div className="flex items-center gap-3 w-full justify-between">
+                        <div className="flex items-center gap-2 text-xs font-medium text-emerald-700">
+                            <CheckmarkCircle02Icon size={18} className="text-emerald-600 shrink-0" />
+                            <span>Materi ini telah Anda selesaikan.</span>
+                        </div>
+                        <Link
+                            href={`/dashboard/sesi/${sessionId}`}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg transition-all shrink-0 shadow-2xs active:scale-98"
+                        >
+                            Lanjut ke Sesi <ArrowRight01Icon size={14} />
+                        </Link>
                     </div>
-                    <div className="flex-1">
-                        <p className="text-sm font-bold text-emerald-800">Selesai!</p>
-                        <p className="text-xs text-emerald-600">Item berikutnya kini terbuka.</p>
-                    </div>
-                    <Link
-                        href={`/dashboard/sesi/${sessionId}`}
-                        className="text-xs font-semibold bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors active:scale-95 shrink-0"
-                    >
-                        Lanjut →
-                    </Link>
-                </div>
-            ) : (
-                <div className="glass-card flex flex-col items-stretch justify-between gap-3 p-4 sm:flex-row sm:items-center">
-                    <p className="text-xs text-muted-foreground">Sudah selesai membaca?</p>
-                    <button
-                        onClick={handleMarkComplete}
-                        disabled={marking}
-                        className="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 active:scale-95 disabled:opacity-50 sm:w-auto"
-                    >
-                        {marking ? (
-                            <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <Tick01Icon size={14} />
-                        )}
-                        Tandai Selesai
-                    </button>
-                </div>
-            )}
+                ) : (
+                    <>
+                        <p className="text-xs text-muted-foreground">
+                            Pastikan Anda telah membaca materi di atas sebelum menandai selesai.
+                        </p>
+                        <button
+                            onClick={handleMarkComplete}
+                            disabled={marking}
+                            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-all shrink-0 shadow-2xs active:scale-98 disabled:opacity-50"
+                        >
+                            {marking ? (
+                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <CheckmarkCircle02Icon size={16} />
+                            )}
+                            Tandai Selesai
+                        </button>
+                    </>
+                )}
+            </div>
         </div>
     );
 }

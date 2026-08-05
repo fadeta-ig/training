@@ -31,12 +31,28 @@ async function handleGet(
         }
 
         const moduleItem = await getSessionModuleItem(session.module_id, 'training', trainingId);
+
         if (isEnded) {
             const progress = await getItemProgress(sessionId, user.id, moduleItem.id);
-            if (progress?.status !== 'completed') {
+
+            // Check if the trainee completed all items/tasks in the session
+            const completionStats = await executeQuery<{ total: number; completed: number }[]>(
+                `SELECT 
+                    (SELECT COUNT(*) FROM module_items WHERE module_id = ?) AS total,
+                    (SELECT COUNT(*) FROM user_progress WHERE user_id = ? AND session_id = ? AND status = 'completed') AS completed`,
+                [session.module_id, user.id, sessionId]
+            );
+
+            const totalItems = Number(completionStats?.[0]?.total || 0);
+            const completedItems = Number(completionStats?.[0]?.completed || 0);
+            const isSessionFullyCompleted = totalItems > 0 && completedItems >= totalItems;
+
+            // Accessible if the material itself is completed OR if the entire session (exams + tasks) was completed
+            if (progress?.status !== 'completed' && !isSessionFullyCompleted) {
                 return NextResponse.json({ success: false, error: 'Sesi sudah berakhir' }, { status: 400 });
             }
         }
+
         await assertCurrentItemAccessible(sessionId, user.id, session, moduleItem, true);
 
         // Fetch training content
@@ -54,12 +70,17 @@ async function handleGet(
             [trainingId]
         );
 
+        // Check if progress is already completed
+        const itemProgress = await getItemProgress(sessionId, user.id, moduleItem.id);
+        const isCompleted = itemProgress?.status === 'completed';
+
         return NextResponse.json({
             success: true,
             data: {
                 ...training[0],
                 content_html: sanitizeRichHtml(training[0].content_html),
                 media: media || [],
+                is_completed: isCompleted,
             },
         });
     } catch (error) {

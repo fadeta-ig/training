@@ -82,8 +82,39 @@ export default function WebcamProctor({
 
     useEffect(() => {
         if (isActive && isStreaming) {
-            sendSnapshot();
-            intervalRef.current = setInterval(sendSnapshot, SNAPSHOT_INTERVAL_MS);
+            // The video element needs time to become ready (readyState >= 2)
+            // after the stream starts. Wait briefly before attempting the first snapshot.
+            let cancelled = false;
+            let retryCount = 0;
+            const MAX_RETRIES = 3;
+            const INITIAL_DELAY_MS = 1500;
+            const RETRY_DELAY_MS = 1000;
+
+            const attemptInitialSnapshot = () => {
+                if (cancelled) return;
+                const video = videoRef.current;
+                if (video && video.readyState >= 2) {
+                    sendSnapshot();
+                    intervalRef.current = setInterval(sendSnapshot, SNAPSHOT_INTERVAL_MS);
+                } else if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    setTimeout(attemptInitialSnapshot, RETRY_DELAY_MS);
+                } else {
+                    // Video never became ready — start interval anyway so future snapshots can still attempt
+                    intervalRef.current = setInterval(sendSnapshot, SNAPSHOT_INTERVAL_MS);
+                }
+            };
+
+            const initialTimer = setTimeout(attemptInitialSnapshot, INITIAL_DELAY_MS);
+
+            return () => {
+                cancelled = true;
+                clearTimeout(initialTimer);
+                if (intervalRef.current) {
+                    clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                }
+            };
         }
         return () => {
             if (intervalRef.current) {

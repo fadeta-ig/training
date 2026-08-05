@@ -72,6 +72,7 @@ type ExamData = {
     existingAnswers: { question_id: string; selected_option: string }[];
     serverTime: string;
     sessionEnd: string;
+    enableProctoring: boolean;
     attemptStart: string;
     attemptNumber: number;
 };
@@ -583,11 +584,13 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
     return (
         <div className="min-h-dvh bg-muted/30 text-foreground">
-            <WebcamProctor
-                sessionId={sessionId}
-                isActive
-                onError={handleProctorError}
-            />
+            {examData.enableProctoring && (
+                <WebcamProctor
+                    sessionId={sessionId}
+                    isActive
+                    onError={handleProctorError}
+                />
+            )}
 
             <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
                 <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 xl:pr-44">

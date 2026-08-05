@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 interface SessionData {
     id: string;
@@ -8,6 +10,7 @@ interface SessionData {
     start_time: string;
     end_time: string;
     require_seb: boolean;
+    enable_proctoring: boolean;
     module_title: string;
 }
 
@@ -21,6 +24,31 @@ interface SnapshotData {
     username: string;
 }
 
+/**
+ * Converts snapshot image URL path to a Base64 Data URI.
+ * Next.js dev/standalone servers do not serve files added to `public/` dynamically after startup.
+ * Reading the image directly into a Data URI guarantees instant, zero-404 rendering in the admin dashboard.
+ */
+async function formatSnapshotUrl(imageUrl: string): Promise<string> {
+    if (!imageUrl) return '';
+    if (imageUrl.startsWith('data:image/')) return imageUrl;
+
+    if (imageUrl.startsWith('/uploads/proctor/')) {
+        try {
+            const filename = path.basename(imageUrl);
+            const filePath = path.join(process.cwd(), 'public', 'uploads', 'proctor', filename);
+            const fileBuffer = await fs.readFile(filePath);
+            const ext = path.extname(filename).toLowerCase();
+            const mimeType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+            return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+        } catch {
+            // If file cannot be read from disk, return original URL as fallback
+            return imageUrl;
+        }
+    }
+    return imageUrl;
+}
+
 async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -30,7 +58,7 @@ async function handleGet(request: NextRequest) {
         if (!sessionId) {
             const activeSessions = await executeQuery<SessionData[]>(`
                 SELECT 
-                    s.id, s.title, s.start_time, s.end_time, s.require_seb,
+                    s.id, s.title, s.start_time, s.end_time, s.require_seb, s.enable_proctoring,
                     m.title as module_title
                 FROM sessions s
                 JOIN modules m ON s.module_id = m.id
@@ -58,7 +86,15 @@ async function handleGet(request: NextRequest) {
             ORDER BY u.full_name ASC
         `, [sessionId, sessionId]);
 
-        return NextResponse.json({ success: true, data: snapshots });
+        // Transform image_url to Data URI for seamless image rendering
+        const formattedSnapshots = await Promise.all(
+            snapshots.map(async (snap) => ({
+                ...snap,
+                image_url: await formatSnapshotUrl(snap.image_url),
+            }))
+        );
+
+        return NextResponse.json({ success: true, data: formattedSnapshots });
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';

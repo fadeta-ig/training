@@ -9,7 +9,6 @@ import path from 'path';
 import { checkRateLimit } from '@/lib/rate-limit';
 import {
     ParticipantError,
-    validateSebAccess,
     validateSessionTiming,
     verifyEnrollment,
 } from '@/lib/participant-helpers';
@@ -138,7 +137,9 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
         if (!isActive) {
             return NextResponse.json({ success: false, error: 'Snapshot hanya dapat dikirim saat sesi aktif.' }, { status: 400 });
         }
-        validateSebAccess(request, session);
+        if (!session.enable_proctoring) {
+            return NextResponse.json({ success: false, error: 'Proctoring tidak diaktifkan pada sesi ini.' }, { status: 403 });
+        }
 
         const snapshotId = uuidv4();
 

@@ -9,6 +9,7 @@ interface Session {
     start_time: string;
     end_time: string;
     require_seb: boolean;
+    enable_proctoring: boolean;
     module_title: string;
 }
 
@@ -95,7 +96,7 @@ export default function MonitoringDashboard() {
                         Live Proctoring
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Pantau peserta yang sedang mengikuti ujian menggunakan SEB
+                        Pantau peserta yang sedang mengikuti ujian dengan kamera proctoring aktif
                     </p>
                 </div>
 
@@ -111,9 +112,10 @@ export default function MonitoringDashboard() {
                             const now = new Date();
                             const end = new Date(session.end_time);
                             const isActive = now <= end;
+                            const proctoringLabel = session.enable_proctoring ? '📹' : '';
                             return (
                                 <option key={session.id} value={session.id}>
-                                    {isActive ? '🟢 ' : '⚫ '}{session.title} — {session.module_title}
+                                    {isActive ? '🟢 ' : '⚫ '}{proctoringLabel}{session.title} — {session.module_title}
                                 </option>
                             );
                         })}

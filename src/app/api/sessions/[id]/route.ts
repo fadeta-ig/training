@@ -14,7 +14,7 @@ async function handleGet(
     try {
         const resolvedParams = await context.params;
         const result = await executeQuery<any[]>(
-            `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, seb_config_key, created_at 
+            `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, seb_config_key, created_at 
              FROM sessions WHERE id = ?`,
             [resolvedParams.id]
         );
@@ -98,7 +98,7 @@ async function handlePut(
             );
         }
 
-        const { module_id, title, start_time, end_time, require_seb, show_score, participant_ids } = parsed.data;
+        const { module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, participant_ids } = parsed.data;
         const sebConfigKey = require_seb ? process.env.SEB_CONFIG_KEY_HASH || null : null;
 
         connection = await pool.getConnection();
@@ -107,7 +107,7 @@ async function handlePut(
         // Update session
         await connection.execute(
             `UPDATE sessions 
-             SET module_id = ?, title = ?, start_time = ?, end_time = ?, require_seb = ?, show_score = ?, seb_config_key = ? 
+             SET module_id = ?, title = ?, start_time = ?, end_time = ?, require_seb = ?, show_score = ?, enable_proctoring = ?, seb_config_key = ? 
              WHERE id = ?`,
             [
                 module_id,
@@ -116,6 +116,7 @@ async function handlePut(
                 end_time.replace('T', ' ') + ':00',
                 require_seb,
                 show_score,
+                enable_proctoring,
                 sebConfigKey,
                 resolvedParams.id
             ]

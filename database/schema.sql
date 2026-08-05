@@ -140,13 +140,13 @@ CREATE TABLE sessions (
   end_time       DATETIME     NOT NULL,
   require_seb    BOOLEAN      DEFAULT FALSE,
   show_score     BOOLEAN      DEFAULT TRUE,
+  enable_proctoring BOOLEAN   NOT NULL DEFAULT TRUE,
   seb_config_key VARCHAR(255) NULL,
   created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_sessions_module_time (module_id, start_time, end_time),
   CONSTRAINT fk_sessions_module
     FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
-
 -- ─────────────────────────────────────────────
 -- 9. Session Participants (Peserta Terdaftar)
 -- ─────────────────────────────────────────────

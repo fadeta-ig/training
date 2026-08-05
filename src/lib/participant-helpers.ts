@@ -38,7 +38,7 @@ export async function validateSessionTiming(
     sessionId: string
 ): Promise<SessionTimingResult> {
     const rows = await executeQuery<Session[]>(
-        `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, seb_config_key, created_at
+        `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, seb_config_key, created_at
          FROM sessions WHERE id = ?`,
         [sessionId]
     );

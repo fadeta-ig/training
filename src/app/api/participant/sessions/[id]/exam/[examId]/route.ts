@@ -193,6 +193,7 @@ async function handleGet(
                 existingAnswers,
                 serverTime: progress[0].server_time_utc,
                 sessionEnd: session.end_time,
+                enableProctoring: !!session.enable_proctoring,
                 attemptStart: progress[0].attempt_start_utc,
                 attemptNumber: attemptNumber,
             },

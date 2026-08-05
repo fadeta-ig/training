@@ -7,6 +7,7 @@ export const sessionSchema = z.object({
     end_time: z.string().min(1, 'Waktu selesai wajib diisi'),
     require_seb: z.boolean().default(false),
     show_score: z.boolean().default(true),
+    enable_proctoring: z.boolean().default(true),
     participant_ids: z.array(z.string().uuid()).optional(),
 }).refine(data => new Date(data.end_time) > new Date(data.start_time), {
     message: "Waktu selesai harus lebih besar dari waktu mulai",

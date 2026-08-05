@@ -25,6 +25,7 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
     const [endTime, setEndTime] = useState('');
     const [requireSeb, setRequireSeb] = useState(false);
     const [showScore, setShowScore] = useState(true);
+    const [enableProctoring, setEnableProctoring] = useState(true);
 
     // Enrollments
     const [availableModules, setAvailableModules] = useState<Module[]>([]);
@@ -77,6 +78,7 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
 
                     setRequireSeb(!!session.require_seb);
                     setShowScore(session.show_score !== false);
+                    setEnableProctoring(session.enable_proctoring !== false);
 
                     if (session.participants && Array.isArray(session.participants)) {
                         setSelectedUserIds(session.participants.map((p: any) => p.id));
@@ -134,6 +136,7 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                 end_time: endTime,
                 require_seb: requireSeb,
                 show_score: showScore,
+                enable_proctoring: enableProctoring,
                 participant_ids: selectedUserIds
             };
 
@@ -259,6 +262,24 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                                 <div>
                                     <p className="text-sm font-medium text-foreground">Tampilkan Nilai ke Peserta</p>
                                     <p className="text-xs text-muted-foreground mt-0.5">Jika dinonaktifkan, peserta tidak akan dapat melihat skor/nilai ujian mereka.</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div className="flex flex-col justify-end space-y-2 pb-2">
+                            <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-black/10 bg-white/50 hover:bg-black/5 transition-colors">
+                                <div className="relative flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={enableProctoring}
+                                        onChange={(e) => setEnableProctoring(e.target.checked)}
+                                        className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary appearance-none checked:bg-primary checked:border-primary transition-colors cursor-pointer"
+                                    />
+                                    <Tick02Icon size={14} className={`absolute text-white pointer-events-none transition-opacity left-0.5 top-0.5 ${enableProctoring ? 'opacity-100' : 'opacity-0'}`} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-foreground">Aktifkan Kamera Proctoring (Webcam)</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">Mengambil foto webcam peserta secara periodik selama ujian berlangsung untuk pengawasan daring.</p>
                                 </div>
                             </label>
                         </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, Logout01Icon, Download01Icon, MailSend01Icon, ViewIcon, ViewOffIcon } from 'hugeicons-react';
+import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, Logout01Icon, Download01Icon, MailSend01Icon, ViewIcon, ViewOffIcon, Camera01Icon } from 'hugeicons-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -24,6 +24,7 @@ type SessionDetail = {
     end_time: string;
     require_seb: boolean;
     show_score: boolean;
+    enable_proctoring: boolean;
     seb_config_key: string | null;
     created_at: string;
     participants: User[];
@@ -220,6 +221,16 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                             </p>
                                         </div>
                                     )}
+                                    <div className="mt-3">
+                                        <p className="text-xs text-muted-foreground">Kamera Proctoring (Webcam)</p>
+                                        {session.enable_proctoring ? (
+                                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 mt-1">
+                                                <Camera01Icon size={12} /> AKTIF
+                                            </span>
+                                        ) : (
+                                            <p className="text-sm font-medium text-foreground mt-1">Tidak Aktif</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

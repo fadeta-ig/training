@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar02Icon, Time02Icon, SecurityLockIcon, PencilEdit01Icon, Delete02Icon, ViewIcon, ViewOffIcon } from 'hugeicons-react';
+import { Calendar02Icon, Time02Icon, SecurityLockIcon, PencilEdit01Icon, Delete02Icon, ViewIcon, ViewOffIcon, Camera01Icon } from 'hugeicons-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -17,6 +17,7 @@ type Session = {
     end_time: string;
     require_seb: boolean;
     show_score: boolean;
+    enable_proctoring: boolean;
     created_at: string;
 };
 
@@ -164,6 +165,12 @@ export default function SessionsPage() {
                                                     </span>
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">-</span>
+                                                )}
+                                                {session.enable_proctoring && (
+                                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-100 text-emerald-700 ml-1">
+                                                        <Camera01Icon size={12} />
+                                                        KAMERA
+                                                    </span>
                                                 )}
                                                 {!session.show_score && (
                                                     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-orange-100 text-orange-700 ml-1">

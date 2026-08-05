@@ -1,12 +1,26 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { ArrowLeft01Icon, Time02Icon, SecurityLockIcon, Calendar02Icon, UserMultipleIcon, Logout01Icon, Download01Icon, MailSend01Icon, ViewIcon, ViewOffIcon, Camera01Icon } from 'hugeicons-react';
+import {
+    ArrowLeft01Icon,
+    Time02Icon,
+    SecurityLockIcon,
+    Calendar02Icon,
+    UserMultipleIcon,
+    Logout01Icon,
+    Download01Icon,
+    MailSend01Icon,
+    ViewIcon,
+    ViewOffIcon,
+    Camera01Icon,
+    PencilEdit01Icon,
+    Search01Icon,
+    CheckmarkCircle02Icon,
+    FoldersIcon
+} from 'hugeicons-react';
 import { toast } from 'sonner';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { GlassCard } from '@/components/ui/GlassCard';
 
 type User = {
     id: string;
@@ -16,6 +30,7 @@ type User = {
     total_items: number;
     progress: number;
 };
+
 type SessionDetail = {
     id: string;
     module_id: string;
@@ -39,9 +54,10 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [isSendingBlast, setIsSendingBlast] = useState(false);
     const [showBlastConfirm, setShowBlastConfirm] = useState(false);
     const [userRole, setUserRole] = useState<string>('');
+    const [searchParticipant, setSearchParticipant] = useState('');
 
     useEffect(() => {
-        setIsSeb(navigator.userAgent.includes('SafeExamBrowser'));
+        setIsSeb(typeof navigator !== 'undefined' && navigator.userAgent.includes('SafeExamBrowser'));
     }, []);
 
     useEffect(() => {
@@ -60,25 +76,29 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                 setLoading(false);
             }
         };
+
         const fetchRole = async () => {
             try {
                 const res = await fetch('/api/auth/me');
                 const data = await res.json();
-                if (data.success) { setUserRole(data.data.role); }
+                if (data.success) {
+                    setUserRole(data.data.role);
+                }
             } catch {}
         };
+
         fetchSession();
         fetchRole();
     }, [resolvedParams.id]);
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('id-ID', {
-            weekday: 'long',
+            weekday: 'short',
             day: 'numeric',
-            month: 'long',
+            month: 'short',
             year: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
         });
     };
 
@@ -100,325 +120,375 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
         }
     };
 
-    const getSessionStatus = (start: string, end: string) => {
+    const getSessionState = (start: string, end: string): 'upcoming' | 'active' | 'ended' => {
         const now = new Date();
         const startDate = new Date(start);
         const endDate = new Date(end);
 
-        if (now < startDate) {
-            return {
-                label: 'Akan Datang',
-                className: 'bg-amber-100 text-amber-700 border-amber-200'
-            };
-        } else if (now >= startDate && now <= endDate) {
-            return {
-                label: 'Berlangsung',
-                className: 'bg-green-100 text-green-700 border-green-200 animate-pulse'
-            };
-        } else {
-            return {
-                label: 'Selesai',
-                className: 'bg-gray-100 text-gray-500 border-gray-200'
-            };
-        }
+        if (now < startDate) return 'upcoming';
+        if (now >= startDate && now <= endDate) return 'active';
+        return 'ended';
     };
+
+    const filteredParticipants = useMemo(() => {
+        if (!session?.participants) return [];
+        return session.participants.filter(
+            (p) =>
+                p.full_name.toLowerCase().includes(searchParticipant.toLowerCase()) ||
+                p.username.toLowerCase().includes(searchParticipant.toLowerCase())
+        );
+    }, [session?.participants, searchParticipant]);
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center p-20">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex items-center justify-center p-20 text-xs text-muted-foreground font-medium animate-pulse">
+                Memuat detail sesi...
             </div>
         );
     }
 
     if (error || !session) {
         return (
-            <div className="bg-destructive/10 text-destructive p-4 rounded-xl flex items-center justify-center border border-destructive/20 max-w-2xl mx-auto mt-12">
+            <div className="bg-red-50 text-red-700 p-4 rounded-xl flex items-center justify-center border border-red-200/60 max-w-2xl mx-auto mt-12 text-sm font-medium">
                 {error || 'Sesi tidak ditemukan'}
             </div>
         );
     }
 
-    const status = getSessionStatus(session.start_time, session.end_time);
+    const state = getSessionState(session.start_time, session.end_time);
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto pb-12">
+        <div className="space-y-6 max-w-7xl mx-auto pb-12">
+            {/* Navigation & SEB Badge */}
             <div className="flex items-center justify-between gap-4">
-                <Link href="/admin/sessions" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
-                    <ArrowLeft01Icon size={16} />
+                <Link
+                    href="/admin/sessions"
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+                >
+                    <ArrowLeft01Icon size={15} />
                     Kembali ke Daftar Sesi
                 </Link>
 
                 {isSeb && (
                     <Link
                         href="/quit-seb"
-                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 px-4 py-1.5 rounded-full border border-red-100 transition-all active:scale-95"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 px-3 py-1 rounded-lg border border-red-200/60 transition-all active:scale-98"
                     >
                         <Logout01Icon size={14} />
-                        Keluar Aplikasi SEB
+                        Keluar SEB
                     </Link>
                 )}
             </div>
 
-            <PageHeader
-                title="Detail Sesi Ujian"
-                description="Informasi lengkap mengenai jadwal ujian dan peserta yang terdaftar."
-                icon={<Calendar02Icon size={28} />}
-                actionLabel={userRole === 'admin' ? "Edit Sesi" : undefined}
-                actionHref={userRole === 'admin' ? `/admin/sessions/${session.id}/edit` : undefined}
-            />
+            {/* Header Title Section */}
+            <div className="bg-white rounded-xl border border-black/5 p-5 sm:p-6 shadow-2xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <h1 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight">
+                                {session.title}
+                            </h1>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                    <GlassCard className="p-6 md:p-8">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-foreground mb-1">{session.title}</h2>
-                                <p className="text-sm text-muted-foreground font-mono">ID: {session.id}</p>
-                            </div>
-                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold border ${status.className}`}>
-                                {status.label}
-                            </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-black/5">
-                            <div>
-                                <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                                    <Time02Icon size={16} /> Jadwal Pelaksanaan
-                                </h3>
-                                <div className="space-y-3">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Waktu Mulai</p>
-                                        <p className="text-sm font-medium text-foreground">{formatDate(session.start_time)}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Waktu Selesai</p>
-                                        <p className="text-sm font-medium text-foreground">{formatDate(session.end_time)}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                                    <SecurityLockIcon size={16} /> Pengaturan Keamanan
-                                </h3>
-                                <div className="space-y-3">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Safe Exam Browser (SEB)</p>
-                                        {session.require_seb ? (
-                                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 mt-1">
-                                                <SecurityLockIcon size={12} /> DIWAJIBKAN
-                                            </span>
-                                        ) : (
-                                            <p className="text-sm font-medium text-foreground mt-1">Tidak Diwajibkan</p>
-                                        )}
-                                    </div>
-                                    {session.require_seb && session.seb_config_key && (
-                                        <div>
-                                            <p className="text-xs text-muted-foreground mt-2">SEB Config Key</p>
-                                            <p className="text-xs font-mono bg-black/5 p-1.5 rounded text-foreground break-all mt-1">
-                                                {session.seb_config_key}
-                                            </p>
-                                        </div>
-                                    )}
-                                    <div className="mt-3">
-                                        <p className="text-xs text-muted-foreground">Kamera Proctoring (Webcam)</p>
-                                        {session.enable_proctoring ? (
-                                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 mt-1">
-                                                <Camera01Icon size={12} /> AKTIF
-                                            </span>
-                                        ) : (
-                                            <p className="text-sm font-medium text-foreground mt-1">Tidak Aktif</p>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                                    {session.show_score ? <ViewIcon size={16} /> : <ViewOffIcon size={16} />} Tampilkan Nilai
-                                </h3>
-                                <div className="space-y-3">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Visibilitas Nilai Peserta</p>
-                                        {session.show_score ? (
-                                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 mt-1">
-                                                <ViewIcon size={12} /> DITAMPILKAN
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md bg-orange-100 text-orange-700 mt-1">
-                                                <ViewOffIcon size={12} /> DISEMBUNYIKAN
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </GlassCard>
-
-                    <GlassCard className="p-6 md:p-8">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-black/5 pb-4 mb-4 gap-4">
-                            <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                                    <UserMultipleIcon size={20} /> Daftar Peserta Terdaftar
-                                </h3>
-                                <span className="bg-black/5 text-foreground px-3 py-1 rounded-full text-xs font-bold">
-                                    {session.participants.length} Orang
+                            {state === 'active' ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    Berlangsung
                                 </span>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setShowBlastConfirm(true)}
-                                    disabled={isSendingBlast || session.participants.length === 0}
-                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50"
-                                >
-                                    {isSendingBlast ? (
-                                        <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
-                                    ) : (
-                                        <MailSend01Icon size={16} />
-                                    )}
-                                    Blast Pengingat
-                                </button>
-                                <a
-                                    href={`/api/admin/sessions/${session.id}/export`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
-                                >
-                                    <Download01Icon size={16} />
-                                    Export Laporan Excel
-                                </a>
-                            </div>
+                            ) : state === 'upcoming' ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/60">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                    Akan Datang
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200/50">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                                    Selesai
+                                </span>
+                            )}
                         </div>
+                        <p className="font-mono text-xs text-muted-foreground">ID Sesi: {session.id}</p>
+                    </div>
 
-                        {session.participants.length === 0 ? (
-                            <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-black/10 rounded-xl">
-                                Belum ada peserta yang didaftarkan pada sesi ini.
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto border border-black/5 rounded-xl">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-xs text-muted-foreground uppercase bg-black/5">
-                                        <tr>
-                                            <th className="px-4 py-3 font-medium w-16 text-center">No</th>
-                                            <th className="px-4 py-3 font-medium">Username</th>
-                                            <th className="px-4 py-3 font-medium">Nama Lengkap</th>
-                                            <th className="px-4 py-3 font-medium w-48">Progress</th>
-                                            <th className="px-4 py-3 font-medium text-center w-28">Status</th>
-                                            <th className="px-4 py-3 font-medium text-center w-24">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-black/5">
-                                        {session.participants.map((p, idx) => (
-                                            <tr key={p.id} className="hover:bg-black/[0.02] transition-colors">
-                                                <td className="px-4 py-3 text-center text-muted-foreground">{idx + 1}</td>
-                                                <td className="px-4 py-3 font-medium text-foreground">{p.username}</td>
-                                                <td className="px-4 py-3 text-muted-foreground">{p.full_name}</td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="flex-1 h-1.5 bg-black/5 rounded-full overflow-hidden">
-                                                            <div
-                                                                className={`h-full rounded-full transition-all duration-700 ${p.progress === 100 ? 'bg-emerald-500' : 'bg-primary'}`}
-                                                                style={{ width: `${p.progress}%` }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-[10px] font-bold text-muted-foreground w-8 text-right">
-                                                            {p.progress}%
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    {p.progress === 100 ? (
-                                                        <span className="inline-flex px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-bold tracking-wide">
-                                                            SELESAI
-                                                        </span>
-                                                    ) : p.progress > 0 ? (
-                                                        <span className="inline-flex px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[10px] font-bold tracking-wide pulse text-center">
-                                                            MENGERJAKAN
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[10px] font-bold tracking-wide">
-                                                            BELUM
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <Link
-                                                        href={`/admin/sessions/${session.id}/participants/${p.id}`}
-                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:text-primary/80 bg-primary/10 px-3 py-1.5 rounded-md hover:bg-primary/20 transition-colors"
-                                                    >
-                                                        Detail
-                                                    </Link>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                        {userRole === 'admin' && (
+                            <Link
+                                href={`/admin/sessions/${session.id}/edit`}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs font-medium rounded-lg transition-colors"
+                            >
+                                <PencilEdit01Icon size={15} />
+                                Edit Sesi
+                            </Link>
                         )}
-                    </GlassCard>
-                </div>
-
-                <div className="lg:col-span-1 space-y-6">
-                    <GlassCard className="p-5 flex flex-col items-center text-center">
-                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-3">
-                            <Calendar02Icon size={32} />
-                        </div>
-                        <h4 className="font-bold text-foreground">Modul Ujian</h4>
-                        <p className="text-sm text-muted-foreground mt-2 border border-black/5 p-3 rounded-lg bg-white/50 w-full mb-4">
-                            ID Modul: <br /> <span className="font-mono text-xs">{session.module_id}</span>
-                        </p>
-                        <Link
-                            href={`/admin/modules`}
-                            className="text-primary text-xs font-semibold hover:underline"
+                        <a
+                            href={`/api/admin/sessions/${session.id}/export`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg transition-colors shadow-2xs"
                         >
-                            Lihat Modul di Master Data &rarr;
-                        </Link>
-                    </GlassCard>
+                            <Download01Icon size={15} />
+                            Export Excel
+                        </a>
+                    </div>
                 </div>
             </div>
 
-            {/* Custom Blast Confirmation Modal */}
-            {showBlastConfirm && typeof window !== 'undefined' && createPortal(
-                <div 
-                    className="fixed inset-0 z-[9999] flex items-center justify-center p-3 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 sm:p-4"
-                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
-                >
-                    <div 
-                        className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Decorative Top Bar */}
-                        <div className="h-2 w-full bg-blue-600 absolute top-0 left-0"></div>
-
-                        <div className="mt-2 space-y-4 p-4 text-center sm:p-6">
-                            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
-                                <MailSend01Icon size={32} />
-                            </div>
-                            <h3 className="font-bold text-xl text-slate-800">Kirim Broadcast Email?</h3>
-                            <p className="text-sm text-slate-500 leading-relaxed">
-                                Anda yakin ingin mengirim pemberitahuan jadwal sesi pelatihan ini ke <b className="text-slate-800">SELURUH</b> peserta yang terdaftar secara serentak?
-                            </p>
+            {/* Information Grid: 3 Clean Info Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Card 1: Jadwal */}
+                <div className="bg-white rounded-xl border border-black/5 p-5 shadow-2xs space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground border-b border-black/5 pb-2.5">
+                        <Time02Icon size={16} className="text-slate-500" />
+                        Jadwal Pelaksanaan
+                    </div>
+                    <div className="space-y-2.5 text-xs">
+                        <div>
+                            <span className="text-muted-foreground block text-[11px]">Waktu Mulai</span>
+                            <span className="font-medium text-foreground">{formatDate(session.start_time)}</span>
                         </div>
-                        
-                        <div className="flex flex-col-reverse gap-2 border-t border-black/5 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-                            <button
-                                onClick={() => setShowBlastConfirm(false)}
-                                className="w-full rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-200/50 focus:ring-2 focus:ring-slate-200 outline-none sm:w-auto"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                onClick={handleBlastEmail}
-                                className="w-full rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-500/20 transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 outline-none sm:w-auto"
-                            >
-                                Ya, Kirim Sekarang
-                            </button>
+                        <div>
+                            <span className="text-muted-foreground block text-[11px]">Waktu Selesai</span>
+                            <span className="font-medium text-foreground">{formatDate(session.end_time)}</span>
                         </div>
                     </div>
-                </div>,
-                document.body
-            )}
+                </div>
+
+                {/* Card 2: Keamanan */}
+                <div className="bg-white rounded-xl border border-black/5 p-5 shadow-2xs space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground border-b border-black/5 pb-2.5">
+                        <SecurityLockIcon size={16} className="text-slate-500" />
+                        Pengaturan Keamanan
+                    </div>
+                    <div className="space-y-2.5 text-xs">
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground text-[11px]">Safe Exam Browser (SEB)</span>
+                            {session.require_seb ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-900 text-white">
+                                    <SecurityLockIcon size={11} /> SEB Wajib
+                                </span>
+                            ) : (
+                                <span className="text-muted-foreground font-normal">Tidak Diwajibkan</span>
+                            )}
+                        </div>
+
+                        {Boolean(session.require_seb && session.seb_config_key) && (
+                            <div>
+                                <span className="text-muted-foreground block text-[11px]">SEB Config Hash</span>
+                                <span className="font-mono text-[10px] bg-slate-50 border border-black/5 p-1 rounded block truncate text-slate-700 mt-0.5">
+                                    {session.seb_config_key}
+                                </span>
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground text-[11px]">Kamera Proctoring</span>
+                            {session.enable_proctoring ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                    <Camera01Icon size={11} /> Aktif
+                                </span>
+                            ) : (
+                                <span className="text-muted-foreground font-normal">Non-aktif</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Card 3: Visibilitas & Modul */}
+                <div className="bg-white rounded-xl border border-black/5 p-5 shadow-2xs space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground border-b border-black/5 pb-2.5">
+                        <FoldersIcon size={16} className="text-slate-500" />
+                        Modul & Fitur
+                    </div>
+                    <div className="space-y-2.5 text-xs">
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground text-[11px]">Visibilitas Nilai</span>
+                            {session.show_score ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                    <ViewIcon size={11} /> Ditampilkan
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60">
+                                    <ViewOffIcon size={11} /> Disembunyikan
+                                </span>
+                            )}
+                        </div>
+
+                        <div>
+                            <span className="text-muted-foreground block text-[11px]">ID Modul Ujian</span>
+                            <div className="flex items-center justify-between mt-0.5">
+                                <span className="font-mono text-[10px] text-foreground truncate max-w-[140px]">
+                                    {session.module_id}
+                                </span>
+                                <Link
+                                    href="/admin/modules"
+                                    className="text-[11px] font-medium text-slate-700 hover:text-slate-900 underline"
+                                >
+                                    Master Data &rarr;
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Participants Section */}
+            <div className="bg-white rounded-xl border border-black/5 shadow-2xs overflow-hidden">
+                {/* Participant Section Header */}
+                <div className="p-4 sm:p-5 border-b border-black/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                        <UserMultipleIcon size={18} className="text-slate-600" />
+                        <h2 className="text-sm font-semibold text-foreground">Daftar Peserta Terdaftar</h2>
+                        <span className="bg-slate-100 text-slate-700 text-[11px] font-medium px-2.5 py-0.5 rounded-full">
+                            {session.participants.length} Peserta
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="relative flex-1 sm:w-56">
+                            <Search01Icon
+                                size={14}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            />
+                            <input
+                                type="text"
+                                placeholder="Cari peserta..."
+                                value={searchParticipant}
+                                onChange={(e) => setSearchParticipant(e.target.value)}
+                                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-black/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white transition-all"
+                            />
+                        </div>
+
+                        <button
+                            onClick={() => setShowBlastConfirm(true)}
+                            disabled={isSendingBlast || session.participants.length === 0}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors shadow-2xs disabled:opacity-50 shrink-0"
+                        >
+                            {isSendingBlast ? (
+                                <div className="w-3.5 h-3.5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <MailSend01Icon size={14} />
+                            )}
+                            Blast Pengingat
+                        </button>
+                    </div>
+                </div>
+
+                {/* Participant Table */}
+                {filteredParticipants.length === 0 ? (
+                    <div className="p-10 text-center text-xs text-muted-foreground">
+                        {searchParticipant
+                            ? 'Tidak ada peserta yang cocok dengan kata kunci pencarian.'
+                            : 'Belum ada peserta yang didaftarkan pada sesi ini.'}
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-50/80 border-b border-black/5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                                <tr>
+                                    <th className="px-5 py-3 w-12 text-center">No</th>
+                                    <th className="px-5 py-3">Username</th>
+                                    <th className="px-5 py-3">Nama Lengkap</th>
+                                    <th className="px-5 py-3 w-48">Progres Pembelajaran</th>
+                                    <th className="px-5 py-3 text-center w-28">Status</th>
+                                    <th className="px-5 py-3 text-center w-24">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-black/5">
+                                {filteredParticipants.map((p, idx) => (
+                                    <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
+                                        <td className="px-5 py-3.5 text-center text-muted-foreground font-mono">
+                                            {idx + 1}
+                                        </td>
+                                        <td className="px-5 py-3.5 font-medium text-foreground">{p.username}</td>
+                                        <td className="px-5 py-3.5 text-muted-foreground">{p.full_name}</td>
+                                        <td className="px-5 py-3.5 align-middle">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full transition-all duration-500 ${
+                                                            p.progress === 100 ? 'bg-emerald-500' : 'bg-slate-800'
+                                                        }`}
+                                                        style={{ width: `${p.progress}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-[11px] font-mono font-medium text-muted-foreground w-8 text-right">
+                                                    {p.progress}%
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-3.5 text-center align-middle">
+                                            {p.progress === 100 ? (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium border border-emerald-200/60">
+                                                    <CheckmarkCircle02Icon size={11} /> Selesai
+                                                </span>
+                                            ) : p.progress > 0 ? (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium border border-blue-200/60">
+                                                    Mengerjakan
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-medium border border-slate-200/50">
+                                                    Belum
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-5 py-3.5 text-center align-middle">
+                                            <Link
+                                                href={`/admin/sessions/${session.id}/participants/${p.id}`}
+                                                className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 px-2.5 py-1 rounded-md transition-colors"
+                                            >
+                                                Detail
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* Blast Confirmation Modal */}
+            {showBlastConfirm &&
+                typeof window !== 'undefined' &&
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs animate-in fade-in duration-150"
+                        onClick={() => setShowBlastConfirm(false)}
+                    >
+                        <div
+                            className="relative w-full max-w-md bg-white rounded-xl shadow-xl border border-black/5 p-6 space-y-4 animate-in zoom-in-95 duration-150"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="w-11 h-11 bg-slate-100 text-slate-800 rounded-lg flex items-center justify-center">
+                                <MailSend01Icon size={22} />
+                            </div>
+
+                            <div className="space-y-1">
+                                <h3 className="font-semibold text-base text-foreground">Kirim Broadcast Email?</h3>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Anda akan mengirimkan email pemberitahuan jadwal sesi pelatihan ini ke{' '}
+                                    <strong className="text-foreground">{session.participants.length} peserta</strong>{' '}
+                                    terdaftar.
+                                </p>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/5">
+                                <button
+                                    onClick={() => setShowBlastConfirm(false)}
+                                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={handleBlastEmail}
+                                    className="px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors shadow-2xs"
+                                >
+                                    Ya, Kirim Email
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 }

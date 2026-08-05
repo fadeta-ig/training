@@ -103,7 +103,7 @@ export function AdminHeader({ toggleSidebar, user }: AdminHeaderProps) {
                     </button>
 
                     {isNotificationOpen && (
-                        <div className="fixed inset-x-3 top-[4.5rem] z-50 w-auto overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80">
+                        <div className="absolute right-0 top-full mt-2.5 w-80 sm:w-96 bg-white border border-black/10 shadow-xl rounded-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                             <div className="px-4 py-3 border-b border-black/10 bg-[#f8f9fa] flex justify-between items-center">
                                 <h3 className="font-semibold text-sm">Notifikasi {unreadCount > 0 && <span className="text-xs font-bold text-destructive">({unreadCount})</span>}</h3>
                                 {unreadCount > 0 && (

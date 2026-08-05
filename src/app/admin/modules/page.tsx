@@ -1,36 +1,54 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
-    CubeIcon,
-    PencilEdit02Icon,
-    Delete02Icon,
-    RefreshIcon,
-    Alert02Icon,
-    ViewIcon
-} from 'hugeicons-react';
-
-import { PageHeader } from '@/components/ui/PageHeader';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { ActionButton } from '@/components/ui/ActionButton';
-import { EmptyState } from '@/components/ui/EmptyState';
+    AlertCircle,
+    Boxes,
+    CalendarDays,
+    Eye,
+    ListTree,
+    Pencil,
+    Plus,
+    Trash2,
+} from 'lucide-react';
+import { ManagementPageHeader } from '@/components/admin/ManagementPageHeader';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Pagination } from '@/components/ui/Pagination';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/hooks/useConfirm';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-type Module = {
+type LearningModule = {
     id: string;
     title: string;
-    description: string;
+    description: string | null;
     created_at: string;
 };
 
+function formatDate(value: string) {
+    return new Date(value).toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    });
+}
+
 export default function ModulesManagerPage() {
-    const [modules, setModules] = useState<Module[]>([]);
+    const [modules, setModules] = useState<LearningModule[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
-    const [userRole, setUserRole] = useState<string>('');
+    const [userRole, setUserRole] = useState('');
     const [totalPages, setTotalPages] = useState(1);
     const { confirm, ConfirmComponent } = useConfirm();
 
@@ -38,19 +56,14 @@ export default function ModulesManagerPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/modules?page=${targetPage}&limit=10`);
-            if (!res.ok) throw new Error('Gagal mengambil data modul');
-            const result = await res.json();
-            if (result.success) {
-                setModules(result.data);
-                if (result.pagination) {
-                    setTotalPages(result.pagination.totalPages);
-                }
-            } else {
-                throw new Error(result.error || 'Terjadi kesalahan sistem');
-            }
-        } catch (err: any) {
-            setError(err.message);
+            const response = await fetch(`/api/modules?page=${targetPage}&limit=10`);
+            if (!response.ok) throw new Error('Gagal mengambil data modul');
+            const body = await response.json();
+            if (!body.success) throw new Error(body.error || 'Terjadi kesalahan sistem');
+            setModules(body.data);
+            setTotalPages(body.pagination?.totalPages || 1);
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : 'Gagal mengambil data modul');
         } finally {
             setIsLoading(false);
         }
@@ -61,112 +74,139 @@ export default function ModulesManagerPage() {
     }, [page, fetchModules]);
 
     useEffect(() => {
-        fetch('/api/auth/me').then(res => res.json()).then(data => {
-            if (data.success) {
-                setUserRole(data.data.role);
-            }
-        }).catch(() => {});
+        fetch('/api/auth/me')
+            .then((response) => response.json())
+            .then((body) => {
+                if (body.success) setUserRole(body.data.role);
+            })
+            .catch(() => undefined);
     }, []);
 
     const deleteModule = async (id: string, title: string) => {
         const isConfirmed = await confirm({
             title: 'Hapus Modul?',
-            message: `Apakah Anda yakin ingin menghapus Modul "${title}" secara permanen? Sesi yang sedang berjalan untuk modul ini akan terganggu.`,
+            message: `Apakah Anda yakin ingin menghapus modul "${title}" secara permanen? Sesi yang menggunakan modul ini dapat terdampak.`,
             isDestructive: true,
-            confirmLabel: 'Ya, Hapus',
-            cancelLabel: 'Batal'
+            confirmLabel: 'Ya, Hapus Modul',
+            cancelLabel: 'Batal',
         });
         if (!isConfirmed) return;
 
         try {
-            const res = await fetch(`/api/modules/${id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Gagal menghapus modul');
+            const response = await fetch(`/api/modules/${id}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Gagal menghapus modul');
             toast.success('Modul berhasil dihapus');
             fetchModules(page);
-        } catch (err: any) {
-            toast.error(err.message || 'Gagal menghapus modul');
+        } catch (caught) {
+            toast.error(caught instanceof Error ? caught.message : 'Gagal menghapus modul');
         }
     };
 
     return (
-        <div className="space-y-8 max-w-6xl relative">
+        <div className="relative max-w-6xl space-y-8 pb-12">
             <ConfirmComponent />
-            <PageHeader
-                title="Perakit Modul (Builder)"
-                description="Susun kurikulum dengan menyatukan Materi Pelatihan dan Ujian menjadi satu alur linier utuh."
-                icon={<CubeIcon size={28} className="text-muted-foreground" />}
-                actionLabel={userRole === 'admin' ? "Rakit Modul Baru" : undefined}
-                actionHref={userRole === 'admin' ? "/admin/modules/new" : undefined}
+            <ManagementPageHeader
+                title="Modul Pembelajaran"
+                description="Susun materi dan ujian menjadi alur pembelajaran yang terurut sebelum digunakan pada sesi peserta."
+                icon={<Boxes className="size-7" />}
+                actionLabel={userRole === 'admin' ? 'Buat Modul Baru' : undefined}
+                actionHref={userRole === 'admin' ? '/admin/modules/new' : undefined}
                 onRefresh={() => fetchModules(page)}
                 isRefreshing={isLoading}
             />
 
             {error && (
-                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-5 py-4 rounded-xl flex items-start gap-3">
-                    <Alert02Icon size={20} className="shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-destructive">
+                    <AlertCircle className="mt-0.5 size-5 shrink-0" />
                     <div>
-                        <h4 className="font-semibold text-sm">Gagal Memuat Data Modul</h4>
-                        <p className="text-sm opacity-90">{error}</p>
+                        <h2 className="text-sm font-medium">Modul tidak dapat dimuat</h2>
+                        <p className="mt-1 text-sm opacity-80">{error}</p>
                     </div>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {isLoading ? (
-                    <div className="col-span-full py-20 text-center text-muted-foreground glass-card flex flex-col items-center justify-center">
-                        <RefreshIcon size={32} className="animate-spin mb-4 opacity-50" />
-                        <p>Memuat deret modul...</p>
-                    </div>
-                ) : modules.length === 0 ? (
-                    <div className="col-span-full">
-                        <EmptyState
-                            icon={<CubeIcon size={48} className="mb-4 opacity-20" />}
-                            title="Belum ada modul yang terdaftar."
-                            description="Mulai rakit alur pembelajaran Anda dengan menyatukan materi dan ujian."
-                            actionLabel={userRole === 'admin' ? "Rakit Modul Pertama" : undefined}
-                            actionHref={userRole === 'admin' ? "/admin/modules/new" : undefined}
-                        />
-                    </div>
-                ) : (
-                    modules.map((mod) => (
-                        <GlassCard key={mod.id} className="flex flex-col group transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
-                            <div className="p-6 flex-1">
-                                <h3 className="text-xl font-bold tracking-tight text-foreground line-clamp-2 mb-2">
-                                    {mod.title}
-                                </h3>
-                                <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
-                                    {mod.description || 'Tidak ada deskripsi detail tambahan.'}
-                                </p>
-                                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                    Dibuat pada: {new Date(mod.created_at).toLocaleDateString('id-ID')}
+            {isLoading ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                    {[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-64 rounded-lg" />)}
+                </div>
+            ) : modules.length === 0 ? (
+                <div className="rounded-lg border border-dashed px-6 py-14 text-center">
+                    <ListTree className="mx-auto size-9 text-muted-foreground/50" />
+                    <h2 className="mt-4 font-medium">Belum ada modul pembelajaran</h2>
+                    <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
+                        Buat modul pertama, kemudian tentukan urutan materi dan ujian yang harus diselesaikan peserta.
+                    </p>
+                    {userRole === 'admin' && (
+                        <Link href="/admin/modules/new" className={cn(buttonVariants({ size: 'lg' }), 'mt-5')}>
+                            <Plus /> Buat Modul Pertama
+                        </Link>
+                    )}
+                </div>
+            ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                    {modules.map((module) => (
+                        <Card key={module.id} className="gap-0 rounded-lg py-0 shadow-none">
+                            <CardHeader className="gap-4 px-5 pb-4 pt-5">
+                                <div className="flex items-center justify-between gap-3">
+                                    <Badge variant="outline" className="rounded-md text-muted-foreground">
+                                        <ListTree /> Modul
+                                    </Badge>
+                                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <CalendarDays className="size-3.5" /> {formatDate(module.created_at)}
+                                    </span>
                                 </div>
-                            </div>
-                            <div className="px-6 py-4 border-t border-black/5 flex justify-end gap-2 bg-black/5 rounded-b-2xl">
-                                <ActionButton
-                                    href={`/admin/modules/${mod.id}`}
-                                    icon={<ViewIcon size={16} />}
-                                    title="Detail"
-                                />
+                                <div>
+                                    <CardTitle className="line-clamp-2 text-lg font-semibold leading-6">{module.title}</CardTitle>
+                                    <p className="mt-2 line-clamp-3 min-h-12 text-sm leading-6 text-muted-foreground">
+                                        {module.description || 'Belum ada deskripsi. Buka modul untuk melihat dan menyusun urutan pembelajarannya.'}
+                                    </p>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="border-t px-5 py-4">
+                                <dl className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground">Struktur</dt>
+                                        <dd className="mt-1 font-medium">Alur pembelajaran terurut</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground">Dibuat pada</dt>
+                                        <dd className="mt-1 font-medium">{formatDate(module.created_at)}</dd>
+                                    </div>
+                                </dl>
+                            </CardContent>
+
+                            <CardFooter className="justify-between gap-3 rounded-b-lg border-t bg-muted/30 px-5 py-3">
+                                <Link href={`/admin/modules/${module.id}`} className={buttonVariants({ variant: 'outline', size: 'lg' })}>
+                                    <Eye /> Buka modul
+                                </Link>
                                 {userRole === 'admin' && (
-                                    <>
-                                        <ActionButton
-                                            href={`/admin/modules/${mod.id}/edit`}
-                                            icon={<PencilEdit02Icon size={16} />}
-                                            title="Edit"
-                                        />
-                                        <ActionButton
-                                            onClick={() => deleteModule(mod.id, mod.title)}
-                                            icon={<Delete02Icon size={16} />}
+                                    <div className="flex items-center gap-2">
+                                        <Link
+                                            href={`/admin/modules/${module.id}/edit`}
+                                            className={buttonVariants({ variant: 'outline', size: 'icon' })}
+                                            aria-label={`Edit modul ${module.title}`}
+                                            title="Edit modul"
+                                        >
+                                            <Pencil />
+                                        </Link>
+                                        <Button
+                                            type="button"
                                             variant="destructive"
-                                            title="Hapus"
-                                        />
-                                    </>
+                                            size="icon"
+                                            onClick={() => deleteModule(module.id, module.title)}
+                                            aria-label={`Hapus modul ${module.title}`}
+                                            title="Hapus modul"
+                                        >
+                                            <Trash2 />
+                                        </Button>
+                                    </div>
                                 )}
-                            </div>
-                        </GlassCard>
-                    ))
-                )}
-            </div>
+                            </CardFooter>
+                        </Card>
+                    ))}
+                </div>
+            )}
 
             <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
         </div>

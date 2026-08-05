@@ -12,6 +12,8 @@ import {
     Clock01Icon,
     Task01Icon
 } from 'hugeicons-react';
+import { usePagination } from '@/hooks/usePagination';
+import { Pagination } from '@/components/ui/Pagination';
 
 type HistoryItem = {
     id: string;
@@ -92,6 +94,16 @@ export default function RiwayatPage() {
             return true;
         });
     }, [sessions, searchQuery, filterType]);
+
+    const {
+        currentPage,
+        pageSize,
+        totalPages,
+        totalItems,
+        paginatedItems: paginatedSessions,
+        setPage,
+        setPageSize,
+    } = usePagination({ items: filteredSessions, initialPageSize: 10 });
 
     if (loading) {
         return (
@@ -221,96 +233,107 @@ export default function RiwayatPage() {
                     </p>
                 </div>
             ) : (
-                <div className="space-y-3">
-                    {filteredSessions.map((s) => {
-                        const progress =
-                            s.total_items > 0
-                                ? Math.round((s.completed_items / s.total_items) * 100)
-                                : 0;
-                        const allDone = progress === 100 && s.total_items > 0;
+                <div className="space-y-4">
+                    <div className="space-y-3">
+                        {paginatedSessions.map((s) => {
+                            const progress =
+                                s.total_items > 0
+                                    ? Math.round((s.completed_items / s.total_items) * 100)
+                                    : 0;
+                            const allDone = progress === 100 && s.total_items > 0;
 
-                        return (
-                            <div
-                                key={s.id}
-                                className="bg-white rounded-xl border border-black/5 p-4 sm:p-5 shadow-2xs hover:border-black/10 hover:shadow-xs transition-all group"
-                            >
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    {/* Left Info Section */}
-                                    <div className="flex items-start gap-3.5 min-w-0">
-                                        <div
-                                            className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                                                allDone
-                                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
-                                                    : 'bg-slate-100 text-slate-500 border border-slate-200/50'
-                                            }`}
-                                        >
-                                            {allDone ? (
-                                                <CheckmarkCircle02Icon size={18} />
-                                            ) : (
-                                                <Time02Icon size={18} />
-                                            )}
-                                        </div>
-
-                                        <div className="min-w-0 space-y-1">
-                                            <h3 className="text-sm font-semibold text-foreground truncate group-hover:text-slate-900 transition-colors">
-                                                {s.title}
-                                            </h3>
-
-                                            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                                                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
-                                                    {s.module_title}
-                                                </span>
-                                                <span className="text-slate-300">•</span>
-                                                <span className="flex items-center gap-1 text-[11px]">
-                                                    <Calendar02Icon size={12} className="text-slate-400" />
-                                                    {formatDate(s.start_time)} – {formatDate(s.end_time)}
-                                                </span>
+                            return (
+                                <div
+                                    key={s.id}
+                                    className="bg-white rounded-xl border border-black/5 p-4 sm:p-5 shadow-2xs hover:border-black/10 hover:shadow-xs transition-all group"
+                                >
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                        {/* Left Info Section */}
+                                        <div className="flex items-start gap-3.5 min-w-0">
+                                            <div
+                                                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                                                    allDone
+                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
+                                                        : 'bg-slate-100 text-slate-500 border border-slate-200/50'
+                                                }`}
+                                            >
+                                                {allDone ? (
+                                                    <CheckmarkCircle02Icon size={18} />
+                                                ) : (
+                                                    <Time02Icon size={18} />
+                                                )}
                                             </div>
-                                        </div>
-                                    </div>
 
-                                    {/* Right Progress & Action Section */}
-                                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 border-t sm:border-t-0 border-black/5 pt-3 sm:pt-0">
-                                        {/* Progress Bar & Status */}
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-24 sm:w-32 hidden sm:block">
-                                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full rounded-full transition-all duration-500 ${
-                                                            allDone ? 'bg-emerald-500' : 'bg-slate-700'
-                                                        }`}
-                                                        style={{ width: `${progress}%` }}
-                                                    />
+                                            <div className="min-w-0 space-y-1">
+                                                <h3 className="text-sm font-semibold text-foreground truncate group-hover:text-slate-900 transition-colors">
+                                                    {s.title}
+                                                </h3>
+
+                                                <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                                                    <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
+                                                        {s.module_title}
+                                                    </span>
+                                                    <span className="text-slate-300">•</span>
+                                                    <span className="flex items-center gap-1 text-[11px]">
+                                                        <Calendar02Icon size={12} className="text-slate-400" />
+                                                        {formatDate(s.start_time)} – {formatDate(s.end_time)}
+                                                    </span>
                                                 </div>
                                             </div>
-
-                                            {allDone ? (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[11px] font-medium">
-                                                    100% Selesai
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200/50 text-[11px] font-medium">
-                                                    {progress}% • Berakhir
-                                                </span>
-                                            )}
                                         </div>
 
-                                        {/* Action Button */}
-                                        <Link
-                                            href={`/dashboard/sesi/${s.id}`}
-                                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs font-medium rounded-lg transition-colors shrink-0"
-                                        >
-                                            Buka Sesi
-                                            <ArrowRight01Icon
-                                                size={14}
-                                                className="group-hover:translate-x-0.5 transition-transform"
-                                            />
-                                        </Link>
+                                        {/* Right Progress & Action Section */}
+                                        <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 border-t sm:border-t-0 border-black/5 pt-3 sm:pt-0">
+                                            {/* Progress Bar & Status */}
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-24 sm:w-32 hidden sm:block">
+                                                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                                allDone ? 'bg-emerald-500' : 'bg-slate-700'
+                                                            }`}
+                                                            style={{ width: `${progress}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {allDone ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[11px] font-medium">
+                                                        100% Selesai
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200/50 text-[11px] font-medium">
+                                                        {progress}% • Berakhir
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Action Button */}
+                                            <Link
+                                                href={`/dashboard/sesi/${s.id}`}
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs font-medium rounded-lg transition-colors shrink-0"
+                                            >
+                                                Buka Sesi
+                                                <ArrowRight01Icon
+                                                    size={14}
+                                                    className="group-hover:translate-x-0.5 transition-transform"
+                                                />
+                                            </Link>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
+
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        pageSize={pageSize}
+                        onPageChange={setPage}
+                        onPageSizeChange={setPageSize}
+                    />
                 </div>
             )}
         </div>

@@ -21,15 +21,17 @@ export default function AuditLogsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
-    const fetchLogs = useCallback(async (targetPage: number, search: string) => {
+    const fetchLogs = useCallback(async (targetPage: number, limit: number, search: string) => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/admin/audit-logs?page=${targetPage}&search=${encodeURIComponent(search)}`);
+            const res = await fetch(`/api/admin/audit-logs?page=${targetPage}&limit=${limit}&search=${encodeURIComponent(search)}`);
             if (!res.ok) throw new Error('Gagal memuat rekam aktivitas');
             const result = await res.json();
 
@@ -37,6 +39,7 @@ export default function AuditLogsPage() {
                 setLogs(result.data);
                 if (result.pagination) {
                     setTotalPages(result.pagination.totalPages);
+                    setTotalItems(result.pagination.total || result.data.length);
                 }
             } else {
                 throw new Error(result.error);
@@ -49,8 +52,8 @@ export default function AuditLogsPage() {
     }, []);
 
     useEffect(() => {
-        fetchLogs(page, searchQuery);
-    }, [page, searchQuery, fetchLogs]);
+        fetchLogs(page, pageSize, searchQuery);
+    }, [page, pageSize, searchQuery, fetchLogs]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
@@ -65,12 +68,12 @@ export default function AuditLogsPage() {
     }
 
     return (
-        <div className="space-y-8 max-w-7xl">
+        <div className="space-y-6 max-w-7xl mx-auto pb-12">
             <PageHeader
                 title="Sistem Audit Trail"
                 description="Rekam jejak seluruh aktivitas yang dilakukan oleh level administrator pada aplikasi."
                 icon={<Activity01Icon size={28} className="text-muted-foreground" />}
-                onRefresh={() => fetchLogs(page, searchQuery)}
+                onRefresh={() => fetchLogs(page, pageSize, searchQuery)}
                 isRefreshing={isLoading}
             />
 
@@ -181,7 +184,17 @@ export default function AuditLogsPage() {
                 </div>
             </GlassCard>
 
-            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                }}
+            />
 
             {/* JSON Payload Detail Modal */}
             {selectedLog && (

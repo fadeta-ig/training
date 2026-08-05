@@ -48,20 +48,23 @@ export default function ModulesManagerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [userRole, setUserRole] = useState('');
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchModules = useCallback(async (targetPage: number) => {
+    const fetchModules = useCallback(async (targetPage: number, limit: number) => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(`/api/modules?page=${targetPage}&limit=10`);
+            const response = await fetch(`/api/modules?page=${targetPage}&limit=${limit}`);
             if (!response.ok) throw new Error('Gagal mengambil data modul');
             const body = await response.json();
             if (!body.success) throw new Error(body.error || 'Terjadi kesalahan sistem');
             setModules(body.data);
             setTotalPages(body.pagination?.totalPages || 1);
+            setTotalItems(body.pagination?.total || body.data.length);
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : 'Gagal mengambil data modul');
         } finally {
@@ -70,8 +73,8 @@ export default function ModulesManagerPage() {
     }, []);
 
     useEffect(() => {
-        fetchModules(page);
-    }, [page, fetchModules]);
+        fetchModules(page, pageSize);
+    }, [page, pageSize, fetchModules]);
 
     useEffect(() => {
         fetch('/api/auth/me')
@@ -96,7 +99,7 @@ export default function ModulesManagerPage() {
             const response = await fetch(`/api/modules/${id}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Gagal menghapus modul');
             toast.success('Modul berhasil dihapus');
-            fetchModules(page);
+            fetchModules(page, pageSize);
         } catch (caught) {
             toast.error(caught instanceof Error ? caught.message : 'Gagal menghapus modul');
         }
@@ -111,7 +114,7 @@ export default function ModulesManagerPage() {
                 icon={<Boxes className="size-7" />}
                 actionLabel={userRole === 'admin' ? 'Buat Modul Baru' : undefined}
                 actionHref={userRole === 'admin' ? '/admin/modules/new' : undefined}
-                onRefresh={() => fetchModules(page)}
+                onRefresh={() => fetchModules(page, pageSize)}
                 isRefreshing={isLoading}
             />
 
@@ -208,7 +211,17 @@ export default function ModulesManagerPage() {
                 </div>
             )}
 
-            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                }}
+            />
         </div>
     );
 }

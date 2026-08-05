@@ -23,6 +23,8 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { usePagination } from '@/hooks/usePagination';
+import { Pagination } from '@/components/ui/Pagination';
 
 type Session = {
     id: string;
@@ -37,13 +39,16 @@ type Session = {
 
 type SessionStatus = 'active' | 'upcoming' | 'completed' | 'ended';
 
-const STATUS_META: Record<SessionStatus, {
-    label: string;
-    description: string;
-    action: string;
-    icon: ElementType;
-    badgeClass: string;
-}> = {
+const STATUS_META: Record<
+    SessionStatus,
+    {
+        label: string;
+        description: string;
+        action: string;
+        icon: ElementType;
+        badgeClass: string;
+    }
+> = {
     active: {
         label: 'Sedang berlangsung',
         description: 'Sesi yang dapat Anda lanjutkan sekarang.',
@@ -99,54 +104,60 @@ function formatSchedule(startValue: string, endValue: string) {
     const sameDay = start.toDateString() === end.toDateString();
 
     if (sameDay) {
-        return `${dateFormatter.format(start)}, ${timeFormatter.format(start)} - ${timeFormatter.format(end)}`;
+        return `${dateFormatter.format(start)} • ${timeFormatter.format(start)} - ${timeFormatter.format(end)}`;
     }
-
-    return `${dateFormatter.format(start)}, ${timeFormatter.format(start)} - ${dateFormatter.format(end)}, ${timeFormatter.format(end)}`;
+    return `${dateFormatter.format(start)} ${timeFormatter.format(start)} - ${dateFormatter.format(end)} ${timeFormatter.format(end)}`;
 }
 
 export default function ParticipantSessionsPage() {
     const [sessions, setSessions] = useState<Session[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
+    const [now, setNow] = useState<Date | null>(null);
 
     useEffect(() => {
+        setNow(new Date());
+
         fetch('/api/participant/sessions')
-            .then((response) => response.json())
-            .then((body) => {
-                if (body.success) setSessions(body.data);
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) {
+                    setSessions(data.data);
+                }
             })
-            .catch(() => undefined)
-            .finally(() => setLoading(false));
+            .catch(() => {})
+            .finally(() => setIsLoading(false));
     }, []);
 
-    if (loading) {
+    const {
+        currentPage,
+        pageSize,
+        totalPages,
+        totalItems,
+        paginatedItems: paginatedSessions,
+        setPage,
+        setPageSize,
+    } = usePagination({ items: sessions, initialPageSize: 10 });
+
+    if (isLoading || !now) {
         return (
-            <div className="mx-auto max-w-6xl space-y-8">
-                <div className="space-y-2">
-                    <Skeleton className="h-8 w-40" />
-                    <Skeleton className="h-5 w-80 max-w-full" />
+            <div className="space-y-8">
+                <div>
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="mt-2 h-4 w-96" />
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
-                    <Skeleton className="h-72 rounded-lg" />
-                    <Skeleton className="h-72 rounded-lg" />
+                    <Skeleton className="h-56 rounded-lg" />
+                    <Skeleton className="h-56 rounded-lg" />
                 </div>
             </div>
         );
     }
 
-    const now = new Date();
-    const groups: Array<{ status: SessionStatus; sessions: Session[] }> = [
-        { status: 'active', sessions: sessions.filter((session) => getStatus(session, now) === 'active') },
-        { status: 'upcoming', sessions: sessions.filter((session) => getStatus(session, now) === 'upcoming') },
-        { status: 'completed', sessions: sessions.filter((session) => getStatus(session, now) === 'completed') },
-        { status: 'ended', sessions: sessions.filter((session) => getStatus(session, now) === 'ended') },
-    ];
-
     return (
-        <div className="mx-auto max-w-6xl space-y-9 pb-12">
-            <header className="border-b pb-6">
-                <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">Sesi Saya</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+        <div className="space-y-8 max-w-5xl mx-auto pb-12">
+            <header className="border-b pb-5">
+                <h1 className="text-2xl font-semibold tracking-tight">Sesi Pelatihan Saya</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                     Pantau jadwal dan progres pelatihan Anda, lalu lanjutkan materi atau ujian dari sesi yang sedang aktif.
                 </p>
             </header>
@@ -160,55 +171,44 @@ export default function ParticipantSessionsPage() {
                     </p>
                 </div>
             ) : (
-                <div className="space-y-10">
-                    {groups.map(({ status, sessions: groupedSessions }) => (
-                        groupedSessions.length > 0 ? (
-                            <SessionGroup key={status} status={status} sessions={groupedSessions} />
-                        ) : null
-                    ))}
+                <div className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {paginatedSessions.map((session) => {
+                            const status = getStatus(session, now);
+                            return <SessionCard key={session.id} session={session} status={status} />;
+                        })}
+                    </div>
+
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        pageSize={pageSize}
+                        onPageChange={setPage}
+                        onPageSizeChange={setPageSize}
+                    />
                 </div>
             )}
         </div>
     );
 }
 
-function SessionGroup({ status, sessions }: { status: SessionStatus; sessions: Session[] }) {
-    const meta = STATUS_META[status];
-
-    return (
-        <section aria-labelledby={`session-group-${status}`}>
-            <div className="mb-4 flex items-end justify-between gap-4">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <h2 id={`session-group-${status}`} className="text-base font-semibold">{meta.label}</h2>
-                        <Badge variant="secondary" className="rounded-md px-1.5 tabular-nums">{sessions.length}</Badge>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{meta.description}</p>
-                </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-                {sessions.map((session) => (
-                    <SessionCard key={session.id} session={session} status={status} />
-                ))}
-            </div>
-        </section>
-    );
-}
-
 function SessionCard({ session, status }: { session: Session; status: SessionStatus }) {
     const meta = STATUS_META[status];
     const StatusIcon = meta.icon;
-    const progress = session.total_items > 0
-        ? Math.round((session.completed_items / session.total_items) * 100)
-        : 0;
+    const progress =
+        session.total_items > 0
+            ? Math.round((session.completed_items / session.total_items) * 100)
+            : 0;
     const isClickable = status !== 'upcoming';
 
     const card = (
-        <Card className={cn(
-            'h-full gap-0 rounded-lg py-0 shadow-none transition-colors',
-            isClickable && 'group-hover:ring-foreground/25',
-        )}>
+        <Card
+            className={cn(
+                'h-full gap-0 rounded-lg py-0 shadow-none transition-colors',
+                isClickable && 'group-hover:ring-foreground/25'
+            )}
+        >
             <CardHeader className="gap-4 px-5 pb-4 pt-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <Badge variant="outline" className={cn('rounded-md', meta.badgeClass)}>
@@ -266,7 +266,10 @@ function SessionCard({ session, status }: { session: Session; status: SessionSta
     if (!isClickable) return card;
 
     return (
-        <Link href={`/dashboard/sesi/${session.id}`} className="group block h-full rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <Link
+            href={`/dashboard/sesi/${session.id}`}
+            className="group block h-full rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
             {card}
         </Link>
     );

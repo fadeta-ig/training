@@ -18,6 +18,8 @@ import {
     Clock01Icon
 } from 'hugeicons-react';
 import { useConfirm } from '@/hooks/useConfirm';
+import { usePagination } from '@/hooks/usePagination';
+import { Pagination } from '@/components/ui/Pagination';
 import { toast } from 'sonner';
 
 type Session = {
@@ -142,6 +144,16 @@ export default function SessionsPage() {
             return state === statusFilter;
         });
     }, [sessions, searchQuery, statusFilter]);
+
+    const {
+        currentPage,
+        pageSize,
+        totalPages,
+        totalItems,
+        paginatedItems: paginatedSessions,
+        setPage,
+        setPageSize,
+    } = usePagination({ items: filteredSessions, initialPageSize: 10 });
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -306,7 +318,7 @@ export default function SessionsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-black/5">
-                                {filteredSessions.map((session) => {
+                                {paginatedSessions.map((session) => {
                                     const state = getSessionState(session.start_time, session.end_time);
 
                                     return (
@@ -434,6 +446,15 @@ export default function SessionsPage() {
                     </div>
                 )}
             </div>
+
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+            />
         </div>
     );
 }

@@ -21,6 +21,8 @@ import {
     FoldersIcon
 } from 'hugeicons-react';
 import { toast } from 'sonner';
+import { usePagination } from '@/hooks/usePagination';
+import { Pagination } from '@/components/ui/Pagination';
 
 type User = {
     id: string;
@@ -138,6 +140,17 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                 p.username.toLowerCase().includes(searchParticipant.toLowerCase())
         );
     }, [session?.participants, searchParticipant]);
+
+    const {
+        currentPage,
+        pageSize,
+        totalPages,
+        totalItems,
+        startIndex,
+        paginatedItems: paginatedParticipants,
+        setPage,
+        setPageSize,
+    } = usePagination({ items: filteredParticipants, initialPageSize: 10 });
 
     if (loading) {
         return (
@@ -393,10 +406,10 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-black/5">
-                                {filteredParticipants.map((p, idx) => (
+                                {paginatedParticipants.map((p, idx) => (
                                     <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
                                         <td className="px-5 py-3.5 text-center text-muted-foreground font-mono">
-                                            {idx + 1}
+                                            {startIndex + idx + 1}
                                         </td>
                                         <td className="px-5 py-3.5 font-medium text-foreground">{p.username}</td>
                                         <td className="px-5 py-3.5 text-muted-foreground">{p.full_name}</td>
@@ -444,6 +457,17 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                         </table>
                     </div>
                 )}
+
+                <div className="p-4 border-t border-black/5">
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        pageSize={pageSize}
+                        onPageChange={setPage}
+                        onPageSizeChange={setPageSize}
+                    />
+                </div>
             </div>
 
             {/* Blast Confirmation Modal */}

@@ -33,22 +33,25 @@ export default function ParticipantsManagerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const [userRole, setUserRole] = useState<string>('');
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchParticipants = useCallback(async (targetPage: number, search: string) => {
+    const fetchParticipants = useCallback(async (targetPage: number, limit: number, search: string) => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/admin/participants?page=${targetPage}&limit=10&search=${encodeURIComponent(search)}`);
+            const res = await fetch(`/api/admin/participants?page=${targetPage}&limit=${limit}&search=${encodeURIComponent(search)}`);
             if (!res.ok) throw new Error('Gagal memuat data peserta');
             const result = await res.json();
             if (result.success) {
                 setParticipants(result.data);
                 if (result.pagination) {
                     setTotalPages(result.pagination.totalPages);
+                    setTotalItems(result.pagination.total || result.data.length);
                 }
             } else {
                 throw new Error(result.error || 'Terjadi kesalahan sistem');
@@ -61,15 +64,18 @@ export default function ParticipantsManagerPage() {
     }, []);
 
     useEffect(() => {
-        fetchParticipants(page, searchQuery);
-    }, [page, searchQuery, fetchParticipants]);
+        fetchParticipants(page, pageSize, searchQuery);
+    }, [page, pageSize, searchQuery, fetchParticipants]);
 
     useEffect(() => {
-        fetch('/api/auth/me').then(res => res.json()).then(data => {
-            if (data.success) {
-                setUserRole(data.data.role);
-            }
-        }).catch(() => {});
+        fetch('/api/auth/me')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) {
+                    setUserRole(data.data.role);
+                }
+            })
+            .catch(() => {});
     }, []);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,7 +89,7 @@ export default function ParticipantsManagerPage() {
             message: `Apakah Anda yakin ingin menghapus Peserta "${name}" secara permanen? Seluruh riwayat ujian peserta ini juga akan terhapus dan tidak bisa dikembalikan.`,
             isDestructive: true,
             confirmLabel: 'Ya, Hapus Data',
-            cancelLabel: 'Batal'
+            cancelLabel: 'Batal',
         });
         if (!isConfirmed) return;
 
@@ -95,43 +101,33 @@ export default function ParticipantsManagerPage() {
                 throw new Error(result.error || 'Gagal menghapus peserta');
             }
             toast.success('Peserta berhasil dihapus');
-            fetchParticipants(page, searchQuery);
+            fetchParticipants(page, pageSize, searchQuery);
         } catch (err: any) {
             toast.error(err.message || 'Terjadi kesalahan sistem');
         }
     };
 
     return (
-        <div className="space-y-8 max-w-6xl relative">
+        <div className="space-y-6 max-w-6xl mx-auto pb-12">
             <ConfirmComponent />
             <PageHeader
-                title="Kelola Peserta"
-                description="Manajemen data diri peserta pelatihan dan ujian"
+                title="Kelola Peserta (Trainee)"
+                description="Manajemen akun peserta pelatihan dan riwayat pendaftaran"
                 icon={<UserGroupIcon size={28} className="text-muted-foreground" />}
-                actionLabel={userRole === 'admin' ? "Tambah Peserta Baru" : undefined}
-                actionHref={userRole === 'admin' ? "/admin/participants/new" : undefined}
-                onRefresh={() => fetchParticipants(page, searchQuery)}
+                actionLabel={userRole === 'admin' ? 'Tambah Peserta' : undefined}
+                actionHref={userRole === 'admin' ? '/admin/participants/new' : undefined}
+                onRefresh={() => fetchParticipants(page, pageSize, searchQuery)}
                 isRefreshing={isLoading}
             />
 
-            {error && (
-                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-5 py-4 rounded-xl flex items-start gap-3">
-                    <Alert02Icon size={20} className="shrink-0 mt-0.5" />
-                    <div>
-                        <h4 className="font-semibold text-sm">Gagal Memuat Data</h4>
-                        <p className="text-sm opacity-90">{error}</p>
-                    </div>
-                </div>
-            )}
-
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 <div className="relative w-full flex-1 sm:max-w-sm">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                         <Search01Icon size={18} />
                     </span>
                     <input
                         type="text"
-                        placeholder="Cari email, nama, atau institusi..."
+                        placeholder="Cari nama, NIP/username, instansi..."
                         value={searchQuery}
                         onChange={handleSearch}
                         className="w-full glass-input pl-11 pr-4 py-2.5 rounded-xl text-sm focus:outline-none"
@@ -144,10 +140,20 @@ export default function ParticipantsManagerPage() {
                         className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-600/20 bg-emerald-600/10 px-4 py-2.5 text-sm font-semibold text-emerald-800 shadow-sm transition-colors hover:bg-emerald-600/20 active:scale-95 sm:w-auto"
                     >
                         <CloudUploadIcon size={18} />
-                        Import Massal
+                        Import Massal Excel
                     </Link>
                 )}
             </div>
+
+            {error && (
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-5 py-4 rounded-xl flex items-start gap-3">
+                    <Alert02Icon size={20} className="shrink-0 mt-0.5" />
+                    <div>
+                        <h4 className="font-semibold text-sm">Gagal Memuat Data</h4>
+                        <p className="text-sm opacity-90">{error}</p>
+                    </div>
+                </div>
+            )}
 
             <GlassCard className="overflow-hidden">
                 <div className="overflow-x-auto">
@@ -155,11 +161,13 @@ export default function ParticipantsManagerPage() {
                         <thead className="bg-black/5 border-b border-black/5 text-muted-foreground font-medium uppercase text-xs tracking-wider">
                             <tr>
                                 <th className="px-6 py-4 rounded-tl-2xl">Nama Lengkap</th>
-                                <th className="px-6 py-4">Email</th>
-                                <th className="px-6 py-4">Institusi</th>
-                                <th className="px-6 py-4">No. HP</th>
+                                <th className="px-6 py-4">NIP / Username</th>
+                                <th className="px-6 py-4">Instansi</th>
+                                <th className="px-6 py-4">No. Handphone</th>
                                 <th className="px-6 py-4">Terdaftar</th>
-                                {userRole === 'admin' && <th className="px-6 py-4 text-right rounded-tr-2xl">Aksi</th>}
+                                {userRole === 'admin' && (
+                                    <th className="px-6 py-4 text-right rounded-tr-2xl">Aksi</th>
+                                )}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black/5">
@@ -167,7 +175,7 @@ export default function ParticipantsManagerPage() {
                                 <tr>
                                     <td colSpan={userRole === 'admin' ? 6 : 5} className="px-6 py-10 text-center text-muted-foreground">
                                         <RefreshIcon size={24} className="animate-spin mx-auto mb-2 opacity-50" />
-                                        Memuat data...
+                                        Memuat data peserta...
                                     </td>
                                 </tr>
                             ) : participants.length === 0 ? (
@@ -176,27 +184,19 @@ export default function ParticipantsManagerPage() {
                                         <EmptyState
                                             icon={<UserGroupIcon size={48} className="mb-4 opacity-20" />}
                                             title="Belum ada peserta"
-                                            description="Sistem belum memiliki data peserta pelatihan."
-                                            actionLabel={userRole === 'admin' ? "Tambah Peserta" : undefined}
-                                            actionHref={userRole === 'admin' ? "/admin/participants/new" : undefined}
+                                            description="Sistem belum memiliki akun peserta."
+                                            actionLabel={userRole === 'admin' ? 'Tambah Peserta' : undefined}
+                                            actionHref={userRole === 'admin' ? '/admin/participants/new' : undefined}
                                         />
                                     </td>
                                 </tr>
                             ) : (
                                 participants.map((p) => (
                                     <tr key={p.id} className="hover:bg-black/5 transition-colors group">
-                                        <td className="px-6 py-4 font-semibold text-foreground">
-                                            {p.name}
-                                        </td>
-                                        <td className="px-6 py-4 text-muted-foreground">
-                                            {p.email}
-                                        </td>
-                                        <td className="px-6 py-4 text-muted-foreground">
-                                            {p.institution || '-'}
-                                        </td>
-                                        <td className="px-6 py-4 text-muted-foreground">
-                                            {p.phone_number || '-'}
-                                        </td>
+                                        <td className="px-6 py-4 font-semibold text-foreground">{p.name}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{p.email}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{p.institution || '-'}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{p.phone_number || '-'}</td>
                                         <td className="px-6 py-4 text-muted-foreground">
                                             {new Date(p.created_at).toLocaleDateString('id-ID')}
                                         </td>
@@ -223,7 +223,17 @@ export default function ParticipantsManagerPage() {
                 </div>
             </GlassCard>
 
-            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                }}
+            />
         </div>
     );
 }

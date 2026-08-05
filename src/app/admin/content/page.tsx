@@ -47,20 +47,23 @@ export default function ContentManagerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [userRole, setUserRole] = useState('');
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchTrainings = useCallback(async (targetPage: number) => {
+    const fetchTrainings = useCallback(async (targetPage: number, limit: number) => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(`/api/trainings?page=${targetPage}&limit=10`);
+            const response = await fetch(`/api/trainings?page=${targetPage}&limit=${limit}`);
             if (!response.ok) throw new Error('Gagal mengambil data materi');
             const body = await response.json();
             if (!body.success) throw new Error(body.error || 'Terjadi kesalahan sistem');
             setTrainings(body.data);
             setTotalPages(body.pagination?.totalPages || 1);
+            setTotalItems(body.pagination?.total || body.data.length);
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : 'Gagal mengambil data materi');
         } finally {
@@ -69,8 +72,8 @@ export default function ContentManagerPage() {
     }, []);
 
     useEffect(() => {
-        fetchTrainings(page);
-    }, [page, fetchTrainings]);
+        fetchTrainings(page, pageSize);
+    }, [page, pageSize, fetchTrainings]);
 
     useEffect(() => {
         fetch('/api/auth/me')
@@ -95,7 +98,7 @@ export default function ContentManagerPage() {
             const response = await fetch(`/api/trainings/${id}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Gagal menghapus materi');
             toast.success('Materi berhasil dihapus');
-            fetchTrainings(page);
+            fetchTrainings(page, pageSize);
         } catch (caught) {
             toast.error(caught instanceof Error ? caught.message : 'Gagal menghapus materi');
         }
@@ -110,7 +113,7 @@ export default function ContentManagerPage() {
                 icon={<BookOpen className="size-7" />}
                 actionLabel={userRole === 'admin' ? 'Buat Materi Baru' : undefined}
                 actionHref={userRole === 'admin' ? '/admin/content/new' : undefined}
-                onRefresh={() => fetchTrainings(page)}
+                onRefresh={() => fetchTrainings(page, pageSize)}
                 isRefreshing={isLoading}
             />
 
@@ -207,7 +210,17 @@ export default function ContentManagerPage() {
                 </div>
             )}
 
-            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                }}
+            />
         </div>
     );
 }

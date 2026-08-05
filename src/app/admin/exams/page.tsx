@@ -50,20 +50,23 @@ export default function ExamsManagerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [userRole, setUserRole] = useState('');
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchExams = useCallback(async (targetPage: number) => {
+    const fetchExams = useCallback(async (targetPage: number, limit: number) => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(`/api/exams?page=${targetPage}&limit=10`);
+            const response = await fetch(`/api/exams?page=${targetPage}&limit=${limit}`);
             if (!response.ok) throw new Error('Gagal memuat data ujian');
             const body = await response.json();
             if (!body.success) throw new Error(body.error || 'Terjadi kesalahan server');
             setExams(body.data);
             setTotalPages(body.pagination?.totalPages || 1);
+            setTotalItems(body.pagination?.total || body.data.length);
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : 'Gagal memuat data ujian');
         } finally {
@@ -72,8 +75,8 @@ export default function ExamsManagerPage() {
     }, []);
 
     useEffect(() => {
-        fetchExams(page);
-    }, [page, fetchExams]);
+        fetchExams(page, pageSize);
+    }, [page, pageSize, fetchExams]);
 
     useEffect(() => {
         fetch('/api/auth/me')
@@ -98,7 +101,7 @@ export default function ExamsManagerPage() {
             const response = await fetch(`/api/exams/${id}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Gagal menghapus ujian');
             toast.success('Ujian berhasil dihapus');
-            fetchExams(page);
+            fetchExams(page, pageSize);
         } catch (caught) {
             toast.error(caught instanceof Error ? caught.message : 'Gagal menghapus ujian');
         }
@@ -113,7 +116,7 @@ export default function ExamsManagerPage() {
                 icon={<FileQuestion className="size-7" />}
                 actionLabel={userRole === 'admin' ? 'Buat Ujian Baru' : undefined}
                 actionHref={userRole === 'admin' ? '/admin/exams/new' : undefined}
-                onRefresh={() => fetchExams(page)}
+                onRefresh={() => fetchExams(page, pageSize)}
                 isRefreshing={isLoading}
             />
 
@@ -214,7 +217,17 @@ export default function ExamsManagerPage() {
                 </div>
             )}
 
-            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                }}
+            />
         </div>
     );
 }

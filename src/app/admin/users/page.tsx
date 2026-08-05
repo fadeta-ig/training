@@ -32,21 +32,24 @@ export default function UsersManagerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchUsers = useCallback(async (targetPage: number, search: string) => {
+    const fetchUsers = useCallback(async (targetPage: number, limit: number, search: string) => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/users?page=${targetPage}&limit=10&search=${encodeURIComponent(search)}`);
+            const res = await fetch(`/api/users?page=${targetPage}&limit=${limit}&search=${encodeURIComponent(search)}`);
             if (!res.ok) throw new Error('Gagal memuat data pengguna');
             const result = await res.json();
             if (result.success) {
                 setUsers(result.data);
                 if (result.pagination) {
                     setTotalPages(result.pagination.totalPages);
+                    setTotalItems(result.pagination.total || result.data.length);
                 }
             } else {
                 throw new Error(result.error || 'Terjadi kesalahan sistem');
@@ -59,12 +62,12 @@ export default function UsersManagerPage() {
     }, []);
 
     useEffect(() => {
-        fetchUsers(page, searchQuery);
-    }, [page, searchQuery, fetchUsers]);
+        fetchUsers(page, pageSize, searchQuery);
+    }, [page, pageSize, searchQuery, fetchUsers]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
-        setPage(1); // Reset to first page on new search
+        setPage(1);
     };
 
     const deleteUser = async (id: string, name: string) => {
@@ -85,14 +88,14 @@ export default function UsersManagerPage() {
                 throw new Error(result.error || 'Gagal menghapus pengguna');
             }
             toast.success('Pengguna berhasil dihapus');
-            fetchUsers(page, searchQuery);
+            fetchUsers(page, pageSize, searchQuery);
         } catch (err: any) {
             toast.error(err.message || 'Terjadi kesalahan saat menghapus pengguna');
         }
     };
 
     return (
-        <div className="space-y-8 max-w-6xl relative">
+        <div className="space-y-6 max-w-6xl mx-auto pb-12">
             <ConfirmComponent />
             <PageHeader
                 title="Kelola Pengguna (Sistem)"
@@ -100,7 +103,7 @@ export default function UsersManagerPage() {
                 icon={<UserGroupIcon size={28} className="text-muted-foreground" />}
                 actionLabel="Tambah Pengguna"
                 actionHref="/admin/users/new"
-                onRefresh={() => fetchUsers(page, searchQuery)}
+                onRefresh={() => fetchUsers(page, pageSize, searchQuery)}
                 isRefreshing={isLoading}
             />
 
@@ -118,7 +121,6 @@ export default function UsersManagerPage() {
                     />
                 </div>
                 
-                {/* Tombol Import Massal */}
                 <Link
                     href="/admin/users/import"
                     className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-600/20 bg-emerald-600/10 px-4 py-2.5 text-sm font-semibold text-emerald-800 shadow-sm transition-colors hover:bg-emerald-600/20 active:scale-95 sm:w-auto"
@@ -137,8 +139,6 @@ export default function UsersManagerPage() {
                     </div>
                 </div>
             )}
-
-            {/* Custom Flex Group is already placed above above error */}
 
             <GlassCard className="overflow-hidden">
                 <div className="overflow-x-auto">
@@ -215,7 +215,17 @@ export default function UsersManagerPage() {
                 </div>
             </GlassCard>
 
-            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                }}
+            />
         </div>
     );
 }

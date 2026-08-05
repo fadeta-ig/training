@@ -1,121 +1,176 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
-import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { z } from 'zod';
+import type { RowDataPacket } from 'mysql2';
+import pool from '@/lib/db';
+import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
 import logger from '@/lib/logger';
 
 const gradeSchema = z.object({
     session_id: z.string().uuid(),
     user_id: z.string().uuid(),
+    exam_id: z.string().uuid(),
     question_id: z.string().uuid(),
+    attempt_number: z.number().int().positive(),
     is_correct: z.boolean(),
 });
 
-interface QuestionData {
-    points: number;
-    question_type: string;
+interface Snapshot {
+    question_type?: string;
+    points?: number;
 }
 
-interface ExamScoreResult {
-    total_score: number;
+interface GradingAnswerRow extends RowDataPacket {
+    id: string;
+    selected_option: string;
+    question_snapshot: string | null;
+    current_question_type: string | null;
+    current_points: number | null;
     module_item_id: string;
+    attempts_count: number | null;
 }
 
-/**
- * Endpoint for Trainer/Admin to manually grade an essay question.
- * 1. Updates `exam_answers.is_correct` (from 0 to 1, or 1 to 0).
- * 2. Recalculates the user's total score for that specific exam session.
- * 3. Updates `user_progress.score`.
- */
-async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
+interface ScoreRow extends RowDataPacket {
+    awarded_points: number;
+    question_snapshot: string | null;
+    current_points: number | null;
+}
+
+function parseSnapshot(value: string | null): Snapshot | null {
+    if (!value) return null;
     try {
-        const body = await request.json();
-        const parsed = gradeSchema.safeParse(body);
-
-        if (!parsed.success) {
-            return NextResponse.json(
-                { success: false, error: 'Validasi form gagal', details: parsed.error.flatten().fieldErrors },
-                { status: 400 }
-            );
-        }
-
-        const { session_id, user_id, question_id, is_correct } = parsed.data;
-
-        // 1. Verify question exists and is actually an essay
-        const questions = await executeQuery<QuestionData[]>(
-            `SELECT points, question_type FROM questions WHERE id = ?`,
-            [question_id]
-        );
-
-        if (!questions || questions.length === 0) {
-            return NextResponse.json({ success: false, error: 'Soal tidak ditemukan' }, { status: 404 });
-        }
-
-        if (questions[0].question_type !== 'essay') {
-            return NextResponse.json({ success: false, error: 'Hanya soal essay yang bisa dinilai manual' }, { status: 400 });
-        }
-
-        // 2. Update the answer's correctness
-        const updateResult = await executeQuery<{ affectedRows: number }>(
-            `UPDATE exam_answers 
-             SET is_correct = ? 
-             WHERE session_id = ? AND user_id = ? AND question_id = ?`,
-            [is_correct ? 1 : 0, session_id, user_id, question_id]
-        );
-
-        if (!updateResult || updateResult.affectedRows === 0) {
-            return NextResponse.json({ success: false, error: 'Jawaban peserta tidak ditemukan' }, { status: 404 });
-        }
-
-        // 3. Recalculate the entire exam score for this session run
-        // Score = (Sum of points for correct answers / Total points for the whole exam) * 100
-        const scoreCalculation = await executeQuery<ExamScoreResult[]>(`
-            SELECT 
-                (SUM(CASE WHEN ea.is_correct = 1 THEN q.points ELSE 0 END) / 
-                 (SELECT SUM(points) FROM questions WHERE exam_id = (SELECT item_id FROM module_items WHERE id = mi.id)) * 100
-                ) as total_score,
-                mi.id as module_item_id
-            FROM exam_answers ea
-            JOIN questions q ON ea.question_id = q.id
-            JOIN sessions s ON ea.session_id = s.id
-            JOIN module_items mi ON mi.module_id = s.module_id AND mi.item_type = 'exam'
-            WHERE ea.session_id = ? AND ea.user_id = ?
-            GROUP BY mi.id
-        `, [session_id, user_id]);
-
-        if (scoreCalculation && scoreCalculation.length > 0) {
-            const newScore = Math.round((Number(scoreCalculation[0].total_score) || 0) * 100) / 100;
-
-            // 4. Update the user_progress record with the new score
-            await executeQuery(
-                `UPDATE user_progress 
-                 SET score = ? 
-                 WHERE user_id = ? AND session_id = ? AND module_item_id = ?`,
-                [newScore, user_id, session_id, scoreCalculation[0].module_item_id]
-            );
-
-            return NextResponse.json({ 
-                success: true, 
-                message: 'Nilai berhasil diperbarui',
-                data: { newScore }
-            });
-        }
-
-        // Audit Trail: log grading action
-        await logger.audit(authUser.id, 'MANUAL_GRADE_EXAM', 'exam_answers', question_id, {
-            session_id,
-            user_id,
-            question_id,
-            is_correct,
-        }, 'ADMIN_GRADING');
-
-        return NextResponse.json({ success: true, message: 'Status jawaban diperbarui, tapi gagal kalkulasi ulang skor total' });
-
-    } catch (error) {
-        logger.error('ADMIN_GRADING', 'Terjadi kesalahan saat proses penilaian manual', error);
-        return NextResponse.json({ success: false, error: 'Terjadi kesalahan pada server saat memproses penilaian.' }, { status: 500 });
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' ? parsed as Snapshot : null;
+    } catch {
+        return null;
     }
 }
 
-// Both Admin and Trainer can manually grade
-export const POST = withAuth(handlePost, { allowedRoles: ['admin', 'trainer'] });
+async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
+    let connection;
+
+    try {
+        const parsed = gradeSchema.safeParse(await request.json());
+        if (!parsed.success) {
+            return NextResponse.json(
+                { success: false, error: 'Validasi form gagal', details: parsed.error.flatten().fieldErrors },
+                { status: 400 },
+            );
+        }
+
+        const { session_id, user_id, exam_id, question_id, attempt_number, is_correct } = parsed.data;
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const [answerRows] = await connection.execute<GradingAnswerRow[]>(
+            `SELECT ea.id, ea.selected_option, ea.question_snapshot,
+                    q.question_type AS current_question_type, q.points AS current_points,
+                    mi.id AS module_item_id, up.attempts_count
+             FROM exam_answers ea
+             INNER JOIN sessions s ON s.id = ea.session_id
+             INNER JOIN session_participants sp
+                ON sp.session_id = ea.session_id AND sp.user_id = ea.user_id
+             INNER JOIN module_items mi
+                ON mi.module_id = s.module_id AND mi.item_type = 'exam' AND mi.item_id = ea.exam_id
+             LEFT JOIN questions q ON q.id = ea.question_id
+             LEFT JOIN user_progress up
+                ON up.user_id = ea.user_id AND up.session_id = ea.session_id AND up.module_item_id = mi.id
+             WHERE ea.session_id = ? AND ea.user_id = ? AND ea.exam_id = ?
+               AND ea.question_id = ? AND ea.attempt_number = ?
+             LIMIT 1
+             FOR UPDATE`,
+            [session_id, user_id, exam_id, question_id, attempt_number],
+        );
+
+        const answer = answerRows[0];
+        if (!answer) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json({ success: false, error: 'Jawaban peserta tidak ditemukan' }, { status: 404 });
+        }
+
+        const snapshot = parseSnapshot(answer.question_snapshot);
+        const questionType = snapshot?.question_type || answer.current_question_type;
+        const points = Number(snapshot?.points ?? answer.current_points ?? 1) || 1;
+        if (questionType !== 'essay') {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json({ success: false, error: 'Hanya jawaban esai yang dapat dinilai manual' }, { status: 400 });
+        }
+        if (!answer.selected_option.trim()) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json({ success: false, error: 'Jawaban kosong tidak dapat diberi nilai' }, { status: 400 });
+        }
+
+        await connection.execute(
+            `UPDATE exam_answers
+             SET is_correct = ?, grading_status = 'graded', awarded_points = ?,
+                 graded_by = ?, graded_at = UTC_TIMESTAMP()
+             WHERE id = ?`,
+            [is_correct ? 1 : 0, is_correct ? points : 0, authUser.id, answer.id],
+        );
+
+        const [scoreRows] = await connection.execute<ScoreRow[]>(
+            `SELECT ea.awarded_points, ea.question_snapshot, q.points AS current_points
+             FROM exam_answers ea
+             LEFT JOIN questions q ON q.id = ea.question_id
+             WHERE ea.session_id = ? AND ea.user_id = ? AND ea.exam_id = ? AND ea.attempt_number = ?`,
+            [session_id, user_id, exam_id, attempt_number],
+        );
+
+        let earnedPoints = 0;
+        let totalPoints = 0;
+        for (const row of scoreRows) {
+            earnedPoints += Number(row.awarded_points) || 0;
+            totalPoints += Number(parseSnapshot(row.question_snapshot)?.points ?? row.current_points ?? 1) || 1;
+        }
+        const newScore = totalPoints > 0
+            ? Math.round((earnedPoints / totalPoints) * 10_000) / 100
+            : 0;
+
+        const isLatestAttempt = Number(answer.attempts_count) === attempt_number;
+        if (isLatestAttempt) {
+            await connection.execute(
+                `UPDATE user_progress SET score = ?
+                 WHERE user_id = ? AND session_id = ? AND module_item_id = ?`,
+                [newScore, user_id, session_id, answer.module_item_id],
+            );
+        }
+
+        await connection.commit();
+        connection.release();
+        connection = undefined;
+
+        await logger.audit(authUser.id, 'MANUAL_GRADE_EXAM', 'exam_answers', answer.id, {
+            session_id,
+            user_id,
+            exam_id,
+            question_id,
+            attempt_number,
+            is_correct,
+            score: newScore,
+            progress_updated: isLatestAttempt,
+        }, 'ADMIN_GRADING');
+
+        return NextResponse.json({
+            success: true,
+            message: 'Nilai jawaban berhasil diperbarui',
+            data: { newScore, progress_updated: isLatestAttempt },
+        });
+    } catch (error) {
+        if (connection) {
+            await connection.rollback();
+            connection.release();
+        }
+        logger.error('ADMIN_GRADING', 'Gagal memproses penilaian manual', error, authUser.id);
+        return NextResponse.json(
+            { success: false, error: 'Terjadi kesalahan pada server saat memproses penilaian' },
+            { status: 500 },
+        );
+    }
+}
+
+export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });

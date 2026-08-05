@@ -24,6 +24,7 @@ type DetailData = {
         items: Array<{
             module_item_id: string;
             item_type: 'training' | 'exam';
+            item_id: string;
             item_title: string;
             sequence_order: number;
             status: 'locked' | 'open' | 'completed';
@@ -149,10 +150,10 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                                         {isExam && done ? (
                                             <div className="text-right flex items-center gap-3">
                                                 <Link
-                                                    href={`/admin/sessions/${sessionId}/participants/${participantId}/grade`}
+                                                    href={`/admin/sessions/${sessionId}/participants/${participantId}/answers?exam=${item.item_id}`}
                                                     className="text-xs font-bold text-primary hover:underline"
                                                 >
-                                                    Nilai Manual
+                                                    Lihat Jawaban
                                                 </Link>
                                                 <div className="flex flex-col items-end">
                                                     <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5">Skor Akhir</p>

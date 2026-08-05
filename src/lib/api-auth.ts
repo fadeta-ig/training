@@ -32,7 +32,6 @@ function getAllowedOrigins(request: NextRequest): Set<string> {
 
     if (envOrigin) {
         origins.add(envOrigin);
-        return origins;
     }
 
     if (process.env.NODE_ENV !== 'production') {

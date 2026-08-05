@@ -1,24 +1,37 @@
 'use client';
 
-import { useState, useEffect, use, useRef } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-    ArrowLeft01Icon,
-    PlayIcon,
-    Clock01Icon,
-    Tick01Icon,
-    LockIcon,
-    Book01Icon,
-    Edit01Icon,
-    AlertCircleIcon,
-    Award01Icon,
-    Download01Icon,
-    Logout01Icon,
-} from 'hugeicons-react';
-import { toJpeg } from 'html-to-image';
-import { jsPDF } from 'jspdf';
-import { CertificateTemplate } from '@/app/dashboard/_components/CertificateTemplate';
-import { useAlert } from '@/app/dashboard/_components/AlertCustom';
+    AlertCircle,
+    ArrowLeft,
+    ArrowRight,
+    BookOpen,
+    CalendarDays,
+    Check,
+    CheckCircle2,
+    Clock3,
+    Download,
+    FilePenLine,
+    ListChecks,
+    LockKeyhole,
+    LogOut,
+    Play,
+    RotateCcw,
+    ShieldCheck,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 type ModuleItem = {
     module_item_id: string;
@@ -29,6 +42,9 @@ type ModuleItem = {
     duration_minutes: number | null;
     progress_status: 'locked' | 'open' | 'completed';
     score: number | null;
+    can_retake: boolean;
+    attempts_count: number;
+    max_attempts: number;
 };
 
 type SessionDetail = {
@@ -42,105 +58,81 @@ type SessionDetail = {
     items: ModuleItem[];
 };
 
+type SessionState = 'completed' | 'active' | 'upcoming' | 'ended';
+
+const SESSION_STATUS: Record<SessionState, { label: string; className: string }> = {
+    completed: { label: 'Selesai', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+    active: { label: 'Sedang berlangsung', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+    upcoming: { label: 'Akan datang', className: 'border-sky-200 bg-sky-50 text-sky-700' },
+    ended: { label: 'Berakhir', className: 'border-border bg-muted text-muted-foreground' },
+};
+
+function formatSchedule(start: Date, end: Date) {
+    const dateFormatter = new Intl.DateTimeFormat('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    });
+    const timeFormatter = new Intl.DateTimeFormat('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+
+    if (start.toDateString() === end.toDateString()) {
+        return `${dateFormatter.format(start)}, ${timeFormatter.format(start)} - ${timeFormatter.format(end)}`;
+    }
+
+    return `${dateFormatter.format(start)}, ${timeFormatter.format(start)} - ${dateFormatter.format(end)}, ${timeFormatter.format(end)}`;
+}
+
 export default function ParticipantSessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const [session, setSession] = useState<SessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [isSEB, setIsSEB] = useState(false);
-    const { showAlert, AlertComponent } = useAlert();
-
-    // Certificate States
-    const [downloading, setDownloading] = useState(false);
-    const [userName, setUserName] = useState('');
-    const certificateRef = useRef<HTMLDivElement>(null);
+    const [isSeb] = useState(() =>
+        typeof navigator !== 'undefined' && navigator.userAgent.includes('SafeExamBrowser')
+    );
 
     useEffect(() => {
-        setIsSEB(navigator.userAgent.includes('SafeExamBrowser'));
-
-        // Fetch User Name for Certificate
-        fetch('/api/auth/me')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) setUserName(data.data.full_name);
-            }).catch(() => { });
-
         fetch(`/api/participant/sessions/${id}`)
-            .then((res) => res.json())
-            .then((data) => {
-                if (data.success) setSession(data.data);
-                else setError(data.error || 'Gagal memuat sesi');
+            .then((response) => response.json())
+            .then((body) => {
+                if (body.success) setSession(body.data);
+                else setError(body.error || 'Gagal memuat sesi');
             })
-            .catch(() => setError('Kesalahan jaringan'))
+            .catch(() => setError('Tidak dapat terhubung ke server. Coba muat ulang halaman.'))
             .finally(() => setLoading(false));
     }, [id]);
 
-    const handleDownloadCertificate = async () => {
-        if (downloading || !session || !certificateRef.current) return;
-
-        try {
-            setDownloading(true);
-            const element = certificateRef.current;
-
-            // Clone to avoid layout shift and ensure perfect rendering
-            const clone = element.cloneNode(true) as HTMLElement;
-            clone.style.position = 'fixed';
-            clone.style.top = '0px';
-            clone.style.left = '0px';
-            clone.style.zIndex = '-9999';
-            clone.style.opacity = '1';
-            clone.style.display = 'flex';
-            document.body.appendChild(clone);
-
-            // Wait a tick for fonts/DOM to paint
-            await new Promise((r) => setTimeout(r, 150));
-
-            const imgData = await toJpeg(clone, {
-                quality: 1.0,
-                pixelRatio: 2, // Double resolution for sharpness
-                backgroundColor: '#ffffff',
-                width: 794,
-                height: 1123
-            });
-
-            document.body.removeChild(clone);
-
-            // Portrait A4
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
-
-            pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-            pdf.save(`Sertifikat_${session.title.replace(/\s+/g, '_')}_${userName}.pdf`);
-            showAlert('Sertifikat berhasil diunduh. Selamat!', 'success');
-
-        } catch (error) {
-            console.error('Failed to generate PDF:', error);
-            showAlert('Gagal membuat sertifikat PDF. Pastikan koneksi stabil.', 'error');
-        } finally {
-            setDownloading(false);
-        }
-    };
-
     if (loading) {
         return (
-            <div className="flex items-center justify-center p-20">
-                <div className="w-8 h-8 border-4 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+            <div className="mx-auto max-w-5xl space-y-6">
+                <Skeleton className="h-5 w-32" />
+                <div className="space-y-3 border-b pb-6">
+                    <Skeleton className="h-6 w-28" />
+                    <Skeleton className="h-9 w-96 max-w-full" />
+                    <Skeleton className="h-5 w-72 max-w-full" />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                    <Skeleton className="h-64 rounded-lg" />
+                    <Skeleton className="h-64 rounded-lg" />
+                </div>
             </div>
         );
     }
 
     if (error || !session) {
         return (
-            <div className="max-w-2xl mx-auto space-y-4">
-                <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
-                    <ArrowLeft01Icon size={14} /> Kembali
+            <div className="mx-auto max-w-xl space-y-5">
+                <Link href="/dashboard/sesi" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                    <ArrowLeft className="size-4" /> Kembali ke Sesi Saya
                 </Link>
-                <div className="glass-card p-4 text-center sm:p-6 md:p-8">
-                    <AlertCircleIcon size={36} className="mx-auto text-destructive mb-3" />
-                    <p className="text-sm text-destructive font-semibold">{error || 'Sesi tidak ditemukan'}</p>
+                <div className="rounded-lg border border-destructive/20 px-6 py-10 text-center">
+                    <AlertCircle className="mx-auto size-9 text-destructive" />
+                    <h1 className="mt-4 font-medium">Sesi tidak dapat ditampilkan</h1>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{error || 'Data sesi tidak ditemukan.'}</p>
                 </div>
             </div>
         );
@@ -149,258 +141,255 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const now = new Date();
     const start = new Date(session.start_time);
     const end = new Date(session.end_time);
-    const completedCount = session.items.filter((i) => i.progress_status === 'completed').length;
+    const completedCount = session.items.filter((item) => item.progress_status === 'completed').length;
     const totalItems = session.items.length;
     const progress = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
-
-    // Auto-complete: 100% = Selesai regardless of time
     const isFullyCompleted = progress === 100 && totalItems > 0;
     const isActive = !isFullyCompleted && now >= start && now <= end;
-
-    const statusLabel = isFullyCompleted ? 'Selesai' : isActive ? 'Berlangsung' : now < start ? 'Akan Datang' : 'Berakhir';
-    const statusColor = isFullyCompleted ? 'bg-emerald-500' : isActive ? 'bg-emerald-500 animate-pulse' : now < start ? 'bg-blue-400' : 'bg-gray-300';
-
-    // Calculate final score metric for certificates
-    const examItems = session.items.filter(i => i.item_type === 'exam' && i.progress_status === 'completed');
-    let finalScore = 0;
-    if (examItems.length > 0) {
-        finalScore = examItems.reduce((acc, curr) => acc + (curr.score || 0), 0) / examItems.length;
-    }
+    const sessionState: SessionState = isFullyCompleted
+        ? 'completed'
+        : isActive
+            ? 'active'
+            : now < start
+                ? 'upcoming'
+                : 'ended';
+    const status = SESSION_STATUS[sessionState];
 
     return (
-        <div className="max-w-2xl mx-auto space-y-5 pb-12">
-            {AlertComponent}
+        <div className="mx-auto max-w-5xl space-y-8 pb-12">
+            <Link href="/dashboard/sesi" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                <ArrowLeft className="size-4" /> Kembali ke Sesi Saya
+            </Link>
 
-            {/* Hidden Certificate Canvas */}
-            {isFullyCompleted && (
-                <div style={{ pointerEvents: 'none', position: 'absolute', left: '-99999px', top: '-99999px' }}>
-                    <CertificateTemplate
-                        ref={certificateRef}
-                        participantName={userName}
-                        courseName={session.title}
-                        completionDate={now.toLocaleDateString('id-ID', { month: 'long', day: 'numeric', year: 'numeric' })}
-                        certificateId={`WIG-${session.id.split('-')[0].toUpperCase()}-${now.getFullYear()}`}
-                        finalScore={finalScore}
-                    />
-                </div>
-            )}
-
-            <div className="flex items-center justify-between gap-4">
-                <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
-                    <ArrowLeft01Icon size={14} /> Kembali
-                </Link>
-
-                <div className="flex items-center gap-2">
-                    {session.require_seb && !isSEB && (
-                        <a
-                            href={`/api/participant/sessions/${session.id}/seb-config`}
-                            className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded-full border border-slate-700 transition-all active:scale-95 shadow-sm"
-                        >
-                            <Download01Icon size={12} />
-                            Download Config SEB
-                        </a>
-                    )}
-
-                    {isSEB && (
-                        <Link
-                            href="/quit-seb"
-                            className="inline-flex items-center gap-1.5 text-[10px] font-bold text-red-600 hover:text-red-700 bg-red-50 px-3 py-1 rounded-full border border-red-100 transition-all active:scale-95"
-                        >
-                            <Logout01Icon size={12} />
-                            Keluar Aplikasi SEB
-                        </Link>
-                    )}
-                </div>
-            </div>
-
-            {/* Compact Header */}
-            <div className="glass-card p-5 space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5">
-                            <div className={`w-2 h-2 rounded-full ${statusColor}`} />
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{statusLabel}</span>
-                        </div>
-                        <h1 className="text-lg font-bold tracking-tight truncate">{session.title}</h1>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
-                            {session.module_title && <span>{session.module_title}</span>}
-                            <span className="flex items-center gap-1">
-                                <Clock01Icon size={10} />
-                                {start.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} {start.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                                {' — '}
-                                {end.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                        </div>
+            <header className="grid gap-6 border-b pb-7 md:grid-cols-[minmax(0,1fr)_18rem] md:items-end">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className={cn('rounded-md', status.className)}>
+                            {sessionState === 'completed' ? <CheckCircle2 /> : <Clock3 />}
+                            {status.label}
+                        </Badge>
+                        {session.require_seb && (
+                            <Badge variant="outline" className="rounded-md text-muted-foreground">
+                                <ShieldCheck /> Safe Exam Browser
+                            </Badge>
+                        )}
                     </div>
 
-                    {/* Progress Circle */}
-                    <div className="shrink-0 w-14 h-14 relative">
-                        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none" stroke="currentColor" strokeWidth="3" className="text-black/5" />
-                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none" strokeWidth="3" strokeDasharray={`${progress}, 100`} strokeLinecap="round"
-                                className={progress === 100 ? 'text-emerald-500' : 'text-foreground'}
-                                style={{ transition: 'stroke-dasharray 1s ease' }} />
-                        </svg>
-                        <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">{progress}%</span>
-                    </div>
+                    <h1 className="mt-4 text-2xl font-semibold leading-tight tracking-normal sm:text-3xl">{session.title}</h1>
+                    <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                        <BookOpen className="size-4 shrink-0" />
+                        <span>{session.module_title || 'Program pelatihan'}</span>
+                    </p>
+                    <p className="mt-2 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
+                        <CalendarDays className="mt-1 size-4 shrink-0" />
+                        <span>{formatSchedule(start, end)}</span>
+                    </p>
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-black/5">
-                    <span>{completedCount}/{totalItems} item selesai</span>
-                    {isFullyCompleted && (
-                        <span className="flex items-center gap-1 text-emerald-600 font-bold">
-                            <Award01Icon size={12} /> Semua selesai!
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            {/* 100% Completed Banner with Download Action */}
-            {isFullyCompleted && (
-                <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 shadow-sm border border-emerald-200">
-                            <Award01Icon size={20} />
-                        </div>
+                <div className="space-y-2 md:border-l md:pl-6">
+                    <div className="flex items-end justify-between gap-3">
                         <div>
-                            <p className="text-sm font-bold text-emerald-800">Selamat! Sesi Selesai!</p>
-                            <p className="text-xs text-emerald-600 mt-0.5">Anda telah berhasil menyelesaikan semua kurikulum dalam pelatihan ini.</p>
+                            <p className="text-xs font-medium text-muted-foreground">Progres keseluruhan</p>
+                            <p className="mt-1 text-sm">{completedCount} dari {totalItems} item selesai</p>
+                        </div>
+                        <span className="text-2xl font-semibold tabular-nums">{progress}%</span>
+                    </div>
+                    <Progress value={progress} aria-label={`Progres sesi ${progress}%`} />
+                </div>
+            </header>
+
+            {session.require_seb && !isSeb && (
+                <section className="flex flex-col justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center">
+                    <div className="flex gap-3">
+                        <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-700" />
+                        <div>
+                            <h2 className="text-sm font-medium text-amber-950">Ujian memerlukan Safe Exam Browser</h2>
+                            <p className="mt-1 text-sm leading-5 text-amber-900/70">
+                                Materi tetap dapat dibuka di browser ini. Untuk mengerjakan ujian, unduh konfigurasi lalu buka sesi melalui aplikasi SEB.
+                            </p>
                         </div>
                     </div>
-
-                    <button
-                        onClick={handleDownloadCertificate}
-                        disabled={downloading}
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold tracking-wide transition-colors shadow-sm"
+                    <a
+                        href={`/api/participant/sessions/${session.id}/seb-config`}
+                        className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'border-amber-300 bg-white text-amber-950 hover:bg-amber-100')}
                     >
-                        {downloading ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : <Download01Icon size={16} />}
-                        {downloading ? 'Memproses PDF...' : 'Unduh Sertifikat PDF'}
-                    </button>
+                        <Download /> Unduh konfigurasi SEB
+                    </a>
+                </section>
+            )}
+
+            {isSeb && (
+                <div className="flex justify-end">
+                    <Link href="/quit-seb" className={buttonVariants({ variant: 'destructive' })}>
+                        <LogOut /> Keluar dari aplikasi SEB
+                    </Link>
                 </div>
             )}
 
-            {/* Module Items */}
-            <div>
-                <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Daftar Materi & Ujian</h2>
+            <section aria-labelledby="session-content-title">
+                <div className="mb-5">
+                    <div className="flex items-center gap-2">
+                        <ListChecks className="size-5 text-muted-foreground" />
+                        <h2 id="session-content-title" className="text-lg font-semibold">Materi dan ujian</h2>
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        Selesaikan setiap item sesuai urutan. Item berikutnya akan terbuka setelah item sebelumnya selesai.
+                    </p>
+                </div>
 
                 {session.items.length === 0 ? (
-                    <div className="glass-card p-6 text-center text-xs text-muted-foreground">
-                        Modul ini belum memiliki item.
+                    <div className="rounded-lg border border-dashed px-6 py-12 text-center">
+                        <BookOpen className="mx-auto size-8 text-muted-foreground/50" />
+                        <h3 className="mt-3 font-medium">Belum ada materi atau ujian</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">Administrator belum menambahkan isi untuk sesi ini.</p>
                     </div>
                 ) : (
-                    <div className="space-y-1.5">
-                        {session.items.map((item, idx) => (
-                            <ItemRow
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {session.items.map((item, index) => (
+                            <SessionItemCard
                                 key={item.module_item_id}
                                 item={item}
-                                index={idx + 1}
+                                index={index + 1}
                                 sessionId={session.id}
+                                sessionState={sessionState}
                                 isSessionActive={isActive}
                                 requireSeb={session.require_seb}
-                                isSeb={isSEB}
+                                isSeb={isSeb}
                             />
                         ))}
                     </div>
                 )}
-            </div>
+            </section>
         </div>
     );
 }
 
-function ItemRow({ item, index, sessionId, isSessionActive, requireSeb, isSeb }: {
-    item: ModuleItem; index: number; sessionId: string; isSessionActive: boolean; requireSeb: boolean; isSeb: boolean;
+function SessionItemCard({
+    item,
+    index,
+    sessionId,
+    sessionState,
+    isSessionActive,
+    requireSeb,
+    isSeb,
+}: {
+    item: ModuleItem;
+    index: number;
+    sessionId: string;
+    sessionState: SessionState;
+    isSessionActive: boolean;
+    requireSeb: boolean;
+    isSeb: boolean;
 }) {
     const isCompleted = item.progress_status === 'completed';
     const isLocked = item.progress_status === 'locked';
     const isExam = item.item_type === 'exam';
     const isTraining = item.item_type === 'training';
-    const requireSebForThisItem = isExam && requireSeb;
-    const sebLocked = requireSebForThisItem && !isSeb;
-
-    // A completed training is ALWAYS accessible regardless of session status
-    // A completed exam is accessible ONLY if it has can_retake = true AND session is active AND SEB is valid
-    const canAccess = (isTraining && isCompleted) ||
-        (isSessionActive && !isLocked && !sebLocked) ||
-        (isExam && isCompleted && (item as any).can_retake && isSessionActive && !sebLocked);
-
+    const sebLocked = isExam && requireSeb && !isSeb;
+    const canAccess = (isTraining && isCompleted)
+        || (isSessionActive && !isLocked && !sebLocked)
+        || (isExam && isCompleted && item.can_retake && isSessionActive && !sebLocked);
     const href = isExam
         ? `/dashboard/sesi/${sessionId}/ujian/${item.item_id}`
         : `/dashboard/sesi/${sessionId}/materi/${item.item_id}`;
 
-    const inner = (
-        <div className={`glass-card px-4 py-3 flex flex-col gap-2 transition-all ${canAccess ? 'glass-card-hover group cursor-pointer' : ''} ${(isLocked || sebLocked) && !(isTraining && isCompleted) ? 'opacity-40' : ''}`}>
-            <div className="flex items-center gap-3">
-                {/* Step indicator */}
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-bold ${isCompleted
-                    ? 'bg-emerald-100 text-emerald-600'
-                    : canAccess ? 'bg-foreground text-background'
-                        : 'bg-black/5 text-muted-foreground'
-                    }`}>
-                    {isCompleted ? <Tick01Icon size={14} /> : (isLocked || sebLocked) ? <LockIcon size={10} /> : index}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                        {isExam ? <Edit01Icon size={11} className="text-muted-foreground shrink-0" />
-                            : <Book01Icon size={11} className="text-muted-foreground shrink-0" />}
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                            {isExam ? 'Ujian' : 'Materi'}
-                        </span>
-                        {isExam && (item as any).max_attempts > 1 && (
-                            <span className="text-[9px] bg-black/5 px-1.5 py-0.5 rounded text-muted-foreground font-semibold ml-1">
-                                {(item as any).attempts_count}/{(item as any).max_attempts} Percobaan
-                            </span>
-                        )}
-                        {isExam && isCompleted && (item as any).can_retake && (
-                            <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold ml-1">
-                                Remidi
-                            </span>
-                        )}
-                    </div>
-                    <h3 className="text-sm font-semibold truncate leading-tight">{item.item_title || 'Untitled'}</h3>
-                </div>
-
-                {/* Meta */}
-                <div className="flex items-center gap-2 shrink-0">
-                    {isExam && item.duration_minutes && (
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                            <Clock01Icon size={9} /> {item.duration_minutes}m
-                        </span>
-                    )}
-                    {isCompleted && item.score !== null && (
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                            {item.score}
-                        </span>
-                    )}
-                    {isCompleted && !(isExam && (item as any).can_retake) && (
-                        <Tick01Icon size={14} className="text-emerald-500" />
-                    )}
-                    {canAccess && (
-                        <div className="w-6 h-6 rounded-md bg-foreground text-background flex items-center justify-center">
-                            <PlayIcon size={10} />
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* SEB Warning */}
-            {sebLocked && (!isCompleted || (item as any).can_retake) && (
-                <div className="flex items-center gap-1.5 text-[10px] text-destructive bg-destructive/10 px-2.5 py-1.5 rounded-md mt-1 w-fit">
-                    <AlertCircleIcon size={12} />
-                    <span>Ujian ini hanya dapat diakses melalui Safe Exam Browser (SEB).</span>
-                </div>
-            )}
-        </div>
-    );
-
-    if (canAccess) {
-        return <Link href={href}>{inner}</Link>;
+    let statusLabel = 'Terkunci';
+    let statusClass = 'border-border bg-muted text-muted-foreground';
+    if (isCompleted && item.can_retake) {
+        statusLabel = 'Remedial tersedia';
+        statusClass = 'border-amber-200 bg-amber-50 text-amber-700';
+    } else if (isCompleted) {
+        statusLabel = 'Selesai';
+        statusClass = 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    } else if (item.progress_status === 'open' && isSessionActive) {
+        statusLabel = 'Siap dikerjakan';
+        statusClass = 'border-sky-200 bg-sky-50 text-sky-700';
     }
 
-    return inner;
+    let unavailableMessage = 'Selesaikan item sebelumnya untuk membuka item ini.';
+    if (sebLocked) unavailableMessage = 'Buka sesi melalui Safe Exam Browser untuk mengerjakan ujian ini.';
+    else if (sessionState === 'upcoming') unavailableMessage = 'Item tersedia setelah jadwal sesi dimulai.';
+    else if (sessionState === 'ended' && !isCompleted) unavailableMessage = 'Item tidak lagi tersedia karena sesi telah berakhir.';
+    else if (isCompleted && isExam && !item.can_retake) unavailableMessage = 'Ujian telah diselesaikan dan tidak memerlukan pengerjaan ulang.';
+
+    let actionLabel = isExam ? 'Mulai ujian' : 'Buka materi';
+    if (isTraining && isCompleted) actionLabel = 'Buka kembali materi';
+    if (isExam && item.can_retake) actionLabel = 'Kerjakan remedial';
+
+    const ItemIcon = isExam ? FilePenLine : BookOpen;
+
+    return (
+        <Card className="gap-0 rounded-lg py-0 shadow-none">
+            <CardHeader className="gap-4 px-5 pb-4 pt-5">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                        <span className="flex size-7 items-center justify-center rounded-md border bg-muted/40 tabular-nums">{index}</span>
+                        <span className="flex items-center gap-1.5">
+                            <ItemIcon className="size-3.5" /> {isExam ? 'Ujian' : 'Materi'}
+                        </span>
+                    </div>
+                    <Badge variant="outline" className={cn('rounded-md', statusClass)}>
+                        {isCompleted ? <Check /> : isLocked ? <LockKeyhole /> : <Clock3 />}
+                        {statusLabel}
+                    </Badge>
+                </div>
+                <CardTitle className="text-base font-semibold leading-6">{item.item_title || 'Tanpa judul'}</CardTitle>
+            </CardHeader>
+
+            <CardContent className="border-t px-5 py-4">
+                <dl className="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
+                    <div>
+                        <dt className="text-xs text-muted-foreground">Jenis item</dt>
+                        <dd className="mt-1 font-medium">{isExam ? 'Evaluasi' : 'Materi pembelajaran'}</dd>
+                    </div>
+                    <div>
+                        <dt className="text-xs text-muted-foreground">Status</dt>
+                        <dd className="mt-1 font-medium">{isCompleted ? 'Sudah selesai' : item.progress_status === 'open' ? 'Belum selesai' : 'Belum tersedia'}</dd>
+                    </div>
+                    {isExam && (
+                        <>
+                            <div>
+                                <dt className="text-xs text-muted-foreground">Durasi ujian</dt>
+                                <dd className="mt-1 flex items-center gap-1.5 font-medium">
+                                    <Clock3 className="size-3.5" /> {item.duration_minutes || 0} menit
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground">Percobaan</dt>
+                                <dd className="mt-1 font-medium tabular-nums">{item.attempts_count} dari {item.max_attempts}</dd>
+                            </div>
+                        </>
+                    )}
+                    {isExam && isCompleted && item.score !== null && (
+                        <div>
+                            <dt className="text-xs text-muted-foreground">Nilai terakhir</dt>
+                            <dd className="mt-1 font-semibold tabular-nums text-emerald-700">
+                                {Number(item.score).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
+                            </dd>
+                        </div>
+                    )}
+                </dl>
+            </CardContent>
+
+            <CardFooter className="min-h-16 justify-between gap-3 rounded-b-lg border-t bg-muted/30 px-5 py-3">
+                {canAccess ? (
+                    <>
+                        <span className="text-xs text-muted-foreground">
+                            {isCompleted && isTraining ? 'Materi dapat dibaca kembali.' : 'Item siap dibuka.'}
+                        </span>
+                        <Link href={href} className={buttonVariants({ size: 'lg' })}>
+                            {item.can_retake ? <RotateCcw /> : <Play />}
+                            {actionLabel}
+                            <ArrowRight />
+                        </Link>
+                    </>
+                ) : (
+                    <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+                        <LockKeyhole className="mt-0.5 size-3.5 shrink-0" />
+                        <span>{unavailableMessage}</span>
+                    </p>
+                )}
+            </CardFooter>
+        </Card>
+    );
 }

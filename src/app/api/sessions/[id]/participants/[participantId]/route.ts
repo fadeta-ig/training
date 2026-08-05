@@ -86,6 +86,7 @@ async function handleGet(
                     items: progressResult.map((item: any) => ({
                         module_item_id: item.module_item_id,
                         item_type: item.item_type,
+                        item_id: item.item_id,
                         item_title: item.item_title,
                         sequence_order: item.sequence_order,
                         status: item.progress_status || 'locked',

@@ -12,6 +12,13 @@ import {
 } from '@/lib/participant-helpers';
 import { checkRateLimit } from '@/lib/rate-limit';
 import logger from '@/lib/logger';
+import {
+    createQuestionSnapshot,
+    gradeQuestionAnswer,
+    toParticipantQuestionShape,
+    validateParticipantAnswer,
+    type ExamQuestionType,
+} from '@/lib/exam-answer-utils';
 
 /** Max 5 submissions per minute per IP to prevent abuse */
 const SUBMIT_RATE_LIMIT = { windowMs: 60_000, maxRequests: 5 };
@@ -20,6 +27,18 @@ const SUBMIT_RATE_LIMIT = { windowMs: 60_000, maxRequests: 5 };
 const LATE_GRACE_MS = 5 * 60 * 1000;
 /** Small network grace after exam duration expires. */
 const EXAM_DURATION_GRACE_MS = 30 * 1000;
+
+interface QuestionRow {
+    id: string;
+    exam_id: string;
+    question_type: ExamQuestionType;
+    question_text: string;
+    question_image: string | null;
+    options_json: unknown;
+    correct_option_index: number | null;
+    correct_answer: string | null;
+    points: number;
+}
 
 /**
  * POST /api/participant/sessions/[id]/exam/[examId]/submit
@@ -74,13 +93,14 @@ async function handlePost(
         const sessionModuleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
 
         // Fetch all questions for grading
-        const questions = await executeQuery<any[]>(
-            `SELECT id, question_type, options_json, correct_option_index, correct_answer, points
+        const questions = await executeQuery<QuestionRow[]>(
+            `SELECT id, exam_id, question_type, question_text, question_image,
+                    options_json, correct_option_index, correct_answer, points
              FROM questions WHERE exam_id = ?`,
             [examId]
         );
 
-        const questionMap = new Map(questions.map((q: any) => [q.id, q]));
+        const questionMap = new Map(questions.map((question) => [question.id, question]));
         const submittedQuestionIds = new Set<string>();
 
         if (answers.length > questions.length) {
@@ -100,6 +120,13 @@ async function handlePost(
             if (submittedQuestionIds.has(answer.question_id)) {
                 return NextResponse.json({ success: false, error: 'Jawaban duplikat terdeteksi' }, { status: 400 });
             }
+            const validationError = validateParticipantAnswer(
+                toParticipantQuestionShape(questionMap.get(answer.question_id)!),
+                answer.selected_option,
+            );
+            if (validationError) {
+                return NextResponse.json({ success: false, error: validationError }, { status: 400 });
+            }
             submittedQuestionIds.add(answer.question_id);
         }
 
@@ -108,7 +135,7 @@ async function handlePost(
             `SELECT passing_grade, max_attempts, allow_remedial, duration_minutes FROM exams WHERE id = ?`,
             [examId]
         );
-        const passingGrade = exam?.[0]?.passing_grade || 70;
+        const passingGrade = Number(exam?.[0]?.passing_grade ?? 70);
         const maxAttempts = exam?.[0]?.max_attempts || 1;
         const allowRemedial = !!exam?.[0]?.allow_remedial;
 
@@ -191,78 +218,53 @@ async function handlePost(
                 [user.id, sessionId, attemptNumber, examId]
             );
 
-            const totalPoints = questions.reduce((sum: number, q: any) => sum + (Number(q.points) || 1), 0);
+            const totalPoints = questions.reduce((sum, question) => sum + (Number(question.points) || 1), 0);
             let earnedPoints = 0;
 
             const answerValues: any[] = [];
             const placeholders: string[] = [];
+            const submittedAnswers = new Map(answers.map((answer) => [answer.question_id, answer.selected_option]));
 
-            for (const answer of answers) {
-                const q = questionMap.get(answer.question_id);
-                if (!q) continue;
+            for (const question of questions) {
+                const selectedOption = submittedAnswers.get(question.id) ?? '';
+                const isCorrect = gradeQuestionAnswer(question, selectedOption);
+                const isPendingEssay = question.question_type === 'essay' && selectedOption.trim().length > 0;
+                const awardedPoints = isCorrect ? Number(question.points) || 1 : 0;
+                const gradingStatus = isPendingEssay ? 'pending' : 'auto';
 
-                let isCorrect = false;
-
-                switch (q.question_type) {
-                    case 'multiple_choice':
-                    case 'true_false':
-                        isCorrect = parseInt(answer.selected_option) === q.correct_option_index;
-                        break;
-                    case 'multiple_select': {
-                        const parsed = typeof q.options_json === 'string' ? JSON.parse(q.options_json) : q.options_json;
-                        const correctIndices = (parsed?.correct_indices || []).sort().join(',');
-                        const selectedIndices = answer.selected_option.trim()
-                            ? answer.selected_option.split(',').map(Number).sort().join(',')
-                            : '';
-                        isCorrect = correctIndices === selectedIndices;
-                        break;
-                    }
-                    case 'short_answer':
-                        isCorrect = q.correct_answer &&
-                            answer.selected_option.trim().toLowerCase() === q.correct_answer.trim().toLowerCase();
-                        break;
-                    case 'essay':
-                        // Essay is manually graded, always mark as false for now
-                        isCorrect = false;
-                        break;
-                    case 'matching':
-                        // Matching: selected_option is JSON string of pairs
-                        try {
-                            const parsed = typeof q.options_json === 'string' ? JSON.parse(q.options_json) : q.options_json;
-                            const correctPairs = parsed.pairs;
-                            const submittedPairs = JSON.parse(answer.selected_option);
-                            isCorrect = correctPairs.every((cp: any, idx: number) =>
-                                submittedPairs[idx]?.left === cp.left && submittedPairs[idx]?.right === cp.right
-                            );
-                        } catch {
-                            isCorrect = false;
-                        }
-                        break;
-                }
-
-                if (isCorrect) {
-                    earnedPoints += q.points || 1;
-                }
+                earnedPoints += awardedPoints;
 
                 answerValues.push(
                     uuidv4(),
                     user.id,
                     sessionId,
-                    answer.question_id,
-                    answer.selected_option,
+                    question.id,
+                    examId,
+                    selectedOption,
+                    createQuestionSnapshot(question),
                     isCorrect,
+                    gradingStatus,
+                    awardedPoints,
                     attemptNumber
                 );
-                placeholders.push('(?, ?, ?, ?, ?, ?, ?)');
+                placeholders.push('(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             }
 
             if (answerValues.length > 0) {
                 await connection.execute(
-                    `INSERT INTO exam_answers (id, user_id, session_id, question_id, selected_option, is_correct, attempt_number)
+                    `INSERT INTO exam_answers
+                        (id, user_id, session_id, question_id, exam_id, selected_option,
+                         question_snapshot, is_correct, grading_status, awarded_points, attempt_number)
                      VALUES ${placeholders.join(', ')}`,
                     answerValues
                 );
             }
+
+            await connection.execute(
+                `DELETE FROM exam_answer_drafts
+                 WHERE user_id = ? AND session_id = ? AND exam_id = ? AND attempt_number = ?`,
+                [user.id, sessionId, examId, attemptNumber],
+            );
 
             const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
             const passed = score >= passingGrade;

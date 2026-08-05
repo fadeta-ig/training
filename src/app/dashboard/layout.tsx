@@ -1,12 +1,14 @@
 'use client';
 
 import { ReactNode, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 import type { AuthPayload } from '@/types';
 
 export default function UserLayout({ children }: { children: ReactNode }) {
+    const pathname = usePathname();
     const { isSidebarOpen, closeSidebar, toggleSidebar } = useResponsiveSidebar();
     const [user, setUser] = useState<AuthPayload | null>(null);
 
@@ -18,6 +20,12 @@ export default function UserLayout({ children }: { children: ReactNode }) {
             })
             .catch(() => { });
     }, []);
+
+    const isExamFocusMode = /^\/dashboard\/sesi\/[^/]+\/ujian\/[^/]+\/?$/.test(pathname);
+
+    if (isExamFocusMode) {
+        return <div className="min-h-dvh bg-muted/30 font-sans text-foreground">{children}</div>;
+    }
 
     return (
         <div className="flex h-dvh bg-background text-foreground font-sans overflow-hidden">

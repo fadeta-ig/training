@@ -1,19 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
     Cancel01Icon,
     ArrowRight01Icon,
     BookOpen01Icon,
     Calendar01Icon,
-    Award01Icon,
-    Download01Icon,
+    Tick01Icon,
 } from 'hugeicons-react';
-import { toJpeg } from 'html-to-image';
-import { jsPDF } from 'jspdf';
-import { CertificateTemplate } from '@/app/dashboard/_components/CertificateTemplate';
-import { useAlert } from '@/app/dashboard/_components/AlertCustom';
 
 type HistoryItem = {
     id: string;
@@ -29,21 +24,8 @@ type HistoryItem = {
 export default function RiwayatPage() {
     const [sessions, setSessions] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [downloadingId, setDownloadingId] = useState<string | null>(null);
-    const [userName, setUserName] = useState('');
-    const { showAlert, AlertComponent } = useAlert();
-
-    // Hidden refs for the printing canvas
-    const certificateRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
     useEffect(() => {
-        // Fetch User Name for Certificate
-        fetch('/api/auth/me')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) setUserName(data.data.full_name);
-            }).catch(() => { });
-
         fetch('/api/participant/sessions')
             .then((res) => res.json())
             .then((data) => {
@@ -61,58 +43,6 @@ export default function RiwayatPage() {
             .finally(() => setLoading(false));
     }, []);
 
-    const handleDownloadCertificate = async (e: React.MouseEvent, session: HistoryItem) => {
-        e.preventDefault(); // Prevent navigating to session detail
-        if (downloadingId) return;
-
-        try {
-            setDownloadingId(session.id);
-            const element = certificateRefs.current[session.id];
-
-            if (!element) throw new Error('Template tidak ditemukan');
-
-            // Clone to avoid layout shift and ensure perfect rendering
-            const clone = element.cloneNode(true) as HTMLElement;
-            clone.style.position = 'fixed';
-            clone.style.top = '0px';
-            clone.style.left = '0px';
-            clone.style.zIndex = '-9999';
-            clone.style.opacity = '1';
-            clone.style.display = 'flex';
-            document.body.appendChild(clone);
-
-            // Wait a tick for fonts/DOM to paint
-            await new Promise((r) => setTimeout(r, 150));
-
-            const imgData = await toJpeg(clone, {
-                quality: 1.0,
-                pixelRatio: 2, // Double resolution for sharpness
-                backgroundColor: '#ffffff',
-                width: 1123,
-                height: 794
-            });
-
-            document.body.removeChild(clone);
-
-            // Landscape A4 (297 x 210 mm)
-            const pdf = new jsPDF({
-                orientation: 'landscape',
-                unit: 'mm',
-                format: 'a4'
-            });
-
-            pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
-            pdf.save(`Sertifikat_${session.title.replace(/\s+/g, '_')}_${userName}.pdf`);
-            showAlert('Sertifikat berhasil diunduh. Selamat!', 'success');
-
-        } catch (error) {
-            console.error('Failed to generate PDF:', error);
-            showAlert('Gagal membuat sertifikat PDF. Pastikan koneksi stabil.', 'error');
-        } finally {
-            setDownloadingId(null);
-        }
-    };
-
     if (loading) {
         return (
             <div className="flex items-center justify-center p-20">
@@ -123,8 +53,6 @@ export default function RiwayatPage() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
-            {AlertComponent}
-
             <div>
                 <h1 className="text-2xl font-bold tracking-tight">Riwayat</h1>
                 <p className="text-muted-foreground text-sm mt-1">Sesi yang telah selesai atau berakhir.</p>
@@ -148,27 +76,13 @@ export default function RiwayatPage() {
 
                         return (
                             <div key={s.id} className="relative">
-                                {/* Hidden Certificate Template for this session */}
-                                {allDone && (
-                                    <div style={{ pointerEvents: 'none', position: 'absolute', left: '-99999px', top: '-99999px' }}>
-                                        <CertificateTemplate
-                                            ref={(el) => { certificateRefs.current[s.id] = el; }}
-                                            participantName={userName}
-                                            courseName={s.title}
-                                            completionDate={new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                                            certificateId={`WIG-${s.id.split('-')[0].toUpperCase()}-${new Date().getFullYear()}`}
-                                            finalScore={progress}
-                                        />
-                                    </div>
-                                )}
-
                                 <Link
                                     href={`/dashboard/sesi/${s.id}`}
                                     className="glass-card px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-4 glass-card-hover group relative z-10"
                                 >
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${allDone ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
-                                            {allDone ? <Award01Icon size={16} /> : <Cancel01Icon size={14} />}
+                                            {allDone ? <Tick01Icon size={16} /> : <Cancel01Icon size={14} />}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-sm font-bold truncate">{s.title}</h3>
@@ -187,19 +101,6 @@ export default function RiwayatPage() {
                                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${allDone ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
                                             {progress}%
                                         </span>
-
-                                        {allDone && (
-                                            <button
-                                                onClick={(e) => handleDownloadCertificate(e, s)}
-                                                disabled={downloadingId === s.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold tracking-wider uppercase transition-colors"
-                                            >
-                                                {downloadingId === s.id ? (
-                                                    <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                                ) : <Download01Icon size={12} />}
-                                                {downloadingId === s.id ? 'Memproses...' : 'Sertifikat'}
-                                            </button>
-                                        )}
 
                                         <ArrowRight01Icon size={16} className="text-muted-foreground/30 group-hover:text-foreground group-hover:translate-x-0.5 transition-all ml-1" />
                                     </div>

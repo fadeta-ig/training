@@ -88,6 +88,15 @@ export const questionSchema = z.object({
     if (t === 'matching') {
         if (!data.matching_pairs || data.matching_pairs.length < 2) {
             ctx.addIssue({ code: 'custom', path: ['matching_pairs'], message: 'Menjodohkan membutuhkan minimal 2 pasangan' });
+        } else {
+            const normalizedLefts = data.matching_pairs.map((pair) => pair.left.toLocaleLowerCase('id-ID'));
+            const normalizedRights = data.matching_pairs.map((pair) => pair.right.toLocaleLowerCase('id-ID'));
+            if (new Set(normalizedLefts).size !== normalizedLefts.length) {
+                ctx.addIssue({ code: 'custom', path: ['matching_pairs'], message: 'Item sisi kiri tidak boleh duplikat' });
+            }
+            if (new Set(normalizedRights).size !== normalizedRights.length) {
+                ctx.addIssue({ code: 'custom', path: ['matching_pairs'], message: 'Jawaban pasangan tidak boleh duplikat' });
+            }
         }
     }
 

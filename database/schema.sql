@@ -193,12 +193,20 @@ CREATE TABLE exam_answers (
   id              VARCHAR(36)  PRIMARY KEY,
   user_id         VARCHAR(36)  NOT NULL,
   session_id      VARCHAR(36)  NOT NULL,
+  exam_id         VARCHAR(36)  NOT NULL,
   question_id     VARCHAR(36)  NOT NULL,
   selected_option TEXT         NOT NULL,
+  question_snapshot LONGTEXT   NOT NULL,
   is_correct      BOOLEAN      NOT NULL DEFAULT FALSE,
+  grading_status  ENUM('auto','pending','graded') NOT NULL DEFAULT 'auto',
+  awarded_points  DECIMAL(8,2) NOT NULL DEFAULT 0,
+  graded_by       VARCHAR(36)  NULL,
+  graded_at       DATETIME     NULL,
   attempt_number  INT          NOT NULL DEFAULT 1,
   answered_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_exam_answers_user_attempt (user_id, session_id, attempt_number),
+  INDEX idx_exam_answers_review (session_id, user_id, exam_id, attempt_number),
+  UNIQUE KEY uq_exam_answer_attempt (user_id, session_id, exam_id, question_id, attempt_number),
   CONSTRAINT fk_answers_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_answers_session
@@ -239,6 +247,28 @@ CREATE TABLE notifications (
   INDEX idx_notifications_user_read (user_id, is_read),
   CONSTRAINT fk_notification_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Draft answers are isolated from final, graded answers.
+CREATE TABLE exam_answer_drafts (
+  id              VARCHAR(36) PRIMARY KEY,
+  user_id         VARCHAR(36) NOT NULL,
+  session_id      VARCHAR(36) NOT NULL,
+  exam_id         VARCHAR(36) NOT NULL,
+  question_id     VARCHAR(36) NOT NULL,
+  attempt_number  INT NOT NULL,
+  selected_option TEXT NOT NULL,
+  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_exam_answer_draft (user_id, session_id, exam_id, question_id, attempt_number),
+  INDEX idx_exam_answer_drafts_attempt (user_id, session_id, exam_id, attempt_number),
+  CONSTRAINT fk_answer_drafts_user
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_answer_drafts_session
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_answer_drafts_exam
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+  CONSTRAINT fk_answer_drafts_question
+    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- 14. Audit Logs (Aktivitas Kritis)

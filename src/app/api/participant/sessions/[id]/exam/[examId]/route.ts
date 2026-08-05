@@ -3,6 +3,12 @@ import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
+import { JWT_SECRET } from '@/lib/auth';
+import {
+    normalizeOptions,
+    parseOptionsJson,
+    type ExamQuestionType,
+} from '@/lib/exam-answer-utils';
 import {
     assertCurrentItemAccessible,
     getItemProgress,
@@ -13,10 +19,14 @@ import {
     ParticipantError,
 } from '@/lib/participant-helpers';
 
-function shuffleValues<T>(values: T[]): T[] {
+function shuffleValues<T>(values: T[], seed: string): T[] {
     const result = [...values];
     for (let i = result.length - 1; i > 0; i--) {
-        const j = crypto.randomInt(i + 1);
+        const digest = crypto
+            .createHmac('sha256', JWT_SECRET as string)
+            .update(`${seed}:${i}`)
+            .digest();
+        const j = digest.readUInt32BE(0) % (i + 1);
         [result[i], result[j]] = [result[j], result[i]];
     }
     return result;
@@ -77,11 +87,11 @@ async function handleGet(
             [uuidv4(), user.id, sessionId, moduleItem.id]
         );
 
-        // Initialize a remedial attempt once. Refreshing an active attempt must
-        // never reset its timer.
+        // Initialize an attempt once. Mark remedial progress as open so draft
+        // persistence and submission share the same active-attempt state.
         await executeQuery(
             `UPDATE user_progress
-             SET last_attempt_start = UTC_TIMESTAMP()
+             SET status = 'open', last_attempt_start = UTC_TIMESTAMP()
              WHERE user_id = ?
                AND session_id = ?
                AND module_item_id = ?
@@ -112,41 +122,67 @@ async function handleGet(
         const attemptNumber = Number(progress[0].attempts_count || 0) + 1;
 
         // Fetch questions (without correct answers for security)
-        const questions = await executeQuery<any[]>(
+        const questions = await executeQuery<Array<{
+            id: string;
+            question_type: ExamQuestionType;
+            question_text: string;
+            question_image: string | null;
+            options_json: unknown;
+            points: number;
+        }>>(
             `SELECT id, question_type, question_text, question_image, options_json, points
              FROM questions WHERE exam_id = ?`,
             [examId]
         );
 
-        // Sanitize options for matching type (don't reveal pairs)
-        const sanitized = questions.map((q: any) => {
-            const parsed = q.options_json ? (typeof q.options_json === 'string' ? JSON.parse(q.options_json) : q.options_json) : null;
+        // Return only participant-safe fields. Answer keys must never leave the server.
+        const sanitized = questions.map((question) => {
+            const parsed = parseOptionsJson(question.options_json);
 
-            if (q.question_type === 'matching' && parsed?.pairs) {
-                // Shuffle the right column for matching
-                const rights = shuffleValues(parsed.pairs.map((p: any) => p.right));
+            if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
+                return { ...question, options_json: normalizeOptions(parsed) };
+            }
+
+            if (question.question_type === 'multiple_select') {
+                const options = parsed && typeof parsed === 'object'
+                    ? normalizeOptions((parsed as { options?: unknown }).options)
+                    : [];
+                return { ...question, options_json: { options } };
+            }
+
+            if (question.question_type === 'matching') {
+                const rawPairs = parsed && typeof parsed === 'object' && Array.isArray((parsed as { pairs?: unknown }).pairs)
+                    ? (parsed as { pairs: unknown[] }).pairs
+                    : [];
+                const pairs = rawPairs.filter((pair): pair is { left: string; right: string } => {
+                    if (!pair || typeof pair !== 'object') return false;
+                    const candidate = pair as { left?: unknown; right?: unknown };
+                    return typeof candidate.left === 'string' && typeof candidate.right === 'string';
+                });
+                const rights = shuffleValues(
+                    pairs.map((pair) => pair.right),
+                    `${user.id}:${sessionId}:${attemptNumber}:${question.id}`,
+                );
                 return {
-                    ...q,
+                    ...question,
                     options_json: {
-                        lefts: parsed.pairs.map((p: any) => p.left),
+                        lefts: pairs.map((pair) => pair.left),
                         rights,
                     },
                 };
             }
-            return q;
+
+            return { ...question, options_json: null };
         });
 
-        // Fetch any existing answers (in case of resume)
-        // We now filter by attempt_number to only load answers for the CURRENT attempt
-        const existingAnswers = await executeQuery<any[]>(
-            `SELECT ea.question_id, ea.selected_option
-             FROM exam_answers ea
-             INNER JOIN questions q ON q.id = ea.question_id
-             WHERE ea.user_id = ?
-               AND ea.session_id = ?
-               AND ea.attempt_number = ?
-               AND q.exam_id = ?`,
-            [user.id, sessionId, attemptNumber, examId]
+        const existingAnswers = await executeQuery<Array<{ question_id: string; selected_option: string }>>(
+            `SELECT question_id, selected_option
+             FROM exam_answer_drafts
+             WHERE user_id = ?
+               AND session_id = ?
+               AND exam_id = ?
+               AND attempt_number = ?`,
+            [user.id, sessionId, examId, attemptNumber]
         );
 
         return NextResponse.json({

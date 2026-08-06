@@ -11,8 +11,6 @@ import {
     AlertCircleIcon,
     Clock01Icon
 } from 'hugeicons-react';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { GlassCard } from '@/components/ui/GlassCard';
 
 type DetailData = {
     session: { id: string; title: string };
@@ -53,21 +51,26 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center p-20">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <div className="space-y-4 max-w-7xl mx-auto pb-12 animate-pulse">
+                <div className="h-4 w-32 bg-slate-100 rounded" />
+                <div className="h-20 w-full bg-slate-100 rounded-xl" />
+                <div className="h-48 w-full bg-slate-100 rounded-xl" />
             </div>
         );
     }
 
     if (error || !data) {
         return (
-            <div className="max-w-2xl mx-auto space-y-4">
-                <Link href={`/admin/sessions/${sessionId}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
-                    <ArrowLeft01Icon size={14} /> Kembali ke Detail Sesi
+            <div className="max-w-7xl mx-auto space-y-4 pt-4">
+                <Link
+                    href={`/admin/sessions/${sessionId}`}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+                >
+                    <ArrowLeft01Icon size={15} /> Kembali ke Detail Sesi
                 </Link>
-                <div className="glass-card p-4 text-center sm:p-6 md:p-8">
-                    <AlertCircleIcon size={36} className="mx-auto text-destructive mb-3" />
-                    <p className="text-sm text-destructive font-semibold">{error || 'Detail tidak ditemukan'}</p>
+                <div className="bg-white rounded-xl border border-black/5 p-6 text-center shadow-2xs">
+                    <AlertCircleIcon size={32} className="mx-auto text-red-500 mb-2" />
+                    <p className="text-xs font-semibold text-red-600">{error || 'Detail peserta tidak ditemukan'}</p>
                 </div>
             </div>
         );
@@ -77,103 +80,139 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
     const isCompleted = progress.percentage === 100;
 
     return (
-        <div className="space-y-6 max-w-4xl mx-auto pb-12">
-            <Link href={`/admin/sessions/${sessionId}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
-                <ArrowLeft01Icon size={14} /> Kembali ke Sesi
-            </Link>
+        <div className="space-y-4 max-w-7xl mx-auto pb-12">
+            {/* Navigation & Header */}
+            <div className="space-y-3">
+                <Link
+                    href={`/admin/sessions/${sessionId}`}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+                >
+                    <ArrowLeft01Icon size={15} />
+                    <span>Kembali ke Detail Sesi</span>
+                </Link>
 
-            <PageHeader
-                title="Detail Hasil Peserta"
-                description={`Monitoring proges dan hasil dari peserta dalam sesi ${session.title}.`}
-                icon={<UserCircleIcon size={28} />}
-            />
+                {/* Integrated Banner & Profile Bar */}
+                <div className="bg-white rounded-xl border border-black/5 p-4 sm:p-5 shadow-2xs">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        {/* Left: User Profile & Session Context */}
+                        <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-11 h-11 rounded-xl bg-slate-100 text-slate-700 border border-black/5 flex items-center justify-center shrink-0">
+                                <UserCircleIcon size={24} />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                    <h1 className="text-lg font-semibold text-foreground tracking-tight truncate">
+                                        {participant.full_name}
+                                    </h1>
+                                    <span className="text-xs text-muted-foreground font-mono">({participant.username})</span>
+                                    {isCompleted ? (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                            Selesai 100%
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200/60">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                            Sedang Berlangsung
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground truncate">
+                                    Sesi: <span className="font-medium text-foreground">{session.title}</span>
+                                </p>
+                            </div>
+                        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <GlassCard className="p-6 md:col-span-2 flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center shrink-0">
-                        <UserCircleIcon size={32} className="text-muted-foreground" />
+                        {/* Right: Compact Metrics */}
+                        <div className="flex items-center gap-4 shrink-0 border-t md:border-t-0 border-black/5 pt-3 md:pt-0">
+                            <div className="text-right">
+                                <span className="text-[10px] text-muted-foreground block font-medium uppercase tracking-wider">Penyelesaian</span>
+                                <span className="text-xs font-semibold text-foreground">
+                                    {progress.completed_items} / {progress.total_items} Modul ({progress.percentage}%)
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-xl font-bold text-foreground">{participant.full_name}</h2>
-                        <p className="text-sm text-muted-foreground">{participant.username}</p>
-                    </div>
-                </GlassCard>
-
-                <GlassCard className={`p-6 flex flex-col items-center justify-center text-center ${isCompleted ? 'bg-emerald-50/50 border-emerald-100' : ''}`}>
-                    <div className="w-12 h-12 relative flex items-center justify-center mb-2">
-                        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90 absolute inset-0">
-                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none" stroke="currentColor" strokeWidth="4" className={isCompleted ? 'text-emerald-100' : 'text-black/5'} />
-                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none" strokeWidth="4" strokeDasharray={`${progress.percentage}, 100`} strokeLinecap="round"
-                                className={isCompleted ? 'text-emerald-500' : 'text-primary'}
-                                style={{ transition: 'stroke-dasharray 1s ease' }} />
-                        </svg>
-                        <span className={`text-base font-bold ${isCompleted ? 'text-emerald-700' : 'text-foreground'}`}>
-                            {progress.percentage}%
-                        </span>
-                    </div>
-                    <p className={`text-xs font-semibold ${isCompleted ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-                        {progress.completed_items} / {progress.total_items} Diselesaikan
-                    </p>
-                </GlassCard>
+                </div>
             </div>
 
-            <div className="space-y-4">
-                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Daftar Materi & Ujian</h3>
-                <div className="glass-card overflow-hidden">
-                    <div className="divide-y divide-black/5">
-                        {progress.items.map((item, idx) => {
-                            const done = item.status === 'completed';
-                            const isExam = item.item_type === 'exam';
+            {/* Daftar Materi & Ujian Card (Full-Width & Compact) */}
+            <div className="bg-white rounded-xl border border-black/5 shadow-2xs overflow-hidden">
+                <div className="px-4 py-3 border-b border-black/5 flex items-center justify-between bg-slate-50/50">
+                    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Daftar Materi & Ujian
+                    </h2>
+                    <span className="text-xs font-medium text-muted-foreground">
+                        {progress.total_items} Modul Total
+                    </span>
+                </div>
 
-                            return (
-                                <div key={item.module_item_id} className="p-4 flex items-center gap-4 hover:bg-black/[0.02] transition-colors">
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${done ? 'bg-emerald-100 text-emerald-600' : 'bg-black/5 text-muted-foreground'}`}>
-                                        {done ? <Tick01Icon size={16} /> : <span className="text-xs font-bold">{idx + 1}</span>}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-1.5 mb-0.5">
-                                            {isExam ? <Edit01Icon size={12} className="text-muted-foreground" /> : <Book01Icon size={12} className="text-muted-foreground" />}
-                                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                                                {isExam ? 'Ujian' : 'Materi'}
-                                            </span>
-                                        </div>
-                                        <h4 className="text-sm font-semibold truncate text-foreground">{item.item_title || 'Untitled'}</h4>
-                                        {item.updated_at && (
-                                            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                                                <Clock01Icon size={10} /> Diselesaikan: {new Date(item.updated_at).toLocaleString('id-ID')}
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="shrink-0 flex items-center gap-4">
-                                        {isExam && done ? (
-                                            <div className="text-right flex items-center gap-3">
-                                                <Link
-                                                    href={`/admin/sessions/${sessionId}/participants/${participantId}/answers?exam=${item.item_id}`}
-                                                    className="text-xs font-bold text-primary hover:underline"
-                                                >
-                                                    Lihat Jawaban
-                                                </Link>
-                                                <div className="flex flex-col items-end">
-                                                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5">Skor Akhir</p>
-                                                    <span className="inline-flex px-2.5 py-1 rounded-md bg-primary/10 text-primary text-sm font-bold">
-                                                        {item.score !== null ? item.score : '0'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ) : !done ? (
-                                            <span className="text-xs font-bold text-muted-foreground px-2">Belum</span>
-                                        ) : null}
+                <div className="divide-y divide-black/5">
+                    {progress.items.map((item, idx) => {
+                        const done = item.status === 'completed';
+                        const isExam = item.item_type === 'exam';
 
-                                        {done && !isExam && (
-                                            <span className="text-xs font-bold text-emerald-600 px-2">Diselesaikan</span>
-                                        )}
-                                    </div>
+                        return (
+                            <div key={item.module_item_id} className="px-4 py-3 flex items-center gap-3.5 hover:bg-slate-50/50 transition-colors">
+                                {/* Number / Check Badge */}
+                                <div
+                                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-semibold ${
+                                        done
+                                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
+                                            : 'bg-slate-100 text-slate-500'
+                                    }`}
+                                >
+                                    {done ? <Tick01Icon size={15} /> : idx + 1}
                                 </div>
-                            );
-                        })}
-                    </div>
+
+                                {/* Title & Meta Info */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <span
+                                            className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${
+                                                isExam
+                                                    ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
+                                                    : 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                                            }`}
+                                        >
+                                            {isExam ? <Edit01Icon size={11} /> : <Book01Icon size={11} />}
+                                            {isExam ? 'Ujian' : 'Materi'}
+                                        </span>
+                                        {item.updated_at && (
+                                            <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-normal">
+                                                <Clock01Icon size={11} /> {new Date(item.updated_at).toLocaleString('id-ID')}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <h3 className="text-sm font-medium text-foreground truncate">{item.item_title || 'Untitled'}</h3>
+                                </div>
+
+                                {/* Score & Action */}
+                                <div className="shrink-0 flex items-center gap-4">
+                                    {isExam && done ? (
+                                        <div className="flex items-center gap-3">
+                                            <Link
+                                                href={`/admin/sessions/${sessionId}/participants/${participantId}/answers?exam=${item.item_id}`}
+                                                className="text-xs font-semibold text-primary hover:underline"
+                                            >
+                                                Lihat Jawaban
+                                            </Link>
+                                            <div className="text-right">
+                                                <span className="text-[10px] text-muted-foreground block font-medium uppercase tracking-wider">Skor</span>
+                                                <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-800 border border-black/5">
+                                                    {item.score !== null ? item.score : 0}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : !done ? (
+                                        <span className="text-xs font-medium text-muted-foreground">Belum</span>
+                                    ) : (
+                                        <span className="text-xs font-semibold text-emerald-600">Diselesaikan</span>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>

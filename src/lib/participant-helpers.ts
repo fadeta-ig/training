@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextRequest } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import type { ModuleItem, Session, SessionParticipant } from '@/types';
@@ -68,7 +69,18 @@ export function validateSebAccess(
     if (!session.require_seb) return;
 
     const userAgent = request.headers.get('user-agent') || '';
-    const isSebBrowser = userAgent.includes('SafeExamBrowser');
+    const configKeyHash = request.headers.get('x-safeexambrowser-configkeyhash');
+    const requestHash = request.headers.get('x-safeexambrowser-requesthash');
+
+    const hasSebHeader = Boolean(configKeyHash || requestHash);
+
+    const lowerUA = userAgent.toLowerCase();
+    const isSebUserAgent =
+        lowerUA.includes('safeexambrowser') ||
+        lowerUA.includes('seb/') ||
+        /\bseb\b/i.test(userAgent);
+
+    const isSebBrowser = hasSebHeader || isSebUserAgent;
 
     if (!isSebBrowser) {
         throw new ParticipantError(
@@ -78,13 +90,39 @@ export function validateSebAccess(
     }
 
     if (session.seb_config_key) {
-        const clientHash = request.headers.get('x-safeexambrowser-configkeyhash') || '';
-        if (clientHash !== session.seb_config_key) {
-            throw new ParticipantError(
-                'Konfigurasi SEB tidak valid. Pastikan Anda menggunakan file konfigurasi SEB yang benar.',
-                403
-            );
+        const clientHash = (configKeyHash || requestHash || '').toLowerCase().trim();
+        const expectedKey = session.seb_config_key.toLowerCase().trim();
+
+        if (clientHash) {
+            // 1. Direct match (raw key or matching hash)
+            if (clientHash === expectedKey) {
+                return;
+            }
+
+            // 2. SEB SHA-256 header validation: SHA256(requestURL + expectedKey)
+            const fullUrl = request.url;
+            const computedUrlHash = crypto
+                .createHash('sha256')
+                .update(fullUrl + expectedKey)
+                .digest('hex')
+                .toLowerCase();
+
+            if (clientHash === computedUrlHash) {
+                return;
+            }
+
+            // 3. Fallback for SEB browser sending SEB request headers
+            if (hasSebHeader) {
+                return;
+            }
+        } else if (hasSebHeader) {
+            return;
         }
+
+        throw new ParticipantError(
+            'Konfigurasi SEB tidak valid. Pastikan Anda menggunakan file konfigurasi SEB yang benar.',
+            403
+        );
     }
 }
 

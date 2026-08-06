@@ -22,6 +22,7 @@ import {
 } from 'hugeicons-react';
 import { toast } from 'sonner';
 import { usePagination } from '@/hooks/usePagination';
+import { useIsSeb } from '@/hooks/useSeb';
 import { Pagination } from '@/components/ui/Pagination';
 
 type User = {
@@ -52,15 +53,13 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [session, setSession] = useState<SessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isSeb, setIsSeb] = useState(false);
+    const isSeb = useIsSeb();
     const [isSendingBlast, setIsSendingBlast] = useState(false);
     const [showBlastConfirm, setShowBlastConfirm] = useState(false);
     const [userRole, setUserRole] = useState<string>('');
     const [searchParticipant, setSearchParticipant] = useState('');
 
-    useEffect(() => {
-        setIsSeb(typeof navigator !== 'undefined' && navigator.userAgent.includes('SafeExamBrowser'));
-    }, []);
+
 
     useEffect(() => {
         const fetchSession = async () => {
@@ -183,13 +182,13 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                 </Link>
 
                 {isSeb && (
-                    <Link
+                    <a
                         href="/quit-seb"
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 px-3 py-1 rounded-lg border border-red-200/60 transition-all active:scale-98"
                     >
                         <Logout01Icon size={14} />
                         Keluar SEB
-                    </Link>
+                    </a>
                 )}
             </div>
 

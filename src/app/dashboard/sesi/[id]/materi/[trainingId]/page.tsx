@@ -178,16 +178,28 @@ export default function MateriViewerPage({ params }: { params: Promise<{ id: str
         try {
             const res = await fetch(`/api/participant/sessions/${sessionId}/training/${trainingId}/complete`, {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
             });
-            const data = await res.json();
-            if (data.success) {
+
+            let data: any = null;
+            const text = await res.text();
+            try {
+                data = text ? JSON.parse(text) : null;
+            } catch {
+                toast.error(`Terjadi kesalahan server (Status ${res.status})`);
+                return;
+            }
+
+            if (res.ok && data?.success) {
                 setCompleted(true);
                 toast.success('Materi telah diselesaikan! Anda dapat melanjutkan ke item berikutnya.');
             } else {
-                toast.error(data.error || 'Gagal menandai selesai');
+                toast.error(data?.error || data?.message || `Gagal menandai selesai (Status ${res.status})`);
             }
         } catch {
-            toast.error('Kesalahan jaringan');
+            toast.error('Gagal terhubung ke server. Periksa koneksi internet Anda.');
         } finally {
             setMarking(false);
         }

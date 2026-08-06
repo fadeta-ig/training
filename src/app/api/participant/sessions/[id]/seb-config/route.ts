@@ -44,7 +44,7 @@ export const GET = withAuth(async (
         const origin = new URL(configuredAppUrl || request.nextUrl.origin).origin;
         const startUrl = `${origin}/dashboard/sesi/${encodeURIComponent(session.id)}`;
         const safeStartUrl = escapeHtml(startUrl);
-        const safeQuitUrl = escapeHtml(`${origin}/dashboard/riwayat`);
+        const safeQuitUrl = escapeHtml(`${origin}/quit-seb`);
         const safeConfigKey = escapeHtml(session.seb_config_key || '');
         
         // PList XML Generator as per SEB documentation
@@ -65,7 +65,9 @@ export const GET = withAuth(async (
     <key>allowQuit</key>
     <true/>
     <key>showTaskBar</key>
-    <false/>
+    <true/>
+    <key>showQuitButton</key>
+    <true/>
     <key>enableZoomPage</key>
     <true/>
   </dict>

@@ -32,6 +32,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { useIsSeb } from '@/hooks/useSeb';
 
 type ModuleItem = {
     module_item_id: string;
@@ -91,9 +92,7 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const [session, setSession] = useState<SessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [isSeb] = useState(() =>
-        typeof navigator !== 'undefined' && navigator.userAgent.includes('SafeExamBrowser')
-    );
+    const isSeb = useIsSeb();
 
     useEffect(() => {
         fetch(`/api/participant/sessions/${id}`)
@@ -220,9 +219,9 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
 
             {isSeb && (
                 <div className="flex justify-end">
-                    <Link href="/quit-seb" className={buttonVariants({ variant: 'destructive' })}>
+                    <a href="/quit-seb" className={buttonVariants({ variant: 'destructive' })}>
                         <LogOut /> Keluar dari aplikasi SEB
-                    </Link>
+                    </a>
                 </div>
             )}
 

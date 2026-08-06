@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import WebcamProctor from '@/components/proctor/WebcamProctor';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
+import { useIsSeb } from '@/hooks/useSeb';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -295,7 +296,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const [currentIdx, setCurrentIdx] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
     const [result, setResult] = useState<ExamResult | null>(null);
-    const [isSeb, setIsSeb] = useState(false);
+    const isSeb = useIsSeb();
     const [saveState, setSaveState] = useState<SaveState>('idle');
     const [confirmOpen, setConfirmOpen] = useState(false);
     const answersRef = useRef(answers);
@@ -390,14 +391,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         }
     }, [examData, examId, sessionId, submitting]);
 
-    useEffect(() => {
-        if (typeof window !== 'undefined' && (
-            navigator.userAgent.includes('SafeExamBrowser') ||
-            'SafeExamBrowser' in window
-        )) {
-            setIsSeb(true);
-        }
-    }, []);
+
 
     useEffect(() => {
         let cancelled = false;
@@ -539,9 +533,9 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                                 <ArrowLeft /> Kembali ke sesi
                             </Link>
                             {isSeb && (
-                                <Link href="/quit-seb" className={buttonVariants({ variant: 'destructive', size: 'lg' })}>
+                                <a href="/quit-seb" className={buttonVariants({ variant: 'destructive', size: 'lg' })}>
                                     <LogOut /> Keluar aplikasi SEB
-                                </Link>
+                                </a>
                             )}
                         </div>
                     </CardContent>

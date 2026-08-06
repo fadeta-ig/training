@@ -43,10 +43,12 @@ function getAllowedOrigins(request: NextRequest): Set<string> {
 }
 
 export function validateMutationOrigin(request: NextRequest): NextResponse | null {
-    const origin = normalizeOrigin(request.headers.get('origin'));
+    const originHeader = request.headers.get('origin');
+    const refererHeader = request.headers.get('referer');
+    const origin = normalizeOrigin(originHeader) || normalizeOrigin(refererHeader);
     const allowedOrigins = getAllowedOrigins(request);
 
-    if (!origin || !allowedOrigins.has(origin)) {
+    if (origin && !allowedOrigins.has(origin)) {
         return NextResponse.json(
             { success: false, error: 'Request origin tidak diizinkan' },
             { status: 403 }

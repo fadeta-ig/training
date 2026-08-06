@@ -5,11 +5,22 @@ import { Logout01Icon, Home01Icon } from 'hugeicons-react';
 import Link from 'next/link';
 
 export default function QuitSebPage() {
-    useEffect(() => {
-        // If SEB JS API is available, try to terminate
-        if (typeof window !== 'undefined' && (window as any).SafeExamBrowser) {
-            (window as any).SafeExamBrowser.terminateBrowser();
+    const handleQuit = () => {
+        if (typeof window !== 'undefined') {
+            const win = window as any;
+            if (win.SafeExamBrowser) {
+                if (typeof win.SafeExamBrowser.terminateBrowser === 'function') {
+                    win.SafeExamBrowser.terminateBrowser();
+                } else if (win.SafeExamBrowser.security?.logout) {
+                    win.SafeExamBrowser.security.logout();
+                }
+            }
+            window.close();
         }
+    };
+
+    useEffect(() => {
+        handleQuit();
     }, []);
 
     return (
@@ -21,18 +32,18 @@ export default function QuitSebPage() {
                 
                 <div className="space-y-2">
                     <h1 className="text-2xl font-bold text-slate-800">Menutup Aplikasi SEB...</h1>
-                    <p className="text-slate-600">
-                        Jika aplikasi Safe Exam Browser tidak menutup secara otomatis, silakan tekan tombol 
-                        <span className="font-bold"> Ctrl+Q</span> atau klik tombol keluar di bawah.
+                    <p className="text-slate-600 text-sm">
+                        Jika aplikasi Safe Exam Browser tidak menutup secara otomatis, silakan tekan kombinasi tombol 
+                        <span className="font-bold text-slate-800"> Ctrl+Q</span> (Windows) atau <span className="font-bold text-slate-800">Cmd+Q</span> (Mac), atau klik tombol di bawah.
                     </p>
                 </div>
 
                 <div className="pt-4 flex flex-col gap-3">
                     <button 
-                        onClick={() => typeof window !== 'undefined' && window.close()}
-                        className="w-full py-3 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-900 transition-all active:scale-95"
+                        onClick={handleQuit}
+                        className="w-full py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all active:scale-95 shadow-xs"
                     >
-                        Tutup Browser Sekarang
+                        Tutup Application SEB Sekarang
                     </button>
                     
                     <Link 

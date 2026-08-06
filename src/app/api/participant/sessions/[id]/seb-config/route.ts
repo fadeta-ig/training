@@ -70,6 +70,14 @@ export const GET = withAuth(async (
     <true/>
     <key>enableZoomPage</key>
     <true/>
+    <key>allowPreferencesWindow</key>
+    <false/>
+    <key>insideSebEnableSwitchUser</key>
+    <false/>
+    <key>allowSwitchToThirdPartyApps</key>
+    <false/>
+    <key>allowDeveloperConsole</key>
+    <false/>
   </dict>
 </plist>`;
 

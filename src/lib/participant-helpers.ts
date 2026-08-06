@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { NextRequest } from 'next/server';
 import { executeQuery } from '@/lib/db';
+import logger from '@/lib/logger';
 import type { ModuleItem, Session, SessionParticipant } from '@/types';
 
 /**
@@ -83,6 +84,10 @@ export function validateSebAccess(
     const isSebBrowser = hasSebHeader || isSebUserAgent;
 
     if (!isSebBrowser) {
+        logger.warn('SEB_SECURITY', 'Akses ditolak: Browser bukan Safe Exam Browser', {
+            userAgent,
+            ip: request.headers.get('x-forwarded-for') || 'unknown'
+        });
         throw new ParticipantError(
             'Ujian ini hanya dapat diakses melalui Safe Exam Browser (SEB)',
             403
@@ -94,30 +99,49 @@ export function validateSebAccess(
         const expectedKey = session.seb_config_key.toLowerCase().trim();
 
         if (clientHash) {
-            // 1. Direct match (raw key or matching hash)
+            // 1. Direct key match (raw key or matching pre-computed hash)
             if (clientHash === expectedKey) {
                 return;
             }
 
-            // 2. SEB SHA-256 header validation: SHA256(requestURL + expectedKey)
-            const fullUrl = request.url;
-            const computedUrlHash = crypto
-                .createHash('sha256')
-                .update(fullUrl + expectedKey)
-                .digest('hex')
-                .toLowerCase();
+            // 2. Multi-Candidate URL SHA-256 Hashing for reverse proxy & cross-platform URL differences
+            const rawUrl = request.url;
+            const urlObj = new URL(rawUrl);
+            const proto = request.headers.get('x-forwarded-proto') || urlObj.protocol.replace(':', '');
+            const host = request.headers.get('x-forwarded-host') || urlObj.host;
+            
+            const candidates = [
+                rawUrl,
+                `${proto}://${host}${urlObj.pathname}${urlObj.search}`,
+                `${proto}://${host}${urlObj.pathname}`,
+                `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`
+            ];
 
-            if (clientHash === computedUrlHash) {
-                return;
+            for (const targetUrl of candidates) {
+                const computed = crypto
+                    .createHash('sha256')
+                    .update(targetUrl + expectedKey)
+                    .digest('hex')
+                    .toLowerCase();
+
+                if (clientHash === computed) {
+                    return;
+                }
             }
 
-            // 3. Fallback for SEB browser sending SEB request headers
+            // 3. Fallback: Verifiable SEB client with valid SEB headers present
             if (hasSebHeader) {
                 return;
             }
         } else if (hasSebHeader) {
             return;
         }
+
+        logger.warn('SEB_SECURITY', 'Akses ditolak: Hash konfigurasi SEB tidak cocok', {
+            clientHashLength: clientHash.length,
+            hasSebHeader,
+            userAgent
+        });
 
         throw new ParticipantError(
             'Konfigurasi SEB tidak valid. Pastikan Anda menggunakan file konfigurasi SEB yang benar.',

@@ -35,9 +35,10 @@ export interface SessionTimingResult {
     isEnded: boolean;
 }
 
-/** Validate that a session exists and return its timing status. */
+/** Validate that a session exists and return its timing status. Optionally takes userId to check individual extension. */
 export async function validateSessionTiming(
-    sessionId: string
+    sessionId: string,
+    userId?: string
 ): Promise<SessionTimingResult> {
     const rows = await executeQuery<Session[]>(
         `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, seb_config_key, created_at
@@ -52,7 +53,23 @@ export async function validateSessionTiming(
     const session = rows[0];
     const now = new Date();
     const start = new Date(session.start_time);
-    const end = new Date(session.end_time);
+    let end = new Date(session.end_time);
+
+    if (userId) {
+        const extRows = await executeQuery<{ individual_extension_until: Date | string | null }[]>(
+            `SELECT MAX(individual_extension_until) AS individual_extension_until
+             FROM user_progress
+             WHERE user_id = ? AND session_id = ?`,
+            [userId, sessionId]
+        );
+        const extTime = extRows?.[0]?.individual_extension_until;
+        if (extTime) {
+            const extDate = new Date(extTime);
+            if (extDate > end) {
+                end = extDate;
+            }
+        }
+    }
 
     return {
         session,
@@ -197,9 +214,9 @@ export async function getItemProgress(
     sessionId: string,
     userId: string,
     moduleItemId: string
-): Promise<{ id: string; status: string; score: number | null; attempts_count: number; last_attempt_start: string | null } | null> {
-    const rows = await executeQuery<{ id: string; status: string; score: number | null; attempts_count: number; last_attempt_start: string | null }[]>(
-        `SELECT id, status, score, attempts_count, last_attempt_start
+): Promise<{ id: string; status: string; score: number | null; attempts_count: number; attempt_version: number; last_attempt_start: string | null; individual_extension_until: string | null } | null> {
+    const rows = await executeQuery<{ id: string; status: string; score: number | null; attempts_count: number; attempt_version: number; last_attempt_start: string | null; individual_extension_until: string | null }[]>(
+        `SELECT id, status, score, attempts_count, attempt_version, last_attempt_start, individual_extension_until
          FROM user_progress
          WHERE user_id = ? AND session_id = ? AND module_item_id = ?
          LIMIT 1`,

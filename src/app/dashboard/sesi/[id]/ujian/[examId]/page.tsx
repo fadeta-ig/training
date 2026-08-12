@@ -76,6 +76,7 @@ type ExamData = {
     enableProctoring: boolean;
     attemptStart: string;
     attemptNumber: number;
+    attemptVersion?: number;
 };
 
 type ExamResult = {
@@ -331,9 +332,22 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             const response = await fetch(`/api/participant/sessions/${sessionId}/exam/${examId}/answers`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ attempt_number: examData.attemptNumber, answers: payload }),
+                body: JSON.stringify({
+                    attempt_number: examData.attemptNumber,
+                    attempt_version: examData.attemptVersion || 1,
+                    answers: payload,
+                }),
             });
             const data = await response.json();
+
+            if (response.status === 409) {
+                toast.error('Akses Ujian Diperbarui', {
+                    description: 'Administrator telah memperbarui status ujian Anda. Halaman akan dimuat ulang.',
+                });
+                setTimeout(() => window.location.reload(), 1500);
+                return;
+            }
+
             if (!response.ok || !data.success) throw new Error(data.error || 'Draft gagal disimpan');
 
             for (const item of payload) {

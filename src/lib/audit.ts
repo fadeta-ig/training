@@ -21,6 +21,8 @@ export type AuditActionType =
     | 'SEND_CREDENTIALS'
     | 'SUBMIT_EXAM'
     | 'START_EXAM'
+    | 'EXAM_OVERRIDE_RESUME'
+    | 'EXAM_OVERRIDE_RESET'
     | 'UPLOAD_MEDIA';
 
 /**

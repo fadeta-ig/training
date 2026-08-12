@@ -46,7 +46,7 @@ async function handleGet(
         const { id: sessionId, examId } = await context.params;
 
         await verifyEnrollment(sessionId, user.id);
-        const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId);
+        const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId, user.id);
 
         if (isUpcoming) {
             return NextResponse.json({ success: false, error: 'Sesi belum dimulai' }, { status: 400 });
@@ -103,10 +103,12 @@ async function handleGet(
         // local time when serializing it for the browser.
         const progress = await executeQuery<Array<{
             attempts_count: number;
+            attempt_version: number;
             attempt_start_utc: string;
             server_time_utc: string;
         }>>(
             `SELECT up.attempts_count,
+                    up.attempt_version,
                     DATE_FORMAT(up.last_attempt_start, '%Y-%m-%dT%H:%i:%sZ') AS attempt_start_utc,
                     DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-%dT%H:%i:%sZ') AS server_time_utc
              FROM user_progress up
@@ -196,6 +198,7 @@ async function handleGet(
                 enableProctoring: !!session.enable_proctoring,
                 attemptStart: progress[0].attempt_start_utc,
                 attemptNumber: attemptNumber,
+                attemptVersion: progress[0].attempt_version || 1,
             },
         });
     } catch (error) {

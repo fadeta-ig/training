@@ -58,6 +58,7 @@ async function handlePost(
         const body = await request.json();
         const { answers } = body as { answers: { question_id: string; selected_option: string }[] };
 
+
         if (!answers || !Array.isArray(answers)) {
             return NextResponse.json({ success: false, error: 'Jawaban tidak valid' }, { status: 400 });
         }
@@ -66,7 +67,7 @@ async function handlePost(
         }
 
         await verifyEnrollment(sessionId, user.id);
-        const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId);
+        const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId, user.id);
 
         // Enforce session timing — block if session hasn't started
         if (isUpcoming) {

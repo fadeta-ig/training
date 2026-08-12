@@ -32,6 +32,7 @@ interface QuestionRow {
 interface ProgressRow extends RowDataPacket {
     status: string;
     attempts_count: number;
+    attempt_version: number;
     last_attempt_start: Date | null;
 }
 
@@ -44,8 +45,9 @@ async function handlePut(
 
     try {
         const { id: sessionId, examId } = await context.params;
-        const body = await request.json() as { attempt_number?: unknown; answers?: unknown };
+        const body = await request.json() as { attempt_number?: unknown; attempt_version?: unknown; answers?: unknown };
         const attemptNumber = Number(body.attempt_number);
+        const requestAttemptVersion = typeof body.attempt_version === 'number' ? body.attempt_version : null;
         const answers = body.answers as DraftAnswerInput[];
 
         if (!Number.isInteger(attemptNumber) || attemptNumber < 1) {
@@ -69,7 +71,7 @@ async function handlePut(
         }
 
         await verifyEnrollment(sessionId, user.id);
-        const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId);
+        const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId, user.id);
         if (isUpcoming || isEnded) {
             return NextResponse.json({ success: false, error: 'Sesi tidak aktif' }, { status: 400 });
         }
@@ -103,9 +105,9 @@ async function handlePut(
         await connection.beginTransaction();
 
         // Serialize autosave with submit so a late draft cannot be written
-        // after the same attempt has already been completed.
+        // after the same attempt has already been completed or overridden.
         const [progress] = await connection.execute<ProgressRow[]>(
-            `SELECT status, attempts_count, last_attempt_start
+            `SELECT status, attempts_count, attempt_version, last_attempt_start
              FROM user_progress
              WHERE user_id = ? AND session_id = ? AND module_item_id = ?
              LIMIT 1
@@ -115,11 +117,13 @@ async function handlePut(
 
         const progressRow = progress[0];
         const expectedAttempt = Number(progressRow?.attempts_count || 0) + 1;
-        if (!progressRow || progressRow.status === 'completed' || !progressRow.last_attempt_start || attemptNumber !== expectedAttempt) {
+        const isVersionStale = requestAttemptVersion !== null && Number(progressRow?.attempt_version || 1) !== requestAttemptVersion;
+
+        if (!progressRow || progressRow.status === 'completed' || !progressRow.last_attempt_start || attemptNumber !== expectedAttempt || isVersionStale) {
             await connection.rollback();
             connection.release();
             connection = undefined;
-            return NextResponse.json({ success: false, error: 'Attempt ujian tidak aktif' }, { status: 409 });
+            return NextResponse.json({ success: false, error: 'Attempt ujian telah diperbarui atau tidak aktif. Silakan muat ulang.' }, { status: 409 });
         }
 
         for (const answer of answers) {

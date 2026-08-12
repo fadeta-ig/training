@@ -108,7 +108,9 @@ export interface UserProgress {
     status: 'locked' | 'open' | 'completed';
     score: number | null;
     attempts_count: number;
+    attempt_version: number;
     last_attempt_start: string | null;
+    individual_extension_until: string | null;
     updated_at: string;
 }
 

@@ -118,6 +118,21 @@ CREATE TABLE modules (
 -- 7. Module Items (Urutan item di dalam modul)
 -- ─────────────────────────────────────────────
 CREATE TABLE module_items (
+
+-- ─────────────────────────────────────────────
+-- 6. Modules (Learning Path / Kerangka Urutan)
+-- ─────────────────────────────────────────────
+CREATE TABLE modules (
+  id          VARCHAR(36)  PRIMARY KEY,
+  title       VARCHAR(150) NOT NULL,
+  description TEXT,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ─────────────────────────────────────────────
+-- 7. Module Items (Urutan item di dalam modul)
+-- ─────────────────────────────────────────────
+CREATE TABLE module_items (
   id             VARCHAR(36) PRIMARY KEY,
   module_id      VARCHAR(36) NOT NULL,
   item_type      ENUM('training', 'exam') NOT NULL,
@@ -173,7 +188,9 @@ CREATE TABLE user_progress (
   status             ENUM('locked', 'open', 'completed') DEFAULT 'locked',
   score              DECIMAL(5, 2) NULL,
   attempts_count     INT           NOT NULL DEFAULT 0,
+  attempt_version    INT           NOT NULL DEFAULT 1,
   last_attempt_start DATETIME      NULL,
+  individual_extension_until DATETIME NULL,
   updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_user_session (user_id, session_id),
   INDEX idx_progress_session_item (session_id, module_item_id),

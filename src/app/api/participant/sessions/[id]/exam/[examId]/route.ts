@@ -133,7 +133,7 @@ async function handleGet(
             points: number;
         }>>(
             `SELECT id, question_type, question_text, question_image, options_json, points
-             FROM questions WHERE exam_id = ?`,
+             FROM questions WHERE exam_id = ? ORDER BY sequence_order ASC, id ASC`,
             [examId]
         );
 

@@ -12,7 +12,7 @@ async function handleGet(
     try {
         const resolvedParams = await context.params;
         const questions = await executeQuery(
-            `SELECT id, exam_id, question_type, question_text, question_image, options_json, correct_option_index, correct_answer, points FROM questions WHERE id = ?`,
+            `SELECT id, exam_id, question_type, question_text, question_image, options_json, correct_option_index, correct_answer, points, sequence_order FROM questions WHERE id = ?`,
             [resolvedParams.id]
         );
 
@@ -97,6 +97,14 @@ async function handleDelete(
     try {
         const resolvedParams = await context.params;
 
+        // Fetch target question to get exam_id for re-normalization
+        const targetQuestions = await executeQuery<{ exam_id: string }[]>(
+            `SELECT exam_id FROM questions WHERE id = ? LIMIT 1`,
+            [resolvedParams.id]
+        );
+
+        const examId = Array.isArray(targetQuestions) && targetQuestions.length > 0 ? targetQuestions[0].exam_id : null;
+
         const result = await executeQuery<{ affectedRows: number }>(
             `DELETE FROM questions WHERE id = ?`,
             [resolvedParams.id]
@@ -104,6 +112,22 @@ async function handleDelete(
 
         if (result && 'affectedRows' in result && result.affectedRows === 0) {
             return NextResponse.json({ success: false, error: 'Soal tidak ditemukan' }, { status: 404 });
+        }
+
+        // Re-normalize sequence_order for remaining questions of this exam
+        if (examId) {
+            const remaining = await executeQuery<{ id: string }[]>(
+                `SELECT id FROM questions WHERE exam_id = ? ORDER BY sequence_order ASC, id ASC`,
+                [examId]
+            );
+            if (Array.isArray(remaining)) {
+                for (let idx = 0; idx < remaining.length; idx++) {
+                    await executeQuery(
+                        `UPDATE questions SET sequence_order = ? WHERE id = ?`,
+                        [idx + 1, remaining[idx].id]
+                    );
+                }
+            }
         }
 
         return NextResponse.json({ success: true, message: 'Soal berhasil dihapus' });

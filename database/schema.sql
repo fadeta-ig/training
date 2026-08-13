@@ -99,7 +99,9 @@ CREATE TABLE questions (
   correct_option_index INT NULL,
   correct_answer       TEXT NULL,
   points               INT NOT NULL DEFAULT 1,
+  sequence_order       INT NOT NULL DEFAULT 0,
   INDEX idx_questions_exam (exam_id),
+  INDEX idx_questions_exam_order (exam_id, sequence_order),
   CONSTRAINT fk_questions_exam
     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

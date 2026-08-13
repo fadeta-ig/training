@@ -64,6 +64,7 @@ export interface Question {
     correct_option_index: number | null;
     correct_answer: string | null;
     points: number;
+    sequence_order: number;
 }
 
 export interface Module {

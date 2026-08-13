@@ -97,7 +97,7 @@ async function handlePost(
         const questions = await executeQuery<QuestionRow[]>(
             `SELECT id, exam_id, question_type, question_text, question_image,
                     options_json, correct_option_index, correct_answer, points
-             FROM questions WHERE exam_id = ?`,
+             FROM questions WHERE exam_id = ? ORDER BY sequence_order ASC, id ASC`,
             [examId]
         );
 

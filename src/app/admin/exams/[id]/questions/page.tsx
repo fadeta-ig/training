@@ -43,6 +43,7 @@ type Question = {
     correct_option_index: number | null;
     correct_answer: string | null;
     points: number;
+    sequence_order?: number;
 };
 
 type Exam = { id: string; title: string; duration_minutes: number; passing_grade: number };
@@ -363,7 +364,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                         const conf =
                             TYPE_CONFIG[q.question_type || 'multiple_choice'] || TYPE_CONFIG.multiple_choice;
                         const isExp = expandedIds.has(q.id);
-                        const num = questions.findIndex((o) => o.id === q.id) + 1;
+                        const num = q.sequence_order || (questions.findIndex((o) => o.id === q.id) + 1);
 
                         return (
                             <GlassCard

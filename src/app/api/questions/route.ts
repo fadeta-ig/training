@@ -16,17 +16,17 @@ async function handleGet(request: NextRequest) {
         let countQuery = `SELECT COUNT(*) as total FROM questions`;
         const countParams: (string | number)[] = [];
 
-        let query = `SELECT id, exam_id, question_type, question_text, question_image, options_json, correct_option_index, correct_answer, points FROM questions`;
+        let query = `SELECT id, exam_id, question_type, question_text, question_image, options_json, correct_option_index, correct_answer, points, sequence_order FROM questions`;
         const params: (string | number)[] = [];
 
         if (examId) {
             countQuery += ` WHERE exam_id = ?`;
             countParams.push(examId);
 
-            query += ` WHERE exam_id = ? ORDER BY id ASC LIMIT ? OFFSET ?`;
+            query += ` WHERE exam_id = ? ORDER BY sequence_order ASC, id ASC LIMIT ? OFFSET ?`;
             params.push(examId, limit, offset);
         } else {
-            query += ` ORDER BY id DESC LIMIT ? OFFSET ?`;
+            query += ` ORDER BY sequence_order ASC, id ASC LIMIT ? OFFSET ?`;
             params.push(limit, offset);
         }
 
@@ -72,12 +72,19 @@ async function handlePost(request: NextRequest) {
             return NextResponse.json({ success: false, error: 'Ujian tidak ditemukan' }, { status: 404 });
         }
 
+        // Calculate next sequence_order
+        const maxOrderResult = await executeQuery<{ max_order: number }[]>(
+            `SELECT COALESCE(MAX(sequence_order), 0) AS max_order FROM questions WHERE exam_id = ?`,
+            [exam_id]
+        );
+        const nextOrder = (maxOrderResult[0]?.max_order ?? 0) + 1;
+
         const questionId = uuidv4();
 
         const { optionsJson, finalCorrectIndex, finalCorrectAnswer } = buildQuestionData(parsed.data);
 
         await executeQuery(
-            `INSERT INTO questions (id, exam_id, question_type, question_text, question_image, options_json, correct_option_index, correct_answer, points) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO questions (id, exam_id, question_type, question_text, question_image, options_json, correct_option_index, correct_answer, points, sequence_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 questionId,
                 exam_id,
@@ -88,6 +95,7 @@ async function handlePost(request: NextRequest) {
                 finalCorrectIndex,
                 finalCorrectAnswer,
                 points,
+                nextOrder,
             ]
         );
 

@@ -118,21 +118,6 @@ CREATE TABLE modules (
 -- 7. Module Items (Urutan item di dalam modul)
 -- ─────────────────────────────────────────────
 CREATE TABLE module_items (
-
--- ─────────────────────────────────────────────
--- 6. Modules (Learning Path / Kerangka Urutan)
--- ─────────────────────────────────────────────
-CREATE TABLE modules (
-  id          VARCHAR(36)  PRIMARY KEY,
-  title       VARCHAR(150) NOT NULL,
-  description TEXT,
-  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
-
--- ─────────────────────────────────────────────
--- 7. Module Items (Urutan item di dalam modul)
--- ─────────────────────────────────────────────
-CREATE TABLE module_items (
   id             VARCHAR(36) PRIMARY KEY,
   module_id      VARCHAR(36) NOT NULL,
   item_type      ENUM('training', 'exam') NOT NULL,
@@ -162,6 +147,7 @@ CREATE TABLE sessions (
   CONSTRAINT fk_sessions_module
     FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
 -- ─────────────────────────────────────────────
 -- 9. Session Participants (Peserta Terdaftar)
 -- ─────────────────────────────────────────────

@@ -121,18 +121,31 @@ export function validateSebAccess(
                 return;
             }
 
-            // 2. Multi-Candidate URL SHA-256 Hashing for reverse proxy & cross-platform URL differences
+            // 2. Comprehensive Multi-Candidate URL SHA-256 Hashing across Windows, macOS, iOS, and reverse proxies
             const rawUrl = request.url;
             const urlObj = new URL(rawUrl);
             const proto = request.headers.get('x-forwarded-proto') || urlObj.protocol.replace(':', '');
             const host = request.headers.get('x-forwarded-host') || urlObj.host;
             
-            const candidates = [
+            const pathname = urlObj.pathname;
+            const pathnameWithSlash = pathname.endsWith('/') ? pathname : `${pathname}/`;
+            const pathnameNoSlash = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+            const search = urlObj.search;
+
+            const candidates = Array.from(new Set([
                 rawUrl,
-                `${proto}://${host}${urlObj.pathname}${urlObj.search}`,
-                `${proto}://${host}${urlObj.pathname}`,
-                `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`
-            ];
+                `${proto}://${host}${pathname}${search}`,
+                `${proto}://${host}${pathname}`,
+                `${proto}://${host}${pathnameWithSlash}`,
+                `${proto}://${host}${pathnameNoSlash}`,
+                `${proto}://${host}${pathnameWithSlash}${search}`,
+                `${urlObj.protocol}//${urlObj.host}${pathname}`,
+                `${urlObj.protocol}//${urlObj.host}${pathnameWithSlash}`,
+                `http://${host}${pathname}${search}`,
+                `https://${host}${pathname}${search}`,
+                `http://${host}${pathname}`,
+                `https://${host}${pathname}`,
+            ]));
 
             for (const targetUrl of candidates) {
                 const computed = crypto
@@ -145,13 +158,6 @@ export function validateSebAccess(
                     return;
                 }
             }
-
-            // 3. Fallback: Verifiable SEB client with valid SEB headers present
-            if (hasSebHeader) {
-                return;
-            }
-        } else if (hasSebHeader) {
-            return;
         }
 
         logger.warn('SEB_SECURITY', 'Akses ditolak: Hash konfigurasi SEB tidak cocok', {

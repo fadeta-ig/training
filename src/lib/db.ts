@@ -41,6 +41,22 @@ function getPool(): Pool {
 
 const pool = getPool();
 
+export class DatabaseError extends Error {
+  public readonly code?: string;
+  public readonly errno?: number;
+  public readonly sqlState?: string;
+
+  constructor(message: string, originalError?: any) {
+    super(message);
+    this.name = 'DatabaseError';
+    if (originalError && typeof originalError === 'object') {
+      this.code = originalError.code;
+      this.errno = originalError.errno;
+      this.sqlState = originalError.sqlState;
+    }
+  }
+}
+
 /**
  * Type-safe query executor with defensive error handling.
  * Wraps `pool.execute` to avoid repetitive try/catch throughout the codebase.
@@ -55,7 +71,7 @@ export async function executeQuery<T>(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown DB error';
     console.error('[DB_ERROR]', message);
-    throw new Error(`Database operation failed: ${message}`);
+    throw new DatabaseError(`Database operation failed: ${message}`, error);
   }
 }
 

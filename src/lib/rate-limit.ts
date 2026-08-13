@@ -24,13 +24,15 @@ function cleanupStaleEntries(windowMs: number): void {
     if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
 
     lastCleanup = now;
-    const cutoff = now - windowMs;
-    for (const [key, entry] of store) {
-        entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
-        if (entry.timestamps.length === 0) {
-            store.delete(key);
+    queueMicrotask(() => {
+        const cutoff = Date.now() - windowMs;
+        for (const [key, entry] of store) {
+            entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
+            if (entry.timestamps.length === 0) {
+                store.delete(key);
+            }
         }
-    }
+    });
 }
 
 interface RateLimitConfig {

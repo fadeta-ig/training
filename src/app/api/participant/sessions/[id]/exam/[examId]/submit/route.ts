@@ -131,8 +131,24 @@ async function handlePost(
             submittedQuestionIds.add(answer.question_id);
         }
 
+interface ExamRuleRow {
+    passing_grade: number | string;
+    max_attempts: number;
+    allow_remedial: boolean | number;
+    duration_minutes: number;
+}
+
+interface UserProgressLockRow {
+    id: string;
+    attempts_count: number;
+    last_attempt_start: string | Date | null;
+    status: 'locked' | 'open' | 'completed';
+    score: number | string | null;
+    attempt_elapsed_seconds: number | null;
+}
+
         // Fetch exam rules (passing grade, max attempts, remedial permission)
-        const exam = await executeQuery<any[]>(
+        const exam = await executeQuery<ExamRuleRow[]>(
             `SELECT passing_grade, max_attempts, allow_remedial, duration_minutes FROM exams WHERE id = ?`,
             [examId]
         );
@@ -145,7 +161,7 @@ async function handlePost(
             await connection.beginTransaction();
 
             // Get attempt number and apply Row-Level Lock to prevent race condition (Lost Update)
-            const [progressRes] = await connection.execute<any[]>(
+            const [progressRes] = await connection.execute<UserProgressLockRow[] & any[]>(
                 `SELECT id,
                         attempts_count,
                         last_attempt_start,

@@ -45,8 +45,11 @@ async function handleGet(
     try {
         const { id: sessionId, examId } = await context.params;
 
-        await verifyEnrollment(sessionId, user.id);
-        const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId, user.id);
+        // Phase 1: Parallel enrollment + session timing validation
+        const [, { session, isUpcoming, isEnded }] = await Promise.all([
+            verifyEnrollment(sessionId, user.id),
+            validateSessionTiming(sessionId, user.id),
+        ]);
 
         if (isUpcoming) {
             return NextResponse.json({ success: false, error: 'Sesi belum dimulai' }, { status: 400 });
@@ -58,17 +61,20 @@ async function handleGet(
         validateSebAccess(_request, session);
         const moduleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
 
-        // Fetch exam info
-        const exam = await executeQuery<any[]>(
-            `SELECT id, title, duration_minutes, passing_grade, max_attempts, allow_remedial FROM exams WHERE id = ?`,
-            [examId]
-        );
+        // Phase 2: Parallel exam rules + current progress
+        const [exam, currentProgress] = await Promise.all([
+            executeQuery<any[]>(
+                `SELECT id, title, duration_minutes, passing_grade, max_attempts, allow_remedial FROM exams WHERE id = ?`,
+                [examId]
+            ),
+            getItemProgress(sessionId, user.id, moduleItem.id),
+        ]);
+
         if (!exam || exam.length === 0) {
             return NextResponse.json({ success: false, error: 'Ujian tidak ditemukan' }, { status: 404 });
         }
 
         const rules = exam[0];
-        const currentProgress = await getItemProgress(sessionId, user.id, moduleItem.id);
         const canRetake = currentProgress?.status === 'completed'
             && !!rules.allow_remedial
             && Number(currentProgress.score ?? 0) < Number(rules.passing_grade)
@@ -99,43 +105,42 @@ async function handleGet(
             [user.id, sessionId, moduleItem.id]
         );
 
-        // Format UTC explicitly so mysql2 cannot interpret this DATETIME as
-        // local time when serializing it for the browser.
-        const progress = await executeQuery<Array<{
-            attempts_count: number;
-            attempt_version: number;
-            attempt_start_utc: string;
-            server_time_utc: string;
-        }>>(
-            `SELECT up.attempts_count,
-                    up.attempt_version,
-                    DATE_FORMAT(up.last_attempt_start, '%Y-%m-%dT%H:%i:%sZ') AS attempt_start_utc,
-                    DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-%dT%H:%i:%sZ') AS server_time_utc
-             FROM user_progress up
-             WHERE up.user_id = ? AND up.session_id = ? AND up.module_item_id = ?
-             LIMIT 1`,
-            [user.id, sessionId, moduleItem.id]
-        );
+        // Phase 3: Parallel fetch progress + questions
+        const [progress, questions] = await Promise.all([
+            executeQuery<Array<{
+                attempts_count: number;
+                attempt_version: number;
+                attempt_start_utc: string;
+                server_time_utc: string;
+            }>>(
+                `SELECT up.attempts_count,
+                        up.attempt_version,
+                        DATE_FORMAT(up.last_attempt_start, '%Y-%m-%dT%H:%i:%sZ') AS attempt_start_utc,
+                        DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-%dT%H:%i:%sZ') AS server_time_utc
+                 FROM user_progress up
+                 WHERE up.user_id = ? AND up.session_id = ? AND up.module_item_id = ?
+                 LIMIT 1`,
+                [user.id, sessionId, moduleItem.id]
+            ),
+            executeQuery<Array<{
+                id: string;
+                question_type: ExamQuestionType;
+                question_text: string;
+                question_image: string | null;
+                options_json: unknown;
+                points: number;
+            }>>(
+                `SELECT id, question_type, question_text, question_image, options_json, points
+                 FROM questions WHERE exam_id = ? ORDER BY sequence_order ASC, id ASC`,
+                [examId]
+            ),
+        ]);
 
         if (!progress[0]?.attempt_start_utc || !progress[0]?.server_time_utc) {
             throw new Error('Waktu mulai attempt ujian gagal diinisialisasi');
         }
 
         const attemptNumber = Number(progress[0].attempts_count || 0) + 1;
-
-        // Fetch questions (without correct answers for security)
-        const questions = await executeQuery<Array<{
-            id: string;
-            question_type: ExamQuestionType;
-            question_text: string;
-            question_image: string | null;
-            options_json: unknown;
-            points: number;
-        }>>(
-            `SELECT id, question_type, question_text, question_image, options_json, points
-             FROM questions WHERE exam_id = ? ORDER BY sequence_order ASC, id ASC`,
-            [examId]
-        );
 
         // Return only participant-safe fields. Answer keys must never leave the server.
         const sanitized = questions.map((question) => {

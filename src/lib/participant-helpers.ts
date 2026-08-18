@@ -111,51 +111,60 @@ export function validateSebAccess(
         );
     }
 
-    if (session.seb_config_key) {
+    const keysToCheck = Array.from(
+        new Set(
+            [session.seb_config_key, process.env.SEB_CONFIG_KEY_HASH]
+                .filter(Boolean)
+                .map((k) => (k as string).toLowerCase().trim())
+        )
+    );
+
+    if (keysToCheck.length > 0) {
         const clientHash = (configKeyHash || requestHash || '').toLowerCase().trim();
-        const expectedKey = session.seb_config_key.toLowerCase().trim();
 
         if (clientHash) {
-            // 1. Direct key match (raw key or matching pre-computed hash)
-            if (clientHash === expectedKey) {
-                return;
-            }
-
-            // 2. Comprehensive Multi-Candidate URL SHA-256 Hashing across Windows, macOS, iOS, and reverse proxies
-            const rawUrl = request.url;
-            const urlObj = new URL(rawUrl);
-            const proto = request.headers.get('x-forwarded-proto') || urlObj.protocol.replace(':', '');
-            const host = request.headers.get('x-forwarded-host') || urlObj.host;
-            
-            const pathname = urlObj.pathname;
-            const pathnameWithSlash = pathname.endsWith('/') ? pathname : `${pathname}/`;
-            const pathnameNoSlash = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
-            const search = urlObj.search;
-
-            const candidates = Array.from(new Set([
-                rawUrl,
-                `${proto}://${host}${pathname}${search}`,
-                `${proto}://${host}${pathname}`,
-                `${proto}://${host}${pathnameWithSlash}`,
-                `${proto}://${host}${pathnameNoSlash}`,
-                `${proto}://${host}${pathnameWithSlash}${search}`,
-                `${urlObj.protocol}//${urlObj.host}${pathname}`,
-                `${urlObj.protocol}//${urlObj.host}${pathnameWithSlash}`,
-                `http://${host}${pathname}${search}`,
-                `https://${host}${pathname}${search}`,
-                `http://${host}${pathname}`,
-                `https://${host}${pathname}`,
-            ]));
-
-            for (const targetUrl of candidates) {
-                const computed = crypto
-                    .createHash('sha256')
-                    .update(targetUrl + expectedKey)
-                    .digest('hex')
-                    .toLowerCase();
-
-                if (clientHash === computed) {
+            for (const expectedKey of keysToCheck) {
+                // 1. Direct key match (raw key or matching pre-computed hash)
+                if (clientHash === expectedKey) {
                     return;
+                }
+
+                // 2. Comprehensive Multi-Candidate URL SHA-256 Hashing across Windows, macOS, iOS, and reverse proxies
+                const rawUrl = request.url;
+                const urlObj = new URL(rawUrl);
+                const proto = request.headers.get('x-forwarded-proto') || urlObj.protocol.replace(':', '');
+                const host = request.headers.get('x-forwarded-host') || urlObj.host;
+                
+                const pathname = urlObj.pathname;
+                const pathnameWithSlash = pathname.endsWith('/') ? pathname : `${pathname}/`;
+                const pathnameNoSlash = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+                const search = urlObj.search;
+
+                const candidates = Array.from(new Set([
+                    rawUrl,
+                    `${proto}://${host}${pathname}${search}`,
+                    `${proto}://${host}${pathname}`,
+                    `${proto}://${host}${pathnameWithSlash}`,
+                    `${proto}://${host}${pathnameNoSlash}`,
+                    `${proto}://${host}${pathnameWithSlash}${search}`,
+                    `${urlObj.protocol}//${urlObj.host}${pathname}`,
+                    `${urlObj.protocol}//${urlObj.host}${pathnameWithSlash}`,
+                    `http://${host}${pathname}${search}`,
+                    `https://${host}${pathname}${search}`,
+                    `http://${host}${pathname}`,
+                    `https://${host}${pathname}`,
+                ]));
+
+                for (const targetUrl of candidates) {
+                    const computed = crypto
+                        .createHash('sha256')
+                        .update(targetUrl + expectedKey)
+                        .digest('hex')
+                        .toLowerCase();
+
+                    if (clientHash === computed) {
+                        return;
+                    }
                 }
             }
         }

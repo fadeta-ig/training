@@ -17,6 +17,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "LMS Nusamitra Consulting",
   description: "Platform Pelatihan dan Ujian Online Nusamitra Consulting",
+  icons: {
+    icon: [
+      { url: "/logo-nusamitra-tr.png", sizes: "any" },
+      { url: "/logo-nusamitra.png", type: "image/png" },
+    ],
+    shortcut: "/logo-nusamitra-tr.png",
+    apple: "/logo-nusamitra-tr.png",
+  },
 };
 
 export default function RootLayout({

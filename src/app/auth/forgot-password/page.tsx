@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function ForgotPasswordPage() {
     const [username, setUsername] = useState('');
@@ -40,6 +41,17 @@ export default function ForgotPasswordPage() {
         <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 font-sans">
             <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
                 <div className="text-center mb-8">
+                    <div className="flex justify-center mb-4">
+                        <div className="relative w-16 h-16 rounded-2xl bg-white p-2 shadow-lg shadow-black/5 border border-black/5 flex items-center justify-center">
+                            <Image
+                                src="/logo-nusamitra-tr.png"
+                                alt="Logo Nusamitra Consulting"
+                                width={60}
+                                height={60}
+                                className="w-full h-full object-contain"
+                            />
+                        </div>
+                    </div>
                     <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Lupa Password?</h1>
                     <p className="text-sm text-slate-500 mt-2">
                         Masukkan email akun Anda terkait untuk mereset password.

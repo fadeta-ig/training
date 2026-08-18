@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 function ResetPasswordForm() {
     const router = useRouter();
@@ -61,6 +62,17 @@ function ResetPasswordForm() {
     return (
         <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
             <div className="text-center mb-8">
+                <div className="flex justify-center mb-4">
+                    <div className="relative w-16 h-16 rounded-2xl bg-white p-2 shadow-lg shadow-black/5 border border-black/5 flex items-center justify-center">
+                        <Image
+                            src="/logo-nusamitra-tr.png"
+                            alt="Logo Nusamitra Consulting"
+                            width={60}
+                            height={60}
+                            className="w-full h-full object-contain"
+                        />
+                    </div>
+                </div>
                 <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Buat Password Baru</h1>
                 <p className="text-sm text-slate-500 mt-2">
                     Silakan masukkan password baru Anda yang kuat dan mudah diingat.

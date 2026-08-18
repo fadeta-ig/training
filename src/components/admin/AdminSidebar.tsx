@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { NavLink } from '@/components/ui/NavLink';
 import { usePathname } from 'next/navigation';
 import {
@@ -62,17 +63,32 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                 } fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(18rem,calc(100vw-3rem))] shrink-0 flex-col overflow-hidden glass-sidebar transition-[transform,width] duration-300 ease-in-out md:relative md:inset-auto md:h-full`}
             >
                 {/* Logo Area */}
-                <div className={`flex items-center ${isOpen ? 'justify-between px-6' : 'justify-center'} py-5 border-b border-black/5`}>
+                <div className={`flex items-center ${isOpen ? 'justify-between px-6' : 'justify-center'} py-4 border-b border-black/5`}>
                     {isOpen ? (
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center shadow-md shrink-0">
-                                <CubeIcon size={18} />
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-xs border border-black/5 shrink-0 p-1">
+                                <Image
+                                    src="/logo-nusamitra-tr.png"
+                                    alt="Logo Nusamitra Consulting"
+                                    width={32}
+                                    height={32}
+                                    className="w-full h-full object-contain"
+                                />
                             </div>
-                            <h1 className="text-xl font-bold tracking-tight truncate">LMS Admin</h1>
+                            <div className="min-w-0">
+                                <h1 className="text-sm font-bold tracking-tight text-foreground truncate leading-tight">LMS Nusamitra</h1>
+                                <p className="text-[11px] text-muted-foreground font-medium truncate">Admin Hub</p>
+                            </div>
                         </div>
                     ) : (
-                        <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center shadow-md">
-                            <CubeIcon size={18} />
+                        <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-xs border border-black/5 p-1">
+                            <Image
+                                src="/logo-nusamitra-tr.png"
+                                alt="Logo Nusamitra Consulting"
+                                width={32}
+                                height={32}
+                                className="w-full h-full object-contain"
+                            />
                         </div>
                     )}
 

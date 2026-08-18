@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Login02Icon, Key01Icon, UserIcon, Alert02Icon } from 'hugeicons-react';
 
 export default function LoginPage() {
@@ -55,8 +56,17 @@ export default function LoginPage() {
 
             <div className="w-full max-w-md p-8">
                 <div className="mb-8 text-center">
-                    <div className="w-16 h-16 bg-black text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-black/10">
-                        <Key01Icon size={32} />
+                    <div className="flex justify-center mb-5">
+                        <div className="relative w-20 h-20 rounded-2xl bg-white p-2.5 shadow-xl shadow-black/5 border border-black/5 flex items-center justify-center">
+                            <Image
+                                src="/logo-nusamitra-tr.png"
+                                alt="Logo Nusamitra Consulting"
+                                width={80}
+                                height={80}
+                                priority
+                                className="w-full h-full object-contain"
+                            />
+                        </div>
                     </div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">LMS Nusamitra Consulting</h1>
                     <p className="text-muted-foreground mt-2">Masuk untuk melanjutkan ke portal Anda</p>

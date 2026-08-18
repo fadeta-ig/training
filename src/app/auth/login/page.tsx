@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Login02Icon, Key01Icon, UserIcon, Alert02Icon } from 'hugeicons-react';
+import { User, Lock, Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [formData, setFormData] = useState({
         username: '',
@@ -38,103 +39,169 @@ export default function LoginPage() {
                 }
                 router.refresh();
             } else {
-                setError(result.error || 'Login gagal');
+                setError(result.error || 'Username atau password yang Anda masukkan tidak valid.');
             }
         } catch {
-            setError('Terjadi kesalahan koneksi');
+            setError('Terjadi kendala koneksi ke server. Silakan coba lagi.');
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa] relative overflow-hidden">
-            {/* Background elements */}
-            <div className="absolute top-0 right-0 p-12 -z-10 opacity-30 select-none pointer-events-none">
-                <div className="w-[500px] h-[500px] bg-gradient-to-br from-black/5 to-transparent rounded-full blur-3xl absolute -top-40 -right-40" />
+        <div className="min-h-screen w-full flex flex-col lg:flex-row bg-background font-sans antialiased selection:bg-primary/20 selection:text-primary">
+            {/* ── Left Hero Panel (60% Desktop) - Pure Visual & Atmosphere ── */}
+            <div className="hidden lg:flex lg:w-[58%] xl:w-[60%] relative overflow-hidden bg-slate-950 select-none">
+                {/* Background Hero Image */}
+                <Image
+                    src="/images/auth-hero.jpg"
+                    alt="Sesi Pelatihan dan Sertifikasi Profesional Nusamitra"
+                    fill
+                    sizes="(min-width: 1024px) 60vw, 100vw"
+                    priority
+                    className="object-cover object-center transform scale-105 transition-transform duration-1000 ease-out"
+                />
+
+                {/* Ambient Gradient Overlays */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-slate-950/60" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-slate-950/40" />
+
+                {/* Subtle Clean Watermark / Tagline at Bottom */}
+                <div className="absolute bottom-8 left-8 right-8 z-10">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white/90 text-xs font-medium tracking-wide">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        LMS Nusamitra Consulting • Professional Assessment Portal
+                    </div>
+                </div>
             </div>
 
-            <div className="w-full max-w-md p-8">
-                <div className="mb-8 text-center">
-                    <div className="flex justify-center mb-5">
-                        <div className="relative w-20 h-20 rounded-2xl bg-white p-2.5 shadow-xl shadow-black/5 border border-black/5 flex items-center justify-center">
-                            <Image
-                                src="/logo-nusamitra-tr.png"
-                                alt="Logo Nusamitra Consulting"
-                                width={80}
-                                height={80}
-                                priority
-                                className="w-full h-full object-contain"
-                            />
-                        </div>
+            {/* ── Right Login Panel (40% Desktop) - High UX & Clean Form ── */}
+            <div className="w-full lg:w-[42%] xl:w-[40%] flex flex-col justify-between min-h-screen bg-white p-6 sm:p-10 md:p-14 lg:p-10 xl:p-14">
+                {/* Top Section / Header */}
+                <div className="w-full max-w-md mx-auto my-auto py-8">
+                    {/* Brand Logo (Clean, no card border/shadow) */}
+                    <div className="mb-8">
+                        <Image
+                            src="/logo-nusamitra-tr.png"
+                            alt="Nusamitra Consulting"
+                            width={180}
+                            height={52}
+                            priority
+                            className="h-12 w-auto object-contain"
+                        />
                     </div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">LMS Nusamitra Consulting</h1>
-                    <p className="text-muted-foreground mt-2">Masuk untuk melanjutkan ke portal Anda</p>
-                </div>
 
-                <div className="glass-card p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">
+                    {/* Page Title & Instructions */}
+                    <div className="space-y-2 mb-8">
+                        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                            Masuk ke Akun
+                        </h1>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            Silakan masukkan kredensial akun Anda untuk melanjutkan ke portal pelatihan dan ujian.
+                        </p>
+                    </div>
+
+                    {/* Error Banner */}
                     {error && (
-                        <div className="mb-6 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl flex items-center gap-3 text-sm font-medium">
-                            <Alert02Icon size={18} className="shrink-0" />
-                            {error}
+                        <div
+                            role="alert"
+                            className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-start gap-3 animate-in fade-in slide-in-from-top-1 duration-200"
+                        >
+                            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                            <span className="font-medium">{error}</span>
                         </div>
                     )}
 
+                    {/* Login Form */}
                     <form onSubmit={handleSubmit} className="space-y-5">
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-foreground">Username</label>
-                            <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                    <UserIcon size={18} />
+                        {/* Username Input */}
+                        <div className="space-y-1.5">
+                            <label className="block text-xs font-semibold text-foreground/80 tracking-wider uppercase">
+                                Username
+                            </label>
+                            <div className="relative flex items-center">
+                                <span className="absolute left-3.5 text-muted-foreground pointer-events-none">
+                                    <User className="w-4 h-4" />
                                 </span>
                                 <input
                                     type="text"
                                     required
-                                    className="w-full glass-input pl-11 pr-4 py-3 rounded-xl text-sm focus:outline-none"
-                                    placeholder="Masukkan username"
+                                    autoComplete="username"
+                                    className="w-full h-12 pl-10 pr-4 rounded-xl bg-slate-50/70 border border-slate-200 text-sm text-foreground placeholder:text-muted-foreground/70 focus:bg-white focus:outline-none focus:border-foreground focus:ring-4 focus:ring-foreground/5 transition-all"
+                                    placeholder="Masukkan username Anda"
                                     value={formData.username}
                                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                 />
                             </div>
                         </div>
 
-                        <div className="space-y-2">
+                        {/* Password Input with Show/Hide Toggle */}
+                        <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                                <label className="text-sm font-bold text-foreground">Password</label>
-                                <Link href="/auth/forgot-password" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors">
+                                <label className="block text-xs font-semibold text-foreground/80 tracking-wider uppercase">
+                                    Password
+                                </label>
+                                <Link
+                                    href="/auth/forgot-password"
+                                    className="text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors"
+                                >
                                     Lupa Password?
                                 </Link>
                             </div>
-                            <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                    <Key01Icon size={18} />
+                            <div className="relative flex items-center">
+                                <span className="absolute left-3.5 text-muted-foreground pointer-events-none">
+                                    <Lock className="w-4 h-4" />
                                 </span>
                                 <input
-                                    type="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     required
-                                    className="w-full glass-input pl-11 pr-4 py-3 rounded-xl text-sm focus:outline-none"
+                                    autoComplete="current-password"
+                                    className="w-full h-12 pl-10 pr-11 rounded-xl bg-slate-50/70 border border-slate-200 text-sm text-foreground placeholder:text-muted-foreground/70 focus:bg-white focus:outline-none focus:border-foreground focus:ring-4 focus:ring-foreground/5 transition-all"
                                     placeholder="••••••••"
                                     value={formData.password}
                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                                    className="absolute right-3 text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors focus:outline-none"
+                                >
+                                    {showPassword ? (
+                                        <EyeOff className="w-4 h-4" />
+                                    ) : (
+                                        <Eye className="w-4 h-4" />
+                                    )}
+                                </button>
                             </div>
                         </div>
 
+                        {/* Submit Button */}
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full mt-2 bg-foreground text-background font-semibold px-6 py-3.5 rounded-xl hover:bg-foreground/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-black/10 focus:ring-2 focus:ring-ring focus:outline-none active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none"
+                            className="w-full h-12 mt-3 rounded-xl bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-4 focus:ring-foreground/10"
                         >
                             {isLoading ? (
-                                <div className="w-5 h-5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span>Memverifikasi Akun...</span>
+                                </>
                             ) : (
                                 <>
-                                    <Login02Icon size={20} />
-                                    Masuk ke Dashboard
+                                    <span>Masuk ke Dashboard</span>
+                                    <ArrowRight className="w-4 h-4" />
                                 </>
                             )}
                         </button>
                     </form>
+                </div>
+
+                {/* Footer Info */}
+                <div className="w-full max-w-md mx-auto pt-6 text-center lg:text-left border-t border-slate-100">
+                    <p className="text-xs text-muted-foreground">
+                        © {new Date().getFullYear()} Nusamitra Consulting. Hak Cipta Dilindungi.
+                    </p>
                 </div>
             </div>
         </div>

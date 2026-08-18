@@ -87,7 +87,7 @@ type ExamResult = {
     show_score?: boolean;
 };
 
-type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+type SaveState = 'idle' | 'saving' | 'saved' | 'offline' | 'error';
 
 function getOptions(question: Question) {
     const parsed = parseOptionsJson(question.options_json);
@@ -135,7 +135,7 @@ function AnswerEditor({
                             className={cn(
                                 'flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors',
                                 selected
-                                    ? 'border-foreground bg-muted/70'
+                                    ? 'border-primary/80 bg-primary/5 text-foreground ring-1 ring-primary/40'
                                     : 'border-border bg-background hover:bg-muted/40',
                             )}
                         >
@@ -170,7 +170,7 @@ function AnswerEditor({
                             htmlFor={`${question.id}-multi-${index}`}
                             className={cn(
                                 'flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors',
-                                checked ? 'border-foreground bg-muted/70' : 'border-border hover:bg-muted/40',
+                                checked ? 'border-primary/80 bg-primary/5 text-foreground ring-1 ring-primary/40' : 'border-border hover:bg-muted/40',
                             )}
                         >
                             <Checkbox
@@ -294,17 +294,25 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [answers, setAnswers] = useState<Record<string, string>>({});
+    const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
     const [currentIdx, setCurrentIdx] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
     const [result, setResult] = useState<ExamResult | null>(null);
     const isSeb = useIsSeb();
+    const [isOnline, setIsOnline] = useState(true);
     const [saveState, setSaveState] = useState<SaveState>('idle');
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [mobilePaletteOpen, setMobilePaletteOpen] = useState(false);
+
     const answersRef = useRef(answers);
     const dirtyQuestionIdsRef = useRef(new Set<string>());
     const autosaveTimerRef = useRef<number | null>(null);
     const deadlineRef = useRef<number | null>(null);
     const serverClockOffsetRef = useRef(0);
+
+    const warned15MinRef = useRef(false);
+    const warned5MinRef = useRef(false);
+    const warned1MinRef = useRef(false);
 
     useAntiCheat(!!examData && !result && !error);
 
@@ -312,15 +320,57 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         answersRef.current = answers;
     }, [answers]);
 
+    // Initialize online state & restore local flags and draft fallback
+    useEffect(() => {
+        setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+        try {
+            const savedFlags = localStorage.getItem(`exam_flags_${sessionId}_${examId}`);
+            if (savedFlags) {
+                const parsed = JSON.parse(savedFlags);
+                if (Array.isArray(parsed)) {
+                    setFlaggedIds(new Set(parsed));
+                }
+            }
+        } catch {}
+    }, [examId, sessionId]);
+
+    const toggleFlag = useCallback((questionId: string) => {
+        setFlaggedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(questionId)) {
+                next.delete(questionId);
+            } else {
+                next.add(questionId);
+            }
+            try {
+                localStorage.setItem(`exam_flags_${sessionId}_${examId}`, JSON.stringify(Array.from(next)));
+            } catch {}
+            return next;
+        });
+    }, [examId, sessionId]);
+
     const handleAnswerChange = useCallback((questionId: string, value: string) => {
         if (answersRef.current[questionId] === value) return;
         dirtyQuestionIdsRef.current.add(questionId);
         setSaveState('idle');
-        setAnswers((previous) => ({ ...previous, [questionId]: value }));
-    }, []);
+        setAnswers((previous) => {
+            const next = { ...previous, [questionId]: value };
+            try {
+                localStorage.setItem(`exam_draft_${sessionId}_${examId}`, JSON.stringify(next));
+            } catch {}
+            return next;
+        });
+    }, [examId, sessionId]);
 
     const saveDraft = useCallback(async () => {
         if (!examData || dirtyQuestionIdsRef.current.size === 0 || submitting || result) return;
+
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setSaveState('offline');
+            return;
+        }
+
         const questionIds = [...dirtyQuestionIdsRef.current];
         const payload = questionIds.map((questionId) => ({
             question_id: questionId,
@@ -357,10 +407,36 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             }
             setSaveState(dirtyQuestionIdsRef.current.size === 0 ? 'saved' : 'idle');
         } catch {
-            setSaveState('error');
+            setSaveState(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'error');
         }
     }, [examData, examId, result, sessionId, submitting]);
 
+    // Network connectivity listeners & auto-sync
+    useEffect(() => {
+        const handleOnline = () => {
+            setIsOnline(true);
+            toast.success('Koneksi Internet Pulih', {
+                description: 'Menyinkronkan draft jawaban ke server...',
+            });
+            saveDraft();
+        };
+        const handleOffline = () => {
+            setIsOnline(false);
+            setSaveState('offline');
+            toast.warning('Koneksi Internet Terputus', {
+                description: 'Jawaban Anda tetap aman tersimpan di memori perangkat lokal.',
+            });
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, [saveDraft]);
+
+    // Debounced autosave
     useEffect(() => {
         if (!examData || dirtyQuestionIdsRef.current.size === 0) return;
         if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
@@ -394,6 +470,10 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             const data = await response.json();
             if (!response.ok || !data.success) throw new Error(data.error || 'Gagal mengirim jawaban ujian');
             dirtyQuestionIdsRef.current.clear();
+            try {
+                localStorage.removeItem(`exam_draft_${sessionId}_${examId}`);
+                localStorage.removeItem(`exam_flags_${sessionId}_${examId}`);
+            } catch {}
             setResult(data.data);
             toast.success('Jawaban ujian berhasil dikirim');
         } catch (submitError) {
@@ -405,8 +485,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         }
     }, [examData, examId, sessionId, submitting]);
 
-
-
+    // Initial Exam Fetch with Server NTP Offset
     useEffect(() => {
         let cancelled = false;
         fetch(`/api/participant/sessions/${sessionId}/exam/${examId}`)
@@ -417,10 +496,23 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             })
             .then((data) => {
                 if (cancelled) return;
-                const restored = Object.fromEntries(
+                const serverAnswers = Object.fromEntries(
                     data.existingAnswers.map((answer) => [answer.question_id, answer.selected_option]),
                 );
-                setAnswers(restored);
+
+                // Check if there is local draft fallback
+                let finalAnswers = serverAnswers;
+                try {
+                    const localDraftStr = localStorage.getItem(`exam_draft_${sessionId}_${examId}`);
+                    if (localDraftStr) {
+                        const localDraft = JSON.parse(localDraftStr);
+                        if (localDraft && typeof localDraft === 'object') {
+                            finalAnswers = { ...serverAnswers, ...localDraft };
+                        }
+                    }
+                } catch {}
+
+                setAnswers(finalAnswers);
 
                 const durationMs = Number(data.exam.duration_minutes) * 60 * 1000;
                 const serverNow = new Date(data.serverTime).getTime();
@@ -447,6 +539,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         };
     }, [examId, sessionId]);
 
+    // Sync timer every second
     useEffect(() => {
         if (result || error || !examData || deadlineRef.current === null) return;
         const syncTimer = () => {
@@ -462,6 +555,31 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         };
     }, [error, examData, result]);
 
+    // Smart Timer Warning Triggers
+    useEffect(() => {
+        if (!examData || result || error || timeLeft <= 0) return;
+
+        if (timeLeft <= 15 * 60 && timeLeft > 14 * 60 && !warned15MinRef.current) {
+            warned15MinRef.current = true;
+            toast.info('Peringatan Sisa Waktu', {
+                description: 'Sisa waktu ujian Anda adalah 15 menit.',
+            });
+        }
+        if (timeLeft <= 5 * 60 && timeLeft > 4 * 60 && !warned5MinRef.current) {
+            warned5MinRef.current = true;
+            toast.warning('Peringatan Sisa Waktu', {
+                description: 'Sisa waktu ujian 5 menit! Harap tinjau kembali soal yang ragu-ragu/kosong.',
+            });
+        }
+        if (timeLeft <= 60 && timeLeft > 0 && !warned1MinRef.current) {
+            warned1MinRef.current = true;
+            toast.error('Waktu Hampir Habis', {
+                description: 'Sisa waktu tinggal 1 menit! Sistem akan mengirimkan jawaban Anda secara otomatis.',
+            });
+        }
+    }, [error, examData, result, timeLeft]);
+
+    // Auto submit on time expiry
     useEffect(() => {
         if (examData && deadlineRef.current !== null && timeLeft <= 0 && !result && !error && !submitting) {
             submitExam();
@@ -469,12 +587,35 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     }, [error, examData, result, submitExam, submitting, timeLeft]);
 
     const questions = useMemo(() => examData?.questions || [], [examData]);
+
     const answeredCount = useMemo(
         () => questions.filter((question) => isAnswerComplete(question, answers[question.id] || '')).length,
         [answers, questions],
     );
+
+    const flaggedCount = useMemo(
+        () => questions.filter((question) => flaggedIds.has(question.id)).length,
+        [flaggedIds, questions],
+    );
+
+    const confidentAnsweredCount = useMemo(
+        () => questions.filter((question) => isAnswerComplete(question, answers[question.id] || '') && !flaggedIds.has(question.id)).length,
+        [answers, flaggedIds, questions],
+    );
+
     const unansweredCount = questions.length - answeredCount;
     const progressValue = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
+
+    const uncompletedOrFlaggedList = useMemo(() => {
+        return questions
+            .map((q, idx) => ({
+                question: q,
+                index: idx,
+                isComplete: isAnswerComplete(q, answers[q.id] || ''),
+                isFlagged: flaggedIds.has(q.id),
+            }))
+            .filter((item) => !item.isComplete || item.isFlagged);
+    }, [answers, flaggedIds, questions]);
 
     const formatTime = (seconds: number) => {
         const minutes = Math.floor(seconds / 60);
@@ -580,18 +721,101 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     }
 
     const currentQuestion = questions[currentIdx];
-    const lowTime = timeLeft <= 5 * 60;
+    const isCurrentFlagged = flaggedIds.has(currentQuestion.id);
+    const criticalTime = timeLeft <= 3 * 60;
+    const warningTime = timeLeft <= 10 * 60 && !criticalTime;
+
     const saveLabel = saveState === 'saving'
-        ? 'Menyimpan'
-        : saveState === 'error'
-            ? 'Belum tersimpan'
-            : saveState === 'saved'
-                ? 'Tersimpan'
-                : 'Autosave aktif';
-    const SaveIcon = saveState === 'saving' ? CloudUpload : saveState === 'error' ? CloudAlert : Cloud;
+        ? 'Menyimpan draft...'
+        : saveState === 'offline'
+            ? 'Offline - Tersimpan di cache lokal'
+            : saveState === 'error'
+                ? 'Gagal menyimpan ke server'
+                : saveState === 'saved'
+                    ? 'Tersimpan ke server'
+                    : 'Autosave siap';
+
+    const SaveIcon = saveState === 'saving'
+        ? CloudUpload
+        : saveState === 'offline'
+            ? CloudAlert
+            : saveState === 'error'
+                ? CloudAlert
+                : Cloud;
+
+    const renderQuestionPalette = (isDrawer = false) => (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Palet Soal</span>
+                <span className="text-xs font-mono font-medium text-muted-foreground">
+                    {answeredCount}/{questions.length} Selesai
+                </span>
+            </div>
+
+            {/* Color Legend */}
+            <div className="grid grid-cols-3 gap-1 text-[10px] text-muted-foreground border-y py-2">
+                <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span>Yakin ({confidentAnsweredCount})</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-amber-500 shrink-0" />
+                    <span>Ragu ({flaggedCount})</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-slate-300 shrink-0" />
+                    <span>Kosong ({unansweredCount})</span>
+                </div>
+            </div>
+
+            {/* Question Buttons Grid */}
+            <nav
+                aria-label="Navigasi soal"
+                className={cn(
+                    'grid grid-cols-5 gap-2 max-h-[50vh] overflow-y-auto p-0.5',
+                    isDrawer && 'grid-cols-6 sm:grid-cols-8'
+                )}
+            >
+                {questions.map((question, index) => {
+                    const complete = isAnswerComplete(question, answers[question.id] || '');
+                    const flagged = flaggedIds.has(question.id);
+                    const active = index === currentIdx;
+
+                    let buttonStyle = 'bg-background text-muted-foreground border-border hover:bg-muted/50';
+                    if (flagged) {
+                        buttonStyle = 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 font-semibold';
+                    } else if (complete) {
+                        buttonStyle = 'bg-emerald-100 text-emerald-900 border-emerald-300/80 hover:bg-emerald-200 font-semibold';
+                    }
+
+                    return (
+                        <button
+                            key={question.id}
+                            type="button"
+                            onClick={() => {
+                                setCurrentIdx(index);
+                                if (isDrawer) setMobilePaletteOpen(false);
+                            }}
+                            className={cn(
+                                'h-9 w-full rounded-lg border text-xs font-mono font-medium transition-all relative flex items-center justify-center',
+                                buttonStyle,
+                                active && 'ring-2 ring-primary ring-offset-2 scale-105 font-bold shadow-xs'
+                            )}
+                            aria-label={`Soal ${index + 1}${flagged ? ', ragu-ragu' : complete ? ', sudah dijawab' : ', belum dijawab'}`}
+                        >
+                            {index + 1}
+                            {flagged && (
+                                <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-500 border border-white" />
+                            )}
+                        </button>
+                    );
+                })}
+            </nav>
+        </div>
+    );
 
     return (
-        <div className="min-h-dvh bg-muted/30 text-foreground">
+        <div className="min-h-dvh bg-muted/30 text-foreground pb-20 lg:pb-12">
             {examData.enableProctoring && (
                 <WebcamProctor
                     sessionId={sessionId}
@@ -604,82 +828,114 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 xl:pr-44">
                     <div className="min-w-0 flex-1">
                         <h1 className="truncate text-sm font-semibold sm:text-base">{examData.exam.title}</h1>
-                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                             <span>Soal {currentIdx + 1} / {questions.length}</span>
-                            <span aria-hidden="true">|</span>
-                            <span>{answeredCount} dijawab</span>
+                            <span aria-hidden="true">•</span>
+                            <span className="text-emerald-700 font-medium">{answeredCount} dijawab</span>
+                            {flaggedCount > 0 && (
+                                <>
+                                    <span aria-hidden="true">•</span>
+                                    <span className="text-amber-700 font-medium">{flaggedCount} ragu-ragu</span>
+                                </>
+                            )}
                         </div>
                     </div>
+
+                    {/* Sync Status Badge */}
                     <div className={cn(
-                        'flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 font-mono text-base font-semibold tabular-nums',
-                        lowTime ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'bg-muted/50',
+                        'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border',
+                        saveState === 'offline'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : saveState === 'error'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : saveState === 'saving'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
+                    )}>
+                        <SaveIcon className={cn('size-3.5', saveState === 'saving' && 'animate-spin')} />
+                        <span>{saveLabel}</span>
+                    </div>
+
+                    {/* Timer Badge */}
+                    <div className={cn(
+                        'flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 font-mono text-base font-semibold tabular-nums shadow-2xs transition-colors',
+                        criticalTime
+                            ? 'border-destructive bg-destructive/10 text-destructive animate-pulse'
+                            : warningTime
+                                ? 'border-amber-400 bg-amber-50 text-amber-900'
+                                : 'border-black/5 bg-background text-foreground',
                     )} aria-label={`Sisa waktu ${formatTime(timeLeft)}`}>
-                        <Clock3 className="size-4" />
-                        {formatTime(timeLeft)}
+                        <Clock3 className={cn('size-4', criticalTime && 'text-destructive', warningTime && 'text-amber-600')} />
+                        <span>{formatTime(timeLeft)}</span>
                     </div>
                 </div>
                 <Progress value={progressValue} className="gap-0 [&_[data-slot=progress-track]]:h-1 [&_[data-slot=progress-track]]:rounded-none" aria-label={`${answeredCount} dari ${questions.length} soal dijawab`} />
             </header>
 
-            <main className="mx-auto grid max-w-6xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[210px_minmax(0,1fr)] lg:py-7 xl:pr-44">
-                <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start">
-                    <div className="rounded-lg border bg-background p-3">
-                        <div className="mb-3 flex items-center justify-between">
-                            <span className="text-xs font-medium text-muted-foreground">Daftar soal</span>
-                            <Badge variant="secondary">{answeredCount}/{questions.length}</Badge>
-                        </div>
-                        <nav aria-label="Navigasi soal" className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-5 lg:overflow-visible">
-                            {questions.map((question, index) => {
-                                const complete = isAnswerComplete(question, answers[question.id] || '');
-                                const active = index === currentIdx;
-                                return (
-                                    <Button
-                                        key={question.id}
-                                        type="button"
-                                        variant={active ? 'default' : complete ? 'secondary' : 'outline'}
-                                        size="icon"
-                                        className={cn(
-                                            'size-9 shrink-0 tabular-nums',
-                                            complete && !active && 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
-                                        )}
-                                        onClick={() => setCurrentIdx(index)}
-                                        aria-label={`Soal ${index + 1}${complete ? ', sudah dijawab' : ', belum dijawab'}`}
-                                        aria-current={active ? 'step' : undefined}
-                                    >
-                                        {index + 1}
-                                    </Button>
-                                );
-                            })}
-                        </nav>
+            <main className="mx-auto grid max-w-6xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[230px_minmax(0,1fr)] lg:py-7 xl:pr-44">
+                {/* Desktop Question Palette Sidebar */}
+                <aside className="hidden lg:block min-w-0 lg:sticky lg:top-24 lg:self-start">
+                    <div className="rounded-xl border border-black/5 bg-background p-4 shadow-2xs space-y-3">
+                        {renderQuestionPalette(false)}
+
                         <div className={cn(
-                            'mt-3 flex items-center gap-2 border-t pt-3 text-xs',
-                            saveState === 'error' ? 'text-destructive' : 'text-muted-foreground',
+                            'flex items-center gap-2 border-t pt-3 text-xs',
+                            saveState === 'offline'
+                                ? 'text-amber-700 font-medium'
+                                : saveState === 'error'
+                                    ? 'text-destructive font-medium'
+                                    : 'text-muted-foreground'
                         )} aria-live="polite">
-                            <SaveIcon className={cn('size-3.5', saveState === 'saving' && 'animate-pulse')} />
-                            {saveLabel}
+                            <SaveIcon className={cn('size-3.5', saveState === 'saving' && 'animate-spin')} />
+                            <span className="truncate">{saveLabel}</span>
                         </div>
                     </div>
                 </aside>
 
+                {/* Main Question & Answer Section */}
                 <section className="min-w-0 space-y-4">
-                    <Card className="rounded-lg shadow-sm">
-                        <CardHeader className="border-b">
-                            <div className="flex items-center justify-between gap-3">
-                                <Badge variant="outline">Soal {currentIdx + 1}</Badge>
-                                <span className="text-xs font-medium text-muted-foreground">{currentQuestion.points} poin</span>
+                    <Card className="rounded-xl border-black/5 shadow-2xs overflow-hidden">
+                        <CardHeader className="border-b bg-slate-50/40 p-4 sm:p-5">
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="font-mono text-xs">
+                                        Soal {currentIdx + 1}
+                                    </Badge>
+                                    <span className="text-xs font-medium text-muted-foreground">{currentQuestion.points} Poin</span>
+                                </div>
+
+                                {/* Toggle Ragu-Ragu Button */}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => toggleFlag(currentQuestion.id)}
+                                    className={cn(
+                                        'gap-1.5 transition-all text-xs font-semibold h-8 rounded-lg shadow-2xs',
+                                        isCurrentFlagged
+                                            ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600 hover:text-white'
+                                            : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+                                    )}
+                                >
+                                    <span className={cn('size-2 rounded-full', isCurrentFlagged ? 'bg-white' : 'bg-amber-500')} />
+                                    {isCurrentFlagged ? 'Ditandai Ragu-Ragu' : 'Tandai Ragu-Ragu'}
+                                </Button>
                             </div>
-                            <CardTitle className="whitespace-pre-wrap break-words text-base font-medium leading-7 sm:text-lg">
+
+                            <CardTitle className="whitespace-pre-wrap break-words text-base font-semibold leading-relaxed sm:text-lg pt-2 text-foreground">
                                 {currentQuestion.question_text}
                             </CardTitle>
+
                             {currentQuestion.question_image && (
                                 <img
                                     src={currentQuestion.question_image}
                                     alt="Gambar soal"
-                                    className="max-h-80 max-w-full rounded-lg border object-contain"
+                                    className="max-h-80 max-w-full rounded-lg border object-contain mt-3"
                                 />
                             )}
                         </CardHeader>
-                        <CardContent className="py-5 sm:py-6">
+
+                        <CardContent className="p-4 sm:p-6">
                             <AnswerEditor
                                 question={currentQuestion}
                                 value={answers[currentQuestion.id] || ''}
@@ -690,54 +946,178 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 </section>
             </main>
 
-            <footer className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
-                <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 xl:pr-44">
+            {/* Mobile Bottom Sticky Navigation Bar */}
+            <footer className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 shadow-lg">
+                <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:px-6 xl:pr-44">
                     <Button
                         type="button"
                         variant="outline"
-                        size="lg"
+                        size="sm"
                         disabled={currentIdx === 0 || submitting}
                         onClick={() => setCurrentIdx((index) => Math.max(0, index - 1))}
+                        className="h-9 px-3 rounded-lg"
                     >
-                        <ArrowLeft />
-                        <span className="hidden sm:inline">Sebelumnya</span>
+                        <ArrowLeft className="size-4" />
+                        <span className="hidden sm:inline ml-1">Sebelumnya</span>
                     </Button>
+
+                    {/* Mobile Center Palette Button */}
+                    <div className="flex lg:hidden items-center gap-1.5">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setMobilePaletteOpen(true)}
+                            className="h-9 px-3 text-xs font-semibold rounded-lg flex items-center gap-1.5 bg-slate-100"
+                        >
+                            <span>Daftar Soal</span>
+                            <span className="px-1.5 py-0.5 rounded bg-slate-200 text-[11px] font-mono">
+                                {currentIdx + 1}/{questions.length}
+                            </span>
+                            {flaggedCount > 0 && (
+                                <span className="size-2 rounded-full bg-amber-500" />
+                            )}
+                        </Button>
+                    </div>
 
                     {currentIdx < questions.length - 1 ? (
                         <Button
                             type="button"
-                            size="lg"
+                            size="sm"
                             disabled={submitting}
                             onClick={() => setCurrentIdx((index) => Math.min(questions.length - 1, index + 1))}
+                            className="h-9 px-3 rounded-lg"
                         >
-                            Selanjutnya <ArrowRight />
+                            <span className="hidden sm:inline mr-1">Selanjutnya</span>
+                            <ArrowRight className="size-4" />
                         </Button>
                     ) : (
-                        <Button type="button" size="lg" disabled={submitting} onClick={() => setConfirmOpen(true)}>
-                            {submitting ? <span className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" /> : <Send />}
-                            Kirim ujian
+                        <Button
+                            type="button"
+                            size="sm"
+                            disabled={submitting}
+                            onClick={() => setConfirmOpen(true)}
+                            className="h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-2xs"
+                        >
+                            {submitting ? (
+                                <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                            ) : (
+                                <Send className="size-4 mr-1.5" />
+                            )}
+                            Kirim Ujian
                         </Button>
                     )}
                 </div>
             </footer>
 
+            {/* Mobile Slide-Up Question Palette Bottom Sheet */}
+            {mobilePaletteOpen && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs animate-in fade-in duration-150 lg:hidden">
+                    <div className="w-full bg-background rounded-t-2xl border-t border-black/10 p-5 space-y-4 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
+                        <div className="flex items-center justify-between border-b pb-3">
+                            <h3 className="text-sm font-semibold text-foreground">Palet Nomor Soal</h3>
+                            <button
+                                type="button"
+                                onClick={() => setMobilePaletteOpen(false)}
+                                className="p-1 rounded-lg hover:bg-muted text-muted-foreground"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {renderQuestionPalette(true)}
+
+                        <div className="pt-2 border-t flex justify-end">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setMobilePaletteOpen(false)}
+                                className="w-full sm:w-auto text-xs"
+                            >
+                                Tutup Palet
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Submission Checklist Breakdown Modal */}
             <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-                <AlertDialogContent>
+                <AlertDialogContent className="max-w-md rounded-2xl p-5 sm:p-6 space-y-4">
                     <AlertDialogHeader>
                         <AlertDialogMedia>
-                            {unansweredCount > 0 ? <AlertCircle className="text-amber-600" /> : <CheckCircle2 className="text-emerald-600" />}
+                            {unansweredCount > 0 ? (
+                                <AlertCircle className="size-10 text-amber-600" />
+                            ) : (
+                                <CheckCircle2 className="size-10 text-emerald-600" />
+                            )}
                         </AlertDialogMedia>
-                        <AlertDialogTitle>Kirim jawaban ujian?</AlertDialogTitle>
+                        <AlertDialogTitle className="text-base font-bold text-foreground">
+                            Konfirmasi Pengumpulan Ujian
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                            {unansweredCount > 0
-                                ? `${unansweredCount} soal masih belum dijawab. Jawaban tidak dapat diubah setelah dikirim.`
-                                : 'Semua soal sudah dijawab. Jawaban tidak dapat diubah setelah dikirim.'}
+                            {unansweredCount > 0 || flaggedCount > 0
+                                ? 'Periksa kembali status pengerjaan soal Anda sebelum mengirimkan secara final. Jawaban tidak dapat diubah setelah dikirim.'
+                                : 'Seluruh soal telah dijawab dengan yakin. Jawaban tidak dapat diubah setelah dikirim.'}
                         </AlertDialogDescription>
+
+                        {/* Stats Breakdown Grid */}
+                        <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 border border-black/5 text-center w-full">
+                            <div className="p-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/60">
+                                <span className="text-[10px] block font-medium uppercase tracking-wider">Yakin</span>
+                                <span className="text-base font-bold font-mono">{confidentAnsweredCount}</span>
+                            </div>
+                            <div className="p-2 rounded-lg bg-amber-50 text-amber-800 border border-amber-200/60">
+                                <span className="text-[10px] block font-medium uppercase tracking-wider">Ragu</span>
+                                <span className="text-base font-bold font-mono">{flaggedCount}</span>
+                            </div>
+                            <div className="p-2 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
+                                <span className="text-[10px] block font-medium uppercase tracking-wider">Kosong</span>
+                                <span className="text-base font-bold font-mono">{unansweredCount}</span>
+                            </div>
+                        </div>
+
+                        {/* Direct Jump List for Incomplete/Flagged Questions */}
+                        {uncompletedOrFlaggedList.length > 0 && (
+                            <div className="space-y-1.5 pt-1 text-left w-full">
+                                <span className="text-[11px] font-semibold text-foreground block">
+                                    Perlu Ditinjau (Klik nomor untuk lompat langsung):
+                                </span>
+                                <div className="flex items-center gap-1.5 flex-wrap max-h-24 overflow-y-auto p-1 bg-white rounded-lg border border-black/5">
+                                    {uncompletedOrFlaggedList.map((item) => (
+                                        <button
+                                            key={item.question.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setCurrentIdx(item.index);
+                                                setConfirmOpen(false);
+                                            }}
+                                            className={cn(
+                                                'px-2.5 py-1 rounded-md text-xs font-mono font-semibold border transition-colors hover:scale-105',
+                                                item.isFlagged
+                                                    ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
+                                                    : 'bg-red-50 text-red-800 border-red-200 hover:bg-red-100'
+                                            )}
+                                        >
+                                            Soal {item.index + 1}
+                                            {item.isFlagged ? ' (Ragu)' : ' (Kosong)'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={submitting}>Periksa lagi</AlertDialogCancel>
-                        <AlertDialogAction disabled={submitting} onClick={submitExam}>
-                            <Send /> Kirim jawaban
+
+                    <AlertDialogFooter className="gap-2 pt-2 border-t">
+                        <AlertDialogCancel disabled={submitting} className="rounded-xl text-xs">
+                            Periksa Lagi
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={submitting}
+                            onClick={submitExam}
+                            className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                        >
+                            {submitting ? 'Mengirim...' : 'Kirim Jawaban Sekarang'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -745,3 +1125,4 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         </div>
     );
 }
+

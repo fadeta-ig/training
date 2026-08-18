@@ -59,35 +59,40 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [userRole, setUserRole] = useState<string>('');
     const [searchParticipant, setSearchParticipant] = useState('');
 
+    // Bulk Time Extension State
+    const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+    const [showBulkTimeModal, setShowBulkTimeModal] = useState(false);
+    const [bulkExtraMinutes, setBulkExtraMinutes] = useState<number>(15);
+    const [bulkReason, setBulkReason] = useState<string>('');
+    const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
 
+    const fetchSession = async () => {
+        try {
+            const res = await fetch(`/api/sessions/${resolvedParams.id}`);
+            const data = await res.json();
+            if (data.success) {
+                setSession(data.data);
+            } else {
+                setError('Terjadi kesalahan saat memuat data sesi.');
+            }
+        } catch {
+            setError('Masalah koneksi jaringan.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchRole = async () => {
+        try {
+            const res = await fetch('/api/auth/me');
+            const data = await res.json();
+            if (data.success) {
+                setUserRole(data.data.role);
+            }
+        } catch {}
+    };
 
     useEffect(() => {
-        const fetchSession = async () => {
-            try {
-                const res = await fetch(`/api/sessions/${resolvedParams.id}`);
-                const data = await res.json();
-                if (data.success) {
-                    setSession(data.data);
-                } else {
-                    setError('Terjadi kesalahan saat memuat data sesi.');
-                }
-            } catch {
-                setError('Masalah koneksi jaringan.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        const fetchRole = async () => {
-            try {
-                const res = await fetch('/api/auth/me');
-                const data = await res.json();
-                if (data.success) {
-                    setUserRole(data.data.role);
-                }
-            } catch {}
-        };
-
         fetchSession();
         fetchRole();
     }, [resolvedParams.id]);
@@ -166,6 +171,60 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
             </div>
         );
     }
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedParticipantIds(filteredParticipants.map((p) => p.id));
+        } else {
+            setSelectedParticipantIds([]);
+        }
+    };
+
+    const handleToggleParticipant = (id: string, checked: boolean) => {
+        if (checked) {
+            setSelectedParticipantIds((prev) => [...prev, id]);
+        } else {
+            setSelectedParticipantIds((prev) => prev.filter((item) => item !== id));
+        }
+    };
+
+    const handleExecuteBulkExtension = async () => {
+        if (selectedParticipantIds.length === 0 || !session) return;
+        setIsSubmittingBulk(true);
+        try {
+            const res = await fetch(`/api/admin/sessions/${session.id}/participants/override-bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    participant_ids: selectedParticipantIds,
+                    extra_minutes: Number(bulkExtraMinutes) || 15,
+                    reason: bulkReason.trim() || 'Perpanjangan Waktu Massal oleh Admin',
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success('Perpanjangan Waktu Berhasil!', {
+                    description: data.message,
+                });
+                setShowBulkTimeModal(false);
+                setSelectedParticipantIds([]);
+                setBulkReason('');
+                fetchSession();
+            } else {
+                toast.error('Gagal Memperpanjang Waktu', {
+                    description: data.error || 'Terjadi kesalahan sistem',
+                });
+            }
+        } catch (err: any) {
+            toast.error('Kesalahan Jaringan', { description: err.message });
+        } finally {
+            setIsSubmittingBulk(false);
+        }
+    };
+
+    const isAllSelected =
+        filteredParticipants.length > 0 &&
+        filteredParticipants.every((p) => selectedParticipantIds.includes(p.id));
 
     const state = getSessionState(session.start_time, session.end_time);
 
@@ -343,10 +402,10 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* Participants Section */}
-            <div className="bg-white rounded-xl border border-black/5 shadow-2xs overflow-hidden">
+            <div className="bg-white rounded-xl border border-black/5 shadow-2xs overflow-hidden relative">
                 {/* Participant Section Header */}
                 <div className="p-4 sm:p-5 border-b border-black/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 flex-wrap">
                         <UserMultipleIcon size={18} className="text-slate-600" />
                         <h2 className="text-sm font-semibold text-foreground">Daftar Peserta Terdaftar</h2>
                         <span className="bg-slate-100 text-slate-700 text-[11px] font-medium px-2.5 py-0.5 rounded-full">
@@ -384,6 +443,37 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                 </div>
 
+                {/* Batch Actions Bar (when >= 1 participant selected) */}
+                {selectedParticipantIds.length > 0 && (
+                    <div className="p-3 bg-slate-900 text-white flex items-center justify-between gap-3 flex-wrap animate-in fade-in duration-150">
+                        <div className="flex items-center gap-2 text-xs">
+                            <span className="font-semibold px-2 py-0.5 rounded bg-white/20 text-white">
+                                {selectedParticipantIds.length} Peserta Dipilih
+                            </span>
+                            <span className="text-slate-300 hidden sm:inline">
+                                Aksi massal perpanjangan waktu untuk peserta yang dipilih
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowBulkTimeModal(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-semibold transition-colors shadow-2xs"
+                            >
+                                <Time02Icon size={14} />
+                                <span>Tambah Waktu Massal</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedParticipantIds([])}
+                                className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-slate-300 hover:text-white transition-colors"
+                            >
+                                Batal
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Participant Table */}
                 {filteredParticipants.length === 0 ? (
                     <div className="p-10 text-center text-xs text-muted-foreground">
@@ -393,65 +483,91 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[560px] text-left text-xs">
+                        <table className="w-full min-w-[620px] text-left text-xs">
                             <thead className="bg-slate-50/80 border-b border-black/5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                                 <tr>
-                                    <th className="px-5 py-3 w-12 text-center">No</th>
-                                    <th className="px-5 py-3">Username</th>
-                                    <th className="px-5 py-3">Nama Lengkap</th>
-                                    <th className="px-5 py-3 w-48">Progres Pembelajaran</th>
-                                    <th className="px-5 py-3 text-center w-28">Status</th>
-                                    <th className="px-5 py-3 text-center w-24">Aksi</th>
+                                    <th className="px-4 py-3 w-10 text-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={isAllSelected}
+                                            onChange={(e) => handleSelectAll(e.target.checked)}
+                                            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-primary"
+                                            aria-label="Pilih semua peserta"
+                                        />
+                                    </th>
+                                    <th className="px-3 py-3 w-12 text-center">No</th>
+                                    <th className="px-4 py-3">Username</th>
+                                    <th className="px-4 py-3">Nama Lengkap</th>
+                                    <th className="px-4 py-3 w-48">Progres Pembelajaran</th>
+                                    <th className="px-4 py-3 text-center w-28">Status</th>
+                                    <th className="px-4 py-3 text-center w-24">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-black/5">
-                                {paginatedParticipants.map((p, idx) => (
-                                    <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
-                                        <td className="px-5 py-3.5 text-center text-muted-foreground font-mono">
-                                            {startIndex + idx + 1}
-                                        </td>
-                                        <td className="px-5 py-3.5 font-medium text-foreground">{p.username}</td>
-                                        <td className="px-5 py-3.5 text-muted-foreground">{p.full_name}</td>
-                                        <td className="px-5 py-3.5 align-middle">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full rounded-full transition-all duration-500 ${
-                                                            p.progress === 100 ? 'bg-emerald-500' : 'bg-slate-800'
-                                                        }`}
-                                                        style={{ width: `${p.progress}%` }}
-                                                    />
+                                {paginatedParticipants.map((p, idx) => {
+                                    const isSelected = selectedParticipantIds.includes(p.id);
+                                    return (
+                                        <tr
+                                            key={p.id}
+                                            className={`hover:bg-slate-50/60 transition-colors ${
+                                                isSelected ? 'bg-primary/5' : ''
+                                            }`}
+                                        >
+                                            <td className="px-4 py-3.5 text-center align-middle">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => handleToggleParticipant(p.id, e.target.checked)}
+                                                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-primary"
+                                                    aria-label={`Pilih ${p.full_name}`}
+                                                />
+                                            </td>
+                                            <td className="px-3 py-3.5 text-center text-muted-foreground font-mono">
+                                                {startIndex + idx + 1}
+                                            </td>
+                                            <td className="px-4 py-3.5 font-medium text-foreground">{p.username}</td>
+                                            <td className="px-4 py-3.5 text-muted-foreground">{p.full_name}</td>
+                                            <td className="px-4 py-3.5 align-middle">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                                p.progress === 100 ? 'bg-emerald-500' : 'bg-slate-800'
+                                                            }`}
+                                                            style={{ width: `${p.progress}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-[11px] font-mono font-medium text-muted-foreground w-8 text-right">
+                                                        {p.progress}%
+                                                    </span>
                                                 </div>
-                                                <span className="text-[11px] font-mono font-medium text-muted-foreground w-8 text-right">
-                                                    {p.progress}%
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-5 py-3.5 text-center align-middle">
-                                            {p.progress === 100 ? (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium border border-emerald-200/60">
-                                                    <CheckmarkCircle02Icon size={11} /> Selesai
-                                                </span>
-                                            ) : p.progress > 0 ? (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium border border-blue-200/60">
-                                                    Mengerjakan
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-medium border border-slate-200/50">
-                                                    Belum
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-5 py-3.5 text-center align-middle">
-                                            <Link
-                                                href={`/admin/sessions/${session.id}/participants/${p.id}`}
-                                                className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 px-2.5 py-1 rounded-md transition-colors"
-                                            >
-                                                Detail
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td className="px-4 py-3.5 text-center align-middle">
+                                                {p.progress === 100 ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium border border-emerald-200/60">
+                                                        <CheckmarkCircle02Icon size={11} /> Selesai
+                                                    </span>
+                                                ) : p.progress > 0 ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium border border-blue-200/60">
+                                                        Mengerjakan
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-medium border border-slate-200/50">
+                                                        Belum
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3.5 text-center align-middle">
+                                                <Link
+                                                    href={`/admin/sessions/${session.id}/participants/${p.id}`}
+                                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 px-2.5 py-1 rounded-md transition-colors"
+                                                >
+                                                    Detail
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -468,6 +584,103 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     />
                 </div>
             </div>
+
+            {/* Bulk Time Extension Modal */}
+            {showBulkTimeModal && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+                    <div className="bg-white rounded-2xl border border-black/10 shadow-2xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                            <div className="flex items-center gap-2">
+                                <Time02Icon size={20} className="text-primary" />
+                                <h3 className="text-base font-semibold text-foreground">
+                                    Tambah Waktu Massal
+                                </h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowBulkTimeModal(false)}
+                                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-3 bg-primary/5 rounded-xl border border-primary/20 space-y-1">
+                            <p className="text-xs font-semibold text-foreground">
+                                Target: {selectedParticipantIds.length} Peserta Terpilih
+                            </p>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                Tambahan waktu akan ditambahkan ke batas pengerjaan modul ujian seluruh peserta yang dipilih.
+                            </p>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-xs font-medium text-foreground mb-1.5">
+                                    Pilih Durasi Tambahan (Menit):
+                                </label>
+                                <div className="grid grid-cols-4 gap-2 mb-2">
+                                    {[10, 15, 30, 60].map((mins) => (
+                                        <button
+                                            key={mins}
+                                            type="button"
+                                            onClick={() => setBulkExtraMinutes(mins)}
+                                            className={`py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                                                bulkExtraMinutes === mins
+                                                    ? 'bg-primary text-white border-primary shadow-2xs'
+                                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                            }`}
+                                        >
+                                            +{mins} mnt
+                                        </button>
+                                    ))}
+                                </div>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="180"
+                                    value={bulkExtraMinutes}
+                                    onChange={(e) => setBulkExtraMinutes(Number(e.target.value))}
+                                    className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    placeholder="Atau ketik menit manual (contoh: 15)"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-foreground mb-1">
+                                    Alasan Tambahan Waktu (Audit Log):
+                                </label>
+                                <textarea
+                                    value={bulkReason}
+                                    onChange={(e) => setBulkReason(e.target.value)}
+                                    rows={2}
+                                    className="w-full p-2.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    placeholder="Contoh: Gangguan jaringan Wi-Fi di ruang lab"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/5">
+                            <button
+                                type="button"
+                                onClick={() => setShowBulkTimeModal(false)}
+                                className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                                disabled={isSubmittingBulk}
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleExecuteBulkExtension}
+                                disabled={isSubmittingBulk || selectedParticipantIds.length === 0}
+                                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-white bg-primary hover:bg-primary/90 transition-colors shadow-2xs disabled:opacity-50"
+                            >
+                                {isSubmittingBulk ? 'Memproses...' : 'Terapkan Tambahan Waktu'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Blast Confirmation Modal */}
             {showBlastConfirm &&

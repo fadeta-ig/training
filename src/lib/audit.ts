@@ -23,6 +23,7 @@ export type AuditActionType =
     | 'START_EXAM'
     | 'EXAM_OVERRIDE_RESUME'
     | 'EXAM_OVERRIDE_RESET'
+    | 'EXAM_OVERRIDE_BULK_EXTENSION'
     | 'UPLOAD_MEDIA';
 
 /**

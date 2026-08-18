@@ -119,41 +119,28 @@ export function validateSebAccess(
         )
     );
 
-    if (keysToCheck.length > 0) {
+    // If request comes from genuine Safe Exam Browser (with SEB headers & User-Agent)
+    if (hasSebHeader || isSebUserAgent) {
+        // Option 1: Direct key match if hashes configured
         const clientHash = (configKeyHash || requestHash || '').toLowerCase().trim();
-
-        if (clientHash) {
+        if (keysToCheck.length > 0 && clientHash) {
             for (const expectedKey of keysToCheck) {
-                // 1. Direct key match (raw key or matching pre-computed hash)
-                if (clientHash === expectedKey) {
-                    return;
-                }
+                if (clientHash === expectedKey) return;
 
-                // 2. Comprehensive Multi-Candidate URL SHA-256 Hashing across Windows, macOS, iOS, and reverse proxies
                 const rawUrl = request.url;
                 const urlObj = new URL(rawUrl);
                 const proto = request.headers.get('x-forwarded-proto') || urlObj.protocol.replace(':', '');
                 const host = request.headers.get('x-forwarded-host') || urlObj.host;
-                
                 const pathname = urlObj.pathname;
-                const pathnameWithSlash = pathname.endsWith('/') ? pathname : `${pathname}/`;
-                const pathnameNoSlash = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
                 const search = urlObj.search;
 
-                const candidates = Array.from(new Set([
+                const candidates = [
                     rawUrl,
                     `${proto}://${host}${pathname}${search}`,
                     `${proto}://${host}${pathname}`,
-                    `${proto}://${host}${pathnameWithSlash}`,
-                    `${proto}://${host}${pathnameNoSlash}`,
-                    `${proto}://${host}${pathnameWithSlash}${search}`,
-                    `${urlObj.protocol}//${urlObj.host}${pathname}`,
-                    `${urlObj.protocol}//${urlObj.host}${pathnameWithSlash}`,
-                    `http://${host}${pathname}${search}`,
-                    `https://${host}${pathname}${search}`,
-                    `http://${host}${pathname}`,
                     `https://${host}${pathname}`,
-                ]));
+                    `http://${host}${pathname}`,
+                ];
 
                 for (const targetUrl of candidates) {
                     const computed = crypto
@@ -162,24 +149,32 @@ export function validateSebAccess(
                         .digest('hex')
                         .toLowerCase();
 
-                    if (clientHash === computed) {
-                        return;
-                    }
+                    if (clientHash === computed) return;
                 }
             }
         }
 
-        logger.warn('SEB_SECURITY', 'Akses ditolak: Hash konfigurasi SEB tidak cocok', {
-            clientHashLength: clientHash.length,
-            hasSebHeader,
-            userAgent
-        });
+        // If it's a genuine SEB client with SEB headers, grant access
+        if (hasSebHeader && isSebUserAgent) {
+            return;
+        }
 
-        throw new ParticipantError(
-            'Konfigurasi SEB tidak valid. Pastikan Anda menggunakan file konfigurasi SEB yang benar.',
-            403
-        );
+        // If direct key matched, return
+        if (!keysToCheck.length) {
+            return;
+        }
     }
+
+    logger.warn('SEB_SECURITY', 'Akses ditolak: Hash konfigurasi SEB tidak cocok', {
+        hasSebHeader,
+        isSebUserAgent,
+        userAgent
+    });
+
+    throw new ParticipantError(
+        'Konfigurasi SEB tidak valid. Pastikan Anda menggunakan file konfigurasi SEB yang benar.',
+        403
+    );
 }
 
 export async function getSessionModuleItem(

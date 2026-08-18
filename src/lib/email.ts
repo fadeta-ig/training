@@ -18,7 +18,7 @@ const transporter = nodemailer.createTransport({
 
 export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
     const mailOptions = {
-        from: `"LMS System" <${process.env.SMTP_USER}>`,
+        from: `"LMS Nusamitra Consulting" <${process.env.SMTP_USER}>`,
         to,
         subject: sanitizeEmailSubject(subject),
         html,
@@ -29,7 +29,7 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
 export async function sendPasswordResetEmail(to: string, resetLink: string) {
     const safeResetLink = escapeHtml(resetLink);
     const mailOptions = {
-        from: `"LMS System" <${process.env.SMTP_USER}>`,
+        from: `"LMS Nusamitra Consulting" <${process.env.SMTP_USER}>`,
         to,
         subject: 'Permintaan Reset Password',
         html: `
@@ -62,7 +62,7 @@ export async function sendCredentialEmail(to: string, participantName: string, p
     const safePass = escapeHtml(pass);
     const safeLoginUrl = escapeHtml(`${baseUrl}/auth/login`);
     const mailOptions = {
-        from: `"LMS System" <${process.env.SMTP_USER}>`,
+        from: `"LMS Nusamitra Consulting" <${process.env.SMTP_USER}>`,
         to,
         subject: 'Informasi Kredensial Akun LMS Anda',
         html: `

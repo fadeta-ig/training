@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
-import { escapeHtml } from '@/lib/sanitize';
 import logger from '@/lib/logger';
-
-function excelSafeHtml(value: unknown): string {
-    const text = value === null || value === undefined ? '' : String(value);
-    const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
-    return escapeHtml(safeText);
-}
+import { generateSessionReportXlsx, SessionExportRow } from '@/lib/excel';
 
 export const GET = withAuth(async (
     request: NextRequest,
@@ -17,7 +11,7 @@ export const GET = withAuth(async (
 ) => {
     const resolvedParams = await context?.params;
     const sessionId = resolvedParams?.id;
-    
+
     if (!sessionId) {
         return NextResponse.json({ error: 'ID sesi tidak valid' }, { status: 400 });
     }
@@ -40,91 +34,63 @@ export const GET = withAuth(async (
             GROUP BY u.id, up.status, up.score, up.attempts_count, up.updated_at, s.title
             ORDER BY u.full_name ASC
         `;
-        
-        const results = await executeQuery<any[]>(q, [sessionId]);
-        const sessionTitle = excelSafeHtml(results.length > 0 ? results[0].session_title : 'Sesi Ujian');
-        const safeSessionId = excelSafeHtml(sessionId);
-        const safeFilenameId = sessionId.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const currentDate = excelSafeHtml(new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' }));
 
-        let htmlRows = '';
-        if (results && results.length > 0) {
-            results.forEach((row, index) => {
-                const name = excelSafeHtml(row.full_name) || '-';
-                const username = excelSafeHtml(row.username) || '-';
-                
-                let statusStr = 'BELUM';
-                let statusColor = '#64748b'; // slate-500
-                if (row.status === 'completed') {
-                    statusStr = 'SELESAI';
-                    statusColor = '#16a34a'; // green-600
-                } else if (row.status === 'open') {
-                    statusStr = 'MENGERJAKAN';
-                    statusColor = '#2563eb'; // blue-600
-                }
-
-                const scoreStr = row.score !== null ? row.score : '-';
-                const attemptsStr = row.attempts_count || '0';
-                const dateStr = row.updated_at ? excelSafeHtml(new Date(row.updated_at).toLocaleString('id-ID')) : '-';
-                
-                htmlRows += `
-                <tr>
-                    <td style="text-align: center;">${index + 1}</td>
-                    <td>${name}</td>
-                    <td>${username}</td>
-                    <td style="color: ${statusColor}; font-weight: bold; text-align: center;">${statusStr}</td>
-                    <td style="text-align: center;">${scoreStr}</td>
-                    <td style="text-align: center;">${attemptsStr}</td>
-                    <td style="text-align: center;">${dateStr}</td>
-                </tr>
-                `;
-            });
-        } else {
-            htmlRows = `<tr><td colspan="7" style="text-align: center; color: #64748b;">Belum ada data peserta terdaftar pada sesi ini.</td></tr>`;
+        interface DbRow {
+            full_name: string | null;
+            username: string | null;
+            status: string | null;
+            score: number | string | null;
+            attempts_count: number | null;
+            updated_at: string | null;
+            session_title: string | null;
         }
 
-        const htmlContent = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-            <meta charset="utf-8" />
-            <style>
-                table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 10pt; }
-                th { background-color: #1e293b; color: #ffffff; font-weight: bold; padding: 10px; border: 1px solid #cbd5e1; }
-                td { border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: middle; }
-                .title-row { background-color: #f8fafc; font-size: 14pt; font-weight: bold; text-align: left; }
-                .meta-row { font-size: 10pt; color: #475569; }
-            </style>
-        </head>
-        <body>
-            <table>
-                <tr><td colspan="7" class="title-row" style="height: 40px; vertical-align: middle; padding-left: 10px;">LMS Nusamitra Consulting — Laporan Hasil Sesi: ${sessionTitle}</td></tr>
-                <tr><td colspan="7" class="meta-row">ID Sesi: ${safeSessionId}</td></tr>
-                <tr><td colspan="7" class="meta-row">Diunduh pada: ${currentDate}</td></tr>
-                <tr><td colspan="7"></td></tr>
-                <tr>
-                    <th style="width: 40px;">No</th>
-                    <th style="width: 200px;">Nama Lengkap</th>
-                    <th style="width: 150px;">Username / NIK</th>
-                    <th style="width: 120px;">Status Kelulusan</th>
-                    <th style="width: 100px;">Skor Akhir</th>
-                    <th style="width: 80px;">Percobaan</th>
-                    <th style="width: 150px;">Akses Terakhir</th>
-                </tr>
-                ${htmlRows}
-            </table>
-        </body>
-        </html>
-        `;
+        const results = await executeQuery<DbRow[]>(q, [sessionId]);
+        const sessionTitle = results.length > 0 && results[0].session_title ? results[0].session_title : 'Sesi Pelatihan & Ujian';
+        const safeFilenameId = sessionId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const currentDate = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
 
-        return new NextResponse(htmlContent, {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/vnd.ms-excel',
-                'Content-Disposition': `attachment; filename="Laporan_Sesi_${safeFilenameId}.xls"`,
-            },
+        const exportRows: SessionExportRow[] = results.map((row, index) => {
+            let statusLabel = 'Belum Memulai';
+            if (row.status === 'completed') {
+                statusLabel = 'Selesai / Lulus';
+            } else if (row.status === 'open') {
+                statusLabel = 'Sedang Mengerjakan';
+            }
+
+            const scoreDisplay = row.score !== null && row.score !== undefined ? row.score : '-';
+            const attemptsDisplay = row.attempts_count ? row.attempts_count : 0;
+            const dateDisplay = row.updated_at
+                ? new Date(row.updated_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
+                : '-';
+
+            return {
+                no: index + 1,
+                fullName: row.full_name || '-',
+                username: row.username || '-',
+                status: statusLabel,
+                score: scoreDisplay,
+                attempts: attemptsDisplay,
+                lastAccess: dateDisplay,
+            };
         });
 
-    } catch (error) {
+        const xlsxBuffer = await generateSessionReportXlsx({
+            sessionId,
+            sessionTitle,
+            exportedAt: currentDate,
+            rows: exportRows,
+        });
+
+        return new NextResponse(Buffer.from(xlsxBuffer), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition': `attachment; filename="Laporan_Sesi_${safeFilenameId}.xlsx"`,
+                'Cache-Control': 'no-store',
+            },
+        });
+    } catch (error: unknown) {
         logger.error('SESSION_EXPORT', 'Gagal mengekspor data sesi ke Excel', error);
         return NextResponse.json(
             { success: false, message: 'Gagal mengekspor data sesi. Silakan coba lagi.' },

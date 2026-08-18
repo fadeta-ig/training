@@ -11,11 +11,14 @@ import {
     Key01Icon,
     MailSend01Icon,
     RefreshIcon,
-    UserGroupIcon
+    UserGroupIcon,
+    InformationCircleIcon
 } from 'hugeicons-react';
+import { FileSpreadsheet } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
 import { objectsToCsv, parseCsvToObjects } from '@/lib/csv';
+import { parseSpreadsheetBuffer, generateCredentialsReportXlsx } from '@/lib/excel';
 
 interface ParsedUserRow {
     index: number;
@@ -59,7 +62,7 @@ export default function BulkImportUsersPage() {
         failed: FailedResult[];
     } | null>(null);
 
-    // Step 1: Handle File Selection & Parse
+    // Step 1: Handle File Selection & Parse (.xlsx, .xls, .csv)
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -74,17 +77,29 @@ export default function BulkImportUsersPage() {
     };
 
     const processFile = async (file: File) => {
-        if (!file.name.toLowerCase().endsWith('.csv')) {
-            toast.error('Format file tidak didukung. Gunakan file .csv dari template sistem.');
+        const lowerName = file.name.toLowerCase();
+        const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls');
+        const isCsv = lowerName.endsWith('.csv');
+
+        if (!isExcel && !isCsv) {
+            toast.error('Format file tidak didukung. Gunakan file Excel (.xlsx/.xls) atau .csv dari template sistem.');
             return;
         }
 
         setFileName(file.name);
         try {
-            const data = parseCsvToObjects(await file.text());
+            let data: Record<string, string>[] = [];
+
+            if (isExcel) {
+                const buffer = await file.arrayBuffer();
+                data = await parseSpreadsheetBuffer(buffer);
+            } else {
+                const text = await file.text();
+                data = parseCsvToObjects(text);
+            }
 
             if (!data || data.length === 0) {
-                toast.error('File kosong atau format tidak sesuai');
+                toast.error('File kosong atau format tidak sesuai.');
                 return;
             }
 
@@ -94,16 +109,27 @@ export default function BulkImportUsersPage() {
             const rows: ParsedUserRow[] = data.map((item, idx) => {
                 const normalized: Record<string, string> = {};
                 Object.keys(item).forEach(key => {
-                    const cleanKey = key.trim().toLowerCase();
-                    normalized[cleanKey] = String(item[key]).trim();
+                    const cleanKey = key.trim().toLowerCase().replace(/\*/g, '').trim();
+                    normalized[cleanKey] = String(item[key] || '').trim();
                 });
 
                 const name = normalized['nama lengkap'] || normalized['nama'] || normalized['name'] || '';
-                const email = (normalized['email aktif (username)'] || normalized['email aktif'] || normalized['username'] || normalized['email'] || '').toLowerCase();
-                const rawRole = (normalized['role (admin/trainer)'] || normalized['role'] || normalized['peran'] || 'trainer').toLowerCase();
+                const email = (
+                    normalized['email aktif (username)'] ||
+                    normalized['email aktif'] ||
+                    normalized['username'] ||
+                    normalized['email'] ||
+                    ''
+                ).toLowerCase();
+                const rawRole = (
+                    normalized['role (admin/trainer)'] ||
+                    normalized['role'] ||
+                    normalized['peran'] ||
+                    'trainer'
+                ).toLowerCase();
                 const role: 'admin' | 'trainer' = (rawRole.includes('admin') || rawRole === 'administrator') ? 'admin' : 'trainer';
                 const password = normalized['password (opsional)'] || normalized['password'] || '';
-                const phone_number = normalized['no hp'] || normalized['telepon'] || normalized['phone'] || '';
+                const phone_number = normalized['no hp'] || normalized['no. hp'] || normalized['telepon'] || normalized['phone'] || '';
                 const institution = normalized['institusi'] || normalized['instansi'] || normalized['institution'] || '';
 
                 let isValid = true;
@@ -140,7 +166,7 @@ export default function BulkImportUsersPage() {
             toast.success(`Berhasil membaca ${rows.length} baris data dari file`);
         } catch (err) {
             console.error(err);
-            toast.error('Gagal membaca file CSV. Pastikan format file sesuai.');
+            toast.error('Gagal membaca file data. Pastikan berkas tidak rusak.');
         }
     };
 
@@ -176,22 +202,66 @@ export default function BulkImportUsersPage() {
                     importedCount: result.importedCount,
                     failedCount: result.failedCount + (parsedRows.length - validRows.length),
                     credentials: result.credentials || [],
-                    failed: [...(result.failed || []), ...parsedRows.filter(r => !r.isValid).map(r => ({ name: r.name, email: r.email, reason: r.errorReason || 'Format tidak valid' }))],
+                    failed: [
+                        ...(result.failed || []),
+                        ...parsedRows.filter(r => !r.isValid).map(r => ({
+                            name: r.name,
+                            email: r.email,
+                            reason: r.errorReason || 'Format tidak valid'
+                        }))
+                    ],
                 });
                 setStep(3);
                 toast.success(`Import selesai! ${result.importedCount} pengguna berhasil dibuat.`);
             } else {
                 toast.error('Gagal memproses import', { description: result.error });
             }
-        } catch (err: any) {
-            toast.error('Terjadi kesalahan koneksi', { description: err.message });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Terjadi kesalahan koneksi';
+            toast.error('Terjadi kesalahan koneksi', { description: msg });
         } finally {
             setIsProcessing(false);
         }
     };
 
+    // Download Credentials Report (.xlsx)
+    const handleDownloadReportXlsx = async () => {
+        if (!importResults || importResults.credentials.length === 0) return;
+
+        try {
+            const rows = importResults.credentials.map((c, idx) => ({
+                no: idx + 1,
+                fullName: c.name,
+                email: c.email,
+                role: c.role === 'admin' ? 'Administrator' : 'Trainer',
+                password: c.password,
+                status: 'Berhasil Diimport'
+            }));
+
+            const buffer = await generateCredentialsReportXlsx({
+                title: 'Rekap Kredensial Pengguna Baru LMS',
+                date: new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' }),
+                rows,
+            });
+
+            const blob = new Blob([buffer as BlobPart], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Rekap_Kredensial_Pengguna_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success('Rekap kredensial Excel (.xlsx) berhasil diunduh');
+        } catch (error) {
+            console.error(error);
+            toast.error('Gagal membuat file rekap Excel.');
+        }
+    };
+
     // Download Credentials Report (.csv)
-    const handleDownloadReport = () => {
+    const handleDownloadReportCsv = () => {
         if (!importResults || importResults.credentials.length === 0) return;
 
         const reportData = importResults.credentials.map((c, idx) => ({
@@ -211,7 +281,7 @@ export default function BulkImportUsersPage() {
         link.download = `Rekap_Kredensial_Pengguna_${new Date().toISOString().slice(0, 10)}.csv`;
         link.click();
         URL.revokeObjectURL(url);
-        toast.success('Rekap kredensial pengguna berhasil diunduh');
+        toast.success('Rekap kredensial pengguna CSV berhasil diunduh');
     };
 
     const validCount = parsedRows.filter(r => r.isValid).length;
@@ -239,7 +309,7 @@ export default function BulkImportUsersPage() {
                         Import Massal Pengguna (Admin & Trainer)
                     </h1>
                     <p className="text-muted-foreground mt-1 text-sm">
-                        Unggah berkas CSV untuk mendaftarkan akun Administrator atau Pelatih (Trainer) secara sekaligus.
+                        Unggah berkas Excel (.xlsx) atau CSV untuk mendaftarkan akun Administrator atau Pelatih (Trainer) secara otomatis.
                     </p>
                 </div>
             </div>
@@ -262,12 +332,18 @@ export default function BulkImportUsersPage() {
 
             {/* STEP 1: Upload & Download Template */}
             {step === 1 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <GlassCard className="space-y-6 p-4 sm:p-6 md:col-span-2 md:p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Left: Upload Dropzone */}
+                    <GlassCard className="space-y-6 p-6 lg:col-span-7 flex flex-col justify-between">
                         <div>
-                            <h2 className="text-xl font-bold">Unggah File Data Pengguna</h2>
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-bold">Unggah Berkas Data Pengguna</h2>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                                    <Tick01Icon size={12} /> Excel & CSV Ready
+                                </span>
+                            </div>
                             <p className="text-sm text-muted-foreground mt-1">
-                                Mendukung format <strong>.csv</strong> dari template sistem.
+                                Silakan gunakan template resmi sistem agar data role dan akun pengguna diproses secara otomatis.
                             </p>
                         </div>
 
@@ -275,44 +351,93 @@ export default function BulkImportUsersPage() {
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={handleDrop}
                             onClick={() => fileInputRef.current?.click()}
-                            className="cursor-pointer space-y-4 rounded-2xl border-2 border-dashed border-black/15 p-6 text-center transition-all hover:border-foreground/50 hover:bg-black/[0.02] sm:p-10"
+                            className="cursor-pointer space-y-4 rounded-2xl border-2 border-dashed border-black/15 p-8 text-center transition-all hover:border-foreground/50 hover:bg-black/[0.02] sm:p-12"
                         >
-                            <div className="w-16 h-16 rounded-2xl bg-black/5 text-muted-foreground flex items-center justify-center mx-auto">
+                            <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
                                 <CloudUploadIcon size={32} />
                             </div>
                             <div>
-                                <p className="text-base font-semibold">Tarik & Lepaskan File di Sini</p>
-                                <p className="text-xs text-muted-foreground mt-1">atau klik untuk memilih berkas dari komputer Anda</p>
+                                <p className="text-base font-semibold text-foreground">Tarik & Lepaskan File di Sini</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Mendukung format berkas <strong>.xlsx</strong>, <strong>.xls</strong>, atau <strong>.csv</strong>
+                                </p>
+                            </div>
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black/5 text-xs font-semibold text-foreground hover:bg-black/10 transition-colors">
+                                Pilih Berkas Komputer
                             </div>
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept=".csv,text/csv"
+                                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
                                 onChange={handleFileChange}
                                 className="hidden"
                             />
                         </div>
+
+                        <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600">
+                            <InformationCircleIcon size={18} className="shrink-0 text-slate-500 mt-0.5" />
+                            <span>
+                                Role wajib diisi antara <strong>admin</strong> atau <strong>trainer</strong>. Password bersifat opsional (dapat dibuatkan otomatis).
+                            </span>
+                        </div>
                     </GlassCard>
 
-                    <GlassCard className="flex flex-col justify-between space-y-6 p-4 sm:p-6 md:p-8">
-                        <div>
-                            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                                <Download01Icon size={24} />
+                    {/* Right: Download Templates Card */}
+                    <GlassCard className="flex flex-col justify-between space-y-6 p-6 lg:col-span-5 bg-gradient-to-br from-white to-slate-50/50 border border-black/10">
+                        <div className="space-y-4">
+                            <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md">
+                                <FileSpreadsheet size={26} />
                             </div>
-                            <h3 className="text-lg font-bold">Belum Punya Template?</h3>
-                            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                                Unduh contoh berkas CSV resmi untuk pendaftaran Admin/Trainer agar format data langsung sesuai dengan sistem.
-                            </p>
+                            <div>
+                                <h3 className="text-lg font-bold text-foreground">Unduh Template Import</h3>
+                                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                                    Template Excel (.xlsx) resmi untuk akun Admin & Trainer lengkap dengan panduan pengisian, dropdown pilihan role, dan proteksi format teks.
+                                </p>
+                            </div>
+
+                            <div className="space-y-2.5 pt-2">
+                                <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                                    Pilihan Format Berkas:
+                                </div>
+
+                                {/* Recommended Excel XLSX */}
+                                <a
+                                    href="/api/admin/users/import/template"
+                                    download
+                                    className="group w-full p-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all flex items-center justify-between shadow-sm active:scale-[0.99]"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-1.5 rounded-lg bg-white/20">
+                                            <FileSpreadsheet size={20} />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="leading-tight font-bold">Template Excel (.xlsx)</p>
+                                            <p className="text-[11px] text-white/80 font-normal">Tabel rapi, modern & berformat</p>
+                                        </div>
+                                    </div>
+                                    <span className="px-2 py-0.5 rounded-md bg-white text-emerald-800 text-[10px] font-extrabold uppercase shadow-sm">
+                                        Rekomendasi
+                                    </span>
+                                </a>
+
+                                {/* Secondary CSV */}
+                                <a
+                                    href="/api/admin/users/import/template?format=csv"
+                                    download
+                                    className="w-full p-3 rounded-xl border border-black/10 bg-white hover:bg-black/5 text-foreground font-medium text-xs transition-all flex items-center justify-between active:scale-[0.99]"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Download01Icon size={18} className="text-muted-foreground" />
+                                        <span>Template Alternatif (.csv UTF-8)</span>
+                                    </div>
+                                    <Download01Icon size={15} className="text-muted-foreground" />
+                                </a>
+                            </div>
                         </div>
 
-                        <a
-                            href="/api/admin/users/import/template"
-                            download
-                            className="w-full px-5 py-3 text-sm font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center justify-center gap-2 active:scale-95 shadow-sm"
-                        >
-                            <Download01Icon size={18} />
-                            Unduh Template (.csv)
-                        </a>
+                        <div className="p-3 rounded-xl bg-black/[0.02] border border-black/5 text-[11px] text-muted-foreground">
+                            💡 <strong>Tip:</strong> Pilihlah role yang tepat agar hak akses pengguna langsung terkonfigurasi saat import.
+                        </div>
                     </GlassCard>
                 </div>
             )}
@@ -354,7 +479,7 @@ export default function BulkImportUsersPage() {
                             <button
                                 onClick={handleExecuteImport}
                                 disabled={isProcessing || validCount === 0}
-                                className="px-6 py-2.5 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                                className="px-6 py-2.5 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 shadow-sm"
                             >
                                 {isProcessing ? (
                                     <>
@@ -418,22 +543,24 @@ export default function BulkImportUsersPage() {
                     <GlassCard className="overflow-hidden">
                         <div className="overflow-x-auto max-h-[500px]">
                             <table className="w-full text-left text-sm whitespace-nowrap">
-                                <thead className="bg-black/5 border-b border-black/5 text-muted-foreground font-medium uppercase text-xs tracking-wider sticky top-0 bg-white">
+                                <thead className="bg-slate-900 text-white font-semibold text-xs tracking-wider sticky top-0">
                                     <tr>
-                                        <th className="px-4 py-3">No</th>
-                                        <th className="px-4 py-3">Status</th>
-                                        <th className="px-4 py-3">Nama Lengkap</th>
-                                        <th className="px-4 py-3">Username (Email)</th>
-                                        <th className="px-4 py-3">Role</th>
-                                        <th className="px-4 py-3">Password</th>
-                                        <th className="px-4 py-3">Keterangan / Error</th>
+                                        <th className="px-4 py-3.5 text-center">No</th>
+                                        <th className="px-4 py-3.5 text-center">Status</th>
+                                        <th className="px-4 py-3.5">Nama Lengkap</th>
+                                        <th className="px-4 py-3.5">Username (Email)</th>
+                                        <th className="px-4 py-3.5 text-center">Role</th>
+                                        <th className="px-4 py-3.5">Password</th>
+                                        <th className="px-4 py-3.5">No. HP</th>
+                                        <th className="px-4 py-3.5">Institusi</th>
+                                        <th className="px-4 py-3.5">Keterangan / Error</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-black/5">
                                     {displayedRows.map((r) => (
                                         <tr key={r.index} className={`transition-colors ${r.isValid ? 'hover:bg-black/5' : 'bg-rose-50/50 hover:bg-rose-50'}`}>
-                                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{r.index}</td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground text-center">{r.index}</td>
+                                            <td className="px-4 py-3 text-center">
                                                 {r.isValid ? (
                                                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-bold">
                                                         <Tick01Icon size={12} /> Valid
@@ -445,15 +572,17 @@ export default function BulkImportUsersPage() {
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 font-semibold text-foreground">{r.name || '-'}</td>
-                                            <td className="px-4 py-3 text-muted-foreground">{r.email || '-'}</td>
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold ${r.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                            <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.email || '-'}</td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold ${r.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
                                                     {r.role === 'admin' ? 'Administrator' : 'Trainer'}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                                                 {r.password ? r.password : <span className="italic text-muted-foreground/60">(Auto Generate)</span>}
                                             </td>
+                                            <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.phone_number || '-'}</td>
+                                            <td className="px-4 py-3 text-muted-foreground">{r.institution || '-'}</td>
                                             <td className="px-4 py-3 text-xs">
                                                 {r.isValid ? (
                                                     <span className="text-emerald-700 font-medium">Siap diimport</span>
@@ -472,7 +601,7 @@ export default function BulkImportUsersPage() {
 
             {/* STEP 3: Results & Download Credentials Report */}
             {step === 3 && importResults && (
-                <GlassCard className="mx-auto max-w-2xl space-y-8 p-4 text-center sm:p-6 md:p-8">
+                <GlassCard className="mx-auto max-w-2xl space-y-8 p-6 text-center sm:p-8">
                     <div className="w-20 h-20 rounded-3xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-sm">
                         <Key01Icon size={40} />
                     </div>
@@ -498,18 +627,27 @@ export default function BulkImportUsersPage() {
                     </div>
 
                     {/* Action buttons */}
-                    <div className="space-y-4 pt-2">
+                    <div className="space-y-3 pt-2">
                         {importResults.credentials.length > 0 && (
-                            <button
-                                onClick={handleDownloadReport}
-                                className="w-full py-3.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
-                            >
-                                <Download01Icon size={18} />
-                                Unduh Rekap Kredensial Pengguna (.csv)
-                            </button>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <button
+                                    onClick={handleDownloadReportXlsx}
+                                    className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                                >
+                                    <FileSpreadsheet size={18} />
+                                    Unduh Rekap Excel (.xlsx)
+                                </button>
+                                <button
+                                    onClick={handleDownloadReportCsv}
+                                    className="w-full py-3.5 px-4 rounded-xl border border-black/10 bg-white hover:bg-black/5 text-foreground font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                                >
+                                    <Download01Icon size={18} />
+                                    Unduh Rekap (.csv)
+                                </button>
+                            </div>
                         )}
 
-                        <div className="flex gap-4">
+                        <div className="flex gap-4 pt-2">
                             <button
                                 onClick={() => {
                                     setStep(1);

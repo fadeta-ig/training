@@ -78,8 +78,9 @@ export function objectsToCsv(rows: Array<Record<string, unknown>>, headers?: str
         return text;
     };
 
-    return [
+    return '\uFEFF' + [
         keys.map(escapeValue).join(','),
         ...rows.map((row) => keys.map((key) => escapeValue(row[key])).join(',')),
     ].join('\r\n');
 }
+

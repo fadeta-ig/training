@@ -58,8 +58,8 @@ export default function LoginPage() {
                     <div className="w-16 h-16 bg-black text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-black/10">
                         <Key01Icon size={32} />
                     </div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Sistem E-Learning</h1>
-                    <p className="text-muted-foreground mt-2">Masuk untuk melanjutkan ke akun Anda</p>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">LMS Nusamitra Consulting</h1>
+                    <p className="text-muted-foreground mt-2">Masuk untuk melanjutkan ke portal Anda</p>
                 </div>
 
                 <div className="glass-card p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]">

@@ -1,9 +1,8 @@
 import mysql, { Pool, PoolOptions } from 'mysql2/promise';
 
 /**
- * Antigravity MySQL Connection Pool (Singleton Pattern)
+ * LMS Nusamitra Consulting MySQL Connection Pool (Singleton Pattern)
  * Prevents multiple pools during Next.js HMR (Hot Module Replacement).
- * Host: localhost | Port: 3306 (XAMPP default)
  */
 const poolConfig: PoolOptions = {
   host: process.env.DB_HOST || '127.0.0.1',

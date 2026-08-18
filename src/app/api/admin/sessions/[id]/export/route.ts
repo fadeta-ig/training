@@ -97,7 +97,7 @@ export const GET = withAuth(async (
         </head>
         <body>
             <table>
-                <tr><td colspan="7" class="title-row" style="height: 40px; vertical-align: middle; padding-left: 10px;">Laporan Hasil Sesi: ${sessionTitle}</td></tr>
+                <tr><td colspan="7" class="title-row" style="height: 40px; vertical-align: middle; padding-left: 10px;">LMS Nusamitra Consulting — Laporan Hasil Sesi: ${sessionTitle}</td></tr>
                 <tr><td colspan="7" class="meta-row">ID Sesi: ${safeSessionId}</td></tr>
                 <tr><td colspan="7" class="meta-row">Diunduh pada: ${currentDate}</td></tr>
                 <tr><td colspan="7"></td></tr>

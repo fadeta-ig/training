@@ -53,7 +53,7 @@ export const GET = withAuth(async (
 <plist version="1.0">
   <dict>
     <key>origin</key>
-    <string>WIG Antigravity LMS</string>
+    <string>LMS Nusamitra Consulting</string>
     <key>startURL</key>
     <string>${safeStartUrl}</string>
     <key>sendBrowserExamKey</key>

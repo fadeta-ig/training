@@ -18,7 +18,8 @@ import {
     PencilEdit01Icon,
     Search01Icon,
     CheckmarkCircle02Icon,
-    FoldersIcon
+    FoldersIcon,
+    Cancel01Icon
 } from 'hugeicons-react';
 import { toast } from 'sonner';
 import { usePagination } from '@/hooks/usePagination';
@@ -445,20 +446,20 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
 
                 {/* Batch Actions Bar (when >= 1 participant selected) */}
                 {selectedParticipantIds.length > 0 && (
-                    <div className="p-3 bg-slate-900 text-white flex items-center justify-between gap-3 flex-wrap animate-in fade-in duration-150">
+                    <div className="p-3 bg-slate-50 border-b border-black/5 flex items-center justify-between gap-3 flex-wrap animate-in fade-in duration-150">
                         <div className="flex items-center gap-2 text-xs">
-                            <span className="font-semibold px-2 py-0.5 rounded bg-white/20 text-white">
+                            <span className="font-medium px-2 py-0.5 rounded bg-slate-200 text-slate-800 text-[11px] font-mono">
                                 {selectedParticipantIds.length} Peserta Dipilih
                             </span>
-                            <span className="text-slate-300 hidden sm:inline">
-                                Aksi massal perpanjangan waktu untuk peserta yang dipilih
+                            <span className="text-muted-foreground text-xs hidden sm:inline">
+                                Aksi perpanjangan waktu untuk peserta yang dipilih
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
                                 onClick={() => setShowBulkTimeModal(true)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-semibold transition-colors shadow-2xs"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-colors shadow-2xs"
                             >
                                 <Time02Icon size={14} />
                                 <span>Tambah Waktu Massal</span>
@@ -466,7 +467,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                             <button
                                 type="button"
                                 onClick={() => setSelectedParticipantIds([])}
-                                className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-slate-300 hover:text-white transition-colors"
+                                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors"
                             >
                                 Batal
                             </button>
@@ -491,7 +492,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                             type="checkbox"
                                             checked={isAllSelected}
                                             onChange={(e) => handleSelectAll(e.target.checked)}
-                                            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-primary"
+                                            className="w-4 h-4 rounded border-gray-300 text-slate-900 focus:ring-slate-400 cursor-pointer accent-slate-900"
                                             aria-label="Pilih semua peserta"
                                         />
                                     </th>
@@ -510,7 +511,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                         <tr
                                             key={p.id}
                                             className={`hover:bg-slate-50/60 transition-colors ${
-                                                isSelected ? 'bg-primary/5' : ''
+                                                isSelected ? 'bg-slate-100/70' : ''
                                             }`}
                                         >
                                             <td className="px-4 py-3.5 text-center align-middle">
@@ -518,7 +519,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                     type="checkbox"
                                                     checked={isSelected}
                                                     onChange={(e) => handleToggleParticipant(p.id, e.target.checked)}
-                                                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-primary"
+                                                    className="w-4 h-4 rounded border-gray-300 text-slate-900 focus:ring-slate-400 cursor-pointer accent-slate-900"
                                                     aria-label={`Pilih ${p.full_name}`}
                                                 />
                                             </td>
@@ -586,101 +587,113 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* Bulk Time Extension Modal */}
-            {showBulkTimeModal && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-                    <div className="bg-white rounded-2xl border border-black/10 shadow-2xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-                        <div className="flex items-center justify-between border-b border-black/5 pb-3">
-                            <div className="flex items-center gap-2">
-                                <Time02Icon size={20} className="text-primary" />
-                                <h3 className="text-base font-semibold text-foreground">
+            {showBulkTimeModal &&
+                typeof window !== 'undefined' &&
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs animate-in fade-in duration-150"
+                        onClick={() => setShowBulkTimeModal(false)}
+                    >
+                        <div
+                            className="relative w-full max-w-md bg-white rounded-xl shadow-xl border border-black/5 p-6 space-y-4 animate-in zoom-in-95 duration-150"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="w-11 h-11 bg-slate-100 text-slate-800 rounded-lg flex items-center justify-center">
+                                    <Time02Icon size={22} />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkTimeModal(false)}
+                                    className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                                >
+                                    <Cancel01Icon size={16} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-1">
+                                <h3 className="font-semibold text-base text-foreground">
                                     Tambah Waktu Massal
                                 </h3>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Tambahkan durasi pengerjaan ujian untuk{' '}
+                                    <strong className="text-foreground">{selectedParticipantIds.length} peserta</strong> yang dipilih.
+                                </p>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowBulkTimeModal(false)}
-                                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
-                            >
-                                ✕
-                            </button>
-                        </div>
 
-                        <div className="p-3 bg-primary/5 rounded-xl border border-primary/20 space-y-1">
-                            <p className="text-xs font-semibold text-foreground">
-                                Target: {selectedParticipantIds.length} Peserta Terpilih
-                            </p>
-                            <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                Tambahan waktu akan ditambahkan ke batas pengerjaan modul ujian seluruh peserta yang dipilih.
-                            </p>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div>
-                                <label className="block text-xs font-medium text-foreground mb-1.5">
-                                    Pilih Durasi Tambahan (Menit):
-                                </label>
-                                <div className="grid grid-cols-4 gap-2 mb-2">
-                                    {[10, 15, 30, 60].map((mins) => (
-                                        <button
-                                            key={mins}
-                                            type="button"
-                                            onClick={() => setBulkExtraMinutes(mins)}
-                                            className={`py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                                                bulkExtraMinutes === mins
-                                                    ? 'bg-primary text-white border-primary shadow-2xs'
-                                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                                            }`}
-                                        >
-                                            +{mins} mnt
-                                        </button>
-                                    ))}
+                            <div className="space-y-3 pt-1">
+                                <div>
+                                    <label className="block text-xs font-medium text-foreground mb-1.5">
+                                        Pilihan Tambahan Waktu (Menit):
+                                    </label>
+                                    <div className="grid grid-cols-4 gap-2 mb-2">
+                                        {[10, 15, 30, 60].map((mins) => (
+                                            <button
+                                                key={mins}
+                                                type="button"
+                                                onClick={() => setBulkExtraMinutes(mins)}
+                                                className={`py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                                                    bulkExtraMinutes === mins
+                                                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                                }`}
+                                            >
+                                                +{mins} mnt
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="180"
+                                        value={bulkExtraMinutes}
+                                        onChange={(e) => setBulkExtraMinutes(Number(e.target.value))}
+                                        className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-black/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white transition-all font-mono"
+                                        placeholder="Atau masukkan menit manual (contoh: 15)"
+                                    />
                                 </div>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="180"
-                                    value={bulkExtraMinutes}
-                                    onChange={(e) => setBulkExtraMinutes(Number(e.target.value))}
-                                    className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    placeholder="Atau ketik menit manual (contoh: 15)"
-                                />
+
+                                <div>
+                                    <label className="block text-xs font-medium text-foreground mb-1">
+                                        Alasan Tambahan Waktu (Audit Log):
+                                    </label>
+                                    <textarea
+                                        value={bulkReason}
+                                        onChange={(e) => setBulkReason(e.target.value)}
+                                        rows={2}
+                                        className="w-full px-3 py-2 text-xs bg-slate-50 border border-black/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white transition-all resize-none"
+                                        placeholder="Contoh: Gangguan koneksi di lab komputer"
+                                    />
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-medium text-foreground mb-1">
-                                    Alasan Tambahan Waktu (Audit Log):
-                                </label>
-                                <textarea
-                                    value={bulkReason}
-                                    onChange={(e) => setBulkReason(e.target.value)}
-                                    rows={2}
-                                    className="w-full p-2.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    placeholder="Contoh: Gangguan jaringan Wi-Fi di ruang lab"
-                                />
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/5">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkTimeModal(false)}
+                                    disabled={isSubmittingBulk}
+                                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleExecuteBulkExtension}
+                                    disabled={isSubmittingBulk || selectedParticipantIds.length === 0}
+                                    className="px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors shadow-2xs disabled:opacity-50 inline-flex items-center gap-1.5"
+                                >
+                                    {isSubmittingBulk ? (
+                                        <div className="w-3.5 h-3.5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <Time02Icon size={14} />
+                                    )}
+                                    <span>Terapkan Tambahan</span>
+                                </button>
                             </div>
                         </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/5">
-                            <button
-                                type="button"
-                                onClick={() => setShowBulkTimeModal(false)}
-                                className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                                disabled={isSubmittingBulk}
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleExecuteBulkExtension}
-                                disabled={isSubmittingBulk || selectedParticipantIds.length === 0}
-                                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-white bg-primary hover:bg-primary/90 transition-colors shadow-2xs disabled:opacity-50"
-                            >
-                                {isSubmittingBulk ? 'Memproses...' : 'Terapkan Tambahan Waktu'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                    </div>,
+                    document.body
+                )}
 
             {/* Blast Confirmation Modal */}
             {showBlastConfirm &&

@@ -13,8 +13,12 @@ import {
     Cloud,
     CloudAlert,
     CloudUpload,
+    Flag,
+    HelpCircle,
+    Layers,
     LogOut,
     Send,
+    X,
 } from 'lucide-react';
 import WebcamProctor from '@/components/proctor/WebcamProctor';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
@@ -746,14 +750,14 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const renderQuestionPalette = (isDrawer = false) => (
         <div className="space-y-3">
             <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Palet Soal</span>
-                <span className="text-xs font-mono font-medium text-muted-foreground">
+                <span className="text-xs font-semibold text-foreground">Daftar Soal</span>
+                <span className="text-[11px] font-mono text-muted-foreground">
                     {answeredCount}/{questions.length} Selesai
                 </span>
             </div>
 
-            {/* Color Legend */}
-            <div className="grid grid-cols-3 gap-1 text-[10px] text-muted-foreground border-y py-2">
+            {/* Status Legend */}
+            <div className="grid grid-cols-3 gap-1 text-[11px] text-muted-foreground border-y border-black/5 py-2.5">
                 <div className="flex items-center gap-1.5">
                     <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
                     <span>Yakin ({confidentAnsweredCount})</span>
@@ -770,9 +774,9 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
             {/* Question Buttons Grid */}
             <nav
-                aria-label="Navigasi soal"
+                aria-label="Navigasi nomor soal"
                 className={cn(
-                    'grid grid-cols-5 gap-2 max-h-[50vh] overflow-y-auto p-0.5',
+                    'grid grid-cols-5 gap-1.5 max-h-[50vh] overflow-y-auto p-0.5',
                     isDrawer && 'grid-cols-6 sm:grid-cols-8'
                 )}
             >
@@ -781,11 +785,11 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     const flagged = flaggedIds.has(question.id);
                     const active = index === currentIdx;
 
-                    let buttonStyle = 'bg-background text-muted-foreground border-border hover:bg-muted/50';
+                    let buttonStyle = 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300';
                     if (flagged) {
-                        buttonStyle = 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 font-semibold';
+                        buttonStyle = 'bg-amber-50 text-amber-900 border-amber-300/80 hover:bg-amber-100/60 font-medium';
                     } else if (complete) {
-                        buttonStyle = 'bg-emerald-100 text-emerald-900 border-emerald-300/80 hover:bg-emerald-200 font-semibold';
+                        buttonStyle = 'bg-emerald-50 text-emerald-800 border-emerald-200/80 hover:bg-emerald-100/60 font-medium';
                     }
 
                     return (
@@ -797,15 +801,15 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                                 if (isDrawer) setMobilePaletteOpen(false);
                             }}
                             className={cn(
-                                'h-9 w-full rounded-lg border text-xs font-mono font-medium transition-all relative flex items-center justify-center',
+                                'h-8.5 w-full rounded-lg border text-xs font-mono font-medium transition-all relative flex items-center justify-center',
                                 buttonStyle,
-                                active && 'ring-2 ring-primary ring-offset-2 scale-105 font-bold shadow-xs'
+                                active && 'ring-2 ring-slate-900 ring-offset-1 font-semibold text-foreground'
                             )}
                             aria-label={`Soal ${index + 1}${flagged ? ', ragu-ragu' : complete ? ', sudah dijawab' : ', belum dijawab'}`}
                         >
                             {index + 1}
                             {flagged && (
-                                <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-500 border border-white" />
+                                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-500" />
                             )}
                         </button>
                     );
@@ -829,7 +833,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     <div className="min-w-0 flex-1">
                         <h1 className="truncate text-sm font-semibold sm:text-base">{examData.exam.title}</h1>
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                            <span>Soal {currentIdx + 1} / {questions.length}</span>
+                            <span>Soal {currentIdx + 1} dari {questions.length}</span>
                             <span aria-hidden="true">•</span>
                             <span className="text-emerald-700 font-medium">{answeredCount} dijawab</span>
                             {flaggedCount > 0 && (
@@ -843,13 +847,13 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
                     {/* Sync Status Badge */}
                     <div className={cn(
-                        'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border',
+                        'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-normal border',
                         saveState === 'offline'
-                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200/80'
                             : saveState === 'error'
-                                ? 'bg-red-50 text-red-700 border-red-200'
+                                ? 'bg-red-50 text-red-700 border-red-200/80'
                                 : saveState === 'saving'
-                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200/80'
                                     : 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
                     )}>
                         <SaveIcon className={cn('size-3.5', saveState === 'saving' && 'animate-spin')} />
@@ -858,14 +862,14 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
                     {/* Timer Badge */}
                     <div className={cn(
-                        'flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 font-mono text-base font-semibold tabular-nums shadow-2xs transition-colors',
+                        'flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 font-mono text-sm font-medium tabular-nums shadow-2xs transition-colors',
                         criticalTime
                             ? 'border-destructive bg-destructive/10 text-destructive animate-pulse'
                             : warningTime
-                                ? 'border-amber-400 bg-amber-50 text-amber-900'
+                                ? 'border-amber-300 bg-amber-50 text-amber-900'
                                 : 'border-black/5 bg-background text-foreground',
                     )} aria-label={`Sisa waktu ${formatTime(timeLeft)}`}>
-                        <Clock3 className={cn('size-4', criticalTime && 'text-destructive', warningTime && 'text-amber-600')} />
+                        <Clock3 className={cn('size-3.5', criticalTime && 'text-destructive', warningTime && 'text-amber-600')} />
                         <span>{formatTime(timeLeft)}</span>
                     </div>
                 </div>
@@ -898,10 +902,10 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                         <CardHeader className="border-b bg-slate-50/40 p-4 sm:p-5">
                             <div className="flex items-center justify-between gap-3 flex-wrap">
                                 <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="font-mono text-xs">
+                                    <Badge variant="outline" className="font-mono text-xs font-medium">
                                         Soal {currentIdx + 1}
                                     </Badge>
-                                    <span className="text-xs font-medium text-muted-foreground">{currentQuestion.points} Poin</span>
+                                    <span className="text-xs font-normal text-muted-foreground">{currentQuestion.points} Poin</span>
                                 </div>
 
                                 {/* Toggle Ragu-Ragu Button */}
@@ -911,18 +915,18 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                                     size="sm"
                                     onClick={() => toggleFlag(currentQuestion.id)}
                                     className={cn(
-                                        'gap-1.5 transition-all text-xs font-semibold h-8 rounded-lg shadow-2xs',
+                                        'h-8 gap-1.5 px-3 text-xs font-medium rounded-lg transition-colors shadow-2xs',
                                         isCurrentFlagged
-                                            ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600 hover:text-white'
+                                            ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100/70'
                                             : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                                     )}
                                 >
-                                    <span className={cn('size-2 rounded-full', isCurrentFlagged ? 'bg-white' : 'bg-amber-500')} />
-                                    {isCurrentFlagged ? 'Ditandai Ragu-Ragu' : 'Tandai Ragu-Ragu'}
+                                    <Flag className={cn('size-3.5', isCurrentFlagged ? 'text-amber-600 fill-amber-500' : 'text-slate-400')} />
+                                    <span>{isCurrentFlagged ? 'Ragu-Ragu' : 'Tandai Ragu'}</span>
                                 </Button>
                             </div>
 
-                            <CardTitle className="whitespace-pre-wrap break-words text-base font-semibold leading-relaxed sm:text-lg pt-2 text-foreground">
+                            <CardTitle className="whitespace-pre-wrap break-words text-base font-medium leading-relaxed sm:text-lg pt-2 text-foreground">
                                 {currentQuestion.question_text}
                             </CardTitle>
 
@@ -947,37 +951,36 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             </main>
 
             {/* Mobile Bottom Sticky Navigation Bar */}
-            <footer className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 shadow-lg">
-                <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:px-6 xl:pr-44">
+            <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-black/5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 shadow-2xs">
+                <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-6 xl:pr-44">
                     <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         disabled={currentIdx === 0 || submitting}
                         onClick={() => setCurrentIdx((index) => Math.max(0, index - 1))}
-                        className="h-9 px-3 rounded-lg"
+                        className="h-8.5 px-3 text-xs font-medium rounded-lg text-slate-700"
                     >
-                        <ArrowLeft className="size-4" />
-                        <span className="hidden sm:inline ml-1">Sebelumnya</span>
+                        <ArrowLeft className="size-3.5 mr-1" />
+                        <span className="hidden sm:inline">Sebelumnya</span>
                     </Button>
 
                     {/* Mobile Center Palette Button */}
                     <div className="flex lg:hidden items-center gap-1.5">
-                        <Button
+                        <button
                             type="button"
-                            variant="secondary"
-                            size="sm"
                             onClick={() => setMobilePaletteOpen(true)}
-                            className="h-9 px-3 text-xs font-semibold rounded-lg flex items-center gap-1.5 bg-slate-100"
+                            className="h-8.5 px-3 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/70 rounded-lg flex items-center gap-1.5 transition-colors border border-black/5"
                         >
+                            <Layers className="size-3.5 text-slate-500" />
                             <span>Daftar Soal</span>
-                            <span className="px-1.5 py-0.5 rounded bg-slate-200 text-[11px] font-mono">
+                            <span className="font-mono text-[11px] text-slate-600">
                                 {currentIdx + 1}/{questions.length}
                             </span>
                             {flaggedCount > 0 && (
-                                <span className="size-2 rounded-full bg-amber-500" />
+                                <span className="size-1.5 rounded-full bg-amber-500" />
                             )}
-                        </Button>
+                        </button>
                     </div>
 
                     {currentIdx < questions.length - 1 ? (
@@ -986,10 +989,10 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                             size="sm"
                             disabled={submitting}
                             onClick={() => setCurrentIdx((index) => Math.min(questions.length - 1, index + 1))}
-                            className="h-9 px-3 rounded-lg"
+                            className="h-8.5 px-3 text-xs font-medium rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-2xs"
                         >
                             <span className="hidden sm:inline mr-1">Selanjutnya</span>
-                            <ArrowRight className="size-4" />
+                            <ArrowRight className="size-3.5" />
                         </Button>
                     ) : (
                         <Button
@@ -997,12 +1000,12 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                             size="sm"
                             disabled={submitting}
                             onClick={() => setConfirmOpen(true)}
-                            className="h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-2xs"
+                            className="h-8.5 px-4 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
                         >
                             {submitting ? (
-                                <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                                <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                             ) : (
-                                <Send className="size-4 mr-1.5" />
+                                <Send className="size-3.5 mr-1.5" />
                             )}
                             Kirim Ujian
                         </Button>
@@ -1012,29 +1015,29 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
             {/* Mobile Slide-Up Question Palette Bottom Sheet */}
             {mobilePaletteOpen && (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-xs animate-in fade-in duration-150 lg:hidden">
-                    <div className="w-full bg-background rounded-t-2xl border-t border-black/10 p-5 space-y-4 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
-                        <div className="flex items-center justify-between border-b pb-3">
-                            <h3 className="text-sm font-semibold text-foreground">Palet Nomor Soal</h3>
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 backdrop-blur-xs animate-in fade-in duration-150 lg:hidden">
+                    <div className="w-full bg-white rounded-t-2xl border-t border-black/10 p-5 space-y-4 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-200 shadow-xl">
+                        <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                            <h3 className="text-sm font-semibold text-foreground">Daftar Nomor Soal</h3>
                             <button
                                 type="button"
                                 onClick={() => setMobilePaletteOpen(false)}
-                                className="p-1 rounded-lg hover:bg-muted text-muted-foreground"
+                                className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
                             >
-                                ✕
+                                <X className="size-4" />
                             </button>
                         </div>
 
                         {renderQuestionPalette(true)}
 
-                        <div className="pt-2 border-t flex justify-end">
+                        <div className="pt-2 border-t border-black/5 flex justify-end">
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => setMobilePaletteOpen(false)}
-                                className="w-full sm:w-auto text-xs"
+                                className="w-full sm:w-auto text-xs font-medium rounded-lg"
                             >
-                                Tutup Palet
+                                Tutup
                             </Button>
                         </div>
                     </div>
@@ -1043,47 +1046,47 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
             {/* Submission Checklist Breakdown Modal */}
             <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-                <AlertDialogContent className="max-w-md rounded-2xl p-5 sm:p-6 space-y-4">
+                <AlertDialogContent className="max-w-md rounded-2xl p-5 sm:p-6 space-y-4 bg-white border border-black/10 shadow-xl">
                     <AlertDialogHeader>
                         <AlertDialogMedia>
                             {unansweredCount > 0 ? (
-                                <AlertCircle className="size-10 text-amber-600" />
+                                <AlertCircle className="size-8 text-amber-600" />
                             ) : (
-                                <CheckCircle2 className="size-10 text-emerald-600" />
+                                <CheckCircle2 className="size-8 text-emerald-600" />
                             )}
                         </AlertDialogMedia>
-                        <AlertDialogTitle className="text-base font-bold text-foreground">
+                        <AlertDialogTitle className="text-base font-semibold text-foreground">
                             Konfirmasi Pengumpulan Ujian
                         </AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed">
                             {unansweredCount > 0 || flaggedCount > 0
                                 ? 'Periksa kembali status pengerjaan soal Anda sebelum mengirimkan secara final. Jawaban tidak dapat diubah setelah dikirim.'
                                 : 'Seluruh soal telah dijawab dengan yakin. Jawaban tidak dapat diubah setelah dikirim.'}
                         </AlertDialogDescription>
 
                         {/* Stats Breakdown Grid */}
-                        <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 border border-black/5 text-center w-full">
-                            <div className="p-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/60">
-                                <span className="text-[10px] block font-medium uppercase tracking-wider">Yakin</span>
-                                <span className="text-base font-bold font-mono">{confidentAnsweredCount}</span>
+                        <div className="grid grid-cols-3 gap-2.5 p-3 rounded-xl bg-slate-50/80 border border-black/5 text-center w-full">
+                            <div className="p-2.5 rounded-lg bg-white border border-black/5">
+                                <span className="text-[11px] block text-muted-foreground font-medium">Yakin</span>
+                                <span className="text-sm font-semibold font-mono text-emerald-700">{confidentAnsweredCount}</span>
                             </div>
-                            <div className="p-2 rounded-lg bg-amber-50 text-amber-800 border border-amber-200/60">
-                                <span className="text-[10px] block font-medium uppercase tracking-wider">Ragu</span>
-                                <span className="text-base font-bold font-mono">{flaggedCount}</span>
+                            <div className="p-2.5 rounded-lg bg-white border border-black/5">
+                                <span className="text-[11px] block text-muted-foreground font-medium">Ragu</span>
+                                <span className="text-sm font-semibold font-mono text-amber-700">{flaggedCount}</span>
                             </div>
-                            <div className="p-2 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
-                                <span className="text-[10px] block font-medium uppercase tracking-wider">Kosong</span>
-                                <span className="text-base font-bold font-mono">{unansweredCount}</span>
+                            <div className="p-2.5 rounded-lg bg-white border border-black/5">
+                                <span className="text-[11px] block text-muted-foreground font-medium">Kosong</span>
+                                <span className="text-sm font-semibold font-mono text-slate-600">{unansweredCount}</span>
                             </div>
                         </div>
 
                         {/* Direct Jump List for Incomplete/Flagged Questions */}
                         {uncompletedOrFlaggedList.length > 0 && (
                             <div className="space-y-1.5 pt-1 text-left w-full">
-                                <span className="text-[11px] font-semibold text-foreground block">
-                                    Perlu Ditinjau (Klik nomor untuk lompat langsung):
+                                <span className="text-[11px] font-medium text-muted-foreground block">
+                                    Perlu ditinjau kembali (klik nomor untuk melompat):
                                 </span>
-                                <div className="flex items-center gap-1.5 flex-wrap max-h-24 overflow-y-auto p-1 bg-white rounded-lg border border-black/5">
+                                <div className="flex items-center gap-1.5 flex-wrap max-h-24 overflow-y-auto p-1.5 bg-slate-50/60 rounded-lg border border-black/5">
                                     {uncompletedOrFlaggedList.map((item) => (
                                         <button
                                             key={item.question.id}
@@ -1093,14 +1096,15 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                                                 setConfirmOpen(false);
                                             }}
                                             className={cn(
-                                                'px-2.5 py-1 rounded-md text-xs font-mono font-semibold border transition-colors hover:scale-105',
+                                                'px-2 py-1 rounded-md text-[11px] font-mono font-medium border transition-colors',
                                                 item.isFlagged
-                                                    ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
-                                                    : 'bg-red-50 text-red-800 border-red-200 hover:bg-red-100'
+                                                    ? 'bg-amber-50 text-amber-900 border-amber-200/80 hover:bg-amber-100/70'
+                                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                                             )}
                                         >
+                                            {item.isFlagged && <Flag className="size-2.5 text-amber-600 fill-amber-500 inline mr-1" />}
                                             Soal {item.index + 1}
-                                            {item.isFlagged ? ' (Ragu)' : ' (Kosong)'}
+                                            {!item.isFlagged && <span className="text-slate-400 ml-1">(Kosong)</span>}
                                         </button>
                                     ))}
                                 </div>
@@ -1108,16 +1112,16 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                         )}
                     </AlertDialogHeader>
 
-                    <AlertDialogFooter className="gap-2 pt-2 border-t">
-                        <AlertDialogCancel disabled={submitting} className="rounded-xl text-xs">
+                    <AlertDialogFooter className="gap-2 pt-2 border-t border-black/5">
+                        <AlertDialogCancel disabled={submitting} className="rounded-xl text-xs font-medium">
                             Periksa Lagi
                         </AlertDialogCancel>
                         <AlertDialogAction
                             disabled={submitting}
                             onClick={submitExam}
-                            className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                            className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-2xs"
                         >
-                            {submitting ? 'Mengirim...' : 'Kirim Jawaban Sekarang'}
+                            {submitting ? 'Mengirim...' : 'Kirim Jawaban'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

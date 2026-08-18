@@ -354,7 +354,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                         </span>
                     </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                         <div className="relative flex-1 sm:w-56">
                             <Search01Icon
                                 size={14}
@@ -372,14 +372,14 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                         <button
                             onClick={() => setShowBlastConfirm(true)}
                             disabled={isSendingBlast || session.participants.length === 0}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors shadow-2xs disabled:opacity-50 shrink-0"
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors shadow-2xs disabled:opacity-50 shrink-0"
                         >
                             {isSendingBlast ? (
                                 <div className="w-3.5 h-3.5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
                             ) : (
                                 <MailSend01Icon size={14} />
                             )}
-                            Blast Pengingat
+                            <span>Blast Pengingat</span>
                         </button>
                     </div>
                 </div>
@@ -393,7 +393,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
+                        <table className="w-full min-w-[560px] text-left text-xs">
                             <thead className="bg-slate-50/80 border-b border-black/5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                                 <tr>
                                     <th className="px-5 py-3 w-12 text-center">No</th>

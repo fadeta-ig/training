@@ -31,7 +31,7 @@ function generateRandomPassword(length = 14) {
 async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
-        const { page, limit, offset } = parsePagination(searchParams);
+        const { page, limit, offset } = parsePagination(searchParams, 10, 10000);
         const search = searchParams.get('search') || '';
 
         let countQuery = `

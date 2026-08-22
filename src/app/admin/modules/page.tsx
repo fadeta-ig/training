@@ -6,6 +6,7 @@ import {
     AlertCircle,
     Boxes,
     CalendarDays,
+    Download,
     Eye,
     ListTree,
     Pencil,
@@ -25,6 +26,7 @@ import {
 import { Pagination } from '@/components/ui/Pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/hooks/useConfirm';
+import { ModuleDownloadDialog } from '@/components/admin/ModuleDownloadDialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -52,6 +54,7 @@ export default function ModulesManagerPage() {
     const [userRole, setUserRole] = useState('');
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
+    const [selectedModuleForDownload, setSelectedModuleForDownload] = useState<{ id: string; title: string } | null>(null);
     const { confirm, ConfirmComponent } = useConfirm();
 
     const fetchModules = useCallback(async (targetPage: number, limit: number) => {
@@ -61,7 +64,7 @@ export default function ModulesManagerPage() {
             const response = await fetch(`/api/modules?page=${targetPage}&limit=${limit}`);
             if (!response.ok) throw new Error('Gagal mengambil data modul');
             const body = await response.json();
-            if (!body.success) throw new Error(body.error || 'Terjadi kesalahan sistem');
+            if (!body.success) throw new Error(body.error || 'Terjadi kesalahan server');
             setModules(body.data);
             setTotalPages(body.pagination?.totalPages || 1);
             setTotalItems(body.pagination?.total || body.data.length);
@@ -88,7 +91,7 @@ export default function ModulesManagerPage() {
     const deleteModule = async (id: string, title: string) => {
         const isConfirmed = await confirm({
             title: 'Hapus Modul?',
-            message: `Apakah Anda yakin ingin menghapus modul "${title}" secara permanen? Sesi yang menggunakan modul ini dapat terdampak.`,
+            message: `Apakah Anda yakin ingin menghapus modul "${title}"? Hubungan urutan materi dan ujian dalam modul ini akan ikut terhapus.`,
             isDestructive: true,
             confirmLabel: 'Ya, Hapus Modul',
             cancelLabel: 'Batal',
@@ -108,9 +111,18 @@ export default function ModulesManagerPage() {
     return (
         <div className="relative max-w-6xl space-y-8 pb-12">
             <ConfirmComponent />
+            
+            {/* Download Modal Dialog */}
+            <ModuleDownloadDialog
+                isOpen={!!selectedModuleForDownload}
+                onClose={() => setSelectedModuleForDownload(null)}
+                moduleId={selectedModuleForDownload?.id || ''}
+                moduleTitle={selectedModuleForDownload?.title || ''}
+            />
+
             <ManagementPageHeader
                 title="Modul Pembelajaran"
-                description="Susun materi dan ujian menjadi alur pembelajaran yang terurut sebelum digunakan pada sesi peserta."
+                description="Satukan materi dan ujian ke dalam satu alur pembelajaran terstruktur untuk digunakan dalam sesi pelatihan."
                 icon={<Boxes className="size-7" />}
                 actionLabel={userRole === 'admin' ? 'Buat Modul Baru' : undefined}
                 actionHref={userRole === 'admin' ? '/admin/modules/new' : undefined}
@@ -134,10 +146,10 @@ export default function ModulesManagerPage() {
                 </div>
             ) : modules.length === 0 ? (
                 <div className="rounded-lg border border-dashed px-6 py-14 text-center">
-                    <ListTree className="mx-auto size-9 text-muted-foreground/50" />
+                    <Boxes className="mx-auto size-9 text-muted-foreground/50" />
                     <h2 className="mt-4 font-medium">Belum ada modul pembelajaran</h2>
                     <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-                        Buat modul pertama, kemudian tentukan urutan materi dan ujian yang harus diselesaikan peserta.
+                        Buat modul pertama dan tentukan urutan materi serta evaluasi yang harus diselesaikan peserta.
                     </p>
                     {userRole === 'admin' && (
                         <Link href="/admin/modules/new" className={cn(buttonVariants({ size: 'lg' }), 'mt-5')}>
@@ -180,9 +192,22 @@ export default function ModulesManagerPage() {
                             </CardContent>
 
                             <CardFooter className="justify-between gap-3 rounded-b-lg border-t bg-muted/30 px-5 py-3">
-                                <Link href={`/admin/modules/${module.id}`} className={buttonVariants({ variant: 'outline', size: 'lg' })}>
-                                    <Eye /> Buka modul
-                                </Link>
+                                <div className="flex items-center gap-2">
+                                    <Link href={`/admin/modules/${module.id}`} className={buttonVariants({ variant: 'outline', size: 'lg' })}>
+                                        <Eye /> Buka modul
+                                    </Link>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setSelectedModuleForDownload({ id: module.id, title: module.title })}
+                                        aria-label={`Download modul ${module.title}`}
+                                        title="Download paket modul pembelajaran & bank soal"
+                                    >
+                                        <Download className="size-4" />
+                                    </Button>
+                                </div>
+
                                 {userRole === 'admin' && (
                                     <div className="flex items-center gap-2">
                                         <Link

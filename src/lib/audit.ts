@@ -27,7 +27,8 @@ export type AuditActionType =
     | 'UPLOAD_MEDIA'
     | 'REORDER_QUESTIONS'
     | 'SHUFFLE_QUESTIONS'
-    | 'DUPLICATE_EXAM';
+    | 'DUPLICATE_EXAM'
+    | 'DOWNLOAD_MODULE';
 
 /**
  * Core function to log an activity to the audit_logs table.

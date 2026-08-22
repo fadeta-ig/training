@@ -24,7 +24,10 @@ export type AuditActionType =
     | 'EXAM_OVERRIDE_RESUME'
     | 'EXAM_OVERRIDE_RESET'
     | 'EXAM_OVERRIDE_BULK_EXTENSION'
-    | 'UPLOAD_MEDIA';
+    | 'UPLOAD_MEDIA'
+    | 'REORDER_QUESTIONS'
+    | 'SHUFFLE_QUESTIONS'
+    | 'DUPLICATE_EXAM';
 
 /**
  * Core function to log an activity to the audit_logs table.

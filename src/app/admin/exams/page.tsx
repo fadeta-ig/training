@@ -5,8 +5,10 @@ import Link from 'next/link';
 import {
     AlertCircle,
     CalendarDays,
+    Copy,
     FileQuestion,
     ListChecks,
+    Loader2,
     Pencil,
     Plus,
     Target,
@@ -54,6 +56,7 @@ export default function ExamsManagerPage() {
     const [userRole, setUserRole] = useState('');
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
+    const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
     const { confirm, ConfirmComponent } = useConfirm();
 
     const fetchExams = useCallback(async (targetPage: number, limit: number) => {
@@ -86,6 +89,31 @@ export default function ExamsManagerPage() {
             })
             .catch(() => undefined);
     }, []);
+
+    const duplicateExam = async (id: string, title: string) => {
+        const isConfirmed = await confirm({
+            title: 'Duplikasi Ujian & Bank Soal?',
+            message: `Ujian "${title}" beserta seluruh kumpulan soal di dalamnya akan diduplikasi sebagai ujian baru. Hasil duplikasi dapat disesuaikan atau diedit kembali. Lanjutkan?`,
+            isDestructive: false,
+            confirmLabel: 'Ya, Duplikasi',
+            cancelLabel: 'Batal',
+        });
+        if (!isConfirmed) return;
+
+        setDuplicatingId(id);
+        try {
+            const response = await fetch(`/api/exams/${id}/duplicate`, { method: 'POST' });
+            const body = await response.json();
+            if (!response.ok || !body.success) throw new Error(body.error || 'Gagal menduplikasi ujian');
+            toast.success(`Ujian "${body.data.title}" berhasil diduplikasi (${body.data.questionCount} butir soal)`);
+            setPage(1);
+            fetchExams(1, pageSize);
+        } catch (caught) {
+            toast.error(caught instanceof Error ? caught.message : 'Gagal menduplikasi ujian');
+        } finally {
+            setDuplicatingId(null);
+        }
+    };
 
     const deleteExam = async (id: string, title: string) => {
         const isConfirmed = await confirm({
@@ -191,6 +219,21 @@ export default function ExamsManagerPage() {
                                 </Link>
                                 {userRole === 'admin' && (
                                     <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => duplicateExam(exam.id, exam.title)}
+                                            disabled={duplicatingId === exam.id}
+                                            aria-label={`Duplikasi ujian ${exam.title}`}
+                                            title="Duplikasi ujian beserta seluruh bank soal"
+                                        >
+                                            {duplicatingId === exam.id ? (
+                                                <Loader2 className="size-4 animate-spin text-blue-600" />
+                                            ) : (
+                                                <Copy className="size-4" />
+                                            )}
+                                        </Button>
                                         <Link
                                             href={`/admin/exams/${exam.id}/edit`}
                                             className={buttonVariants({ variant: 'outline', size: 'icon' })}

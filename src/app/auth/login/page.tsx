@@ -117,7 +117,7 @@ export default function LoginPage() {
                         {/* Username Input */}
                         <div className="space-y-1.5">
                             <label className="block text-xs font-semibold text-foreground/80 tracking-wider uppercase">
-                                Username
+                                Username / Email / NIP
                             </label>
                             <div className="relative flex items-center">
                                 <span className="absolute left-3.5 text-muted-foreground pointer-events-none">
@@ -128,7 +128,7 @@ export default function LoginPage() {
                                     required
                                     autoComplete="username"
                                     className="w-full h-12 pl-10 pr-4 rounded-xl bg-slate-50/70 border border-slate-200 text-sm text-foreground placeholder:text-muted-foreground/70 focus:bg-white focus:outline-none focus:border-foreground focus:ring-4 focus:ring-foreground/5 transition-all"
-                                    placeholder="Masukkan username Anda"
+                                    placeholder="Masukkan username, email, atau NIP"
                                     value={formData.username}
                                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                 />

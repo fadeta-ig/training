@@ -23,19 +23,23 @@ export async function POST(request: NextRequest) {
 
         if (!username || username.length > 255 || !password || password.length > 128) {
             return NextResponse.json(
-                { success: false, error: 'Username dan password wajib diisi' },
+                { success: false, error: 'Username/NIP dan password wajib diisi' },
                 { status: 400 }
             );
         }
 
-        // Cari user di DB
+        // Cari user di DB berdasarkan username (email) atau NIP resmi
         const users = await executeQuery<any[]>(
-            `SELECT id, username, password_hash, role, full_name FROM users WHERE username = ?`,
-            [username]
+            `SELECT u.id, u.username, u.password_hash, u.role, u.full_name 
+             FROM users u 
+             LEFT JOIN participant_profiles pp ON u.id = pp.user_id 
+             WHERE LOWER(u.username) = ? OR LOWER(COALESCE(pp.nip, '')) = ?
+             LIMIT 1`,
+            [username, username]
         );
 
         if (!Array.isArray(users) || users.length === 0) {
-            logger.warn('AUTH_LOGIN', `Percobaan login gagal: Username "${username}" tidak ditemukan`);
+            logger.warn('AUTH_LOGIN', `Percobaan login gagal: User/NIP "${username}" tidak ditemukan`);
             return NextResponse.json(
                 { success: false, error: 'Kredensial tidak valid' },
                 { status: 401 }

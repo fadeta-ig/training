@@ -243,9 +243,22 @@ export function DashboardHeader({ toggleSidebar, user }: DashboardHeaderProps) {
                                 <p className="text-xs font-semibold text-foreground truncate">
                                     {user?.full_name || 'Peserta'}
                                 </p>
-                                <p className="text-[11px] text-muted-foreground truncate">
-                                    {user?.username || '@peserta'}
-                                </p>
+                                {user?.nip ? (
+                                    <div className="mt-1 flex items-center gap-1.5">
+                                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20">
+                                            {user.nip}
+                                        </span>
+                                        {user.batch && (
+                                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                B{user.batch}
+                                            </span>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="text-[11px] text-muted-foreground truncate">
+                                        {user?.username || '@peserta'}
+                                    </p>
+                                )}
                             </div>
 
                             <Link

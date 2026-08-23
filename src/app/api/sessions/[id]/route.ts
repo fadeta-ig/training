@@ -42,17 +42,19 @@ async function handleGet(
 
         const totalItems = moduleItems.length;
 
-        // Fetch participants with progress
+        // Fetch participants with progress & NIP
         const participants = await executeQuery<any[]>(
             `SELECT sp.user_id, u.username, u.full_name,
+                    p.nip, p.institution, p.batch,
                     COUNT(up.id) AS completed_items
              FROM session_participants sp
              JOIN users u ON sp.user_id = u.id
+             LEFT JOIN participant_profiles p ON sp.user_id = p.user_id
              LEFT JOIN user_progress up ON up.user_id = sp.user_id 
                   AND up.session_id = sp.session_id 
                   AND up.status = 'completed'
              WHERE sp.session_id = ?
-             GROUP BY sp.user_id, u.username, u.full_name
+             GROUP BY sp.user_id, u.username, u.full_name, p.nip, p.institution, p.batch
              ORDER BY completed_items DESC, u.full_name ASC`,
             [resolvedParams.id]
         );
@@ -67,6 +69,9 @@ async function handleGet(
                     id: p.user_id,
                     username: p.username,
                     full_name: p.full_name,
+                    nip: p.nip || null,
+                    institution: p.institution || null,
+                    batch: p.batch || 1,
                     completed_items: Number(p.completed_items),
                     total_items: totalItems,
                     progress: totalItems > 0 ? Math.round((Number(p.completed_items) / totalItems) * 100) : 0,

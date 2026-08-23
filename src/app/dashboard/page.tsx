@@ -23,17 +23,17 @@ type Session = {
 };
 
 // RSC Fetch Logic
-async function getSessions() {
+async function getDashboardData() {
     try {
         const cookieStore = await cookies();
         const token = cookieStore.get('training_session')?.value;
-        if (!token) return [];
+        if (!token) return { sessions: [], userProfile: null };
 
         const payload = await verifyToken(token);
-        if (!payload || !payload.sub) return [];
+        if (!payload || !payload.sub) return { sessions: [], userProfile: null };
         const userId = payload.sub;
 
-        const query = `
+        const sessionsQuery = `
             SELECT 
                 s.id, s.title, s.start_time, s.end_time,
                 m.title as module_title,
@@ -47,15 +47,29 @@ async function getSessions() {
             ORDER BY s.start_time ASC
         `;
 
-        const data = await executeQuery<Session[]>(query, [userId, userId]);
-        return data || [];
+        const userProfileQuery = `
+            SELECT u.full_name, pp.nip, pp.institution, pp.batch
+            FROM users u
+            LEFT JOIN participant_profiles pp ON u.id = pp.user_id
+            WHERE u.id = ?
+        `;
+
+        const [sessions, userRows] = await Promise.all([
+            executeQuery<Session[]>(sessionsQuery, [userId, userId]),
+            executeQuery<any[]>(userProfileQuery, [userId])
+        ]);
+
+        return {
+            sessions: sessions || [],
+            userProfile: userRows?.[0] || null
+        };
     } catch {
-        return [];
+        return { sessions: [], userProfile: null };
     }
 }
 
 export default async function DashboardOverviewPage() {
-    const sessions = await getSessions();
+    const { sessions, userProfile } = await getDashboardData();
     const now = new Date();
 
     function getStatus(s: Session) {
@@ -74,11 +88,24 @@ export default async function DashboardOverviewPage() {
     return (
         <div className="max-w-5xl mx-auto space-y-8">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
-                <p className="text-muted-foreground text-sm mt-1">
-                    Ringkasan progres pelatihan dan jadwal terdekat Anda.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
+                    <p className="text-muted-foreground text-sm mt-1">
+                        Selamat datang kembali{userProfile?.full_name ? `, ${userProfile.full_name}` : ''}! Ringkasan progres pelatihan dan jadwal terdekat Anda.
+                    </p>
+                </div>
+                {userProfile?.nip && (
+                    <div className="flex items-center gap-2 self-start sm:self-auto bg-white border border-black/10 rounded-xl px-3.5 py-2 shadow-2xs">
+                        <span className="text-[11px] font-medium text-muted-foreground">NIP:</span>
+                        <span className="font-mono text-xs font-bold text-primary">{userProfile.nip}</span>
+                        {userProfile.batch && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                Batch {userProfile.batch}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Stats Overview */}

@@ -28,7 +28,6 @@ const profileUpdateSchema = z.object({
     current_password: z.string().max(128).optional(),
     new_password: z.string().min(8).max(128).optional(),
 });
-
 /**
  * GET /api/participant/profile
  * Get user profile details
@@ -38,7 +37,10 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
         const query = `
             SELECT 
                 u.id, u.full_name, u.username, u.role, u.created_at,
-                p.phone_number, p.address, DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, p.gender, p.institution
+                p.nip, p.phone_number, p.address, 
+                DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, 
+                p.gender, p.institution, p.institution_code, p.batch,
+                DATE_FORMAT(COALESCE(p.registration_date, p.created_at), '%Y-%m-%d') as registration_date
             FROM users u
             LEFT JOIN participant_profiles p ON u.id = p.user_id
             WHERE u.id = ?
@@ -60,10 +62,6 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
     }
 }
 
-/**
- * PUT /api/participant/profile
- * Update user profile details and handle password change if provided
- */
 async function handlePut(request: NextRequest, user: AuthenticatedUser) {
     try {
         const parsed = profileUpdateSchema.safeParse(await request.json());

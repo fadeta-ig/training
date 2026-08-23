@@ -26,6 +26,9 @@ export type ParticipantItem = {
     id: string;
     username: string; // email or username
     full_name: string;
+    nip?: string | null;
+    batch?: number | null;
+    registration_date?: string | null;
     email?: string;
     phone_number?: string | null;
     address?: string | null;
@@ -62,6 +65,7 @@ export function ParticipantEnrollmentPicker({
     const [searchQuery, setSearchQuery] = useState('');
     const [scope, setScope] = useState<SelectionScope>('all');
     const [selectedInstitution, setSelectedInstitution] = useState<string>('all');
+    const [selectedBatch, setSelectedBatch] = useState<string>('all');
     const [selectedGender, setSelectedGender] = useState<string>('all');
     const [sortBy, setSortBy] = useState<SortOption>('name-asc');
     const [showFilters, setShowFilters] = useState(false);
@@ -104,6 +108,21 @@ export function ParticipantEnrollmentPicker({
         };
     }, [participants]);
 
+    // --- Available Batches (Dynamically scoped by selected institution) ---
+    const availableBatches = useMemo(() => {
+        const batches = new Set<number>();
+        participants.forEach((p) => {
+            const instMatch =
+                selectedInstitution === 'all' ||
+                (selectedInstitution === '__NONE__' && !p.institution) ||
+                p.institution?.trim() === selectedInstitution;
+            if (instMatch && p.batch) {
+                batches.add(Number(p.batch));
+            }
+        });
+        return Array.from(batches).sort((a, b) => a - b);
+    }, [participants, selectedInstitution]);
+
     // --- Filter & Sort Logic ---
     const filteredParticipants = useMemo(() => {
         let result = participants;
@@ -124,18 +143,27 @@ export function ParticipantEnrollmentPicker({
             }
         }
 
-        // 3. Gender Filter
+        // 3. Batch Filter
+        if (selectedBatch !== 'all') {
+            const parsedB = parseInt(selectedBatch, 10);
+            if (!isNaN(parsedB)) {
+                result = result.filter((p) => (Number(p.batch) || 1) === parsedB);
+            }
+        }
+
+        // 4. Gender Filter
         if (selectedGender !== 'all') {
             result = result.filter((p) => p.gender === selectedGender);
         }
 
-        // 4. Search Query (Name, Username/Email, Institution, Phone)
+        // 5. Search Query (Name, Username/Email, NIP, Institution, Phone)
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase().trim();
             result = result.filter((p) => {
                 const name = (p.full_name || '').toLowerCase();
                 const username = (p.username || '').toLowerCase();
                 const email = (p.email || '').toLowerCase();
+                const nip = (p.nip || '').toLowerCase();
                 const institution = (p.institution || '').toLowerCase();
                 const phone = (p.phone_number || '').toLowerCase();
 
@@ -143,13 +171,14 @@ export function ParticipantEnrollmentPicker({
                     name.includes(query) ||
                     username.includes(query) ||
                     email.includes(query) ||
+                    nip.includes(query) ||
                     institution.includes(query) ||
                     phone.includes(query)
                 );
             });
         }
 
-        // 5. Sorting
+        // 6. Sorting
         const sorted = [...result];
         sorted.sort((a, b) => {
             if (sortBy === 'name-asc') {
@@ -180,6 +209,7 @@ export function ParticipantEnrollmentPicker({
         selectedSet,
         scope,
         selectedInstitution,
+        selectedBatch,
         selectedGender,
         searchQuery,
         sortBy,
@@ -199,10 +229,11 @@ export function ParticipantEnrollmentPicker({
     const activeFiltersCount = useMemo(() => {
         let count = 0;
         if (selectedInstitution !== 'all') count++;
+        if (selectedBatch !== 'all') count++;
         if (selectedGender !== 'all') count++;
         if (sortBy !== 'name-asc') count++;
         return count;
-    }, [selectedInstitution, selectedGender, sortBy]);
+    }, [selectedInstitution, selectedBatch, selectedGender, sortBy]);
 
     // --- Handlers: Individual Toggle ---
     const handleToggleUser = useCallback(
@@ -264,6 +295,7 @@ export function ParticipantEnrollmentPicker({
         setSearchQuery('');
         setScope('all');
         setSelectedInstitution('all');
+        setSelectedBatch('all');
         setSelectedGender('all');
         setSortBy('name-asc');
         setCurrentPage(1);
@@ -289,9 +321,10 @@ export function ParticipantEnrollmentPicker({
         let matchedCount = 0;
         const unmatched: string[] = [];
 
-        // Build lookup map for participants by username, email, ID, and phone
+        // Build lookup map for participants by username, email, NIP, ID, and phone
         const participantLookup = new Map<string, ParticipantItem>();
         participants.forEach((p) => {
+            if (p.nip) participantLookup.set(p.nip.toLowerCase(), p);
             if (p.username) participantLookup.set(p.username.toLowerCase(), p);
             if (p.email) participantLookup.set(p.email.toLowerCase(), p);
             if (p.id) participantLookup.set(p.id.toLowerCase(), p);
@@ -535,7 +568,7 @@ export function ParticipantEnrollmentPicker({
 
                 {/* Collapsible Advanced Filters Tray */}
                 {showFilters && (
-                    <div className="p-4 rounded-xl bg-black/[0.02] border border-black/[0.06] grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="p-4 rounded-xl bg-black/[0.02] border border-black/[0.06] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
                         {/* Filter Institusi */}
                         <div className="space-y-1">
                             <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
@@ -546,6 +579,7 @@ export function ParticipantEnrollmentPicker({
                                 value={selectedInstitution}
                                 onChange={(e) => {
                                     setSelectedInstitution(e.target.value);
+                                    setSelectedBatch('all'); // Reset batch when institution changes
                                     setCurrentPage(1);
                                 }}
                                 className="w-full px-3 py-2 rounded-lg border border-black/10 bg-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
@@ -561,6 +595,29 @@ export function ParticipantEnrollmentPicker({
                                         Tanpa Institusi ({institutionStats.noInstitutionCount})
                                     </option>
                                 )}
+                            </select>
+                        </div>
+
+                        {/* Filter Batch (Scoped per Institution) */}
+                        <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                                <CheckListIcon size={12} />
+                                Filter Batch (Angkatan)
+                            </label>
+                            <select
+                                value={selectedBatch}
+                                onChange={(e) => {
+                                    setSelectedBatch(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full px-3 py-2 rounded-lg border border-black/10 bg-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            >
+                                <option value="all">Semua Batch</option>
+                                {availableBatches.map((b) => (
+                                    <option key={b} value={String(b)}>
+                                        Batch {b}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
@@ -618,6 +675,7 @@ export function ParticipantEnrollmentPicker({
                     </span>
                     {(searchQuery ||
                         selectedInstitution !== 'all' ||
+                        selectedBatch !== 'all' ||
                         selectedGender !== 'all' ||
                         scope !== 'all') && (
                         <button
@@ -667,7 +725,7 @@ export function ParticipantEnrollmentPicker({
                                         aria-label="Pilih semua di halaman ini"
                                         checked={isAllPageSelected}
                                         ref={(input) => {
-                                            if (input) {
+                                             if (input) {
                                                 input.indeterminate = isSomePageSelected;
                                             }
                                         }}
@@ -676,10 +734,10 @@ export function ParticipantEnrollmentPicker({
                                     />
                                 </th>
                                 <th className="px-4 py-3 font-semibold tracking-wider">
-                                    Peserta
+                                    Peserta & NIP
                                 </th>
                                 <th className="px-4 py-3 font-semibold tracking-wider hidden md:table-cell">
-                                    Institusi / Organisasi
+                                    Institusi & Batch
                                 </th>
                                 <th className="px-4 py-3 font-semibold tracking-wider text-center w-20 hidden sm:table-cell">
                                     Gender
@@ -750,7 +808,7 @@ export function ParticipantEnrollmentPicker({
                                                 />
                                             </td>
 
-                                            {/* Participant Info Column */}
+                                            {/* Participant Info Column with NIP */}
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-3">
                                                     <div
@@ -761,10 +819,17 @@ export function ParticipantEnrollmentPicker({
                                                         {getInitials(user.full_name || user.username)}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="font-semibold text-foreground truncate max-w-xs sm:max-w-md">
-                                                            {user.full_name || 'Tanpa Nama'}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <p className="font-semibold text-foreground truncate max-w-xs sm:max-w-md">
+                                                                {user.full_name || 'Tanpa Nama'}
+                                                            </p>
+                                                            {user.nip && (
+                                                                <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20">
+                                                                    {user.nip}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
                                                             <Mail01Icon size={12} />
                                                             {user.email || user.username}
                                                             {user.phone_number && (
@@ -777,27 +842,34 @@ export function ParticipantEnrollmentPicker({
                                                         {user.institution && (
                                                             <p className="text-[11px] text-primary/80 md:hidden mt-0.5 truncate flex items-center gap-1">
                                                                 <Building02Icon size={11} />
-                                                                {user.institution}
+                                                                {user.institution} {user.batch ? `• Batch ${user.batch}` : ''}
                                                             </p>
                                                         )}
                                                     </div>
                                                 </div>
                                             </td>
 
-                                            {/* Institution Column */}
+                                            {/* Institution & Batch Column */}
                                             <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                                                {user.institution ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/[0.04] text-xs font-medium text-foreground/80">
-                                                        <Building02Icon size={13} className="text-muted-foreground" />
-                                                        <span className="truncate max-w-[200px]">
-                                                            {user.institution}
+                                                <div className="flex flex-col gap-1 items-start">
+                                                    {user.institution ? (
+                                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-black/[0.04] text-xs font-medium text-foreground/80">
+                                                            <Building02Icon size={13} className="text-muted-foreground" />
+                                                            <span className="truncate max-w-[180px]">
+                                                                {user.institution}
+                                                            </span>
                                                         </span>
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-muted-foreground/50 text-xs italic">
-                                                        -
-                                                    </span>
-                                                )}
+                                                    ) : (
+                                                        <span className="text-muted-foreground/50 text-xs italic">
+                                                            -
+                                                        </span>
+                                                    )}
+                                                    {user.batch && (
+                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            Batch {user.batch}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
 
                                             {/* Gender Column */}

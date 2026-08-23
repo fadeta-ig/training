@@ -30,6 +30,9 @@ type User = {
     id: string;
     username: string;
     full_name: string;
+    nip?: string | null;
+    institution?: string | null;
+    batch?: number | null;
     completed_items: number;
     total_items: number;
     progress: number;
@@ -484,7 +487,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[620px] text-left text-xs">
+                        <table className="w-full min-w-[700px] text-left text-xs">
                             <thead className="bg-slate-50/80 border-b border-black/5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                                 <tr>
                                     <th className="px-4 py-3 w-10 text-center">
@@ -497,9 +500,9 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                         />
                                     </th>
                                     <th className="px-3 py-3 w-12 text-center">No</th>
-                                    <th className="px-4 py-3">Username</th>
-                                    <th className="px-4 py-3">Nama Lengkap</th>
-                                    <th className="px-4 py-3 w-48">Progres Pembelajaran</th>
+                                    <th className="px-4 py-3">Peserta & NIP</th>
+                                    <th className="px-4 py-3">Instansi & Batch</th>
+                                    <th className="px-4 py-3 w-44">Progres Pengerjaan</th>
                                     <th className="px-4 py-3 text-center w-28">Status</th>
                                     <th className="px-4 py-3 text-center w-24">Aksi</th>
                                 </tr>
@@ -526,8 +529,29 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                             <td className="px-3 py-3.5 text-center text-muted-foreground font-mono">
                                                 {startIndex + idx + 1}
                                             </td>
-                                            <td className="px-4 py-3.5 font-medium text-foreground">{p.username}</td>
-                                            <td className="px-4 py-3.5 text-muted-foreground">{p.full_name}</td>
+                                            <td className="px-4 py-3.5">
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium text-foreground">{p.full_name || p.username}</span>
+                                                        {p.nip && (
+                                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20">
+                                                                {p.nip}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[11px] text-muted-foreground font-mono">{p.username}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3.5 text-muted-foreground">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="text-xs font-medium text-foreground">{p.institution || '-'}</span>
+                                                    {p.batch && (
+                                                        <span className="inline-flex items-center w-fit px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            Batch {p.batch}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="px-4 py-3.5 align-middle">
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">

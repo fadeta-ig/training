@@ -17,11 +17,15 @@ export interface User {
 export interface ParticipantProfile {
     id: string;
     user_id: string;
+    nip: string | null;
     phone_number: string | null;
     address: string | null;
     date_of_birth: string | null;
     gender: 'L' | 'P' | null;
     institution: string | null;
+    institution_code: string | null;
+    batch: number;
+    registration_date: string;
     created_at: string;
     updated_at: string;
 }
@@ -151,6 +155,10 @@ export interface AuthPayload {
     username: string;
     full_name: string;
     role: 'admin' | 'trainer' | 'trainee';
+    nip?: string | null;
+    institution?: string | null;
+    batch?: number | null;
+    registration_date?: string | null;
 }
 
 export interface AuditLog {

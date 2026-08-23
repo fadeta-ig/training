@@ -32,15 +32,22 @@ CREATE TABLE users (
 -- 2. Participant Profiles (Detail Data Peserta)
 -- ─────────────────────────────────────────────
 CREATE TABLE participant_profiles (
-  id              VARCHAR(36) PRIMARY KEY,
-  user_id         VARCHAR(36) NOT NULL UNIQUE,
-  phone_number    VARCHAR(20) NULL,
-  address         TEXT NULL,
-  date_of_birth   DATE NULL,
-  gender          ENUM('L', 'P') NULL,
-  institution     VARCHAR(150) NULL,
-  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id                VARCHAR(36) PRIMARY KEY,
+  user_id           VARCHAR(36) NOT NULL UNIQUE,
+  nip               VARCHAR(50) UNIQUE NULL,
+  phone_number      VARCHAR(20) NULL,
+  address           TEXT NULL,
+  date_of_birth     DATE NULL,
+  gender            ENUM('L', 'P') NULL,
+  institution       VARCHAR(150) NULL,
+  institution_code  VARCHAR(20) NULL,
+  batch             INT NOT NULL DEFAULT 1,
+  registration_date DATE NOT NULL DEFAULT (CURRENT_DATE),
+  created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_participant_nip (nip),
+  INDEX idx_participant_inst_batch (institution, batch),
+  INDEX idx_participant_reg_date (registration_date),
   CONSTRAINT fk_participant_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

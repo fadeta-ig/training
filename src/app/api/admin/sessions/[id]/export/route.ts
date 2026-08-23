@@ -21,6 +21,9 @@ export const GET = withAuth(async (
             SELECT 
                 u.full_name,
                 u.username,
+                p.nip,
+                p.institution,
+                p.batch,
                 up.status,
                 up.score,
                 up.attempts_count,
@@ -29,15 +32,19 @@ export const GET = withAuth(async (
             FROM session_participants sp
             JOIN users u ON sp.user_id = u.id
             JOIN sessions s ON sp.session_id = s.id
+            LEFT JOIN participant_profiles p ON sp.user_id = p.user_id
             LEFT JOIN user_progress up ON up.session_id = sp.session_id AND up.user_id = u.id
             WHERE sp.session_id = ?
-            GROUP BY u.id, up.status, up.score, up.attempts_count, up.updated_at, s.title
+            GROUP BY u.id, u.full_name, u.username, p.nip, p.institution, p.batch, up.status, up.score, up.attempts_count, up.updated_at, s.title
             ORDER BY u.full_name ASC
         `;
 
         interface DbRow {
             full_name: string | null;
             username: string | null;
+            nip: string | null;
+            institution: string | null;
+            batch: number | null;
             status: string | null;
             score: number | string | null;
             attempts_count: number | null;
@@ -67,6 +74,9 @@ export const GET = withAuth(async (
             return {
                 no: index + 1,
                 fullName: row.full_name || '-',
+                nip: row.nip || '-',
+                institution: row.institution || '-',
+                batch: row.batch || 1,
                 username: row.username || '-',
                 status: statusLabel,
                 score: scoreDisplay,

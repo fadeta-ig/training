@@ -26,6 +26,8 @@ interface ParsedRow {
     email: string;
     phone_number: string;
     institution: string;
+    batch: number;
+    registration_date: string;
     date_of_birth: string;
     gender: string;
     address: string;
@@ -37,6 +39,10 @@ interface CredentialResult {
     name: string;
     email: string;
     password: string;
+    nip?: string;
+    institution?: string | null;
+    batch?: number;
+    registrationDate?: string;
 }
 
 interface FailedResult {
@@ -105,6 +111,7 @@ export default function BulkImportParticipantsPage() {
 
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             const seenEmails = new Set<string>();
+            const todayStr = new Date().toISOString().slice(0, 10);
 
             const rows: ParsedRow[] = data.map((item, idx) => {
                 const normalized: Record<string, string> = {};
@@ -117,6 +124,23 @@ export default function BulkImportParticipantsPage() {
                 const email = (normalized['email aktif'] || normalized['email'] || '').toLowerCase();
                 const phone_number = normalized['no hp'] || normalized['no. hp'] || normalized['telepon'] || normalized['phone'] || '';
                 const institution = normalized['institusi'] || normalized['instansi'] || normalized['institution'] || '';
+
+                // Batch
+                let batch = 1;
+                const batchRaw = normalized['batch (gelombang)'] || normalized['batch'] || normalized['gelombang'] || '1';
+                const parsedBatch = parseInt(batchRaw, 10);
+                if (!isNaN(parsedBatch) && parsedBatch > 0) {
+                    batch = parsedBatch;
+                }
+
+                // Registration Date
+                let registration_date = normalized['tanggal pendaftaran (yyyy-mm-dd)'] || normalized['tanggal pendaftaran'] || normalized['tanggal daftar'] || todayStr;
+                if (registration_date && registration_date.includes('T')) {
+                    registration_date = registration_date.split('T')[0];
+                }
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(registration_date)) {
+                    registration_date = todayStr;
+                }
 
                 let date_of_birth = normalized['tanggal lahir (yyyy-mm-dd)'] || normalized['tanggal lahir'] || normalized['date_of_birth'] || '';
                 if (date_of_birth && date_of_birth.includes('T')) {
@@ -152,6 +176,8 @@ export default function BulkImportParticipantsPage() {
                     email,
                     phone_number,
                     institution,
+                    batch,
+                    registration_date,
                     date_of_birth,
                     gender,
                     address,
@@ -188,6 +214,8 @@ export default function BulkImportParticipantsPage() {
                         email: r.email,
                         phone_number: r.phone_number,
                         institution: r.institution,
+                        batch: r.batch,
+                        registration_date: r.registration_date,
                         date_of_birth: r.date_of_birth,
                         gender: r.gender,
                         address: r.address,
@@ -232,7 +260,11 @@ export default function BulkImportParticipantsPage() {
             const rows = importResults.credentials.map((c, idx) => ({
                 no: idx + 1,
                 fullName: c.name,
+                nip: c.nip || '-',
                 email: c.email,
+                institution: c.institution || '-',
+                batch: c.batch || 1,
+                registrationDate: c.registrationDate || '-',
                 password: c.password,
                 status: 'Berhasil Diimport'
             }));
@@ -547,8 +579,9 @@ export default function BulkImportParticipantsPage() {
                                         <th className="px-4 py-3.5 text-center">Status</th>
                                         <th className="px-4 py-3.5">Nama Lengkap</th>
                                         <th className="px-4 py-3.5">Email</th>
+                                        <th className="px-4 py-3.5">Instansi & Batch</th>
+                                        <th className="px-4 py-3.5">Tgl Pendaftaran</th>
                                         <th className="px-4 py-3.5">No. HP</th>
-                                        <th className="px-4 py-3.5">Institusi</th>
                                         <th className="px-4 py-3.5">Tanggal Lahir</th>
                                         <th className="px-4 py-3.5 text-center">L/P</th>
                                         <th className="px-4 py-3.5">Keterangan / Error</th>
@@ -571,13 +604,21 @@ export default function BulkImportParticipantsPage() {
                                             </td>
                                             <td className="px-4 py-3 font-semibold text-foreground">{r.name || '-'}</td>
                                             <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.email || '-'}</td>
+                                            <td className="px-4 py-3 text-muted-foreground">
+                                                <div className="flex flex-col gap-1 items-start">
+                                                    <span className="font-medium text-foreground">{r.institution || '-'}</span>
+                                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                        Batch {r.batch || 1}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.registration_date || '-'}</td>
                                             <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.phone_number || '-'}</td>
-                                            <td className="px-4 py-3 text-muted-foreground">{r.institution || '-'}</td>
                                             <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.date_of_birth || '-'}</td>
                                             <td className="px-4 py-3 text-center font-bold text-xs">{r.gender || '-'}</td>
                                             <td className="px-4 py-3 text-xs">
                                                 {r.isValid ? (
-                                                    <span className="text-emerald-700 font-medium">Siap diimport</span>
+                                                    <span className="text-emerald-700 font-medium">Siap diimport (NIP Auto)</span>
                                                 ) : (
                                                     <span className="text-rose-700 font-bold">{r.errorReason}</span>
                                                 )}
@@ -609,7 +650,7 @@ export default function BulkImportParticipantsPage() {
                         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
                             <p className="text-xs font-bold text-emerald-700 uppercase">Berhasil Diimport</p>
                             <p className="text-3xl font-extrabold text-emerald-900 mt-1">{importResults.importedCount}</p>
-                            <p className="text-xs text-emerald-700 mt-1">Akun peserta dibuat & aktif</p>
+                            <p className="text-xs text-emerald-700 mt-1">Akun & NIP peserta dibuat & aktif</p>
                         </div>
                         <div className="p-4 rounded-xl bg-rose-50 border border-rose-200">
                             <p className="text-xs font-bold text-rose-700 uppercase">Gagal / Dilewati</p>
@@ -618,20 +659,50 @@ export default function BulkImportParticipantsPage() {
                         </div>
                     </div>
 
+                    {/* Interactive Preview of Generated NIPs */}
+                    {importResults.credentials.length > 0 && (
+                        <div className="text-left border border-black/10 rounded-2xl overflow-hidden bg-white">
+                            <div className="p-3 bg-black/5 text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                <span>Kredensial & NIP Resmi Peserta</span>
+                                <span>{importResults.credentials.length} akun</span>
+                            </div>
+                            <div className="max-h-64 overflow-y-auto divide-y divide-black/5 text-xs">
+                                {importResults.credentials.map((c, i) => (
+                                    <div key={i} className="p-3 flex items-center justify-between gap-3 hover:bg-black/[0.02]">
+                                        <div className="min-w-0">
+                                            <p className="font-semibold text-foreground truncate">{c.name}</p>
+                                            <p className="text-muted-foreground text-[11px] font-mono truncate">{c.email}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {c.nip && (
+                                                <span className="px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-primary/10 text-primary border border-primary/20">
+                                                    {c.nip}
+                                                </span>
+                                            )}
+                                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                Batch {c.batch || 1}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Action buttons */}
                     <div className="space-y-3 pt-2">
                         {importResults.credentials.length > 0 && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <button
                                     onClick={handleDownloadReportXlsx}
-                                    className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                                    className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95 cursor-pointer"
                                 >
                                     <FileSpreadsheet size={18} />
                                     Unduh Rekap Excel (.xlsx)
                                 </button>
                                 <button
                                     onClick={handleDownloadReportCsv}
-                                    className="w-full py-3.5 px-4 rounded-xl border border-black/10 bg-white hover:bg-black/5 text-foreground font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                                    className="w-full py-3.5 px-4 rounded-xl border border-black/10 bg-white hover:bg-black/5 text-foreground font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95 cursor-pointer"
                                 >
                                     <Download01Icon size={18} />
                                     Unduh Rekap (.csv)
@@ -647,7 +718,7 @@ export default function BulkImportParticipantsPage() {
                                     setFileName('');
                                     setImportResults(null);
                                 }}
-                                className="flex-1 py-3 px-4 rounded-xl border border-black/10 hover:bg-black/5 font-semibold text-sm transition-colors active:scale-95"
+                                className="flex-1 py-3 px-4 rounded-xl border border-black/10 hover:bg-black/5 font-semibold text-sm transition-colors active:scale-95 cursor-pointer"
                             >
                                 Import File Lain
                             </button>

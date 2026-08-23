@@ -15,7 +15,13 @@ export async function GET(request: NextRequest) {
         }
 
         const users = await executeQuery<any[]>(
-            `SELECT id, username, full_name, role, created_at FROM users WHERE id = ?`,
+            `SELECT 
+                u.id, u.username, u.full_name, u.role, u.created_at,
+                p.nip, p.institution, p.institution_code, p.batch,
+                DATE_FORMAT(COALESCE(p.registration_date, p.created_at), '%Y-%m-%d') as registration_date
+             FROM users u
+             LEFT JOIN participant_profiles p ON u.id = p.user_id
+             WHERE u.id = ?`,
             [payload.sub]
         );
 

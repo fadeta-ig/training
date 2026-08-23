@@ -23,7 +23,11 @@ type Participant = {
     id: string;
     email: string;
     name: string;
+    nip: string | null;
     institution: string | null;
+    institution_code: string | null;
+    batch: number;
+    registration_date: string | null;
     phone_number: string | null;
     created_at: string;
 };
@@ -112,7 +116,7 @@ export default function ParticipantsManagerPage() {
             <ConfirmComponent />
             <PageHeader
                 title="Kelola Peserta (Trainee)"
-                description="Manajemen akun peserta pelatihan dan riwayat pendaftaran"
+                description="Manajemen akun peserta pelatihan, NIP, batch institusi, dan tanggal pendaftaran"
                 icon={<UserGroupIcon size={28} className="text-muted-foreground" />}
                 actionLabel={userRole === 'admin' ? 'Tambah Peserta' : undefined}
                 actionHref={userRole === 'admin' ? '/admin/participants/new' : undefined}
@@ -127,7 +131,7 @@ export default function ParticipantsManagerPage() {
                     </span>
                     <input
                         type="text"
-                        placeholder="Cari nama, NIP/username, instansi..."
+                        placeholder="Cari NIP, nama, email, instansi..."
                         value={searchQuery}
                         onChange={handleSearch}
                         className="w-full glass-input pl-11 pr-4 py-2.5 rounded-xl text-sm focus:outline-none"
@@ -161,10 +165,11 @@ export default function ParticipantsManagerPage() {
                         <thead className="bg-black/5 border-b border-black/5 text-muted-foreground font-medium uppercase text-xs tracking-wider">
                             <tr>
                                 <th className="px-6 py-4 rounded-tl-2xl">Nama Lengkap</th>
-                                <th className="px-6 py-4">NIP / Username</th>
-                                <th className="px-6 py-4">Instansi</th>
-                                <th className="px-6 py-4">No. Handphone</th>
-                                <th className="px-6 py-4">Terdaftar</th>
+                                <th className="px-6 py-4">NIP Peserta</th>
+                                <th className="px-6 py-4">Email / Akun</th>
+                                <th className="px-6 py-4">Instansi & Batch</th>
+                                <th className="px-6 py-4">No. HP</th>
+                                <th className="px-6 py-4">Tgl Pendaftaran</th>
                                 {userRole === 'admin' && (
                                     <th className="px-6 py-4 text-right rounded-tr-2xl">Aksi</th>
                                 )}
@@ -173,14 +178,14 @@ export default function ParticipantsManagerPage() {
                         <tbody className="divide-y divide-black/5">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={userRole === 'admin' ? 6 : 5} className="px-6 py-10 text-center text-muted-foreground">
+                                    <td colSpan={userRole === 'admin' ? 7 : 6} className="px-6 py-10 text-center text-muted-foreground">
                                         <RefreshIcon size={24} className="animate-spin mx-auto mb-2 opacity-50" />
                                         Memuat data peserta...
                                     </td>
                                 </tr>
                             ) : participants.length === 0 ? (
                                 <tr>
-                                    <td colSpan={userRole === 'admin' ? 6 : 5} className="px-6 py-10">
+                                    <td colSpan={userRole === 'admin' ? 7 : 6} className="px-6 py-10">
                                         <EmptyState
                                             icon={<UserGroupIcon size={48} className="mb-4 opacity-20" />}
                                             title="Belum ada peserta"
@@ -194,11 +199,31 @@ export default function ParticipantsManagerPage() {
                                 participants.map((p) => (
                                     <tr key={p.id} className="hover:bg-black/5 transition-colors group">
                                         <td className="px-6 py-4 font-semibold text-foreground">{p.name}</td>
+                                        <td className="px-6 py-4">
+                                            {p.nip ? (
+                                                <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-primary/10 text-primary border border-primary/20">
+                                                    {p.nip}
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted-foreground/50 text-xs italic">-</span>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-4 text-muted-foreground">{p.email}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{p.institution || '-'}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">
+                                            <div className="flex flex-col gap-1 items-start">
+                                                <span className="font-medium text-foreground">{p.institution || '-'}</span>
+                                                {p.batch && (
+                                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                        Batch {p.batch}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4 text-muted-foreground">{p.phone_number || '-'}</td>
                                         <td className="px-6 py-4 text-muted-foreground">
-                                            {new Date(p.created_at).toLocaleDateString('id-ID')}
+                                            {p.registration_date
+                                                ? new Date(p.registration_date).toLocaleDateString('id-ID', { dateStyle: 'medium' })
+                                                : new Date(p.created_at).toLocaleDateString('id-ID', { dateStyle: 'medium' })}
                                         </td>
                                         {userRole === 'admin' && (
                                             <td className="px-6 py-4 text-right space-x-1.5 flex justify-end gap-1.5">

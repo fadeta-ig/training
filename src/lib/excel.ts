@@ -5,6 +5,8 @@ export interface ParticipantTemplateRow {
     email: string;
     phoneNumber: string;
     institution: string;
+    batch?: number | string;
+    registrationDate?: string;
     dateOfBirth: string;
     gender: 'L' | 'P' | string;
     address: string;
@@ -22,6 +24,9 @@ export interface UserTemplateRow {
 export interface SessionExportRow {
     no: number;
     fullName: string;
+    nip?: string;
+    institution?: string;
+    batch?: number | string;
     username: string;
     status: string;
     score: string | number;
@@ -32,7 +37,11 @@ export interface SessionExportRow {
 export interface CredentialExportRow {
     no: number;
     fullName: string;
+    nip?: string;
     email: string;
+    institution?: string;
+    batch?: number | string;
+    registrationDate?: string;
     role?: string;
     password?: string;
     status: string;
@@ -77,7 +86,7 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     });
 
     // 1. Instruction Title / Banner
-    sheet.mergeCells('A1:G1');
+    sheet.mergeCells('A1:I1');
     const bannerCell = sheet.getCell('A1');
     bannerCell.value = '📋 PANDUAN PENGISIAN TEMPLATE IMPORT PESERTA LMS';
     bannerCell.font = { name: FONT_FAMILY, size: 12, bold: true, color: { argb: 'FF0F172A' } };
@@ -86,9 +95,9 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     sheet.getRow(1).height = 28;
 
     // 2. Guidelines Notes
-    sheet.mergeCells('A2:G2');
+    sheet.mergeCells('A2:I2');
     const noteCell = sheet.getCell('A2');
-    noteCell.value = '• Kolom bertanda (*) WAJIB diisi. Format Tanggal Lahir: YYYY-MM-DD (contoh: 1995-05-20). Jenis Kelamin: L (Laki-laki) atau P (Perempuan).';
+    noteCell.value = '• Kolom bertanda (*) WAJIB diisi. NIP digenerate OTOMATIS oleh sistem. Batch default: 1 (per institusi). Tanggal Pendaftaran default: hari ini. Format Tanggal: YYYY-MM-DD. Jenis Kelamin: L/P.';
     noteCell.font = { name: FONT_FAMILY, size: 9.5, italic: true, color: { argb: 'FF475569' } };
     noteCell.fill = BANNER_FILL;
     noteCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -102,7 +111,9 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
         'Nama Lengkap *',
         'Email Aktif *',
         'No HP *',
-        'Institusi',
+        'Institusi *',
+        'Batch (Gelombang)',
+        'Tanggal Pendaftaran (YYYY-MM-DD)',
         'Tanggal Lahir (YYYY-MM-DD)',
         'Jenis Kelamin (L/P)',
         'Alamat',
@@ -125,7 +136,9 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
             fullName: 'Ahmad Dahlan',
             email: 'ahmad.dahlan@example.com',
             phoneNumber: '081234567890',
-            institution: 'PT Inovasi Gemilang',
+            institution: 'PT Telkom Indonesia',
+            batch: 1,
+            registrationDate: new Date().toISOString().slice(0, 10),
             dateOfBirth: '1995-05-20',
             gender: 'L',
             address: 'Jl. Merdeka No. 45, Jakarta Pusat',
@@ -134,10 +147,12 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
             fullName: 'Siti Nurhaliza',
             email: 'siti.nurhaliza@example.com',
             phoneNumber: '089876543210',
-            institution: 'Universitas Mandiri',
+            institution: 'RSUD Dr Soetomo',
+            batch: 1,
+            registrationDate: new Date().toISOString().slice(0, 10),
             dateOfBirth: '1998-11-12',
             gender: 'P',
-            address: 'Jl. Mawar No. 12, Bandung',
+            address: 'Jl. Mawar No. 12, Surabaya',
         },
     ];
 
@@ -150,6 +165,8 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
             sample.email,
             sample.phoneNumber,
             sample.institution,
+            sample.batch || 1,
+            sample.registrationDate || '',
             sample.dateOfBirth,
             sample.gender,
             sample.address,
@@ -171,7 +188,7 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
                 // Phone number as text format to keep leading zeroes
                 cell.numFmt = '@';
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
-            } else if (colIdx === 4 || colIdx === 5) {
+            } else if (colIdx === 4 || colIdx === 5 || colIdx === 6 || colIdx === 7) {
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
             } else {
                 cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -184,7 +201,9 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
         { width: 28 }, // Nama Lengkap
         { width: 34 }, // Email Aktif
         { width: 20 }, // No HP
-        { width: 26 }, // Institusi
+        { width: 28 }, // Institusi
+        { width: 20 }, // Batch
+        { width: 32 }, // Tanggal Pendaftaran
         { width: 28 }, // Tanggal Lahir
         { width: 22 }, // Jenis Kelamin
         { width: 40 }, // Alamat
@@ -192,7 +211,7 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
 
     // 6. Data Validation for Gender (rows 5 to 500)
     for (let r = 5; r <= 500; r++) {
-        const genderCell = sheet.getCell(`F${r}`);
+        const genderCell = sheet.getCell(`H${r}`);
         genderCell.dataValidation = {
             type: 'list',
             allowBlank: true,
@@ -368,7 +387,7 @@ export async function generateSessionReportXlsx(params: {
     });
 
     // 1. Title Row
-    sheet.mergeCells('A1:G1');
+    sheet.mergeCells('A1:J1');
     const titleCell = sheet.getCell('A1');
     titleCell.value = `📊 LAPORAN HASIL SESI: ${sessionTitle.toUpperCase()}`;
     titleCell.font = { name: FONT_FAMILY, size: 14, bold: true, color: { argb: 'FF0F172A' } };
@@ -386,7 +405,7 @@ export async function generateSessionReportXlsx(params: {
     const scores = rows.map((r) => typeof r.score === 'number' ? r.score : parseFloat(String(r.score))).filter((s) => !isNaN(s));
     const avgScore = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '-';
 
-    sheet.mergeCells('A4:G4');
+    sheet.mergeCells('A4:J4');
     const kpiCell = sheet.getCell('A4');
     kpiCell.value = `📈 Ringkasan: Selesai: ${completedCount}/${rows.length} (${rows.length > 0 ? Math.round((completedCount / rows.length) * 100) : 0}%) | Rata-rata Skor: ${avgScore}`;
     kpiCell.font = { name: FONT_FAMILY, size: 10.5, bold: true, color: { argb: 'FF1E3A8A' } };
@@ -404,6 +423,9 @@ export async function generateSessionReportXlsx(params: {
     const headers = [
         'No',
         'Nama Lengkap',
+        'NIP',
+        'Institusi',
+        'Batch',
         'Username / Email',
         'Status Ujian',
         'Skor Akhir',
@@ -424,7 +446,7 @@ export async function generateSessionReportXlsx(params: {
 
     // 4. Data Rows
     if (rows.length === 0) {
-        sheet.mergeCells('A7:G7');
+        sheet.mergeCells('A7:J7');
         const emptyCell = sheet.getCell('A7');
         emptyCell.value = 'Belum ada peserta terdaftar pada sesi ini.';
         emptyCell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -441,6 +463,9 @@ export async function generateSessionReportXlsx(params: {
             const values = [
                 row.no,
                 row.fullName,
+                row.nip || '-',
+                row.institution || '-',
+                row.batch || 1,
                 row.username,
                 row.status,
                 row.score,
@@ -459,20 +484,19 @@ export async function generateSessionReportXlsx(params: {
                     fgColor: { argb: idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC' },
                 };
 
-                if (colIdx === 0 || colIdx === 4 || colIdx === 5 || colIdx === 6) {
+                if (colIdx === 0 || colIdx === 2 || colIdx === 4 || colIdx === 7 || colIdx === 8) {
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                } else if (colIdx === 3) {
-                    // Status Badge Styling
-                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                    if (isCompleted) {
-                        cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF15803D' } }; // Green-700
-                    } else if (isInProgress) {
-                        cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF1D4ED8' } }; // Blue-700
-                    } else {
-                        cell.font = { name: FONT_FAMILY, size: 10, color: { argb: 'FF64748B' } };
-                    }
                 } else {
                     cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                }
+
+                if (colIdx === 6) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    if (isCompleted) {
+                        cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF15803D' } };
+                    } else if (isInProgress) {
+                        cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FFD97706' } };
+                    }
                 }
             });
         });
@@ -481,12 +505,15 @@ export async function generateSessionReportXlsx(params: {
     // 5. Setup Column Widths
     sheet.columns = [
         { width: 8 },  // No
-        { width: 30 }, // Nama Lengkap
+        { width: 28 }, // Nama Lengkap
+        { width: 24 }, // NIP
+        { width: 26 }, // Institusi
+        { width: 12 }, // Batch
         { width: 32 }, // Username / Email
-        { width: 20 }, // Status
-        { width: 16 }, // Skor
-        { width: 20 }, // Percobaan
-        { width: 24 }, // Akses Terakhir
+        { width: 22 }, // Status
+        { width: 14 }, // Skor Akhir
+        { width: 18 }, // Percobaan
+        { width: 22 }, // Akses Terakhir
     ];
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -512,7 +539,7 @@ export async function generateCredentialsReportXlsx(params: {
     });
 
     // Title
-    sheet.mergeCells('A1:E1');
+    sheet.mergeCells('A1:H1');
     const titleCell = sheet.getCell('A1');
     titleCell.value = `🔐 ${title.toUpperCase()}`;
     titleCell.font = { name: FONT_FAMILY, size: 13, bold: true, color: { argb: 'FF0F172A' } };
@@ -524,7 +551,17 @@ export async function generateCredentialsReportXlsx(params: {
     sheet.getRow(3).height = 10;
 
     // Headers
-    const headers = ['No', 'Nama Lengkap', 'Email / Username', 'Password Awal', 'Status'];
+    const headers = [
+        'No',
+        'Nama Lengkap',
+        'NIP',
+        'Email / Username',
+        'Institusi',
+        'Batch',
+        'Tanggal Daftar',
+        'Password Awal',
+        'Status',
+    ];
     const headerRow = sheet.getRow(4);
     headerRow.height = 26;
     headers.forEach((h, idx) => {
@@ -544,7 +581,11 @@ export async function generateCredentialsReportXlsx(params: {
         const values = [
             row.no,
             row.fullName,
+            row.nip || '-',
             row.email,
+            row.institution || '-',
+            row.batch || 1,
+            row.registrationDate || '-',
             row.password || '******',
             row.status,
         ];
@@ -560,13 +601,14 @@ export async function generateCredentialsReportXlsx(params: {
                 fgColor: { argb: idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC' },
             };
 
-            if (colIdx === 0) {
+            if (colIdx === 0 || colIdx === 2 || colIdx === 5 || colIdx === 6 || colIdx === 8) {
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
-            } else if (colIdx === 3 || colIdx === 4) {
-                cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                if (colIdx === 4) {
+                if (colIdx === 8) {
                     cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF15803D' } };
                 }
+            } else if (colIdx === 7) {
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF0F172A' } };
             } else {
                 cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
             }
@@ -575,10 +617,14 @@ export async function generateCredentialsReportXlsx(params: {
 
     sheet.columns = [
         { width: 8 },  // No
-        { width: 30 }, // Nama Lengkap
-        { width: 34 }, // Email
-        { width: 24 }, // Password
-        { width: 22 }, // Status
+        { width: 28 }, // Nama Lengkap
+        { width: 24 }, // NIP
+        { width: 32 }, // Email
+        { width: 26 }, // Institusi
+        { width: 12 }, // Batch
+        { width: 18 }, // Tanggal Daftar
+        { width: 22 }, // Password
+        { width: 18 }, // Status
     ];
 
     const buffer = await workbook.xlsx.writeBuffer();

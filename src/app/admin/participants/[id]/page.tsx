@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { PencilEdit01Icon, FloppyDiskIcon, ArrowLeft01Icon, RefreshIcon } from 'hugeicons-react';
+import { PencilEdit01Icon, FloppyDiskIcon, ArrowLeft01Icon, RefreshIcon, Copy01Icon, Tick01Icon, Calendar01Icon, Building02Icon } from 'hugeicons-react';
 import Link from 'next/link';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
@@ -14,6 +14,8 @@ export default function EditParticipantPage() {
 
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
+    const [nip, setNip] = useState<string | null>(null);
+    const [copiedNip, setCopiedNip] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -21,8 +23,11 @@ export default function EditParticipantPage() {
         address: '',
         date_of_birth: '',
         gender: '',
-        institution: ''
+        institution: '',
+        batch: 1,
+        registration_date: '',
     });
+
     useEffect(() => {
         const fetchParticipant = async () => {
             try {
@@ -31,14 +36,17 @@ export default function EditParticipantPage() {
 
                 if (res.ok && result.success) {
                     const data = result.data;
+                    setNip(data.nip || null);
                     setFormData({
                         name: data.name || '',
                         email: data.email || '',
                         phone_number: data.phone_number || '',
                         address: data.address || '',
-                        date_of_birth: data.date_of_birth ? data.date_of_birth.split('T')[0] : '', // format to YYYY-MM-DD for date input
+                        date_of_birth: data.date_of_birth ? data.date_of_birth.split('T')[0] : '',
                         gender: data.gender || '',
                         institution: data.institution || '',
+                        batch: data.batch || 1,
+                        registration_date: data.registration_date ? data.registration_date.split('T')[0] : '',
                     });
                 } else {
                     throw new Error(result.error || 'Peserta tidak ditemukan');
@@ -52,6 +60,14 @@ export default function EditParticipantPage() {
 
         if (participantId) fetchParticipant();
     }, [participantId]);
+
+    const handleCopyNip = async () => {
+        if (!nip) return;
+        await navigator.clipboard.writeText(nip);
+        setCopiedNip(true);
+        toast.success('NIP disalin ke clipboard!');
+        setTimeout(() => setCopiedNip(false), 2000);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -108,14 +124,36 @@ export default function EditParticipantPage() {
                         Edit Data Peserta
                     </h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        Perbarui informasi kontak dan data diri peserta secara manual.
+                        Perbarui informasi identitas, instansi, batch, dan tanggal pendaftaran peserta.
                     </p>
                 </div>
             </div>
 
+            {/* NIP Official Identity Badge */}
+            {nip && (
+                <div className="bg-primary/[0.06] border border-primary/20 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                        <p className="text-xs font-bold text-primary uppercase tracking-wider">Nomor Induk Peserta (NIP Resmi)</p>
+                        <p className="text-lg font-mono font-bold tracking-wider text-primary">{nip}</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleCopyNip}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-primary/20 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors shadow-xs self-start sm:self-auto cursor-pointer"
+                    >
+                        {copiedNip ? <Tick01Icon size={16} className="text-emerald-600" /> : <Copy01Icon size={16} />}
+                        <span>{copiedNip ? 'Tersalin' : 'Salin NIP'}</span>
+                    </button>
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
-                <GlassCard className="p-4 sm:p-6 md:p-8">
-                    <h2 className="text-lg font-bold mb-6 border-b border-black/5 pb-2">Informasi Akun & Kontak Lengkap</h2>
+                <GlassCard className="p-4 sm:p-6 md:p-8 space-y-6">
+                    <h2 className="text-lg font-bold border-b border-black/5 pb-3 flex items-center gap-2">
+                        <Building02Icon size={20} className="text-muted-foreground" />
+                        Informasi Akun & Instansi
+                    </h2>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-foreground">Nama Lengkap <span className="text-destructive">*</span></label>
@@ -142,24 +180,49 @@ export default function EditParticipantPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-foreground">Nomor HP</label>
-                            <input
-                                type="text"
-                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
-                                placeholder="+62 8..."
-                                value={formData.phone_number}
-                                onChange={e => setFormData({ ...formData, phone_number: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-foreground">Institusi/Instansi</label>
+                            <label className="text-sm font-bold text-foreground">Institusi / Instansi</label>
                             <input
                                 type="text"
                                 className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
                                 placeholder="Asal Instansi"
                                 value={formData.institution}
                                 onChange={e => setFormData({ ...formData, institution: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-foreground">Batch (Angkatan Pelatihan)</label>
+                            <input
+                                type="number"
+                                min={1}
+                                required
+                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
+                                value={formData.batch}
+                                onChange={e => setFormData({ ...formData, batch: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                                <Calendar01Icon size={16} className="text-muted-foreground" />
+                                Tanggal Pendaftaran
+                            </label>
+                            <input
+                                type="date"
+                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
+                                value={formData.registration_date}
+                                onChange={e => setFormData({ ...formData, registration_date: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-foreground">Nomor HP / WhatsApp</label>
+                            <input
+                                type="text"
+                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
+                                placeholder="+62 8..."
+                                value={formData.phone_number}
+                                onChange={e => setFormData({ ...formData, phone_number: e.target.value })}
                             />
                         </div>
 
@@ -198,11 +261,11 @@ export default function EditParticipantPage() {
                         </div>
                     </div>
 
-                    <div className="pt-8 flex justify-end">
+                    <div className="pt-6 border-t border-black/5 flex justify-end">
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="px-6 py-3 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors focus:ring-2 focus:ring-ring focus:outline-none flex items-center gap-2 active:scale-95 shadow-sm disabled:opacity-50"
+                            className="px-6 py-3 text-sm font-semibold rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors focus:ring-2 focus:ring-ring focus:outline-none flex items-center gap-2 active:scale-95 shadow-sm disabled:opacity-50 cursor-pointer"
                         >
                             <FloppyDiskIcon size={18} />
                             {isLoading ? 'Menyimpan...' : 'Simpan Perubahan'}

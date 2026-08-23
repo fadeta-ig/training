@@ -13,6 +13,8 @@ const participantUpdateSchema = z.object({
     date_of_birth: z.string().optional().nullable(),
     gender: z.enum(['L', 'P']).optional().nullable(),
     institution: z.string().optional().nullable(),
+    batch: z.coerce.number().int().min(1).optional().nullable(),
+    registration_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal pendaftaran harus YYYY-MM-DD').optional().nullable(),
 });
 
 async function handleGet(
@@ -25,7 +27,10 @@ async function handleGet(
         const participants = await executeQuery(
             `SELECT 
         u.id, u.username as email, u.full_name as name, u.created_at,
-        p.phone_number, p.address, DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, p.gender, p.institution
+        p.nip, p.phone_number, p.address, 
+        DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, 
+        p.gender, p.institution, p.institution_code, p.batch,
+        DATE_FORMAT(COALESCE(p.registration_date, p.created_at), '%Y-%m-%d') as registration_date
       FROM users u
       LEFT JOIN participant_profiles p ON u.id = p.user_id
       WHERE u.id = ? AND u.role = 'trainee'`,
@@ -62,7 +67,7 @@ async function handlePut(
             );
         }
 
-        const { name, email, phone_number, address, date_of_birth, gender, institution } = parsed.data;
+        const { name, email, phone_number, address, date_of_birth, gender, institution, batch, registration_date } = parsed.data;
 
         const existing = await executeQuery<{ id: string }[]>(
             `SELECT id FROM users WHERE username = ? AND id != ?`,
@@ -88,18 +93,39 @@ async function handlePut(
             // Upsert profile pattern since profile might not exist for old trainees
             const [updatedProfile] = await connection.execute<import('mysql2').ResultSetHeader>(
                 `UPDATE participant_profiles SET 
-         phone_number = ?, address = ?, date_of_birth = ?, gender = ?, institution = ?
-         WHERE user_id = ?`,
-                [phone_number || null, address || null, date_of_birth || null, gender || null, institution || null, resolvedParams.id]
+                 phone_number = ?, address = ?, date_of_birth = ?, gender = ?, institution = ?,
+                 batch = COALESCE(?, batch),
+                 registration_date = COALESCE(?, registration_date)
+                 WHERE user_id = ?`,
+                [
+                    phone_number || null,
+                    address || null,
+                    date_of_birth || null,
+                    gender || null,
+                    institution || null,
+                    batch || null,
+                    registration_date || null,
+                    resolvedParams.id,
+                ]
             );
 
             if (updatedProfile && updatedProfile.affectedRows === 0) {
                 // Create profile if it doesn't exist yet
                 const { v4: uuidv4 } = await import('uuid');
                 await connection.execute(
-                    `INSERT INTO participant_profiles (id, user_id, phone_number, address, date_of_birth, gender, institution) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    [uuidv4(), resolvedParams.id, phone_number || null, address || null, date_of_birth || null, gender || null, institution || null]
+                    `INSERT INTO participant_profiles (id, user_id, phone_number, address, date_of_birth, gender, institution, batch, registration_date) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        uuidv4(),
+                        resolvedParams.id,
+                        phone_number || null,
+                        address || null,
+                        date_of_birth || null,
+                        gender || null,
+                        institution || null,
+                        batch || 1,
+                        registration_date || new Date().toISOString().slice(0, 10),
+                    ]
                 );
             }
 

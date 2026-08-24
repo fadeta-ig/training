@@ -17,7 +17,19 @@ async function handleGet(
 
         // Shared helpers handle 404s/403s internally by throwing ParticipantError
         await verifyEnrollment(sessionId, user.id);
-        const { session, isActive, isEnded } = await validateSessionTiming(sessionId);
+        const { session, isActive, isEnded } = await validateSessionTiming(sessionId, user.id);
+
+        const moduleRows = await executeQuery<{ title: string }[]>(
+            `SELECT title FROM modules WHERE id = ? LIMIT 1`,
+            [session.module_id]
+        );
+        const moduleTitle = moduleRows?.[0]?.title || '';
+
+        const userRows = await executeQuery<{ full_name: string }[]>(
+            `SELECT full_name FROM users WHERE id = ? LIMIT 1`,
+            [user.id]
+        );
+        const participantName = userRows?.[0]?.full_name || user.username;
 
         // Fetch module items with progress
         const items = await executeQuery<any[]>(
@@ -115,6 +127,10 @@ async function handleGet(
             success: true,
             data: {
                 ...session,
+                is_active: isActive,
+                is_ended: isEnded,
+                module_title: moduleTitle,
+                participant_name: participantName,
                 show_score: !!session.show_score,
                 items: mappedItems,
             },

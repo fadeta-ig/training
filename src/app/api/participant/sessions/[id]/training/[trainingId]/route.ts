@@ -33,24 +33,17 @@ async function handleGet(
         const moduleItem = await getSessionModuleItem(session.module_id, 'training', trainingId);
 
         if (isEnded) {
-            const progress = await getItemProgress(sessionId, user.id, moduleItem.id);
-
-            // Check if the trainee completed all items/tasks in the session
-            const completionStats = await executeQuery<{ total: number; completed: number }[]>(
-                `SELECT 
-                    (SELECT COUNT(*) FROM module_items WHERE module_id = ?) AS total,
-                    (SELECT COUNT(*) FROM user_progress WHERE user_id = ? AND session_id = ? AND status = 'completed') AS completed`,
-                [session.module_id, user.id, sessionId]
+            return NextResponse.json(
+                {
+                    success: false,
+                    code: 'SESSION_ENDED',
+                    error: 'Sesi pelatihan telah berakhir. Modul materi telah dikunci. Silakan hubungi trainer Anda untuk permohonan materi.',
+                    session_title: session.title,
+                    session_start: session.start_time,
+                    session_end: session.end_time,
+                },
+                { status: 403 }
             );
-
-            const totalItems = Number(completionStats?.[0]?.total || 0);
-            const completedItems = Number(completionStats?.[0]?.completed || 0);
-            const isSessionFullyCompleted = totalItems > 0 && completedItems >= totalItems;
-
-            // Accessible if the material itself is completed OR if the entire session (exams + tasks) was completed
-            if (progress?.status !== 'completed' && !isSessionFullyCompleted) {
-                return NextResponse.json({ success: false, error: 'Sesi sudah berakhir' }, { status: 400 });
-            }
         }
 
         await assertCurrentItemAccessible(sessionId, user.id, session, moduleItem, true);

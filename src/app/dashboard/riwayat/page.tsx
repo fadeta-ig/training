@@ -311,9 +311,9 @@ export default function RiwayatPage() {
                                             {/* Action Button */}
                                             <Link
                                                 href={`/dashboard/sesi/${s.id}`}
-                                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs font-medium rounded-lg transition-colors shrink-0"
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs font-medium rounded-lg transition-colors shrink-0 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200"
                                             >
-                                                Buka Sesi
+                                                Lihat Detail Sesi
                                                 <ArrowRight01Icon
                                                     size={14}
                                                     className="group-hover:translate-x-0.5 transition-transform"

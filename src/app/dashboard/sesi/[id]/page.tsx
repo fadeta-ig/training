@@ -11,6 +11,7 @@ import {
     Check,
     CheckCircle2,
     Clock3,
+    Copy,
     Download,
     FilePenLine,
     ListChecks,
@@ -33,6 +34,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useIsSeb } from '@/hooks/useSeb';
+import { RequestMaterialModal } from '@/components/participant/RequestMaterialModal';
 
 type ModuleItem = {
     module_item_id: string;
@@ -56,16 +58,17 @@ type SessionDetail = {
     require_seb: boolean;
     module_title: string;
     module_id: string;
+    participant_name?: string;
     items: ModuleItem[];
 };
 
 type SessionState = 'completed' | 'active' | 'upcoming' | 'ended';
 
 const SESSION_STATUS: Record<SessionState, { label: string; className: string }> = {
-    completed: { label: 'Selesai', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
-    active: { label: 'Sedang berlangsung', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
-    upcoming: { label: 'Akan datang', className: 'border-sky-200 bg-sky-50 text-sky-700' },
-    ended: { label: 'Berakhir', className: 'border-border bg-muted text-muted-foreground' },
+    completed: { label: 'Selesai', className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' },
+    active: { label: 'Sedang berlangsung', className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' },
+    upcoming: { label: 'Akan datang', className: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300' },
+    ended: { label: 'Berakhir (Terkunci)', className: 'border-border bg-muted text-muted-foreground' },
 };
 
 function formatSchedule(start: Date, end: Date) {
@@ -92,6 +95,7 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const [session, setSession] = useState<SessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [selectedItemForRequest, setSelectedItemForRequest] = useState<string | null>(null);
     const isSeb = useIsSeb();
 
     useEffect(() => {
@@ -144,15 +148,19 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const totalItems = session.items.length;
     const progress = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
     const isFullyCompleted = progress === 100 && totalItems > 0;
-    const isActive = !isFullyCompleted && now >= start && now <= end;
-    const sessionState: SessionState = isFullyCompleted
-        ? 'completed'
-        : isActive
-            ? 'active'
-            : now < start
-                ? 'upcoming'
-                : 'ended';
+    
+    // Strict time validation: Once time has passed, session is ended and locked
+    const isTimeEnded = now > end;
+    const isActive = !isTimeEnded && now >= start;
+    const sessionState: SessionState = isTimeEnded
+        ? 'ended'
+        : isFullyCompleted
+            ? 'completed'
+            : isActive
+                ? 'active'
+                : 'upcoming';
     const status = SESSION_STATUS[sessionState];
+    const formattedScheduleString = formatSchedule(start, end);
 
     return (
         <div className="mx-auto max-w-5xl space-y-8 pb-12">
@@ -164,7 +172,7 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className={cn('rounded-md', status.className)}>
-                            {sessionState === 'completed' ? <CheckCircle2 /> : <Clock3 />}
+                            {sessionState === 'completed' ? <CheckCircle2 /> : sessionState === 'ended' ? <LockKeyhole /> : <Clock3 />}
                             {status.label}
                         </Badge>
                         {session.require_seb && (
@@ -181,7 +189,7 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                     </p>
                     <p className="mt-2 flex items-start gap-2 text-sm leading-6 text-muted-foreground">
                         <CalendarDays className="mt-1 size-4 shrink-0" />
-                        <span>{formatSchedule(start, end)}</span>
+                        <span>{formattedScheduleString}</span>
                     </p>
                 </div>
 
@@ -197,7 +205,34 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                 </div>
             </header>
 
-            {session.require_seb && !isSeb && (
+            {/* Session Ended Informational Callout */}
+            {isTimeEnded && (
+                <section className="flex flex-col justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4.5 sm:flex-row sm:items-center dark:border-amber-900/50 dark:bg-amber-950/30">
+                    <div className="flex items-start gap-3">
+                        <div className="flex size-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-700 shrink-0 dark:bg-amber-500/20 dark:text-amber-400">
+                            <LockKeyhole className="size-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-sm font-semibold text-amber-950 dark:text-amber-200">
+                                Sesi Pelatihan Telah Berakhir
+                            </h2>
+                            <p className="text-xs text-amber-900/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">
+                                Seluruh materi dan ujian telah dikunci secara otomatis. Jika Anda memerlukan materi untuk pembelajaran mandiri, silakan salin format pesan permohonan ke Trainer.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedItemForRequest(session.module_title || session.title)}
+                        className={cn(buttonVariants({ size: 'sm' }), 'shrink-0 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium')}
+                    >
+                        <Copy className="size-3.5" />
+                        Minta Materi ke Trainer
+                    </button>
+                </section>
+            )}
+
+            {session.require_seb && !isSeb && !isTimeEnded && (
                 <section className="flex flex-col justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center">
                     <div className="flex gap-3">
                         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-700" />
@@ -232,7 +267,9 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                         <h2 id="session-content-title" className="text-lg font-semibold">Materi dan ujian</h2>
                     </div>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        Selesaikan setiap item sesuai urutan. Item berikutnya akan terbuka setelah item sebelumnya selesai.
+                        {isTimeEnded
+                            ? 'Masa pengerjaan sesi telah selesai. Modul materi dan ujian berada dalam status terkunci.'
+                            : 'Selesaikan setiap item sesuai urutan. Item berikutnya akan terbuka setelah item sebelumnya selesai.'}
                     </p>
                 </div>
 
@@ -252,13 +289,26 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                                 sessionId={session.id}
                                 sessionState={sessionState}
                                 isSessionActive={isActive}
+                                isSessionEnded={isTimeEnded}
                                 requireSeb={session.require_seb}
                                 isSeb={isSeb}
+                                onRequestMaterial={(title) => setSelectedItemForRequest(title)}
                             />
                         ))}
                     </div>
                 )}
             </section>
+
+            {/* Modal Dialog for Requesting Material */}
+            <RequestMaterialModal
+                isOpen={!!selectedItemForRequest}
+                onClose={() => setSelectedItemForRequest(null)}
+                sessionTitle={session.title}
+                moduleTitle={session.module_title}
+                itemTitle={selectedItemForRequest || undefined}
+                participantName={session.participant_name}
+                sessionSchedule={formattedScheduleString}
+            />
         </div>
     );
 }
@@ -269,47 +319,72 @@ function SessionItemCard({
     sessionId,
     sessionState,
     isSessionActive,
+    isSessionEnded,
     requireSeb,
     isSeb,
+    onRequestMaterial,
 }: {
     item: ModuleItem;
     index: number;
     sessionId: string;
     sessionState: SessionState;
     isSessionActive: boolean;
+    isSessionEnded: boolean;
     requireSeb: boolean;
     isSeb: boolean;
+    onRequestMaterial: (itemTitle: string) => void;
 }) {
     const isCompleted = item.progress_status === 'completed';
     const isLocked = item.progress_status === 'locked';
     const isExam = item.item_type === 'exam';
     const isTraining = item.item_type === 'training';
     const sebLocked = isExam && requireSeb && !isSeb;
-    const canAccess = (isTraining && isCompleted)
-        || (isSessionActive && !isLocked && !sebLocked)
-        || (isExam && isCompleted && item.can_retake && isSessionActive && !sebLocked);
+
+    // Strict Lock: When session is ended, no direct access to either training or exam is permitted
+    const canAccess = !isSessionEnded && (
+        (isTraining && (isSessionActive || isCompleted)) ||
+        (isExam && isSessionActive && !isLocked && !sebLocked) ||
+        (isExam && isCompleted && item.can_retake && isSessionActive && !sebLocked)
+    );
+
     const href = isExam
         ? `/dashboard/sesi/${sessionId}/ujian/${item.item_id}`
         : `/dashboard/sesi/${sessionId}/materi/${item.item_id}`;
 
     let statusLabel = 'Terkunci';
     let statusClass = 'border-border bg-muted text-muted-foreground';
-    if (isCompleted && item.can_retake) {
+
+    if (isSessionEnded) {
+        if (isCompleted) {
+            statusLabel = 'Selesai (Terkunci)';
+            statusClass = 'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300';
+        } else {
+            statusLabel = 'Sesi Berakhir';
+            statusClass = 'border-border bg-muted text-muted-foreground';
+        }
+    } else if (isCompleted && item.can_retake) {
         statusLabel = 'Remedial tersedia';
-        statusClass = 'border-amber-200 bg-amber-50 text-amber-700';
+        statusClass = 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300';
     } else if (isCompleted) {
         statusLabel = 'Selesai';
-        statusClass = 'border-emerald-200 bg-emerald-50 text-emerald-700';
+        statusClass = 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300';
     } else if (item.progress_status === 'open' && isSessionActive) {
         statusLabel = 'Siap dikerjakan';
-        statusClass = 'border-sky-200 bg-sky-50 text-sky-700';
+        statusClass = 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-300';
     }
 
     let unavailableMessage = 'Selesaikan item sebelumnya untuk membuka item ini.';
-    if (sebLocked) unavailableMessage = 'Buka sesi melalui Safe Exam Browser untuk mengerjakan ujian ini.';
-    else if (sessionState === 'upcoming') unavailableMessage = 'Item tersedia setelah jadwal sesi dimulai.';
-    else if (sessionState === 'ended' && !isCompleted) unavailableMessage = 'Item tidak lagi tersedia karena sesi telah berakhir.';
-    else if (isCompleted && isExam && !item.can_retake) unavailableMessage = 'Ujian telah diselesaikan dan tidak memerlukan pengerjaan ulang.';
+    if (isSessionEnded) {
+        unavailableMessage = isExam
+            ? 'Ujian telah dikunci karena jadwal sesi telah berakhir.'
+            : 'Materi telah dikunci karena jadwal sesi telah berakhir.';
+    } else if (sebLocked) {
+        unavailableMessage = 'Buka sesi melalui Safe Exam Browser untuk mengerjakan ujian ini.';
+    } else if (sessionState === 'upcoming') {
+        unavailableMessage = 'Item tersedia setelah jadwal sesi dimulai.';
+    } else if (isCompleted && isExam && !item.can_retake) {
+        unavailableMessage = 'Ujian telah diselesaikan dan tidak memerlukan pengerjaan ulang.';
+    }
 
     let actionLabel = isExam ? 'Mulai ujian' : 'Buka materi';
     if (isTraining && isCompleted) actionLabel = 'Buka kembali materi';
@@ -328,7 +403,7 @@ function SessionItemCard({
                         </span>
                     </div>
                     <Badge variant="outline" className={cn('rounded-md', statusClass)}>
-                        {isCompleted ? <Check /> : isLocked ? <LockKeyhole /> : <Clock3 />}
+                        {isCompleted && !isSessionEnded ? <Check /> : isLocked || isSessionEnded ? <LockKeyhole /> : <Clock3 />}
                         {statusLabel}
                     </Badge>
                 </div>
@@ -343,7 +418,9 @@ function SessionItemCard({
                     </div>
                     <div>
                         <dt className="text-xs text-muted-foreground">Status</dt>
-                        <dd className="mt-1 font-medium">{isCompleted ? 'Sudah selesai' : item.progress_status === 'open' ? 'Belum selesai' : 'Belum tersedia'}</dd>
+                        <dd className="mt-1 font-medium">
+                            {isCompleted ? 'Sudah selesai' : item.progress_status === 'open' && !isSessionEnded ? 'Belum selesai' : 'Tidak tersedia'}
+                        </dd>
                     </div>
                     {isExam && (
                         <>
@@ -362,7 +439,7 @@ function SessionItemCard({
                     {isExam && isCompleted && item.score !== null && (
                         <div>
                             <dt className="text-xs text-muted-foreground">Nilai terakhir</dt>
-                            <dd className="mt-1 font-semibold tabular-nums text-emerald-700">
+                            <dd className="mt-1 font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                                 {Number(item.score).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
                             </dd>
                         </div>
@@ -382,6 +459,24 @@ function SessionItemCard({
                             <ArrowRight />
                         </Link>
                     </>
+                ) : isSessionEnded && isTraining ? (
+                    <div className="flex w-full items-center justify-between gap-2">
+                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <LockKeyhole className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                            <span>Materi telah dikunci.</span>
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => onRequestMaterial(item.item_title)}
+                            className={cn(
+                                buttonVariants({ variant: 'outline', size: 'sm' }),
+                                'gap-1.5 border-amber-300 bg-amber-50/70 text-amber-900 hover:bg-amber-100 hover:text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                            )}
+                        >
+                            <Copy className="size-3.5" />
+                            <span>Minta Materi</span>
+                        </button>
+                    </div>
                 ) : (
                     <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
                         <LockKeyhole className="mt-0.5 size-3.5 shrink-0" />

@@ -25,9 +25,13 @@ async function handleGet(
 
         // Verify participant is enrolled
         const participantResult = await executeQuery<any[]>(
-            `SELECT sp.user_id, u.username, u.full_name 
+            `SELECT sp.user_id, u.username, u.full_name,
+                    pp.nip, pp.institution, pp.batch,
+                    sp.graduation_status, sp.graduation_decided_at, sp.graduation_notes,
+                    sp.skl_number, sp.certificate_file_url, sp.certificate_number
              FROM session_participants sp
              JOIN users u ON sp.user_id = u.id
+             LEFT JOIN participant_profiles pp ON u.id = pp.user_id
              WHERE sp.session_id = ? AND sp.user_id = ?`,
             [sessionId, participantId]
         );
@@ -78,6 +82,15 @@ async function handleGet(
                     id: participant.user_id,
                     username: participant.username,
                     full_name: participant.full_name,
+                    nip: participant.nip || null,
+                    institution: participant.institution || null,
+                    batch: participant.batch || 1,
+                    graduation_status: participant.graduation_status || 'pending',
+                    graduation_decided_at: participant.graduation_decided_at || null,
+                    graduation_notes: participant.graduation_notes || null,
+                    skl_number: participant.skl_number || null,
+                    certificate_file_url: participant.certificate_file_url || null,
+                    certificate_number: participant.certificate_number || null,
                 },
                 progress: {
                     total_items: totalItems,

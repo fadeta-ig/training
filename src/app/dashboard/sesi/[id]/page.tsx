@@ -6,6 +6,7 @@ import {
     AlertCircle,
     ArrowLeft,
     ArrowRight,
+    Award,
     BookOpen,
     CalendarDays,
     Check,
@@ -13,11 +14,13 @@ import {
     Clock3,
     Copy,
     Download,
+    FileBadge2,
     FilePenLine,
     ListChecks,
     LockKeyhole,
     LogOut,
     Play,
+    Printer,
     RotateCcw,
     ShieldCheck,
 } from 'lucide-react';
@@ -59,6 +62,12 @@ type SessionDetail = {
     module_title: string;
     module_id: string;
     participant_name?: string;
+    graduation_status?: 'pending' | 'passed' | 'failed';
+    graduation_decided_at?: string | null;
+    graduation_notes?: string | null;
+    skl_number?: string | null;
+    certificate_file_url?: string | null;
+    certificate_number?: string | null;
     items: ModuleItem[];
 };
 
@@ -204,6 +213,81 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                     <Progress value={progress} aria-label={`Progres sesi ${progress}%`} />
                 </div>
             </header>
+
+            {/* Official Graduation & Certification Banner */}
+            {session.graduation_status === 'passed' && (
+                <section className="flex flex-col justify-between gap-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/80 p-5 sm:flex-row sm:items-center dark:border-emerald-800/50 dark:bg-emerald-950/40 shadow-xs">
+                    <div className="flex items-start gap-3.5">
+                        <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm shrink-0">
+                            <Award className="size-6" />
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 bg-emerald-200/60 dark:bg-emerald-900/60 px-2.5 py-0.5 rounded-full">
+                                    Keputusan Resmi Penguji
+                                </span>
+                                {session.skl_number && (
+                                    <span className="font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                                        {session.skl_number}
+                                    </span>
+                                )}
+                            </div>
+                            <h2 className="text-base font-bold text-emerald-950 dark:text-emerald-100">
+                                Selamat! Anda Dinyatakan LULUS
+                            </h2>
+                            <p className="text-xs text-emerald-900/80 dark:text-emerald-300/80 leading-relaxed max-w-xl">
+                                {session.graduation_notes || 'Anda telah memenuhi seluruh kriteria kelulusan dan standar kompetensi program pelatihan ini.'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                        {/* Download SKL Button */}
+                        <a
+                            href={`/api/participant/sessions/${session.id}/skl`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5 border-emerald-300 bg-white hover:bg-emerald-100/70 text-emerald-900 font-semibold shadow-2xs')}
+                        >
+                            <Printer className="size-3.5 text-emerald-700" />
+                            <span>Unduh SKL (PDF)</span>
+                        </a>
+
+                        {/* Official Certificate Button */}
+                        {session.certificate_file_url ? (
+                            <a
+                                href={session.certificate_file_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={cn(buttonVariants({ size: 'sm' }), 'gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-xs')}
+                            >
+                                <FileBadge2 className="size-4" />
+                                <span>Unduh Sertifikat Resmi</span>
+                            </a>
+                        ) : (
+                            <span className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80 italic font-medium px-2">
+                                Sertifikat resmi sedang diproses
+                            </span>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {session.graduation_status === 'failed' && (
+                <section className="flex items-start gap-3.5 rounded-xl border border-red-200 bg-red-50/70 p-4 dark:border-red-900/50 dark:bg-red-950/30">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 shrink-0">
+                        <AlertCircle className="size-5" />
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-semibold text-red-950 dark:text-red-200">
+                            Hasil Evaluasi: Belum Memenuhi Syarat Kelulusan
+                        </h2>
+                        <p className="text-xs text-red-900/80 dark:text-red-300/80 mt-0.5 leading-relaxed">
+                            {session.graduation_notes || 'Berdasarkan evaluasi akhir oleh tim penguji, nilai atau persyaratan kompetensi Anda belum memenuhi batas minimal kelulusan.'}
+                        </p>
+                    </div>
+                </section>
+            )}
 
             {/* Session Ended Informational Callout */}
             {isTimeEnded && (

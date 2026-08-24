@@ -25,9 +25,13 @@ import { toast } from 'sonner';
 import { usePagination } from '@/hooks/usePagination';
 import { useIsSeb } from '@/hooks/useSeb';
 import { Pagination } from '@/components/ui/Pagination';
+import { GraduationVerdictModal } from '@/components/admin/GraduationVerdictModal';
+import { CertificateUploadModal } from '@/components/admin/CertificateUploadModal';
+import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 
 type User = {
     id: string;
+    session_participant_id?: string;
     username: string;
     full_name: string;
     nip?: string | null;
@@ -36,6 +40,16 @@ type User = {
     completed_items: number;
     total_items: number;
     progress: number;
+    graduation_status?: 'pending' | 'passed' | 'failed';
+    graduation_decided_at?: string | null;
+    graduation_notes?: string | null;
+    skl_number?: string | null;
+    skl_generated_at?: string | null;
+    certificate_file_url?: string | null;
+    certificate_number?: string | null;
+    certificate_uploaded_at?: string | null;
+    final_score?: number | null;
+    avg_score?: number | null;
 };
 
 type SessionDetail = {
@@ -63,12 +77,21 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [userRole, setUserRole] = useState<string>('');
     const [searchParticipant, setSearchParticipant] = useState('');
 
-    // Bulk Time Extension State
+    // Modal state for verdict & certificate
+    const [selectedParticipantForVerdict, setSelectedParticipantForVerdict] = useState<User | null>(null);
+    const [selectedParticipantForCert, setSelectedParticipantForCert] = useState<User | null>(null);
+
+    // Bulk Actions State
     const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
     const [showBulkTimeModal, setShowBulkTimeModal] = useState(false);
     const [bulkExtraMinutes, setBulkExtraMinutes] = useState<number>(15);
     const [bulkReason, setBulkReason] = useState<string>('');
     const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
+
+    const [showBulkVerdictModal, setShowBulkVerdictModal] = useState(false);
+    const [bulkVerdictStatus, setBulkVerdictStatus] = useState<'passed' | 'failed'>('passed');
+    const [bulkVerdictNotes, setBulkVerdictNotes] = useState('');
+    const [isSubmittingBulkVerdict, setIsSubmittingBulkVerdict] = useState(false);
 
     const fetchSession = async () => {
         try {
@@ -223,6 +246,40 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
             toast.error('Kesalahan Jaringan', { description: err.message });
         } finally {
             setIsSubmittingBulk(false);
+        }
+    };
+
+    const handleExecuteBulkVerdict = async (status: 'passed' | 'failed') => {
+        if (selectedParticipantIds.length === 0 || !session) return;
+        setIsSubmittingBulkVerdict(true);
+        try {
+            const res = await fetch(`/api/admin/sessions/${session.id}/participants/graduation-bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    participant_ids: selectedParticipantIds,
+                    graduation_status: status,
+                    graduation_notes: bulkVerdictNotes.trim() || `Penetapan ${status === 'passed' ? 'LULUS' : 'TIDAK LULUS'} Massal oleh Admin`,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success('Penetapan Kelulusan Massal Berhasil!', {
+                    description: data.message,
+                });
+                setShowBulkVerdictModal(false);
+                setSelectedParticipantIds([]);
+                setBulkVerdictNotes('');
+                fetchSession();
+            } else {
+                toast.error('Gagal Menetapkan Kelulusan', {
+                    description: data.error || 'Terjadi kesalahan sistem',
+                });
+            }
+        } catch (err: any) {
+            toast.error('Kesalahan Jaringan', { description: err.message });
+        } finally {
+            setIsSubmittingBulkVerdict(false);
         }
     };
 
@@ -455,17 +512,39 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                 {selectedParticipantIds.length} Peserta Dipilih
                             </span>
                             <span className="text-muted-foreground text-xs hidden sm:inline">
-                                Aksi perpanjangan waktu untuk peserta yang dipilih
+                                Aksi massal untuk penetapan kelulusan & waktu
                             </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setBulkVerdictStatus('passed');
+                                    setShowBulkVerdictModal(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors shadow-2xs"
+                            >
+                                <CheckCircle2 className="size-3.5" />
+                                <span>Luluskan Massal</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setBulkVerdictStatus('failed');
+                                    setShowBulkVerdictModal(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors shadow-2xs"
+                            >
+                                <AlertCircle className="size-3.5" />
+                                <span>Tidak Luluskan Massal</span>
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => setShowBulkTimeModal(true)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-colors shadow-2xs"
                             >
                                 <Time02Icon size={14} />
-                                <span>Tambah Waktu Massal</span>
+                                <span>Tambah Waktu</span>
                             </button>
                             <button
                                 type="button"
@@ -487,7 +566,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[700px] text-left text-xs">
+                        <table className="w-full min-w-[850px] text-left text-xs">
                             <thead className="bg-slate-50/80 border-b border-black/5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                                 <tr>
                                     <th className="px-4 py-3 w-10 text-center">
@@ -502,14 +581,18 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                     <th className="px-3 py-3 w-12 text-center">No</th>
                                     <th className="px-4 py-3">Peserta & NIP</th>
                                     <th className="px-4 py-3">Instansi & Batch</th>
-                                    <th className="px-4 py-3 w-44">Progres Pengerjaan</th>
-                                    <th className="px-4 py-3 text-center w-28">Status</th>
-                                    <th className="px-4 py-3 text-center w-24">Aksi</th>
+                                    <th className="px-4 py-3 w-40">Progres & Nilai</th>
+                                    <th className="px-4 py-3 text-center w-36">Status Kelulusan</th>
+                                    <th className="px-4 py-3 text-center w-40">SKL & Sertifikat</th>
+                                    <th className="px-4 py-3 text-center w-28">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-black/5">
                                 {paginatedParticipants.map((p, idx) => {
                                     const isSelected = selectedParticipantIds.includes(p.id);
+                                    const isPassed = p.graduation_status === 'passed';
+                                    const isFailed = p.graduation_status === 'failed';
+
                                     return (
                                         <tr
                                             key={p.id}
@@ -553,42 +636,123 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5 align-middle">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full transition-all duration-500 ${
-                                                                p.progress === 100 ? 'bg-emerald-500' : 'bg-slate-800'
-                                                            }`}
-                                                            style={{ width: `${p.progress}%` }}
-                                                        />
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-500 ${
+                                                                    p.progress === 100 ? 'bg-emerald-500' : 'bg-slate-800'
+                                                                }`}
+                                                                style={{ width: `${p.progress}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-[11px] font-mono font-medium text-muted-foreground w-8 text-right">
+                                                            {p.progress}%
+                                                        </span>
                                                     </div>
-                                                    <span className="text-[11px] font-mono font-medium text-muted-foreground w-8 text-right">
-                                                        {p.progress}%
-                                                    </span>
+                                                    <div className="text-[11px] text-muted-foreground font-mono flex items-center gap-1">
+                                                        <span>Nilai:</span>
+                                                        <span className={`font-semibold ${
+                                                            p.final_score !== null && p.final_score !== undefined
+                                                                ? 'text-emerald-600 dark:text-emerald-400'
+                                                                : 'text-slate-400'
+                                                        }`}>
+                                                            {p.final_score !== null && p.final_score !== undefined
+                                                                ? Number(p.final_score).toFixed(1)
+                                                                : '-'}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5 text-center align-middle">
-                                                {p.progress === 100 ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium border border-emerald-200/60">
-                                                        <CheckmarkCircle02Icon size={11} /> Selesai
-                                                    </span>
-                                                ) : p.progress > 0 ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium border border-blue-200/60">
-                                                        Mengerjakan
-                                                    </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedParticipantForVerdict(p)}
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all hover:scale-105 active:scale-95"
+                                                    title="Klik untuk mengubah status kelulusan"
+                                                >
+                                                    {isPassed ? (
+                                                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
+                                                            <CheckCircle2 size={11} className="text-emerald-600" /> LULUS
+                                                        </span>
+                                                    ) : isFailed ? (
+                                                        <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200/80 px-2.5 py-0.5 rounded-full">
+                                                            <AlertCircle size={11} className="text-red-600" /> TIDAK LULUS
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200/80 px-2.5 py-0.5 rounded-full">
+                                                            <Sparkles size={11} className="text-amber-600" /> Menunggu
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            </td>
+                                            <td className="px-4 py-3.5 text-center align-middle">
+                                                {isPassed ? (
+                                                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                                        {/* SKL Document Button */}
+                                                        <a
+                                                            href={`/api/participant/sessions/${session.id}/skl?userId=${p.id}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 px-2 py-1 rounded-md transition-colors border border-black/5"
+                                                            title="Buka / Cetak Surat Keterangan Lulus (SKL)"
+                                                        >
+                                                            <Printer className="size-3 text-slate-600" /> SKL
+                                                        </a>
+
+                                                        {/* Official Certificate Status */}
+                                                        {p.certificate_file_url ? (
+                                                            <div className="inline-flex items-center gap-1">
+                                                                <a
+                                                                    href={p.certificate_file_url}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md transition-colors"
+                                                                    title="Lihat Sertifikat Resmi"
+                                                                >
+                                                                    <FileText className="size-3 text-emerald-600" /> Terbit
+                                                                </a>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setSelectedParticipantForCert(p)}
+                                                                    className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                                                                    title="Ganti / Perbarui Sertifikat"
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedParticipantForCert(p)}
+                                                                className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2 py-1 rounded-md transition-colors"
+                                                                title="Unggah Berkas Sertifikat Resmi"
+                                                            >
+                                                                <UploadCloud className="size-3 text-amber-600" /> + Upload
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-medium border border-slate-200/50">
-                                                        Belum
-                                                    </span>
+                                                    <span className="text-[11px] text-muted-foreground font-mono">-</span>
                                                 )}
                                             </td>
                                             <td className="px-4 py-3.5 text-center align-middle">
-                                                <Link
-                                                    href={`/admin/sessions/${session.id}/participants/${p.id}`}
-                                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 px-2.5 py-1 rounded-md transition-colors"
-                                                >
-                                                    Detail
-                                                </Link>
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedParticipantForVerdict(p)}
+                                                        className="inline-flex items-center justify-center p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+                                                        title="Ubah Keputusan Kelulusan"
+                                                    >
+                                                        <Award className="size-3.5" />
+                                                    </button>
+                                                    <Link
+                                                        href={`/admin/sessions/${session.id}/participants/${p.id}`}
+                                                        className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 px-2 py-1 rounded-md transition-colors"
+                                                    >
+                                                        Detail
+                                                    </Link>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -609,6 +773,100 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     />
                 </div>
             </div>
+
+            {/* Individual Graduation Verdict Modal */}
+            <GraduationVerdictModal
+                isOpen={!!selectedParticipantForVerdict}
+                onClose={() => setSelectedParticipantForVerdict(null)}
+                onSuccess={fetchSession}
+                sessionId={session.id}
+                participant={selectedParticipantForVerdict}
+            />
+
+            {/* Official Certificate Upload Modal */}
+            <CertificateUploadModal
+                isOpen={!!selectedParticipantForCert}
+                onClose={() => setSelectedParticipantForCert(null)}
+                onSuccess={fetchSession}
+                sessionId={session.id}
+                participant={selectedParticipantForCert}
+            />
+
+            {/* Bulk Verdict Confirmation Modal */}
+            {showBulkVerdictModal &&
+                typeof window !== 'undefined' &&
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs animate-in fade-in duration-150"
+                        onClick={() => setShowBulkVerdictModal(false)}
+                    >
+                        <div
+                            className="relative w-full max-w-md bg-white rounded-xl shadow-xl border border-black/5 p-6 space-y-4 animate-in zoom-in-95 duration-150"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className={`w-11 h-11 rounded-lg flex items-center justify-center ${
+                                    bulkVerdictStatus === 'passed' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                                }`}>
+                                    {bulkVerdictStatus === 'passed' ? <CheckCircle2 size={22} /> : <AlertCircle size={22} />}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkVerdictModal(false)}
+                                    className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                                >
+                                    <Cancel01Icon size={16} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-1">
+                                <h3 className="font-semibold text-base text-foreground">
+                                    Tetapkan {bulkVerdictStatus === 'passed' ? 'LULUS' : 'TIDAK LULUS'} Massal
+                                </h3>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Anda akan menetapkan status{' '}
+                                    <strong className="text-foreground">{bulkVerdictStatus === 'passed' ? 'LULUS' : 'TIDAK LULUS'}</strong>{' '}
+                                    untuk <strong className="text-foreground">{selectedParticipantIds.length} peserta</strong> yang dipilih.
+                                </p>
+                            </div>
+
+                            <div className="space-y-1.5 pt-1">
+                                <label className="block text-xs font-medium text-foreground">
+                                    Catatan Keputusan Kelulusan:
+                                </label>
+                                <textarea
+                                    value={bulkVerdictNotes}
+                                    onChange={(e) => setBulkVerdictNotes(e.target.value)}
+                                    rows={2}
+                                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-black/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white transition-all resize-none"
+                                    placeholder={bulkVerdictStatus === 'passed' ? 'Memenuhi seluruh kriteria kelulusan pelatihan.' : 'Belum memenuhi nilai batas kelulusan.'}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/5">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkVerdictModal(false)}
+                                    disabled={isSubmittingBulkVerdict}
+                                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleExecuteBulkVerdict(bulkVerdictStatus)}
+                                    disabled={isSubmittingBulkVerdict || selectedParticipantIds.length === 0}
+                                    className={`px-4 py-2 text-xs font-semibold text-white rounded-lg transition-colors shadow-2xs disabled:opacity-50 inline-flex items-center gap-1.5 ${
+                                        bulkVerdictStatus === 'passed' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                                    }`}
+                                >
+                                    {isSubmittingBulkVerdict ? 'Memproses...' : `Ya, Tetapkan ${bulkVerdictStatus === 'passed' ? 'Lulus' : 'Tidak Lulus'}`}
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
 
             {/* Bulk Time Extension Modal */}
             {showBulkTimeModal &&

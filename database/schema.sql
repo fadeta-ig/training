@@ -161,11 +161,21 @@ CREATE TABLE sessions (
 -- 9. Session Participants (Peserta Terdaftar)
 -- ─────────────────────────────────────────────
 CREATE TABLE session_participants (
-  id          VARCHAR(36) PRIMARY KEY,
-  session_id  VARCHAR(36) NOT NULL,
-  user_id     VARCHAR(36) NOT NULL,
+  id                      VARCHAR(36) PRIMARY KEY,
+  session_id              VARCHAR(36) NOT NULL,
+  user_id                 VARCHAR(36) NOT NULL,
+  graduation_status       ENUM('pending', 'passed', 'failed') NOT NULL DEFAULT 'pending',
+  graduation_decided_at   DATETIME NULL,
+  graduation_decided_by   VARCHAR(36) NULL,
+  graduation_notes        TEXT NULL,
+  skl_number              VARCHAR(100) NULL,
+  skl_generated_at        DATETIME NULL,
+  certificate_file_url    VARCHAR(500) NULL,
+  certificate_number      VARCHAR(100) NULL,
+  certificate_uploaded_at DATETIME NULL,
   UNIQUE KEY uq_session_user (session_id, user_id),
   INDEX idx_session_participants_user (user_id),
+  INDEX idx_sp_graduation (graduation_status),
   CONSTRAINT fk_sp_session
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
   CONSTRAINT fk_sp_user

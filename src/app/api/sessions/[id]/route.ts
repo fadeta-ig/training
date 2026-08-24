@@ -42,19 +42,32 @@ async function handleGet(
 
         const totalItems = moduleItems.length;
 
-        // Fetch participants with progress & NIP
+        // Fetch participants with progress, NIP, graduation verdict, SKL & certificates
         const participants = await executeQuery<any[]>(
-            `SELECT sp.user_id, u.username, u.full_name,
+            `SELECT sp.id AS session_participant_id,
+                    sp.user_id, u.username, u.full_name,
                     p.nip, p.institution, p.batch,
-                    COUNT(up.id) AS completed_items
+                    sp.graduation_status,
+                    sp.graduation_decided_at,
+                    sp.graduation_notes,
+                    sp.skl_number,
+                    sp.skl_generated_at,
+                    sp.certificate_file_url,
+                    sp.certificate_number,
+                    sp.certificate_uploaded_at,
+                    COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN up.id END) AS completed_items,
+                    AVG(CASE WHEN mi.item_type = 'exam' AND up.score IS NOT NULL THEN up.score END) AS exam_avg_score,
+                    MAX(CASE WHEN mi.item_type = 'exam' AND up.score IS NOT NULL THEN up.score END) AS exam_max_score
              FROM session_participants sp
              JOIN users u ON sp.user_id = u.id
              LEFT JOIN participant_profiles p ON sp.user_id = p.user_id
-             LEFT JOIN user_progress up ON up.user_id = sp.user_id 
-                  AND up.session_id = sp.session_id 
-                  AND up.status = 'completed'
+             LEFT JOIN user_progress up ON up.user_id = sp.user_id AND up.session_id = sp.session_id
+             LEFT JOIN module_items mi ON mi.id = up.module_item_id
              WHERE sp.session_id = ?
-             GROUP BY sp.user_id, u.username, u.full_name, p.nip, p.institution, p.batch
+             GROUP BY sp.id, sp.user_id, u.username, u.full_name, p.nip, p.institution, p.batch,
+                      sp.graduation_status, sp.graduation_decided_at, sp.graduation_notes,
+                      sp.skl_number, sp.skl_generated_at, sp.certificate_file_url,
+                      sp.certificate_number, sp.certificate_uploaded_at
              ORDER BY completed_items DESC, u.full_name ASC`,
             [resolvedParams.id]
         );
@@ -67,14 +80,25 @@ async function handleGet(
                 module_items: moduleItems,
                 participants: participants.map(p => ({
                     id: p.user_id,
+                    session_participant_id: p.session_participant_id,
                     username: p.username,
                     full_name: p.full_name,
                     nip: p.nip || null,
                     institution: p.institution || null,
                     batch: p.batch || 1,
-                    completed_items: Number(p.completed_items),
+                    completed_items: Number(p.completed_items || 0),
                     total_items: totalItems,
-                    progress: totalItems > 0 ? Math.round((Number(p.completed_items) / totalItems) * 100) : 0,
+                    progress: totalItems > 0 ? Math.round((Number(p.completed_items || 0) / totalItems) * 100) : 0,
+                    graduation_status: p.graduation_status || 'pending',
+                    graduation_decided_at: p.graduation_decided_at || null,
+                    graduation_notes: p.graduation_notes || null,
+                    skl_number: p.skl_number || null,
+                    skl_generated_at: p.skl_generated_at || null,
+                    certificate_file_url: p.certificate_file_url || null,
+                    certificate_number: p.certificate_number || null,
+                    certificate_uploaded_at: p.certificate_uploaded_at || null,
+                    final_score: p.exam_max_score !== null ? Number(p.exam_max_score) : null,
+                    avg_score: p.exam_avg_score !== null ? Number(p.exam_avg_score) : null,
                 }))
             }
         });

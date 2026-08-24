@@ -11,10 +11,26 @@ import {
     AlertCircleIcon,
     Clock01Icon
 } from 'hugeicons-react';
+import { GraduationVerdictModal } from '@/components/admin/GraduationVerdictModal';
+import { CertificateUploadModal } from '@/components/admin/CertificateUploadModal';
+import { Award, FileBadge2, Printer, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react';
 
 type DetailData = {
     session: { id: string; title: string };
-    participant: { id: string; username: string; full_name: string };
+    participant: {
+        id: string;
+        username: string;
+        full_name: string;
+        nip?: string | null;
+        institution?: string | null;
+        batch?: number | null;
+        graduation_status?: 'pending' | 'passed' | 'failed';
+        graduation_decided_at?: string | null;
+        graduation_notes?: string | null;
+        skl_number?: string | null;
+        certificate_file_url?: string | null;
+        certificate_number?: string | null;
+    };
     progress: {
         total_items: number;
         completed_items: number;
@@ -37,6 +53,8 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
     const [data, setData] = useState<DetailData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [showVerdictModal, setShowVerdictModal] = useState(false);
+    const [showCertModal, setShowCertModal] = useState(false);
 
     // Modal state for Admin Exam Override
     const [overrideTarget, setOverrideTarget] = useState<{ examId: string; title: string; status: string } | null>(null);
@@ -189,6 +207,91 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                                     style={{ width: `${progress.percentage}%` }}
                                 />
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Graduation Verdict & Certificate Management Card */}
+                <div className="bg-white rounded-xl border border-black/5 p-4 sm:p-5 shadow-2xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3.5">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                participant.graduation_status === 'passed'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                    : participant.graduation_status === 'failed'
+                                    ? 'bg-red-50 text-red-700 border border-red-200/60'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                            }`}>
+                                <Award className="size-5" />
+                            </div>
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Status Kelulusan:
+                                    </span>
+                                    {participant.graduation_status === 'passed' ? (
+                                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                                            <CheckCircle2 size={12} className="text-emerald-600" /> LULUS
+                                        </span>
+                                    ) : participant.graduation_status === 'failed' ? (
+                                        <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200/80 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                                            <AlertCircle size={12} className="text-red-600" /> TIDAK LULUS
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200/80 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                                            <Sparkles size={12} className="text-amber-600" /> Menunggu Keputusan
+                                        </span>
+                                    )}
+
+                                    {participant.skl_number && (
+                                        <span className="font-mono text-[11px] text-muted-foreground">
+                                            • No. SKL: <strong className="text-foreground">{participant.skl_number}</strong>
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {participant.graduation_notes || 'Belum ada catatan evaluasi khusus untuk peserta ini.'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons for Graduation & Certificate */}
+                        <div className="flex items-center gap-2 flex-wrap shrink-0">
+                            {participant.graduation_status === 'passed' && (
+                                <>
+                                    <a
+                                        href={`/api/participant/sessions/${sessionId}/skl?userId=${participantId}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors border border-black/5"
+                                    >
+                                        <Printer className="size-3.5 text-slate-600" />
+                                        <span>Cetak SKL</span>
+                                    </a>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCertModal(true)}
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                                            participant.certificate_file_url
+                                                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                                : 'bg-amber-600 hover:bg-amber-700 text-white shadow-2xs'
+                                        }`}
+                                    >
+                                        <FileBadge2 className="size-3.5" />
+                                        <span>{participant.certificate_file_url ? 'Kelola Sertifikat' : '+ Upload Sertifikat'}</span>
+                                    </button>
+                                </>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() => setShowVerdictModal(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition-colors shadow-2xs"
+                            >
+                                <Award className="size-3.5" />
+                                <span>Tetapkan Kelulusan</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -461,6 +564,24 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                     </div>
                 </div>
             )}
+
+            {/* Individual Graduation Verdict Modal */}
+            <GraduationVerdictModal
+                isOpen={showVerdictModal}
+                onClose={() => setShowVerdictModal(false)}
+                onSuccess={loadData}
+                sessionId={sessionId}
+                participant={participant}
+            />
+
+            {/* Official Certificate Upload Modal */}
+            <CertificateUploadModal
+                isOpen={showCertModal}
+                onClose={() => setShowCertModal(false)}
+                onSuccess={loadData}
+                sessionId={sessionId}
+                participant={participant}
+            />
         </div>
     );
 }

@@ -24,6 +24,12 @@ type HistoryItem = {
     total_items: number;
     completed_items: number;
     participant_name?: string;
+    graduation_status?: 'pending' | 'passed' | 'failed';
+    graduation_decided_at?: string | null;
+    graduation_notes?: string | null;
+    skl_number?: string | null;
+    certificate_file_url?: string | null;
+    certificate_number?: string | null;
 };
 
 type FilterType = 'all' | 'completed' | 'ended';
@@ -107,74 +113,63 @@ export default function RiwayatPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center p-20 text-xs font-medium text-muted-foreground animate-pulse">
-                Memuat riwayat sesi...
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-xl font-bold text-foreground">Riwayat Sesi Pelatihan</h1>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        Memuat riwayat sesi pelatihan dan ujian Anda...
+                    </p>
+                </div>
+                <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-28 bg-slate-100 rounded-xl animate-pulse" />
+                    ))}
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6 pb-16">
-            {/* Header Section */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/5 pb-5">
-                <div>
-                    <h1 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight flex items-center gap-2.5">
-                        <Clock01Icon className="text-slate-700" size={24} />
-                        Riwayat Sesi & Ujian
-                    </h1>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                        Daftar seluruh sesi pelatihan dan ujian yang telah Anda selesaikan atau telah berakhir.
-                    </p>
-                </div>
-
-                <Link
-                    href="/dashboard/sesi"
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-xl transition-all shadow-2xs shrink-0 active:scale-98"
-                >
-                    <BookOpen01Icon size={15} />
-                    Sesi Aktif
-                </Link>
+        <div className="space-y-6 max-w-6xl">
+            {/* Header */}
+            <div>
+                <h1 className="text-xl font-bold text-foreground">Riwayat Sesi Pelatihan</h1>
+                <p className="text-xs text-muted-foreground mt-1">
+                    Arsip lengkap sesi pelatihan, status kelulusan resmi, SKL, dan sertifikat yang telah selesai Anda ikuti.
+                </p>
             </div>
 
             {/* Metrics Summary Cards */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-4">
-                <div className="bg-white rounded-xl border border-black/5 p-4 flex items-center justify-between shadow-2xs">
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground">Total Riwayat</p>
-                        <p className="text-xl font-semibold text-foreground mt-0.5">{metrics.total}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-white rounded-xl border border-black/5 p-4 shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                        <span className="text-xs font-medium">Total Riwayat Sesi</span>
+                        <BookOpen01Icon size={16} />
                     </div>
-                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
-                        <Clock01Icon size={18} />
-                    </div>
+                    <p className="text-2xl font-bold text-foreground font-mono">{metrics.total}</p>
                 </div>
-
-                <div className="bg-white rounded-xl border border-black/5 p-4 flex items-center justify-between shadow-2xs">
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground">Selesai 100%</p>
-                        <p className="text-xl font-semibold text-emerald-600 mt-0.5">{metrics.completed}</p>
+                <div className="bg-white rounded-xl border border-black/5 p-4 shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                        <span className="text-xs font-medium">Selesai 100%</span>
+                        <CheckmarkCircle02Icon size={16} className="text-emerald-600" />
                     </div>
-                    <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-                        <CheckmarkCircle02Icon size={18} />
-                    </div>
+                    <p className="text-2xl font-bold text-emerald-600 font-mono">{metrics.completed}</p>
                 </div>
-
-                <div className="bg-white rounded-xl border border-black/5 p-4 flex items-center justify-between shadow-2xs">
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground">Sesi Berakhir</p>
-                        <p className="text-xl font-semibold text-slate-500 mt-0.5">{metrics.ended}</p>
+                <div className="bg-white rounded-xl border border-black/5 p-4 shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                        <span className="text-xs font-medium">Sesi Berakhir</span>
+                        <Clock01Icon size={16} className="text-slate-500" />
                     </div>
-                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500">
-                        <Calendar02Icon size={18} />
-                    </div>
+                    <p className="text-2xl font-bold text-slate-700 font-mono">{metrics.ended}</p>
                 </div>
             </div>
 
-            {/* Filter Tabs & Search Bar */}
-            <div className="bg-white rounded-xl border border-black/5 p-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-2xs">
-                <div className="flex items-center gap-1 bg-slate-100/70 p-1 rounded-lg text-xs font-medium">
+            {/* Filter Tabs & Search */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-lg w-fit">
                     <button
                         onClick={() => setFilterType('all')}
-                        className={`px-3 py-1.5 rounded-md transition-all ${
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                             filterType === 'all'
                                 ? 'bg-white text-foreground shadow-2xs'
                                 : 'text-muted-foreground hover:text-foreground'
@@ -184,9 +179,9 @@ export default function RiwayatPage() {
                     </button>
                     <button
                         onClick={() => setFilterType('completed')}
-                        className={`px-3 py-1.5 rounded-md transition-all ${
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                             filterType === 'completed'
-                                ? 'bg-white text-emerald-700 shadow-2xs'
+                                ? 'bg-white text-foreground shadow-2xs'
                                 : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
@@ -194,9 +189,9 @@ export default function RiwayatPage() {
                     </button>
                     <button
                         onClick={() => setFilterType('ended')}
-                        className={`px-3 py-1.5 rounded-md transition-all ${
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                             filterType === 'ended'
-                                ? 'bg-white text-slate-700 shadow-2xs'
+                                ? 'bg-white text-foreground shadow-2xs'
                                 : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
@@ -241,6 +236,8 @@ export default function RiwayatPage() {
                                     ? Math.round((s.completed_items / s.total_items) * 100)
                                     : 0;
                             const allDone = progress === 100 && s.total_items > 0;
+                            const isPassed = s.graduation_status === 'passed';
+                            const isFailed = s.graduation_status === 'failed';
 
                             return (
                                 <div
@@ -252,12 +249,14 @@ export default function RiwayatPage() {
                                         <div className="flex items-start gap-3.5 min-w-0">
                                             <div
                                                 className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                                                    allDone
+                                                    isPassed
+                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
+                                                        : allDone
                                                         ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60'
                                                         : 'bg-slate-100 text-slate-500 border border-slate-200/50'
                                                 }`}
                                             >
-                                                {allDone ? (
+                                                {allDone || isPassed ? (
                                                     <CheckmarkCircle02Icon size={18} />
                                                 ) : (
                                                     <Time02Icon size={18} />
@@ -265,9 +264,21 @@ export default function RiwayatPage() {
                                             </div>
 
                                             <div className="min-w-0 space-y-1">
-                                                <h3 className="text-sm font-semibold text-foreground truncate group-hover:text-slate-900 transition-colors">
-                                                    {s.title}
-                                                </h3>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <h3 className="text-sm font-semibold text-foreground truncate group-hover:text-slate-900 transition-colors">
+                                                        {s.title}
+                                                    </h3>
+                                                    {isPassed && (
+                                                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                                            ✓ LULUS
+                                                        </span>
+                                                    )}
+                                                    {isFailed && (
+                                                        <span className="bg-red-50 text-red-700 border border-red-200/80 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                                            TIDAK LULUS
+                                                        </span>
+                                                    )}
+                                                </div>
 
                                                 <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                                                     <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
@@ -283,37 +294,39 @@ export default function RiwayatPage() {
                                         </div>
 
                                         {/* Right Progress & Action Section */}
-                                        <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 border-t sm:border-t-0 border-black/5 pt-3 sm:pt-0">
-                                            {/* Progress Bar & Status */}
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-24 sm:w-32 hidden sm:block">
-                                                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full transition-all duration-500 ${
-                                                                allDone ? 'bg-emerald-500' : 'bg-slate-700'
-                                                            }`}
-                                                            style={{ width: `${progress}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
+                                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 border-t sm:border-t-0 border-black/5 pt-3 sm:pt-0 flex-wrap">
+                                            {/* SKL direct download */}
+                                            {isPassed && (
+                                                <a
+                                                    href={`/api/participant/sessions/${s.id}/skl`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold rounded-lg transition-colors"
+                                                    title="Unduh Surat Keterangan Lulus (SKL)"
+                                                >
+                                                    Unduh SKL
+                                                </a>
+                                            )}
 
-                                                {allDone ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[11px] font-medium">
-                                                        100% Selesai
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200/50 text-[11px] font-medium">
-                                                        {progress}% • Berakhir
-                                                    </span>
-                                                )}
-                                            </div>
+                                            {/* Official certificate if available */}
+                                            {isPassed && s.certificate_file_url && (
+                                                <a
+                                                    href={s.certificate_file_url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-2xs"
+                                                    title="Unduh Sertifikat Resmi"
+                                                >
+                                                    Sertifikat Resmi
+                                                </a>
+                                            )}
 
                                             {/* Action Button */}
                                             <Link
                                                 href={`/dashboard/sesi/${s.id}`}
                                                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs font-medium rounded-lg transition-colors shrink-0 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200"
                                             >
-                                                Lihat Detail Sesi
+                                                Lihat Detail
                                                 <ArrowRight01Icon
                                                     size={14}
                                                     className="group-hover:translate-x-0.5 transition-transform"

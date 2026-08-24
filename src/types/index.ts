@@ -103,6 +103,15 @@ export interface SessionParticipant {
     id: string;
     session_id: string;
     user_id: string;
+    graduation_status?: 'pending' | 'passed' | 'failed';
+    graduation_decided_at?: string | null;
+    graduation_decided_by?: string | null;
+    graduation_notes?: string | null;
+    skl_number?: string | null;
+    skl_generated_at?: string | null;
+    certificate_file_url?: string | null;
+    certificate_number?: string | null;
+    certificate_uploaded_at?: string | null;
 }
 
 export interface UserProgress {

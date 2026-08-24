@@ -123,6 +123,15 @@ async function handleGet(
             };
         });
 
+        const enrollmentRows = await executeQuery<any[]>(
+            `SELECT graduation_status, graduation_decided_at, graduation_notes, skl_number, certificate_file_url, certificate_number
+             FROM session_participants
+             WHERE session_id = ? AND user_id = ?
+             LIMIT 1`,
+            [sessionId, user.id]
+        );
+        const enrollment = enrollmentRows?.[0] || {};
+
         return NextResponse.json({
             success: true,
             data: {
@@ -132,6 +141,12 @@ async function handleGet(
                 module_title: moduleTitle,
                 participant_name: participantName,
                 show_score: !!session.show_score,
+                graduation_status: enrollment.graduation_status || 'pending',
+                graduation_decided_at: enrollment.graduation_decided_at || null,
+                graduation_notes: enrollment.graduation_notes || null,
+                skl_number: enrollment.skl_number || null,
+                certificate_file_url: enrollment.certificate_file_url || null,
+                certificate_number: enrollment.certificate_number || null,
                 items: mappedItems,
             },
         });

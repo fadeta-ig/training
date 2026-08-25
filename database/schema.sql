@@ -113,7 +113,11 @@ CREATE TABLE exams (
   passing_grade    DECIMAL(5, 2)  NOT NULL DEFAULT 70.00,
   allow_remedial   BOOLEAN        NOT NULL DEFAULT FALSE,
   max_attempts     INT            NOT NULL DEFAULT 1,
-  created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  remedial_exam_id VARCHAR(36)    NULL,
+  created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_exams_remedial (remedial_exam_id),
+  CONSTRAINT fk_exams_remedial
+    FOREIGN KEY (remedial_exam_id) REFERENCES exams(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────

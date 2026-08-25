@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Edit01Icon, FloppyDiskIcon, ArrowLeft01Icon } from 'hugeicons-react';
 import Link from 'next/link';
@@ -8,14 +8,27 @@ import Link from 'next/link';
 export default function NewExamPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const [availableExams, setAvailableExams] = useState<Array<{ id: string; title: string }>>([]);
     const [formData, setFormData] = useState({
         title: '',
         duration_minutes: 60,
         passing_grade: 70,
         allow_remedial: false,
-        max_attempts: 1
+        max_attempts: 1,
+        remedial_exam_id: '' as string,
     });
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        fetch('/api/exams?limit=100')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && Array.isArray(data.data)) {
+                    setAvailableExams(data.data);
+                }
+            })
+            .catch(() => {});
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -23,10 +36,15 @@ export default function NewExamPage() {
         setError(null);
 
         try {
+            const payload = {
+                ...formData,
+                remedial_exam_id: formData.allow_remedial && formData.remedial_exam_id ? formData.remedial_exam_id : null,
+            };
+
             const res = await fetch('/api/exams', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload),
             });
 
             const result = await res.json();
@@ -59,7 +77,7 @@ export default function NewExamPage() {
                         Buat Ujian Baru
                     </h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        Tentukan parameter (waktu & batas lulus) sebelum memasukkan soal-soal.
+                        Tentukan parameter (waktu, batas kelulusan, dan paket remedial) sebelum memasukkan soal-soal.
                     </p>
                 </div>
             </div>
@@ -134,18 +152,39 @@ export default function NewExamPage() {
                     </div>
 
                     {formData.allow_remedial && (
-                        <div className="space-y-2 mb-6 ml-8 p-4 bg-black/[0.02] rounded-xl border border-black/5">
-                            <label className="text-sm font-bold text-foreground">Batas Maksimal Percobaan <span className="text-destructive">*</span></label>
-                            <input
-                                type="number"
-                                required
-                                min={2}
-                                max={10}
-                                className="w-full max-w-xs glass-input px-4 py-3 rounded-xl text-sm focus:outline-none block"
-                                value={formData.max_attempts}
-                                onChange={e => setFormData({ ...formData, max_attempts: Number(e.target.value) })}
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">Jumlah kesempatan maksimal yang diberikan kepada peserta (termasuk ujian pertama).</p>
+                        <div className="space-y-5 mb-6 ml-0 sm:ml-8 p-4 sm:p-5 bg-black/[0.02] rounded-xl border border-black/5">
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-foreground">Batas Maksimal Percobaan <span className="text-destructive">*</span></label>
+                                <input
+                                    type="number"
+                                    required
+                                    min={2}
+                                    max={10}
+                                    className="w-full max-w-xs glass-input px-4 py-3 rounded-xl text-sm focus:outline-none block"
+                                    value={formData.max_attempts}
+                                    onChange={e => setFormData({ ...formData, max_attempts: Number(e.target.value) })}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Jumlah kesempatan maksimal yang diberikan kepada peserta (termasuk ujian pertama).</p>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-black/5">
+                                <label className="text-sm font-bold text-foreground">Paket Soal Ujian Remedial</label>
+                                <select
+                                    className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-white text-foreground"
+                                    value={formData.remedial_exam_id}
+                                    onChange={e => setFormData({ ...formData, remedial_exam_id: e.target.value })}
+                                >
+                                    <option value="">Gunakan Soal Ujian yang Sama (Paket Saat Ini)</option>
+                                    {availableExams.map((ex) => (
+                                        <option key={ex.id} value={ex.id}>
+                                            {ex.title}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-muted-foreground">
+                                    Pilih paket ujian khusus untuk remedial jika peserta harus mengerjakan butir soal yang berbeda saat mengulang.
+                                </p>
+                            </div>
                         </div>
                     )}
                 </div>

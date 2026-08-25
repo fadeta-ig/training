@@ -99,7 +99,10 @@ async function handleGet(
                 });
             } else if (item.item_type === 'exam') {
                 const exams = await executeQuery<ExamInfo[]>(
-                    `SELECT id, title, duration_minutes, passing_grade, allow_remedial, max_attempts FROM exams WHERE id = ? LIMIT 1`,
+                    `SELECT e.id, e.title, e.duration_minutes, e.passing_grade, e.allow_remedial, e.max_attempts, e.remedial_exam_id, re.title AS remedial_exam_title 
+                     FROM exams e 
+                     LEFT JOIN exams re ON e.remedial_exam_id = re.id 
+                     WHERE e.id = ? LIMIT 1`,
                     [item.item_id]
                 );
                 const e = Array.isArray(exams) && exams[0] ? exams[0] : null;

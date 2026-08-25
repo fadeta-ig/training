@@ -90,6 +90,8 @@ export interface Exam {
     passing_grade: number;
     allow_remedial: boolean;
     max_attempts: number;
+    remedial_exam_id?: string | null;
+    remedial_exam_title?: string | null;
     created_at: string;
 }
 

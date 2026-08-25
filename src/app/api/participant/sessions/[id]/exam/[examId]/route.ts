@@ -64,7 +64,11 @@ async function handleGet(
         // Phase 2: Parallel exam rules + current progress
         const [exam, currentProgress] = await Promise.all([
             executeQuery<any[]>(
-                `SELECT id, title, duration_minutes, passing_grade, max_attempts, allow_remedial FROM exams WHERE id = ?`,
+                `SELECT e.id, e.title, e.duration_minutes, e.passing_grade, e.max_attempts, e.allow_remedial, e.remedial_exam_id,
+                        re.title AS remedial_exam_title, re.duration_minutes AS remedial_duration_minutes
+                 FROM exams e
+                 LEFT JOIN exams re ON e.remedial_exam_id = re.id
+                 WHERE e.id = ?`,
                 [examId]
             ),
             getItemProgress(sessionId, user.id, moduleItem.id),
@@ -105,7 +109,12 @@ async function handleGet(
             [user.id, sessionId, moduleItem.id]
         );
 
-        // Phase 3: Parallel fetch progress + questions
+        // Determine if current attempt is remedial and requires a distinct exam package
+        const currentAttemptsCount = Number(currentProgress?.attempts_count || 0);
+        const isRemedialAttempt = currentAttemptsCount >= 1 && !!rules.allow_remedial && !!rules.remedial_exam_id;
+        const activeExamId = isRemedialAttempt ? rules.remedial_exam_id : examId;
+
+        // Phase 3: Parallel fetch progress + questions from the active exam package
         const [progress, questions] = await Promise.all([
             executeQuery<Array<{
                 attempts_count: number;
@@ -132,7 +141,7 @@ async function handleGet(
             }>>(
                 `SELECT id, question_type, question_text, question_image, options_json, points
                  FROM questions WHERE exam_id = ? ORDER BY sequence_order ASC, id ASC`,
-                [examId]
+                [activeExamId]
             ),
         ]);
 
@@ -192,10 +201,24 @@ async function handleGet(
             [user.id, sessionId, examId, attemptNumber]
         );
 
+        const effectiveDuration = isRemedialAttempt && rules.remedial_duration_minutes
+            ? rules.remedial_duration_minutes
+            : rules.duration_minutes;
+
+        const effectiveTitle = isRemedialAttempt && rules.remedial_exam_title
+            ? `${rules.title} (Remedial: ${rules.remedial_exam_title})`
+            : rules.title;
+
         return NextResponse.json({
             success: true,
             data: {
-                exam: exam[0],
+                exam: {
+                    ...rules,
+                    duration_minutes: effectiveDuration,
+                    title: effectiveTitle,
+                    is_remedial_attempt: isRemedialAttempt,
+                    remedial_exam_title: rules.remedial_exam_title || null,
+                },
                 questions: sanitized,
                 existingAnswers,
                 serverTime: progress[0].server_time_utc,

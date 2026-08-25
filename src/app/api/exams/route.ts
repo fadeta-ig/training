@@ -14,7 +14,12 @@ async function handleGet(request: NextRequest) {
         const total = countResult[0]?.total || 0;
 
         const exams = await executeQuery(
-            `SELECT id, title, duration_minutes, passing_grade, allow_remedial, max_attempts, created_at FROM exams ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+            `SELECT e.id, e.title, e.duration_minutes, e.passing_grade, e.allow_remedial, e.max_attempts, 
+                    e.remedial_exam_id, re.title AS remedial_exam_title, e.created_at 
+             FROM exams e 
+             LEFT JOIN exams re ON e.remedial_exam_id = re.id 
+             ORDER BY e.created_at DESC 
+             LIMIT ? OFFSET ?`,
             [limit, offset]
         );
 
@@ -46,12 +51,20 @@ async function handlePost(request: NextRequest) {
             );
         }
 
-        const { title, duration_minutes, passing_grade, allow_remedial = false, max_attempts = 1 } = parsed.data;
+        const { 
+            title, 
+            duration_minutes, 
+            passing_grade, 
+            allow_remedial = false, 
+            max_attempts = 1,
+            remedial_exam_id = null,
+        } = parsed.data;
         const examId = uuidv4();
+        const finalRemedialExamId = allow_remedial && remedial_exam_id ? remedial_exam_id : null;
 
         await executeQuery(
-            `INSERT INTO exams (id, title, duration_minutes, passing_grade, allow_remedial, max_attempts) VALUES (?, ?, ?, ?, ?, ?)`,
-            [examId, title, duration_minutes, passing_grade, allow_remedial, max_attempts]
+            `INSERT INTO exams (id, title, duration_minutes, passing_grade, allow_remedial, max_attempts, remedial_exam_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [examId, title, duration_minutes, passing_grade, allow_remedial, max_attempts, finalRemedialExamId]
         );
 
         return NextResponse.json({ success: true, id: examId, message: 'Exam created' }, { status: 201 });

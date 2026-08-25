@@ -16,7 +16,7 @@ async function handlePost(
 
         // Fetch source exam
         const sourceExams = await executeQuery<Exam[]>(
-            `SELECT id, title, duration_minutes, passing_grade, allow_remedial, max_attempts FROM exams WHERE id = ? LIMIT 1`,
+            `SELECT id, title, duration_minutes, passing_grade, allow_remedial, max_attempts, remedial_exam_id FROM exams WHERE id = ? LIMIT 1`,
             [sourceExamId]
         );
 
@@ -47,8 +47,8 @@ async function handlePost(
 
             // 1. Insert duplicated exam
             await connection.execute(
-                `INSERT INTO exams (id, title, duration_minutes, passing_grade, allow_remedial, max_attempts) 
-                 VALUES (?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO exams (id, title, duration_minutes, passing_grade, allow_remedial, max_attempts, remedial_exam_id) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
                     newExamId,
                     newTitle,
@@ -56,6 +56,7 @@ async function handlePost(
                     sourceExam.passing_grade,
                     sourceExam.allow_remedial ? 1 : 0,
                     sourceExam.max_attempts,
+                    sourceExam.remedial_exam_id || null,
                 ]
             );
 

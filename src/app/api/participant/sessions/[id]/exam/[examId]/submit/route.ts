@@ -87,74 +87,36 @@ async function handlePost(
                     { status: 400 }
                 );
             }
-        }
-
-        // Enforce SEB if required
+        }        // Enforce SEB if required
         validateSebAccess(request, session);
         const sessionModuleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
 
-        // Fetch all questions for grading
-        const questions = await executeQuery<QuestionRow[]>(
-            `SELECT id, exam_id, question_type, question_text, question_image,
-                    options_json, correct_option_index, correct_answer, points
-             FROM questions WHERE exam_id = ? ORDER BY sequence_order ASC, id ASC`,
-            [examId]
-        );
-
-        const questionMap = new Map(questions.map((question) => [question.id, question]));
-        const submittedQuestionIds = new Set<string>();
-
-        if (answers.length > questions.length) {
-            return NextResponse.json({ success: false, error: 'Jumlah jawaban tidak valid' }, { status: 400 });
+        interface ExamRuleRow {
+            passing_grade: number | string;
+            max_attempts: number;
+            allow_remedial: boolean | number;
+            duration_minutes: number;
+            remedial_exam_id: string | null;
         }
 
-        for (const answer of answers) {
-            if (!answer || typeof answer.question_id !== 'string' || typeof answer.selected_option !== 'string') {
-                return NextResponse.json({ success: false, error: 'Format jawaban tidak valid' }, { status: 400 });
-            }
-            if (answer.question_id.length > 100 || answer.selected_option.length > 20_000) {
-                return NextResponse.json({ success: false, error: 'Ukuran jawaban melebihi batas' }, { status: 400 });
-            }
-            if (!questionMap.has(answer.question_id)) {
-                return NextResponse.json({ success: false, error: 'Jawaban mengandung soal yang tidak valid' }, { status: 400 });
-            }
-            if (submittedQuestionIds.has(answer.question_id)) {
-                return NextResponse.json({ success: false, error: 'Jawaban duplikat terdeteksi' }, { status: 400 });
-            }
-            const validationError = validateParticipantAnswer(
-                toParticipantQuestionShape(questionMap.get(answer.question_id)!),
-                answer.selected_option,
-            );
-            if (validationError) {
-                return NextResponse.json({ success: false, error: validationError }, { status: 400 });
-            }
-            submittedQuestionIds.add(answer.question_id);
+        interface UserProgressLockRow {
+            id: string;
+            attempts_count: number;
+            last_attempt_start: string | Date | null;
+            status: 'locked' | 'open' | 'completed';
+            score: number | string | null;
+            attempt_elapsed_seconds: number | null;
         }
 
-interface ExamRuleRow {
-    passing_grade: number | string;
-    max_attempts: number;
-    allow_remedial: boolean | number;
-    duration_minutes: number;
-}
-
-interface UserProgressLockRow {
-    id: string;
-    attempts_count: number;
-    last_attempt_start: string | Date | null;
-    status: 'locked' | 'open' | 'completed';
-    score: number | string | null;
-    attempt_elapsed_seconds: number | null;
-}
-
-        // Fetch exam rules (passing grade, max attempts, remedial permission)
+        // Fetch exam rules (passing grade, max attempts, remedial permission, remedial package)
         const exam = await executeQuery<ExamRuleRow[]>(
-            `SELECT passing_grade, max_attempts, allow_remedial, duration_minutes FROM exams WHERE id = ?`,
+            `SELECT passing_grade, max_attempts, allow_remedial, duration_minutes, remedial_exam_id FROM exams WHERE id = ?`,
             [examId]
         );
         const passingGrade = Number(exam?.[0]?.passing_grade ?? 70);
         const maxAttempts = exam?.[0]?.max_attempts || 1;
         const allowRemedial = !!exam?.[0]?.allow_remedial;
+        const remedialExamId = exam?.[0]?.remedial_exam_id || null;
 
         connection = await pool.getConnection();
         try {
@@ -223,16 +185,63 @@ interface UserProgressLockRow {
                 );
             }
 
+            // Determine active exam package (remedial vs standard)
+            const isRemedialAttempt = attemptNumber > 1 && allowRemedial && !!remedialExamId;
+            const activeExamId = isRemedialAttempt ? remedialExamId : examId;
+
+            // Fetch questions from the active exam package
+            const [questionsRes] = await connection.execute<QuestionRow[] & any[]>(
+                `SELECT id, exam_id, question_type, question_text, question_image,
+                        options_json, correct_option_index, correct_answer, points
+                 FROM questions WHERE exam_id = ? ORDER BY sequence_order ASC, id ASC`,
+                [activeExamId]
+            );
+            const questions = (questionsRes || []) as QuestionRow[];
+
+            const questionMap = new Map(questions.map((question) => [question.id, question]));
+            const submittedQuestionIds = new Set<string>();
+
+            if (answers.length > questions.length) {
+                await connection.rollback();
+                return NextResponse.json({ success: false, error: 'Jumlah jawaban tidak valid' }, { status: 400 });
+            }
+
+            for (const answer of answers) {
+                if (!answer || typeof answer.question_id !== 'string' || typeof answer.selected_option !== 'string') {
+                    await connection.rollback();
+                    return NextResponse.json({ success: false, error: 'Format jawaban tidak valid' }, { status: 400 });
+                }
+                if (answer.question_id.length > 100 || answer.selected_option.length > 20_000) {
+                    await connection.rollback();
+                    return NextResponse.json({ success: false, error: 'Ukuran jawaban melebihi batas' }, { status: 400 });
+                }
+                if (!questionMap.has(answer.question_id)) {
+                    await connection.rollback();
+                    return NextResponse.json({ success: false, error: 'Jawaban mengandung soal yang tidak valid untuk paket ujian ini' }, { status: 400 });
+                }
+                if (submittedQuestionIds.has(answer.question_id)) {
+                    await connection.rollback();
+                    return NextResponse.json({ success: false, error: 'Jawaban duplikat terdeteksi' }, { status: 400 });
+                }
+                const validationError = validateParticipantAnswer(
+                    toParticipantQuestionShape(questionMap.get(answer.question_id)!),
+                    answer.selected_option,
+                );
+                if (validationError) {
+                    await connection.rollback();
+                    return NextResponse.json({ success: false, error: validationError }, { status: 400 });
+                }
+                submittedQuestionIds.add(answer.question_id);
+            }
+
             // Delete existing answers only for the current attempt (allows resume-then-submit flow safely)
             await connection.execute(
-                `DELETE ea
-                 FROM exam_answers ea
-                 INNER JOIN questions q ON q.id = ea.question_id
-                 WHERE ea.user_id = ?
-                   AND ea.session_id = ?
-                   AND ea.attempt_number = ?
-                   AND q.exam_id = ?`,
-                [user.id, sessionId, attemptNumber, examId]
+                `DELETE FROM exam_answers
+                 WHERE user_id = ?
+                   AND session_id = ?
+                   AND attempt_number = ?
+                   AND (exam_id = ? OR exam_id = ?)`,
+                [user.id, sessionId, attemptNumber, examId, activeExamId]
             );
 
             const totalPoints = questions.reduce((sum, question) => sum + (Number(question.points) || 1), 0);
@@ -256,7 +265,7 @@ interface UserProgressLockRow {
                     user.id,
                     sessionId,
                     question.id,
-                    examId,
+                    activeExamId,
                     selectedOption,
                     createQuestionSnapshot(question),
                     isCorrect,
@@ -279,8 +288,8 @@ interface UserProgressLockRow {
 
             await connection.execute(
                 `DELETE FROM exam_answer_drafts
-                 WHERE user_id = ? AND session_id = ? AND exam_id = ? AND attempt_number = ?`,
-                [user.id, sessionId, examId, attemptNumber],
+                 WHERE user_id = ? AND session_id = ? AND (exam_id = ? OR exam_id = ?) AND attempt_number = ?`,
+                [user.id, sessionId, examId, activeExamId, attemptNumber]
             );
 
             const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;

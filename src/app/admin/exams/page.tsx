@@ -36,6 +36,10 @@ type Exam = {
     title: string;
     duration_minutes: number;
     passing_grade: number;
+    allow_remedial?: boolean | number;
+    max_attempts?: number;
+    remedial_exam_id?: string | null;
+    remedial_exam_title?: string | null;
     created_at: string;
 };
 
@@ -181,9 +185,16 @@ export default function ExamsManagerPage() {
                         <Card key={exam.id} className="gap-0 rounded-lg py-0 shadow-none">
                             <CardHeader className="gap-4 px-5 pb-4 pt-5">
                                 <div className="flex items-center justify-between gap-3">
-                                    <Badge variant="outline" className="rounded-md text-muted-foreground">
-                                        <FileQuestion /> Ujian
-                                    </Badge>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <Badge variant="outline" className="rounded-md text-muted-foreground">
+                                            <FileQuestion /> Ujian
+                                        </Badge>
+                                        {(exam.allow_remedial === 1 || exam.allow_remedial === true) && (
+                                            <Badge variant="secondary" className="rounded-md text-xs font-normal border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                                                {exam.remedial_exam_title ? `Remidial: ${exam.remedial_exam_title}` : `Remidial (${exam.max_attempts || 2}x)`}
+                                            </Badge>
+                                        )}
+                                    </div>
                                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <CalendarDays className="size-3.5" /> {formatDate(exam.created_at)}
                                     </span>

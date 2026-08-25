@@ -72,7 +72,14 @@ type Question = {
 };
 
 type ExamData = {
-    exam: { id: string; title: string; duration_minutes: number; passing_grade: number };
+    exam: { 
+        id: string; 
+        title: string; 
+        duration_minutes: number; 
+        passing_grade: number;
+        is_remedial_attempt?: boolean;
+        remedial_exam_title?: string | null;
+    };
     questions: Question[];
     existingAnswers: { question_id: string; selected_option: string }[];
     serverTime: string;
@@ -831,7 +838,14 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
                 <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 xl:pr-44">
                     <div className="min-w-0 flex-1">
-                        <h1 className="truncate text-sm font-semibold sm:text-base">{examData.exam.title}</h1>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h1 className="truncate text-sm font-semibold sm:text-base">{examData.exam.title}</h1>
+                            {(examData.attemptNumber > 1 || examData.exam.is_remedial_attempt) && (
+                                <Badge variant="secondary" className="rounded-md text-[11px] font-normal border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                                    Remedial (Percobaan ke-{examData.attemptNumber})
+                                </Badge>
+                            )}
+                        </div>
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                             <span>Soal {currentIdx + 1} dari {questions.length}</span>
                             <span aria-hidden="true">•</span>

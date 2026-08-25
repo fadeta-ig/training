@@ -11,7 +11,10 @@ async function handleGet(
     try {
         const resolvedParams = await context.params;
         const result = await executeQuery<any[]>(
-            `SELECT * FROM exams WHERE id = ?`,
+            `SELECT e.*, re.title AS remedial_exam_title 
+             FROM exams e 
+             LEFT JOIN exams re ON e.remedial_exam_id = re.id 
+             WHERE e.id = ?`,
             [resolvedParams.id]
         );
 
@@ -43,11 +46,28 @@ async function handlePut(
             );
         }
 
-        const { title, duration_minutes, passing_grade, allow_remedial = false, max_attempts = 1 } = parsed.data;
+        const { 
+            title, 
+            duration_minutes, 
+            passing_grade, 
+            allow_remedial = false, 
+            max_attempts = 1,
+            remedial_exam_id = null,
+        } = parsed.data;
+
+        // Prevent self-reference
+        if (remedial_exam_id && remedial_exam_id === resolvedParams.id) {
+            return NextResponse.json(
+                { success: false, error: 'Paket ujian remedial tidak boleh merujuk ke ujian ini sendiri' },
+                { status: 400 }
+            );
+        }
+
+        const finalRemedialExamId = allow_remedial && remedial_exam_id ? remedial_exam_id : null;
 
         const result = await executeQuery<{ affectedRows: number }>(
-            `UPDATE exams SET title = ?, duration_minutes = ?, passing_grade = ?, allow_remedial = ?, max_attempts = ? WHERE id = ?`,
-            [title, duration_minutes, passing_grade, allow_remedial, max_attempts, resolvedParams.id]
+            `UPDATE exams SET title = ?, duration_minutes = ?, passing_grade = ?, allow_remedial = ?, max_attempts = ?, remedial_exam_id = ? WHERE id = ?`,
+            [title, duration_minutes, passing_grade, allow_remedial, max_attempts, finalRemedialExamId, resolvedParams.id]
         );
 
         if (result && 'affectedRows' in result && result.affectedRows === 0) {

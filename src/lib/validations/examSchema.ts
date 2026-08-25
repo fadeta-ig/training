@@ -6,6 +6,7 @@ export const examSchema = z.object({
     passing_grade: z.number().int().min(0, 'Passing grade minimal 0').max(100, 'Passing grade maksimal 100'),
     allow_remedial: z.boolean().default(false).optional(),
     max_attempts: z.number().int().min(1, 'Maksimal percobaan minimal 1').default(1).optional(),
+    remedial_exam_id: z.string().uuid('ID ujian remedial tidak valid').nullable().optional().or(z.literal('')),
 });
 
 export type ExamInput = z.infer<typeof examSchema>;

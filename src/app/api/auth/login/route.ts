@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
         // Cari user di DB berdasarkan username (email) atau NIP resmi
         const users = await executeQuery<any[]>(
-            `SELECT u.id, u.username, u.password_hash, u.role, u.full_name 
+            `SELECT u.id, u.username, u.password_hash, u.role, u.full_name, u.approval_status, u.rejection_reason 
              FROM users u 
              LEFT JOIN participant_profiles pp ON u.id = pp.user_id 
              WHERE LOWER(u.username) = ? OR LOWER(COALESCE(pp.nip, '')) = ?
@@ -58,6 +58,31 @@ export async function POST(request: NextRequest) {
                 { status: 401 }
             );
         }
+
+        // Cek status persetujuan akun (jika ada kolom approval_status)
+        if (user.approval_status === 'pending') {
+            logger.warn('AUTH_LOGIN', `Percobaan login ditolak: Akun "${username}" masih berstatus pending approval`, undefined, user.id);
+            return NextResponse.json(
+                { 
+                    success: false, 
+                    error: 'Pendaftaran akun Anda sedang menunggu verifikasi & persetujuan dari Administrator. Nomor Induk Peserta (NIP) dan Batch akan ditetapkan setelah disetujui.' 
+                },
+                { status: 403 }
+            );
+        }
+
+        if (user.approval_status === 'rejected') {
+            logger.warn('AUTH_LOGIN', `Percobaan login ditolak: Akun "${username}" telah ditolak oleh Admin`, undefined, user.id);
+            const reasonSuffix = user.rejection_reason ? ` Catatan: ${user.rejection_reason}` : '';
+            return NextResponse.json(
+                { 
+                    success: false, 
+                    error: `Pendaftaran akun Anda tidak disetujui oleh Administrator.${reasonSuffix}` 
+                },
+                { status: 403 }
+            );
+        }
+
 
         // Generate JWT token
         const token = await signToken({

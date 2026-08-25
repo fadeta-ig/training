@@ -85,8 +85,21 @@ async function handleGet(
             console.error('Failed reading Nusamitra logo:', logoErr);
         }
 
-        // Generate dynamic QR Code for verification
-        const verificationPayload = `${request.nextUrl.origin}/verify/skl/${data.enrollment_id}?no=${encodeURIComponent(sklNumber)}`;
+        // Robust base URL resolution (respects reverse proxy headers & production domain)
+        const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host');
+        const forwardedProto = request.headers.get('x-forwarded-proto') || (request.url.startsWith('https') ? 'https' : 'http');
+        let baseUrl = request.nextUrl.origin;
+
+        if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')) {
+            baseUrl = process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
+        } else if (process.env.APP_URL && !process.env.APP_URL.includes('localhost')) {
+            baseUrl = process.env.APP_URL.replace(/\/+$/, '');
+        } else if (forwardedHost && !forwardedHost.includes('127.0.0.1')) {
+            baseUrl = `${forwardedProto}://${forwardedHost}`.replace(/\/+$/, '');
+        }
+
+        // Generate dynamic QR Code for public online verification
+        const verificationPayload = `${baseUrl}/verify/skl/${data.enrollment_id}?no=${encodeURIComponent(sklNumber)}`;
         const qrCodeDataUrl = await QRCode.toDataURL(verificationPayload, {
             errorCorrectionLevel: 'M',
             margin: 1,
@@ -96,6 +109,7 @@ async function handleGet(
                 light: '#ffffff',
             },
         });
+
 
         // Format HTML print document
         const html = `<!DOCTYPE html>

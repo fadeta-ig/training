@@ -6,12 +6,25 @@
 export interface User {
     id: string;
     role: 'admin' | 'trainer' | 'trainee';
+    approval_status?: 'pending' | 'approved' | 'rejected';
+    rejection_reason?: string | null;
+    approved_at?: string | null;
     full_name: string;
     username: string;
     password_hash: string;
     created_at: string;
     reset_token?: string | null;
     reset_token_expires?: string | null;
+}
+
+export interface CertificationProgram {
+    id: string;
+    name: string;
+    code: string | null;
+    description: string | null;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface ParticipantProfile {
@@ -24,11 +37,33 @@ export interface ParticipantProfile {
     gender: 'L' | 'P' | null;
     institution: string | null;
     institution_code: string | null;
+    target_certification_id?: string | null;
+    target_certification_name?: string | null;
+    target_period?: string | null;
     batch: number;
     registration_date: string;
     created_at: string;
     updated_at: string;
 }
+
+export interface PendingRegistration {
+    id: string; // user id
+    full_name: string;
+    username: string; // email
+    phone_number: string | null;
+    institution: string | null;
+    institution_code: string | null;
+    gender: 'L' | 'P' | null;
+    date_of_birth: string | null;
+    address: string | null;
+    target_certification_id: string | null;
+    target_certification_name: string | null;
+    target_period: string | null;
+    approval_status: 'pending' | 'approved' | 'rejected';
+    rejection_reason: string | null;
+    created_at: string;
+}
+
 
 export interface Training {
     id: string;

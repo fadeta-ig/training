@@ -194,8 +194,22 @@ export default function LoginPage() {
                                 </>
                             )}
                         </button>
+
+                        {/* Register CTA Link */}
+                        <div className="text-center pt-2">
+                            <p className="text-sm text-muted-foreground">
+                                Belum memiliki akun peserta?{' '}
+                                <Link
+                                    href="/auth/register"
+                                    className="font-semibold text-foreground hover:underline transition-colors"
+                                >
+                                    Daftar di sini
+                                </Link>
+                            </p>
+                        </div>
                     </form>
                 </div>
+
 
                 {/* Footer Info */}
                 <div className="w-full max-w-md mx-auto pt-6 text-center lg:text-left border-t border-slate-100">

@@ -9,6 +9,7 @@ interface NavLinkProps {
     icon: ReactNode;
     isOpen: boolean;
     active: boolean;
+    badge?: ReactNode;
     /** Optional: override active/inactive color scheme */
     activeClassName?: string;
     inactiveClassName?: string;
@@ -24,6 +25,7 @@ export function NavLink({
     icon,
     isOpen,
     active,
+    badge,
     activeClassName = 'bg-primary text-primary-foreground shadow-sm',
     inactiveClassName = 'text-muted-foreground hover:bg-black/5 hover:text-foreground',
 }: NavLinkProps) {
@@ -35,14 +37,25 @@ export function NavLink({
         <Link
             href={href}
             title={!isOpen ? label : undefined}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group active:scale-95 ${
+            className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group active:scale-95 ${
                 active ? activeClassName : inactiveClassName
-            } ${!isOpen && 'justify-center'}`}
+            } ${!isOpen && 'justify-center relative'}`}
         >
-            <span className={`${iconActiveClass} transition-colors shrink-0`}>
-                {icon}
-            </span>
-            {isOpen && <span className="truncate">{label}</span>}
+            <div className="flex items-center gap-3 min-w-0">
+                <span className={`${iconActiveClass} transition-colors shrink-0`}>
+                    {icon}
+                </span>
+                {isOpen && <span className="truncate">{label}</span>}
+            </div>
+
+            {badge && (
+                isOpen ? (
+                    <div className="shrink-0 ml-2">{badge}</div>
+                ) : (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                )
+            )}
         </Link>
     );
 }
+

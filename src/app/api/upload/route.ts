@@ -9,19 +9,26 @@ import { checkRateLimit } from '@/lib/rate-limit';
 /** Maps MIME types to the media_type enum and server-controlled extension. */
 const ALLOWED_TYPES: Record<string, { mediaType: string; extension: string }> = {
     'image/jpeg': { mediaType: 'image', extension: 'jpg' },
+    'image/jpg': { mediaType: 'image', extension: 'jpg' },
+    'image/pjpeg': { mediaType: 'image', extension: 'jpg' },
     'image/png': { mediaType: 'image', extension: 'png' },
+    'image/x-png': { mediaType: 'image', extension: 'png' },
     'image/gif': { mediaType: 'image', extension: 'gif' },
     'image/webp': { mediaType: 'image', extension: 'webp' },
     'application/pdf': { mediaType: 'pdf', extension: 'pdf' },
+    'application/x-pdf': { mediaType: 'pdf', extension: 'pdf' },
+    'application/acrobat': { mediaType: 'pdf', extension: 'pdf' },
+    'applications/vnd.pdf': { mediaType: 'pdf', extension: 'pdf' },
+    'text/pdf': { mediaType: 'pdf', extension: 'pdf' },
     'application/msword': { mediaType: 'document', extension: 'doc' },
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { mediaType: 'document', extension: 'docx' },
     'application/vnd.ms-powerpoint': { mediaType: 'document', extension: 'ppt' },
     'application/vnd.openxmlformats-officedocument.presentationml.presentation': { mediaType: 'document', extension: 'pptx' },
 };
 
-const MAX_FILE_SIZE_IMAGE = 5 * 1024 * 1024;    // 5 MB
-const MAX_FILE_SIZE_DOCUMENT = 20 * 1024 * 1024; // 20 MB
-const UPLOAD_RATE_LIMIT = { windowMs: 60_000, maxRequests: 20 };
+const MAX_FILE_SIZE_IMAGE = 10 * 1024 * 1024;   // 10 MB
+const MAX_FILE_SIZE_DOCUMENT = 25 * 1024 * 1024; // 25 MB
+const UPLOAD_RATE_LIMIT = { windowMs: 60_000, maxRequests: 30 };
 
 function getMaxSize(mediaType: string): number {
     return mediaType === 'image' ? MAX_FILE_SIZE_IMAGE : MAX_FILE_SIZE_DOCUMENT;
@@ -32,26 +39,31 @@ function startsWithBytes(buffer: Buffer, bytes: number[]): boolean {
 }
 
 function hasExpectedSignature(mimeType: string, buffer: Buffer): boolean {
-    if (mimeType === 'image/jpeg') return startsWithBytes(buffer, [0xff, 0xd8, 0xff]);
-    if (mimeType === 'image/png') return startsWithBytes(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    if (mimeType === 'image/gif') {
+    const lower = mimeType.toLowerCase();
+    if (lower.includes('jpeg') || lower.includes('jpg') || lower.includes('pjpeg')) {
+        return startsWithBytes(buffer, [0xff, 0xd8, 0xff]);
+    }
+    if (lower.includes('png')) {
+        return startsWithBytes(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    }
+    if (lower.includes('gif')) {
         const signature = buffer.subarray(0, 6).toString('ascii');
         return signature === 'GIF87a' || signature === 'GIF89a';
     }
-    if (mimeType === 'image/webp') {
+    if (lower.includes('webp')) {
         return buffer.length > 12
             && buffer.subarray(0, 4).toString('ascii') === 'RIFF'
             && buffer.subarray(8, 12).toString('ascii') === 'WEBP';
     }
-    if (mimeType === 'application/pdf') {
+    if (lower.includes('pdf')) {
         return buffer.subarray(0, 4).toString('ascii') === '%PDF';
     }
-    if (mimeType === 'application/msword' || mimeType === 'application/vnd.ms-powerpoint') {
+    if (lower.includes('msword') || lower.includes('powerpoint')) {
         return startsWithBytes(buffer, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
     }
     if (
-        mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        || mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        lower.includes('wordprocessingml')
+        || lower.includes('presentationml')
     ) {
         return startsWithBytes(buffer, [0x50, 0x4b, 0x03, 0x04])
             || startsWithBytes(buffer, [0x50, 0x4b, 0x05, 0x06])
@@ -59,6 +71,7 @@ function hasExpectedSignature(mimeType: string, buffer: Buffer): boolean {
     }
     return false;
 }
+
 
 function sanitizeOriginalFilename(name: string): string {
     return name.replace(/[^\w.\- ()]/g, '_').slice(0, 255) || 'upload';

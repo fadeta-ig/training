@@ -18,6 +18,9 @@ USE lms_antigravity;
 CREATE TABLE users (
   id                  VARCHAR(36)  PRIMARY KEY,
   role                ENUM('admin', 'trainer', 'trainee') NOT NULL DEFAULT 'trainee',
+  approval_status     ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'approved',
+  rejection_reason    VARCHAR(255) NULL,
+  approved_at         DATETIME NULL,
   full_name           VARCHAR(100) NOT NULL,
   username            VARCHAR(255) UNIQUE NOT NULL,
   password_hash       VARCHAR(255) NOT NULL,
@@ -25,32 +28,53 @@ CREATE TABLE users (
   reset_token_expires DATETIME NULL,
   created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_users_role_created (role, created_at),
+  INDEX idx_users_approval (approval_status),
   INDEX idx_users_reset_token (reset_token)
+) ENGINE=InnoDB;
+
+-- ─────────────────────────────────────────────
+-- 1b. Master Data: Certification Programs
+-- ─────────────────────────────────────────────
+CREATE TABLE certification_programs (
+  id          VARCHAR(36) PRIMARY KEY,
+  name        VARCHAR(255) NOT NULL,
+  code        VARCHAR(50) UNIQUE NULL,
+  description TEXT NULL,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_cert_programs_active (is_active)
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
 -- 2. Participant Profiles (Detail Data Peserta)
 -- ─────────────────────────────────────────────
 CREATE TABLE participant_profiles (
-  id                VARCHAR(36) PRIMARY KEY,
-  user_id           VARCHAR(36) NOT NULL UNIQUE,
-  nip               VARCHAR(50) UNIQUE NULL,
-  phone_number      VARCHAR(20) NULL,
-  address           TEXT NULL,
-  date_of_birth     DATE NULL,
-  gender            ENUM('L', 'P') NULL,
-  institution       VARCHAR(150) NULL,
-  institution_code  VARCHAR(20) NULL,
-  batch             INT NOT NULL DEFAULT 1,
-  registration_date DATE NOT NULL DEFAULT (CURRENT_DATE),
-  created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id                        VARCHAR(36) PRIMARY KEY,
+  user_id                   VARCHAR(36) NOT NULL UNIQUE,
+  nip                       VARCHAR(50) UNIQUE NULL,
+  phone_number              VARCHAR(20) NULL,
+  address                   TEXT NULL,
+  date_of_birth             DATE NULL,
+  gender                    ENUM('L', 'P') NULL,
+  institution               VARCHAR(150) NULL,
+  institution_code          VARCHAR(20) NULL,
+  target_certification_id   VARCHAR(36) NULL,
+  target_certification_name VARCHAR(255) NULL,
+  target_period             VARCHAR(50) NULL,
+  batch                     INT NOT NULL DEFAULT 1,
+  registration_date         DATE NOT NULL DEFAULT (CURRENT_DATE),
+  created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_participant_nip (nip),
   INDEX idx_participant_inst_batch (institution, batch),
   INDEX idx_participant_reg_date (registration_date),
   CONSTRAINT fk_participant_user
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_participant_target_cert
+    FOREIGN KEY (target_certification_id) REFERENCES certification_programs(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
 
 -- ─────────────────────────────────────────────
 -- 3. Master Data: Training Materials

@@ -17,7 +17,9 @@ import {
     Activity01Icon,
     ArrowDown01Icon,
     ArrowUp01Icon,
-    FolderLibraryIcon
+    FolderLibraryIcon,
+    UserCheck01Icon,
+    Certificate01Icon
 } from 'hugeicons-react';
 import type { AuthPayload } from '@/types';
 
@@ -29,12 +31,29 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
     const pathname = usePathname();
+    const [pendingRegistrationsCount, setPendingRegistrationsCount] = useState<number>(0);
 
     useEffect(() => {
         if (window.matchMedia('(max-width: 767px)').matches) {
             onClose();
         }
     }, [pathname, onClose]);
+
+    // Fetch pending registration count periodically or on route change
+    useEffect(() => {
+        let isMounted = true;
+        const fetchPendingCount = async () => {
+            try {
+                const res = await fetch('/api/admin/registrations?status=pending&limit=1');
+                const data = await res.json();
+                if (isMounted && data.success && typeof data.pendingCount === 'number') {
+                    setPendingRegistrationsCount(data.pendingCount);
+                }
+            } catch { }
+        };
+        fetchPendingCount();
+        return () => { isMounted = false; };
+    }, [pathname]);
 
     const isLearningActive =
         pathname.startsWith('/admin/content') ||
@@ -43,6 +62,7 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
 
     const [isLearningExpanded, setIsLearningExpanded] = useState<boolean>(false);
     const showLearningItems = isLearningActive || isLearningExpanded;
+
 
     return (
         <>
@@ -168,8 +188,32 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                             <NavLink href="/admin/audit-logs" label="Audit Trail" icon={<Activity01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/audit-logs')} />
                         </>
                     )}
+                    <NavLink
+                        href="/admin/registrations"
+                        label="Persetujuan Pendaftaran"
+                        icon={<UserCheck01Icon size={20} />}
+                        isOpen={isOpen}
+                        active={pathname.startsWith('/admin/registrations')}
+                        badge={
+                            pendingRegistrationsCount > 0 ? (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[10px]">
+                                    {pendingRegistrationsCount}
+                                </span>
+                            ) : undefined
+                        }
+                    />
+
+                    <NavLink
+                        href="/admin/certifications"
+                        label="Program Sertifikasi"
+                        icon={<Certificate01Icon size={20} />}
+                        isOpen={isOpen}
+                        active={pathname.startsWith('/admin/certifications')}
+                    />
+
                     <NavLink href="/admin/participants" label="Kelola Peserta" icon={<UserCircleIcon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/participants')} />
                 </nav>
+
 
                 {/* Fixed User Profile at Bottom */}
                 <div className={`mt-auto p-4 m-3 rounded-2xl bg-black/5 border border-black/5 overflow-hidden transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 h-0 p-0 m-0'}`}>

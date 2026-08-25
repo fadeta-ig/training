@@ -76,7 +76,10 @@ export default function ModuleDetailPage({ params }: { params: Promise<{ id: str
         try {
             const url = `/api/modules/${resolvedParams.id}/download?format=individual&itemId=${item.item_id}&itemType=${item.item_type}&includeAnswers=true`;
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Gagal mengunduh item');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.error || 'Gagal mengunduh item');
+            }
 
             const blob = await response.blob();
             const disposition = response.headers.get('Content-Disposition');

@@ -18,8 +18,8 @@ import {
     type ModuleItemFull,
 } from '@/lib/module-document-templates';
 
-function sanitizeFilename(name: string): string {
-    return name.replace(/[/\\?%*:|"<>]/g, '_').trim().slice(0, 80) || 'modul';
+function sanitizeFilename(name: string | null | undefined): string {
+    return String(name || 'modul').replace(/[/\\?%*:|"<>]/g, '_').trim().slice(0, 80) || 'modul';
 }
 
 async function handleGet(

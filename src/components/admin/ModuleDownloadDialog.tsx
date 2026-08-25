@@ -93,7 +93,10 @@ export function ModuleDownloadDialog({
         try {
             const url = `/api/modules/${moduleId}/download?format=zip&includeAnswers=${includeAnswers}`;
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Gagal mengunduh paket modul');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.error || 'Gagal mengunduh paket modul');
+            }
 
             const blob = await response.blob();
             const disposition = response.headers.get('Content-Disposition');
@@ -128,7 +131,10 @@ export function ModuleDownloadDialog({
         try {
             const url = `/api/modules/${moduleId}/download?format=individual&itemId=${item.item_id}&itemType=${item.item_type}&includeAnswers=${includeAnswers}`;
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Gagal mengunduh item');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.error || 'Gagal mengunduh item');
+            }
 
             const blob = await response.blob();
             const disposition = response.headers.get('Content-Disposition');

@@ -45,8 +45,24 @@ export function DashboardHeader({ toggleSidebar, user }: DashboardHeaderProps) {
     }, []);
 
     useEffect(() => {
-        fetchNotifications();
-    }, [fetchNotifications]);
+        let isMounted = true;
+
+        const loadNotifications = async () => {
+            try {
+                const res = await fetch('/api/participant/notifications');
+                const data = await res.json();
+                if (isMounted && data.success && Array.isArray(data.data)) {
+                    setNotifications(data.data);
+                }
+            } catch {}
+        };
+
+        loadNotifications();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
 
     // Outside click handlers

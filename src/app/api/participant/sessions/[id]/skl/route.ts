@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import fs from 'fs';
+import path from 'path';
+import QRCode from 'qrcode';
 
 /**
  * GET /api/participant/sessions/[id]/skl
@@ -35,14 +38,12 @@ async function handleGet(
                 s.title AS session_title,
                 s.start_time,
                 s.end_time,
-                m.title AS module_title,
-                MAX(up.score) AS final_score
+                m.title AS module_title
              FROM session_participants sp
              JOIN users u ON sp.user_id = u.id
              JOIN sessions s ON sp.session_id = s.id
              LEFT JOIN modules m ON s.module_id = m.id
              LEFT JOIN participant_profiles pp ON u.id = pp.user_id
-             LEFT JOIN user_progress up ON up.user_id = sp.user_id AND up.session_id = sp.session_id
              WHERE sp.session_id = ? AND sp.user_id = ?
              GROUP BY sp.id, sp.graduation_status, sp.graduation_decided_at, sp.graduation_notes,
                       sp.skl_number, sp.skl_generated_at, u.full_name, u.username,
@@ -72,6 +73,30 @@ async function handleGet(
             year: 'numeric',
         });
 
+        // Load Nusamitra logo as base64 for self-contained print reliability
+        let logoBase64 = '';
+        try {
+            const logoPath = path.join(process.cwd(), 'public', 'logo-nusamitra-tr.png');
+            if (fs.existsSync(logoPath)) {
+                const logoBuf = fs.readFileSync(logoPath);
+                logoBase64 = `data:image/png;base64,${logoBuf.toString('base64')}`;
+            }
+        } catch (logoErr) {
+            console.error('Failed reading Nusamitra logo:', logoErr);
+        }
+
+        // Generate dynamic QR Code for verification
+        const verificationPayload = `${request.nextUrl.origin}/verify/skl/${data.enrollment_id}?no=${encodeURIComponent(sklNumber)}`;
+        const qrCodeDataUrl = await QRCode.toDataURL(verificationPayload, {
+            errorCorrectionLevel: 'M',
+            margin: 1,
+            width: 140,
+            color: {
+                dark: '#0f172a',
+                light: '#ffffff',
+            },
+        });
+
         // Format HTML print document
         const html = `<!DOCTYPE html>
 <html lang="id">
@@ -81,11 +106,11 @@ async function handleGet(
     <title>Surat Keterangan Lulus (SKL) - ${data.full_name || data.username}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;1,700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
     <style>
         @page {
             size: A4 portrait;
-            margin: 18mm 20mm;
+            margin: 14mm 16mm;
         }
         * {
             box-sizing: border-box;
@@ -96,7 +121,7 @@ async function handleGet(
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             color: #1e293b;
             background-color: #f8fafc;
-            line-height: 1.6;
+            line-height: 1.5;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -105,7 +130,7 @@ async function handleGet(
             min-height: 297mm;
             margin: 20px auto;
             background: #ffffff;
-            padding: 24mm 22mm;
+            padding: 16mm 18mm;
             position: relative;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
@@ -132,14 +157,25 @@ async function handleGet(
             align-items: center;
             justify-content: space-between;
             border-bottom: 3px double #0f172a;
-            padding-bottom: 16px;
-            margin-bottom: 24px;
+            padding-bottom: 14px;
+            margin-bottom: 22px;
+        }
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .logo-img {
+            height: 54px;
+            width: auto;
+            max-width: 190px;
+            object-fit: contain;
         }
         .company-info {
             text-align: right;
         }
         .company-name {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 800;
             color: #0f172a;
             letter-spacing: -0.02em;
@@ -147,21 +183,22 @@ async function handleGet(
         }
         .company-sub {
             font-size: 11px;
-            color: #64748b;
+            color: #475569;
             margin-top: 2px;
+            font-weight: 500;
         }
         .company-address {
             font-size: 10px;
-            color: #94a3b8;
-            margin-top: 4px;
-            max-width: 320px;
+            color: #64748b;
+            margin-top: 3px;
+            max-width: 340px;
             line-height: 1.4;
         }
         
         /* Document Title */
         .doc-title-box {
             text-align: center;
-            margin: 24px 0 28px 0;
+            margin: 20px 0 24px 0;
         }
         .doc-title {
             font-size: 20px;
@@ -170,7 +207,7 @@ async function handleGet(
             text-transform: uppercase;
             letter-spacing: 0.05em;
             text-decoration: underline;
-            text-underline-offset: 6px;
+            text-underline-offset: 5px;
         }
         .doc-number {
             font-family: 'JetBrains Mono', monospace;
@@ -184,24 +221,24 @@ async function handleGet(
         .statement {
             font-size: 13px;
             text-align: justify;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
             color: #334155;
-            line-height: 1.7;
+            line-height: 1.6;
         }
 
         /* Trainee Bio Table */
         .bio-table {
             width: 100%;
-            margin: 20px 0 28px 0;
+            margin: 16px 0 22px 0;
             border-collapse: collapse;
         }
         .bio-table td {
-            padding: 8px 12px;
+            padding: 7px 10px;
             font-size: 13px;
             vertical-align: top;
         }
         .bio-label {
-            width: 170px;
+            width: 185px;
             color: #64748b;
             font-weight: 500;
         }
@@ -219,10 +256,10 @@ async function handleGet(
         .verdict-box {
             background: #f0fdf4;
             border: 2px solid #bbf7d0;
-            border-radius: 12px;
-            padding: 18px 24px;
+            border-radius: 10px;
+            padding: 14px 20px;
             text-align: center;
-            margin: 24px 0 28px 0;
+            margin: 20px 0 22px 0;
         }
         .verdict-label {
             font-size: 11px;
@@ -232,7 +269,7 @@ async function handleGet(
             color: #166534;
         }
         .verdict-status {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 800;
             color: #15803d;
             letter-spacing: 0.05em;
@@ -241,16 +278,16 @@ async function handleGet(
         .verdict-desc {
             font-size: 12px;
             color: #166534;
-            margin-top: 6px;
+            margin-top: 5px;
         }
 
         /* Clause Footer */
         .clause {
-            font-size: 12px;
+            font-size: 11.5px;
             color: #64748b;
             text-align: justify;
             line-height: 1.6;
-            margin-top: 20px;
+            margin-top: 18px;
             border-left: 3px solid #cbd5e1;
             padding-left: 14px;
             font-style: italic;
@@ -261,12 +298,12 @@ async function handleGet(
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
-            margin-top: 40px;
-            padding-top: 10px;
+            margin-top: 36px;
+            padding-top: 8px;
         }
         .signature-box {
             text-align: center;
-            width: 220px;
+            width: 240px;
         }
         .sign-date {
             font-size: 12px;
@@ -278,23 +315,26 @@ async function handleGet(
             font-weight: 600;
             color: #0f172a;
         }
-        .sign-space {
-            height: 65px;
+        .qr-wrapper {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            margin: 8px 0;
         }
-        .sign-stamp {
-            display: inline-block;
-            padding: 4px 12px;
-            border: 2px dashed #0284c7;
+        .qr-img {
+            width: 82px;
+            height: 82px;
+            border: 1px solid #e2e8f0;
             border-radius: 6px;
-            font-size: 10px;
-            font-weight: 700;
-            color: #0284c7;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            transform: rotate(-3deg);
+            padding: 3px;
+            background: #ffffff;
+        }
+        .qr-hint {
+            font-size: 9px;
+            color: #64748b;
+            margin-top: 3px;
+            font-weight: 500;
         }
         .sign-name {
             font-size: 13px;
@@ -369,19 +409,16 @@ async function handleGet(
     <div class="page-container">
         <!-- Letterhead -->
         <div class="letterhead">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 48px; height: 48px; border-radius: 10px; background: #0f172a; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 20px; letter-spacing: -0.05em;">
-                    NC
-                </div>
-                <div>
-                    <div style="font-size: 16px; font-weight: 800; color: #0f172a;">NUSAMITRA</div>
-                    <div style="font-size: 10px; font-weight: 600; color: #64748b; letter-spacing: 0.15em; text-transform: uppercase;">Consulting & Training</div>
-                </div>
+            <div class="logo-container">
+                ${logoBase64 
+                    ? `<img src="${logoBase64}" alt="Nusamitra Consulting" class="logo-img" />`
+                    : `<div style="font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.03em;">NUSAMITRA</div>`
+                }
             </div>
             <div class="company-info">
-                <div class="company-name">LMS Antigravity Training Center</div>
-                <div class="company-sub">Lembaga Pelatihan & Pengembangan Profesional</div>
-                <div class="company-address">Official Online Portal • Verifikasi Keaslian Dokumen Terdaftar</div>
+                <div class="company-name">NUSAMITRA CONSULTING</div>
+                <div class="company-sub">Lembaga Konsultasi & Pelatihan Profesional</div>
+                <div class="company-address">Official Online Training Portal • Verifikasi Dokumen Terdaftar</div>
             </div>
         </div>
 
@@ -393,7 +430,7 @@ async function handleGet(
 
         <!-- Body Statement -->
         <p class="statement">
-            Yang bertanda tangan di bawah ini, Tim Evaluasi & Penguji <strong>LMS Nusamitra Consulting</strong> menerangkan dengan sebenarnya bahwa:
+            Yang bertanda tangan di bawah ini, Tim Evaluasi & Penguji <strong>Nusamitra Consulting</strong> menerangkan dengan sebenarnya bahwa:
         </p>
 
         <!-- Participant Details Table -->
@@ -428,11 +465,6 @@ async function handleGet(
                 <td class="bio-separator">:</td>
                 <td class="bio-value">${sessionDate}</td>
             </tr>
-            ${data.final_score !== null ? `<tr>
-                <td class="bio-label">Nilai Evaluasi Akhir</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value" style="color: #15803d; font-size: 14px;">${Number(data.final_score).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} / 100.0</td>
-            </tr>` : ''}
         </table>
 
         <!-- Verdict Banner -->
@@ -450,18 +482,22 @@ async function handleGet(
         <!-- Signatures -->
         <div class="signatures">
             <div class="signature-box" style="text-align: left;">
-                <div style="font-size: 10px; color: #94a3b8; font-family: monospace;">
+                <div style="font-size: 10.5px; color: #64748b; font-family: monospace;">
                     <div>Kode Verifikasi:</div>
-                    <div style="font-weight: 700; color: #475569; margin-top: 2px;">${data.enrollment_id}</div>
-                    <div style="margin-top: 4px;">Status: TERVERIFIKASI SISTEM</div>
+                    <div style="font-weight: 700; color: #0f172a; margin-top: 2px; font-size: 11px;">${data.enrollment_id}</div>
+                    <div style="margin-top: 4px; color: #16a34a; font-weight: 600;">Status: TERVERIFIKASI SISTEM</div>
+                    <div style="font-size: 9.5px; color: #94a3b8; margin-top: 6px; font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1.4;">
+                        Dokumen ini diterbitkan dan tercatat resmi secara digital pada pangkalan data Nusamitra Consulting.
+                    </div>
                 </div>
             </div>
 
             <div class="signature-box">
                 <div class="sign-date">Diterbitkan pada: ${printDate}</div>
-                <div class="sign-role">Tim Penilai & Administrator LMS</div>
-                <div class="sign-space">
-                    <div class="sign-stamp">✓ Verified & Approved</div>
+                <div class="sign-role">Tim Penilai & Penguji</div>
+                <div class="qr-wrapper">
+                    <img src="${qrCodeDataUrl}" alt="QR Verification" class="qr-img" />
+                    <span class="qr-hint">Pindai untuk Verifikasi</span>
                 </div>
                 <div class="sign-name">Nusamitra Training Directorate</div>
                 <div class="sign-title">Direktorat Pelatihan & Sertifikasi</div>
@@ -485,3 +521,4 @@ async function handleGet(
 }
 
 export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer', 'trainee'] });
+

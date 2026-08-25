@@ -365,14 +365,27 @@ const BASE_STYLES = `
     }
 `;
 
-function escapeHtml(str: string | null | undefined): string {
-    if (!str) return '';
-    return str
+function escapeHtml(str: any): string {
+    if (str === null || str === undefined) return '';
+    return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function parseOptionsSafely(optionsJson: any): any {
+    if (!optionsJson) return null;
+    if (typeof optionsJson === 'object') return optionsJson;
+    if (typeof optionsJson === 'string') {
+        try {
+            return JSON.parse(optionsJson);
+        } catch {
+            return null;
+        }
+    }
+    return null;
 }
 
 function renderHeaderTable(badgeText: string, badgeClass: string = 'doc-badge'): string {
@@ -505,7 +518,7 @@ export function generateTrainingMaterialHtml(
     const mediaItems =
         mediaList.length > 0
             ? mediaList
-                  .map((m, idx) => {
+                  .map((m) => {
                       const typeUpper = (m.media_type || 'FILE').toUpperCase();
                       const filename = m.original_filename || m.media_url;
                       return `<li><strong>[${typeUpper}]</strong> ${escapeHtml(filename)}</li>`;
@@ -580,148 +593,190 @@ export function generateExamSheetHtml(
     sequenceNumber: number,
     includeAnswers: boolean = true
 ): string {
-    const totalPoints = questions.reduce((acc, q) => acc + (q.points || 1), 0);
+    const totalPoints = questions.reduce((acc, q) => acc + (Number(q.points) || 1), 0);
     const badgeText = includeAnswers ? 'EDISI TRAINER (DENGAN KUNCI JAWABAN)' : 'LEMBAR SOAL EVALUASI';
     const badgeClass = includeAnswers ? 'doc-badge doc-badge-trainer' : 'doc-badge doc-badge-student';
 
     const renderedQuestions = questions
         .map((q, qIndex) => {
-            const num = qIndex + 1;
-            const qType = q.question_type || 'multiple_choice';
-            const parsed = q.options_json
-                ? typeof q.options_json === 'string'
-                    ? JSON.parse(q.options_json)
-                    : q.options_json
-                : null;
+            try {
+                const num = qIndex + 1;
+                const qType = q.question_type || 'multiple_choice';
+                const parsed = parseOptionsSafely(q.options_json);
 
-            let questionTypeLabel = 'Pilihan Ganda';
-            if (qType === 'multiple_select') questionTypeLabel = 'Pilihan Ganda Kompleks';
-            else if (qType === 'true_false') questionTypeLabel = 'Benar / Salah';
-            else if (qType === 'short_answer') questionTypeLabel = 'Isian Singkat';
-            else if (qType === 'essay') questionTypeLabel = 'Esai / Uraian';
-            else if (qType === 'matching') questionTypeLabel = 'Menjodohkan';
+                let questionTypeLabel = 'Pilihan Ganda';
+                if (qType === 'multiple_select') questionTypeLabel = 'Pilihan Ganda Kompleks';
+                else if (qType === 'true_false') questionTypeLabel = 'Benar / Salah';
+                else if (qType === 'short_answer') questionTypeLabel = 'Isian Singkat';
+                else if (qType === 'essay') questionTypeLabel = 'Esai / Uraian';
+                else if (qType === 'matching') questionTypeLabel = 'Menjodohkan';
 
-            let optionsHtml = '';
-            let answerKeyHtml = '';
+                let optionsHtml = '';
+                let answerKeyHtml = '';
 
-            if (qType === 'multiple_choice' && Array.isArray(parsed)) {
-                optionsHtml = `
-                <ul class="option-list">
-                    ${parsed
-                        .map((opt: any, optIdx: number) => {
-                            const optText = typeof opt === 'string' ? opt : opt.text;
-                            const isCorrect = includeAnswers && q.correct_option_index === optIdx;
-                            const label = String.fromCharCode(65 + optIdx);
-                            return `
-                            <li class="option-item ${isCorrect ? 'option-correct' : ''}">
-                                <span class="option-key">(${label})</span>
-                                <span style="flex: 1;">${escapeHtml(optText)} ${isCorrect ? '<strong style="color: #166534;">[KUNCI JAWABAN BENAR]</strong>' : ''}</span>
-                            </li>
-                        `;
-                        })
-                        .join('')}
-                </ul>
-            `;
-            } else if (qType === 'multiple_select' && parsed?.options) {
-                const correctIndices: number[] = parsed.correct_indices || [];
-                optionsHtml = `
-                <ul class="option-list">
-                    ${parsed.options
-                        .map((opt: any, optIdx: number) => {
-                            const optText = typeof opt === 'string' ? opt : opt.text;
-                            const isCorrect = includeAnswers && correctIndices.includes(optIdx);
-                            const label = String.fromCharCode(65 + optIdx);
-                            return `
-                            <li class="option-item ${isCorrect ? 'option-correct' : ''}">
-                                <span class="option-key">[${label}]</span>
-                                <span style="flex: 1;">${escapeHtml(optText)} ${isCorrect ? '<strong style="color: #166534;">[BENAR]</strong>' : ''}</span>
-                            </li>
-                        `;
-                        })
-                        .join('')}
-                </ul>
-            `;
-            } else if (qType === 'true_false') {
-                const isTrue = q.correct_option_index === 0;
-                optionsHtml = `
-                <div style="margin: 8px 0; font-size: 10pt;">
-                    <span style="display: inline-block; padding: 4px 12px; border: 1px solid #cbd5e1; border-radius: 4px; margin-right: 8px; ${includeAnswers && isTrue ? 'background-color: #f0fdf4; border-color: #86efac; font-weight: bold; color: #166534;' : ''}">
-                        ( ) Benar ${includeAnswers && isTrue ? '[KUNCI]' : ''}
-                    </span>
-                    <span style="display: inline-block; padding: 4px 12px; border: 1px solid #cbd5e1; border-radius: 4px; ${includeAnswers && !isTrue ? 'background-color: #f0fdf4; border-color: #86efac; font-weight: bold; color: #166534;' : ''}">
-                        ( ) Salah ${includeAnswers && !isTrue ? '[KUNCI]' : ''}
-                    </span>
-                </div>
-            `;
-            } else if (qType === 'short_answer') {
-                optionsHtml = `
-                <div style="margin: 10px 0; padding: 8px 12px; border-bottom: 1px dashed #94a3b8; font-size: 9.5pt; color: #64748b;">
-                    Jawaban Peserta: ............................................................................................................
-                </div>
-            `;
-                if (includeAnswers && q.correct_answer) {
-                    answerKeyHtml = `
-                    <div class="answer-key-box">
-                        <strong>Kunci Jawaban Singkat:</strong> ${escapeHtml(q.correct_answer)}
-                    </div>
-                `;
-                }
-            } else if (qType === 'essay') {
-                optionsHtml = `
-                <div style="margin: 10px 0; min-height: 80px; border: 1px dashed #cbd5e1; border-radius: 4px; padding: 8px; font-size: 9pt; color: #94a3b8;">
-                    (Lembar Uraian / Catatan Jawaban Peserta)
-                </div>
-            `;
-                if (includeAnswers) {
-                    answerKeyHtml = `
-                    <div class="answer-key-box">
-                        <strong>Petunjuk Penilaian Trainer:</strong> Evaluasi manual berdasarkan kelengkapan argumen dan pemahaman konsep.
-                    </div>
-                `;
-                }
-            } else if (qType === 'matching' && parsed?.pairs) {
-                optionsHtml = `
-                <div style="margin: 10px 0;">
-                    <table style="width: 100%; font-size: 9.5pt; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background-color: #f8fafc;">
-                                <th style="border: 1px solid #cbd5e1; padding: 6px 10px;">Pernyataan / Soal</th>
-                                <th style="border: 1px solid #cbd5e1; padding: 6px 10px;">Pasangan Jawaban</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${parsed.pairs
-                                .map(
-                                    (pair: any) => `
-                                <tr>
-                                    <td style="border: 1px solid #cbd5e1; padding: 6px 10px;">${escapeHtml(pair.left)}</td>
-                                    <td style="border: 1px solid #cbd5e1; padding: 6px 10px;">${includeAnswers ? `<strong style="color: #166534;">${escapeHtml(pair.right)}</strong>` : '........................................'}</td>
-                                </tr>
-                            `
-                                )
+                if (qType === 'multiple_choice') {
+                    const optionsList: any[] = Array.isArray(parsed)
+                        ? parsed
+                        : Array.isArray(parsed?.options)
+                        ? parsed.options
+                        : [];
+
+                    if (optionsList.length > 0) {
+                        optionsHtml = `
+                        <ul class="option-list">
+                            ${optionsList
+                                .map((opt: any, optIdx: number) => {
+                                    const optText = typeof opt === 'string' ? opt : (opt?.text ?? '');
+                                    const isCorrect = includeAnswers && q.correct_option_index === optIdx;
+                                    const label = String.fromCharCode(65 + optIdx);
+                                    return `
+                                    <li class="option-item ${isCorrect ? 'option-correct' : ''}">
+                                        <span class="option-key">(${label})</span>
+                                        <span style="flex: 1;">${escapeHtml(optText)} ${isCorrect ? '<strong style="color: #166534;">[KUNCI JAWABAN BENAR]</strong>' : ''}</span>
+                                    </li>
+                                `;
+                                })
                                 .join('')}
-                        </tbody>
-                    </table>
+                        </ul>
+                    `;
+                    }
+                } else if (qType === 'multiple_select') {
+                    const optionsList: any[] = Array.isArray(parsed)
+                        ? parsed
+                        : Array.isArray(parsed?.options)
+                        ? parsed.options
+                        : [];
+
+                    const rawIndices = parsed?.correct_indices ?? parsed?.correct_option_indices ?? [];
+                    const correctIndices: number[] = Array.isArray(rawIndices) ? rawIndices : [];
+
+                    if (optionsList.length > 0) {
+                        optionsHtml = `
+                        <ul class="option-list">
+                            ${optionsList
+                                .map((opt: any, optIdx: number) => {
+                                    const optText = typeof opt === 'string' ? opt : (opt?.text ?? '');
+                                    const isCorrect = includeAnswers && correctIndices.includes(optIdx);
+                                    const label = String.fromCharCode(65 + optIdx);
+                                    return `
+                                    <li class="option-item ${isCorrect ? 'option-correct' : ''}">
+                                        <span class="option-key">[${label}]</span>
+                                        <span style="flex: 1;">${escapeHtml(optText)} ${isCorrect ? '<strong style="color: #166534;">[BENAR]</strong>' : ''}</span>
+                                    </li>
+                                `;
+                                })
+                                .join('')}
+                        </ul>
+                    `;
+                    }
+                } else if (qType === 'true_false') {
+                    const isTrue = q.correct_option_index === 0;
+                    optionsHtml = `
+                    <div style="margin: 8px 0; font-size: 10pt;">
+                        <span style="display: inline-block; padding: 4px 12px; border: 1px solid #cbd5e1; border-radius: 4px; margin-right: 8px; ${includeAnswers && isTrue ? 'background-color: #f0fdf4; border-color: #86efac; font-weight: bold; color: #166534;' : ''}">
+                            ( ) Benar ${includeAnswers && isTrue ? '[KUNCI]' : ''}
+                        </span>
+                        <span style="display: inline-block; padding: 4px 12px; border: 1px solid #cbd5e1; border-radius: 4px; ${includeAnswers && !isTrue ? 'background-color: #f0fdf4; border-color: #86efac; font-weight: bold; color: #166534;' : ''}">
+                            ( ) Salah ${includeAnswers && !isTrue ? '[KUNCI]' : ''}
+                        </span>
+                    </div>
+                `;
+                } else if (qType === 'short_answer') {
+                    optionsHtml = `
+                    <div style="margin: 10px 0; padding: 8px 12px; border-bottom: 1px dashed #94a3b8; font-size: 9.5pt; color: #64748b;">
+                        Jawaban Peserta: ............................................................................................................
+                    </div>
+                `;
+                    if (includeAnswers && q.correct_answer) {
+                        answerKeyHtml = `
+                        <div class="answer-key-box">
+                            <strong>Kunci Jawaban Singkat:</strong> ${escapeHtml(q.correct_answer)}
+                        </div>
+                    `;
+                    }
+                } else if (qType === 'essay') {
+                    optionsHtml = `
+                    <div style="margin: 10px 0; min-height: 80px; border: 1px dashed #cbd5e1; border-radius: 4px; padding: 8px; font-size: 9pt; color: #94a3b8;">
+                        (Lembar Uraian / Catatan Jawaban Peserta)
+                    </div>
+                `;
+                    if (includeAnswers) {
+                        answerKeyHtml = `
+                        <div class="answer-key-box">
+                            <strong>Petunjuk Penilaian Trainer:</strong> Evaluasi manual berdasarkan kelengkapan argumen dan pemahaman konsep.
+                        </div>
+                    `;
+                    }
+                } else if (qType === 'matching') {
+                    const pairsList: any[] = Array.isArray(parsed)
+                        ? parsed
+                        : Array.isArray(parsed?.pairs)
+                        ? parsed.pairs
+                        : Array.isArray(parsed?.matching_pairs)
+                        ? parsed.matching_pairs
+                        : [];
+
+                    if (pairsList.length > 0) {
+                        optionsHtml = `
+                        <div style="margin: 10px 0;">
+                            <table style="width: 100%; font-size: 9.5pt; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background-color: #f8fafc;">
+                                        <th style="border: 1px solid #cbd5e1; padding: 6px 10px;">Pernyataan / Soal</th>
+                                        <th style="border: 1px solid #cbd5e1; padding: 6px 10px;">Pasangan Jawaban</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${pairsList
+                                        .map(
+                                            (pair: any) => `
+                                        <tr>
+                                            <td style="border: 1px solid #cbd5e1; padding: 6px 10px;">${escapeHtml(pair?.left ?? '')}</td>
+                                            <td style="border: 1px solid #cbd5e1; padding: 6px 10px;">${includeAnswers ? `<strong style="color: #166534;">${escapeHtml(pair?.right ?? '')}</strong>` : '........................................'}</td>
+                                        </tr>
+                                    `
+                                        )
+                                        .join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    }
+                }
+
+                const questionImageHtml = q.question_image
+                    ? `<div style="margin: 10px 0;"><img src="${escapeHtml(q.question_image)}" alt="Gambar Soal" style="max-width: 100%; max-height: 280px; object-fit: contain; border-radius: 4px; border: 1px solid #e2e8f0;" /></div>`
+                    : '';
+
+                return `
+                <div class="question-card">
+                    <div class="question-header">
+                        <span class="question-number">Soal Nomor ${num}</span>
+                        <div>
+                            <span class="question-type-tag">${questionTypeLabel}</span>
+                            <span style="font-size: 8.5pt; color: #64748b; margin-left: 6px;">${Number(q.points) || 1} Poin</span>
+                        </div>
+                    </div>
+                    <div class="question-text">
+                        ${escapeHtml(q.question_text)}
+                    </div>
+                    ${questionImageHtml}
+                    ${optionsHtml}
+                    ${answerKeyHtml}
+                </div>
+            `;
+            } catch (renderErr) {
+                return `
+                <div class="question-card">
+                    <div class="question-header">
+                        <span class="question-number">Soal Nomor ${qIndex + 1}</span>
+                    </div>
+                    <div class="question-text">
+                        ${escapeHtml(q.question_text)}
+                    </div>
                 </div>
             `;
             }
-
-            return `
-            <div class="question-card">
-                <div class="question-header">
-                    <span class="question-number">Soal Nomor ${num}</span>
-                    <div>
-                        <span class="question-type-tag">${questionTypeLabel}</span>
-                        <span style="font-size: 8.5pt; color: #64748b; margin-left: 6px;">${q.points || 1} Poin</span>
-                    </div>
-                </div>
-                <div class="question-text">
-                    ${escapeHtml(q.question_text)}
-                </div>
-                ${optionsHtml}
-                ${answerKeyHtml}
-            </div>
-        `;
         })
         .join('');
 
@@ -746,11 +801,11 @@ export function generateExamSheetHtml(
                 </div>
                 <div class="meta-row">
                     <div class="meta-label">Durasi Waktu Pengerjaan</div>
-                    <div class="meta-value">${exam.duration_minutes} Menit</div>
+                    <div class="meta-value">${exam.duration_minutes || 60} Menit</div>
                 </div>
                 <div class="meta-row">
                     <div class="meta-label">Standar Kelulusan (Passing Grade)</div>
-                    <div class="meta-value">${exam.passing_grade}%</div>
+                    <div class="meta-value">${exam.passing_grade || 0}%</div>
                 </div>
                 <div class="meta-row">
                     <div class="meta-label">Jumlah Butir Soal</div>

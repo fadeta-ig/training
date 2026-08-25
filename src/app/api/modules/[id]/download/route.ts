@@ -114,10 +114,14 @@ async function handleGet(
         if (targetItemId && targetItemType) {
             const targetItem = fullItems.find((i) => i.item_id === targetItemId && i.item_type === targetItemType);
             if (!targetItem) {
-                return NextResponse.json({ success: false, error: 'Item modul tidak ditemukan' }, { status: 404 });
+                return NextResponse.json({ success: false, error: 'Item modul tidak ditemukan dalam modul ini' }, { status: 404 });
             }
 
-            if (targetItem.item_type === 'exam' && targetItem.examData) {
+            if (targetItem.item_type === 'exam') {
+                if (!targetItem.examData) {
+                    return NextResponse.json({ success: false, error: 'Data ujian/evaluasi tidak ditemukan atau telah dihapus' }, { status: 404 });
+                }
+
                 const examHtml = generateExamSheetHtml(
                     moduleData,
                     targetItem.examData,
@@ -143,7 +147,11 @@ async function handleGet(
                 });
             }
 
-            if (targetItem.item_type === 'training' && targetItem.trainingData) {
+            if (targetItem.item_type === 'training') {
+                if (!targetItem.trainingData) {
+                    return NextResponse.json({ success: false, error: 'Data materi pembelajaran tidak ditemukan atau telah dihapus' }, { status: 404 });
+                }
+
                 const trainingHtml = generateTrainingMaterialHtml(
                     moduleData,
                     targetItem.trainingData,

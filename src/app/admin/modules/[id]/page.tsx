@@ -85,9 +85,16 @@ export default function ModuleDetailPage({ params }: { params: Promise<{ id: str
             const disposition = response.headers.get('Content-Disposition');
             let filename = `${item.title}.html`;
 
-            if (disposition && disposition.includes('filename=')) {
-                const match = disposition.match(/filename="?([^"]+)"?/);
-                if (match && match[1]) filename = match[1];
+            if (disposition) {
+                const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+                if (utf8Match && utf8Match[1]) {
+                    try {
+                        filename = decodeURIComponent(utf8Match[1]);
+                    } catch {}
+                } else {
+                    const match = disposition.match(/filename="?([^";]+)"?/i);
+                    if (match && match[1]) filename = match[1];
+                }
             }
 
             const downloadUrl = window.URL.createObjectURL(blob);

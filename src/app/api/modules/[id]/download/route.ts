@@ -19,7 +19,19 @@ import {
 } from '@/lib/module-document-templates';
 
 function sanitizeFilename(name: string | null | undefined): string {
-    return String(name || 'modul').replace(/[/\\?%*:|"<>]/g, '_').trim().slice(0, 80) || 'modul';
+    return (
+        String(name || 'modul')
+            .replace(/[/\\?%*:|"<>]/g, '_')
+            .replace(/[^\x20-\x7E]/g, '_')
+            .trim()
+            .slice(0, 80) || 'modul'
+    );
+}
+
+function createContentDisposition(filename: string): string {
+    const asciiFilename = sanitizeFilename(filename).replace(/["\\]/g, '_');
+    const encoded = encodeURIComponent(filename).replace(/['()]/g, escape).replace(/\*/g, '%2A');
+    return `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encoded}`;
 }
 
 async function handleGet(
@@ -142,7 +154,7 @@ async function handleGet(
                 return new NextResponse(examHtml, {
                     headers: {
                         'Content-Type': 'text/html; charset=utf-8',
-                        'Content-Disposition': `attachment; filename="${filename}"`,
+                        'Content-Disposition': createContentDisposition(filename),
                     },
                 });
             }
@@ -193,7 +205,7 @@ async function handleGet(
                     return new NextResponse(new Uint8Array(zipBuffer), {
                         headers: {
                             'Content-Type': 'application/zip',
-                            'Content-Disposition': `attachment; filename="Materi_${safeTrainingTitle}.zip"`,
+                            'Content-Disposition': createContentDisposition(`Materi_${safeTrainingTitle}.zip`),
                         },
                     });
                 }
@@ -207,7 +219,7 @@ async function handleGet(
                 return new NextResponse(trainingHtml, {
                     headers: {
                         'Content-Type': 'text/html; charset=utf-8',
-                        'Content-Disposition': `attachment; filename="Materi_${safeTrainingTitle}.html"`,
+                        'Content-Disposition': createContentDisposition(`Materi_${safeTrainingTitle}.html`),
                     },
                 });
             }
@@ -299,7 +311,7 @@ async function handleGet(
         return new NextResponse(new Uint8Array(zipBuffer), {
             headers: {
                 'Content-Type': 'application/zip',
-                'Content-Disposition': `attachment; filename="${zipFilename}"`,
+                'Content-Disposition': createContentDisposition(zipFilename),
             },
         });
     } catch (error) {

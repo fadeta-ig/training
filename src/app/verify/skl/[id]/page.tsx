@@ -19,7 +19,6 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
     const { no: sklNumberParam } = await searchParams;
 
     let verificationData: any = null;
-    let isError = false;
 
     try {
         const rows = await executeQuery<any[]>(
@@ -53,8 +52,8 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
         }
     } catch (err) {
         console.error('[SKL_VERIFICATION_ERROR]', err);
-        isError = true;
     }
+
 
     const isPassed = verificationData && verificationData.graduation_status === 'passed';
     const sklNumber = verificationData?.skl_number || sklNumberParam || 'SKL-REGISTERED';

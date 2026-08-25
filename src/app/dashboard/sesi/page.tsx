@@ -112,11 +112,9 @@ function formatSchedule(startValue: string, endValue: string) {
 export default function ParticipantSessionsPage() {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [now, setNow] = useState<Date | null>(null);
+    const [now] = useState<Date>(() => new Date());
 
     useEffect(() => {
-        setNow(new Date());
-
         fetch('/api/participant/sessions')
             .then((res) => res.json())
             .then((data) => {
@@ -127,6 +125,7 @@ export default function ParticipantSessionsPage() {
             .catch(() => {})
             .finally(() => setIsLoading(false));
     }, []);
+
 
     const {
         currentPage,

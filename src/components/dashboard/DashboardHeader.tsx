@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -8,7 +8,6 @@ import {
     Notification01Icon,
     UserCircleIcon,
     Logout01Icon,
-    CheckmarkCircle02Icon,
     ArrowRight01Icon,
 } from 'hugeicons-react';
 import type { AuthPayload } from '@/types';
@@ -29,13 +28,13 @@ interface NotificationItem {
 
 export function DashboardHeader({ toggleSidebar, user }: DashboardHeaderProps) {
     const router = useRouter();
-    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const notifRef = useRef<HTMLDivElement>(null);
     const profileRef = useRef<HTMLDivElement>(null);
 
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async () => {
         try {
             const res = await fetch('/api/participant/notifications');
             const data = await res.json();
@@ -43,11 +42,12 @@ export function DashboardHeader({ toggleSidebar, user }: DashboardHeaderProps) {
                 setNotifications(data.data);
             }
         } catch {}
-    };
+    }, []);
 
     useEffect(() => {
         fetchNotifications();
-    }, []);
+    }, [fetchNotifications]);
+
 
     // Outside click handlers
     useEffect(() => {

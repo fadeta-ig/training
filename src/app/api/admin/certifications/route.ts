@@ -12,7 +12,7 @@ const certificationSchema = z.object({
     is_active: z.boolean().default(true),
 });
 
-async function handleGet(request: NextRequest, user: AuthenticatedUser) {
+async function handleGet(request: NextRequest, _user: AuthenticatedUser) {
     try {
         const search = request.nextUrl.searchParams.get('search')?.trim() || '';
 

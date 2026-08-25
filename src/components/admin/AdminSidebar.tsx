@@ -63,6 +63,13 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
     const [isLearningExpanded, setIsLearningExpanded] = useState<boolean>(false);
     const showLearningItems = isLearningActive || isLearningExpanded;
 
+    const isParticipantsGroupActive =
+        pathname.startsWith('/admin/registrations') ||
+        pathname.startsWith('/admin/certifications') ||
+        pathname.startsWith('/admin/participants');
+
+    const [isParticipantsGroupExpanded, setIsParticipantsGroupExpanded] = useState<boolean>(false);
+    const showParticipantsGroupItems = isParticipantsGroupActive || isParticipantsGroupExpanded;
 
     return (
         <>
@@ -180,6 +187,76 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
 
                     <NavLink href="/admin/sessions" label="Session Manager" icon={<Calendar01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/sessions')} />
                     <NavLink href="/admin/monitoring" label="Live Proctoring" icon={<Camera01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/monitoring')} />
+
+                    {/* Group Menu: Manajemen Kepesertaan & Sertifikasi */}
+                    <div className="space-y-1">
+                        <button
+                            onClick={() => setIsParticipantsGroupExpanded((prev) => !prev)}
+                            title={!isOpen ? 'Manajemen Kepesertaan' : undefined}
+                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group active:scale-95 ${
+                                isParticipantsGroupActive
+                                    ? 'bg-primary/10 text-primary font-semibold'
+                                    : 'text-muted-foreground hover:bg-black/5 hover:text-foreground'
+                            } ${!isOpen && 'justify-center relative'}`}
+                        >
+                            <div className="flex items-center gap-3 min-w-0">
+                                <span className={`${isParticipantsGroupActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'} transition-colors shrink-0`}>
+                                    <UserGroupIcon size={20} />
+                                </span>
+                                {isOpen && <span className="truncate">Manajemen Kepesertaan</span>}
+                            </div>
+                            {isOpen ? (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    {pendingRegistrationsCount > 0 && (
+                                        <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white font-bold text-[10px]">
+                                            {pendingRegistrationsCount}
+                                        </span>
+                                    )}
+                                    <span className="text-muted-foreground text-xs">
+                                        {showParticipantsGroupItems ? <ArrowUp01Icon size={16} /> : <ArrowDown01Icon size={16} />}
+                                    </span>
+                                </div>
+                            ) : (
+                                pendingRegistrationsCount > 0 && (
+                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                )
+                            )}
+                        </button>
+
+                        {/* Submenu Items */}
+                        {(showParticipantsGroupItems || !isOpen) && (
+                            <div className={`space-y-1 transition-all ${isOpen ? 'pl-4 border-l-2 border-primary/15 ml-4 mt-1' : ''}`}>
+                                <NavLink
+                                    href="/admin/registrations"
+                                    label="Persetujuan Pendaftaran"
+                                    icon={<UserCheck01Icon size={18} />}
+                                    isOpen={isOpen}
+                                    active={pathname.startsWith('/admin/registrations')}
+                                    badge={
+                                        pendingRegistrationsCount > 0 ? (
+                                            <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[10px]">
+                                                {pendingRegistrationsCount}
+                                            </span>
+                                        ) : undefined
+                                    }
+                                />
+                                <NavLink
+                                    href="/admin/certifications"
+                                    label="Program Sertifikasi"
+                                    icon={<Certificate01Icon size={18} />}
+                                    isOpen={isOpen}
+                                    active={pathname.startsWith('/admin/certifications')}
+                                />
+                                <NavLink
+                                    href="/admin/participants"
+                                    label="Kelola Peserta"
+                                    icon={<UserCircleIcon size={18} />}
+                                    isOpen={isOpen}
+                                    active={pathname.startsWith('/admin/participants')}
+                                />
+                            </div>
+                        )}
+                    </div>
                     
                     {/* Hide User Management from Trainers */}
                     {user?.role === 'admin' && (
@@ -188,31 +265,8 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                             <NavLink href="/admin/audit-logs" label="Audit Trail" icon={<Activity01Icon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/audit-logs')} />
                         </>
                     )}
-                    <NavLink
-                        href="/admin/registrations"
-                        label="Persetujuan Pendaftaran"
-                        icon={<UserCheck01Icon size={20} />}
-                        isOpen={isOpen}
-                        active={pathname.startsWith('/admin/registrations')}
-                        badge={
-                            pendingRegistrationsCount > 0 ? (
-                                <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[10px]">
-                                    {pendingRegistrationsCount}
-                                </span>
-                            ) : undefined
-                        }
-                    />
-
-                    <NavLink
-                        href="/admin/certifications"
-                        label="Program Sertifikasi"
-                        icon={<Certificate01Icon size={20} />}
-                        isOpen={isOpen}
-                        active={pathname.startsWith('/admin/certifications')}
-                    />
-
-                    <NavLink href="/admin/participants" label="Kelola Peserta" icon={<UserCircleIcon size={20} />} isOpen={isOpen} active={pathname.startsWith('/admin/participants')} />
                 </nav>
+
 
 
                 {/* Fixed User Profile at Bottom */}

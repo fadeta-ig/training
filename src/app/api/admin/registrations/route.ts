@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 
-async function handleGet(request: NextRequest, user: AuthenticatedUser) {
+async function handleGet(request: NextRequest, _user: AuthenticatedUser) {
     try {
         const searchParams = request.nextUrl.searchParams;
         const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));

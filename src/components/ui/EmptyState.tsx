@@ -8,9 +8,11 @@ interface EmptyStateProps {
     description: string
     actionLabel?: string
     actionHref?: string
+    action?: React.ReactNode
+    children?: React.ReactNode
 }
 
-export function EmptyState({ icon, title, description, actionLabel, actionHref }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, actionLabel, actionHref, action, children }: EmptyStateProps) {
     return (
         <div className="glass-card p-12 text-center flex flex-col items-center gap-3">
             {icon}
@@ -20,6 +22,8 @@ export function EmptyState({ icon, title, description, actionLabel, actionHref }
                     {description}
                 </p>
             </div>
+            {action}
+            {children}
             {actionLabel && actionHref && (
                 <Link
                     href={actionHref}
@@ -31,3 +35,4 @@ export function EmptyState({ icon, title, description, actionLabel, actionHref }
         </div>
     )
 }
+

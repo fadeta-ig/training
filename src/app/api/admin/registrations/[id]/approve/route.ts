@@ -58,11 +58,12 @@ async function handlePost(
                 const nipResult = await generateSingleNip(connection, {
                     institution: targetUser.institution,
                     batch: batchNumber,
-                    registrationDate: targetUser.registration_date || new Date(),
+                    registration_date: targetUser.registration_date || new Date(),
                 });
                 generatedNip = nipResult.nip;
                 institutionCode = nipResult.institutionCode;
             }
+
 
             // Update user status
             await connection.execute(

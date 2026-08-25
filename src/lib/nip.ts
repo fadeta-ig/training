@@ -170,6 +170,7 @@ export interface NipGenerationItem {
   institution?: string | null;
   batch?: number | null;
   registration_date?: string | Date | null;
+  registrationDate?: string | Date | null;
 }
 
 /**
@@ -187,12 +188,14 @@ export async function generateBulkNips(
   for (const item of items) {
     const instName = (item.institution || '').trim();
     const batch = Math.max(1, Math.floor(Number(item.batch) || 1));
-    const yearMonth = formatYearMonth(item.registration_date);
+    const regDate = item.registration_date ?? item.registrationDate;
+    const yearMonth = formatYearMonth(regDate);
     const code = extractInstitutionCode(instName);
     const groupKey = `${instName}:::${batch}:::${yearMonth}`;
 
     if (!groupSequences.has(groupKey)) {
       groupCodes.set(groupKey, code);
+
       // Fetch current max sequence from DB
       const currentMax = await getLatestSequence(
         connection,

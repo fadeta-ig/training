@@ -4,8 +4,10 @@ import { PlusSignIcon, RefreshIcon } from "hugeicons-react"
 
 interface PageHeaderProps {
     title: string
-    description: string
-    icon: React.ReactNode
+    description?: string
+    subtitle?: string
+    icon?: React.ReactNode
+    actions?: React.ReactNode
     actionLabel?: string
     actionHref?: string
     onRefresh?: () => void
@@ -15,25 +17,33 @@ interface PageHeaderProps {
 export function PageHeader({
     title,
     description,
+    subtitle,
     icon,
+    actions,
     actionLabel,
     actionHref,
     onRefresh,
     isRefreshing = false
 }: PageHeaderProps) {
+    const descText = description || subtitle || ''
+
     return (
         <div className="flex min-w-0 flex-col gap-4 border-b border-black/5 pb-5 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:pb-6">
             <div className="min-w-0">
                 <h1 className="flex min-w-0 items-start gap-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                    <span className="mt-0.5 shrink-0">{icon}</span>
+                    {icon && <span className="mt-0.5 shrink-0">{icon}</span>}
                     <span className="min-w-0 break-words">{title}</span>
                 </h1>
-                <p className="text-muted-foreground mt-2 text-sm">
-                    {description}
-                </p>
+                {descText && (
+                    <p className="text-muted-foreground mt-2 text-sm">
+                        {descText}
+                    </p>
+                )}
             </div>
 
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+                {actions}
+
                 {onRefresh && (
                     <button
                         onClick={onRefresh}

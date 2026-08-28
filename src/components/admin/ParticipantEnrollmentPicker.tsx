@@ -423,9 +423,9 @@ export function ParticipantEnrollmentPicker({
                             setIsPasteModalOpen(true);
                         }}
                         title="Tempel daftar email atau username untuk menandai massal"
-                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 text-xs font-bold text-slate-800 transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-blue-300/80 bg-blue-50/70 hover:bg-blue-100 text-xs font-bold text-blue-900 transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
                     >
-                        <FileAttachmentIcon size={15} className="text-slate-600" />
+                        <FileAttachmentIcon size={15} className="text-blue-700" />
                         <span className="hidden sm:inline">Tempel Daftar Massal</span>
                         <span className="sm:hidden">Tempel Massal</span>
                     </button>
@@ -517,11 +517,11 @@ export function ParticipantEnrollmentPicker({
                         onClick={() => setShowFilters(!showFilters)}
                         className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer ${
                             showFilters || activeFiltersCount > 0
-                                ? 'bg-slate-900 border-slate-950 text-white'
-                                : 'border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 text-slate-800'
+                                ? 'bg-blue-600 border-blue-700 text-white'
+                                : 'border-blue-300/80 bg-blue-50/70 hover:bg-blue-100 text-blue-900'
                         }`}
                     >
-                        <FilterIcon size={15} />
+                        <FilterIcon size={15} className={showFilters || activeFiltersCount > 0 ? 'text-white' : 'text-blue-700'} />
                         <span>Filter Lanjutan</span>
                         {activeFiltersCount > 0 && (
                             <span className="bg-emerald-500 text-white text-[10px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-extrabold">

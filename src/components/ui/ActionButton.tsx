@@ -7,6 +7,8 @@ export type ActionButtonVariant =
     | "default"
     | "destructive"
     | "primary"
+    | "create"
+    | "filter"
     | "secondary"
     | "success"
     | "warning"
@@ -46,7 +48,11 @@ export function ActionButton({
         secondary:
             "text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200/90 border-slate-300/80 hover:border-slate-400 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700",
         primary:
-            "text-white bg-slate-900 hover:bg-slate-800 border-slate-950/20 shadow-xs hover:shadow-sm dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100",
+            "text-white bg-blue-600 hover:bg-blue-700 border-blue-700/30 shadow-xs hover:shadow-sm",
+        create:
+            "text-white bg-blue-600 hover:bg-blue-700 border-blue-700/30 shadow-xs hover:shadow-sm",
+        filter:
+            "text-blue-900 bg-blue-50/80 hover:bg-blue-100 border-blue-300/80 hover:border-blue-400 shadow-2xs hover:shadow-xs dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60",
         success:
             "text-white bg-emerald-600 hover:bg-emerald-700 border-emerald-700/30 shadow-xs hover:shadow-sm",
         warning:

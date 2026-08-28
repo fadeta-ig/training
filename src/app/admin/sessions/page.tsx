@@ -174,7 +174,7 @@ export default function SessionsPage() {
                 {userRole === 'admin' && (
                     <Link
                         href="/admin/sessions/create"
-                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs hover:shadow-sm border border-slate-950/20 active:scale-95 transition-all cursor-pointer"
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs hover:shadow-sm border border-blue-700/30 active:scale-95 transition-all cursor-pointer"
                     >
                         <Add01Icon size={17} />
                         <span>Buat Sesi Baru</span>

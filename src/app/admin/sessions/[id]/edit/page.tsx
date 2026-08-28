@@ -377,7 +377,7 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold shadow-xs hover:shadow-sm border border-slate-950/20 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-xs hover:shadow-sm border border-blue-700/30 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
                     >
                         {loading ? (
                             <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>

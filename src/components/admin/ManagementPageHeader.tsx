@@ -49,7 +49,7 @@ export function ManagementPageHeader({
                     <Link
                         href={actionHref}
                         className={cn(
-                            buttonVariants({ size: 'lg', variant: 'default' }),
+                            buttonVariants({ size: 'lg', variant: 'create' }),
                             'w-full sm:w-auto font-bold shadow-xs hover:shadow-sm'
                         )}
                     >

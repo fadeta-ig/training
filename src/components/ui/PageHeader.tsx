@@ -59,7 +59,7 @@ export function PageHeader({
                 {actionLabel && actionHref && (
                     <Link
                         href={actionHref}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm border border-slate-950/20 transition-all active:scale-95 cursor-pointer sm:w-auto"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm border border-blue-700/30 transition-all active:scale-95 cursor-pointer sm:w-auto"
                     >
                         <PlusSignIcon size={17} />
                         <span>{actionLabel}</span>

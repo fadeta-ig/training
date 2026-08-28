@@ -406,9 +406,9 @@ export function ParticipantEnrollmentPicker({
                     )}
                 </div>
 
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary shadow-xs">
-                        <CheckmarkCircle02Icon size={15} />
+                <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-300/80 text-xs font-bold text-emerald-900 shadow-2xs">
+                        <CheckmarkCircle02Icon size={16} className="text-emerald-600" />
                         <span>
                             Terpilih: <strong>{selectedUserIds.length}</strong> dari{' '}
                             <strong>{participants.length}</strong> Peserta
@@ -423,33 +423,33 @@ export function ParticipantEnrollmentPicker({
                             setIsPasteModalOpen(true);
                         }}
                         title="Tempel daftar email atau username untuk menandai massal"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-black/10 bg-white hover:bg-black/5 text-xs font-medium text-foreground transition-all shadow-xs"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 text-xs font-bold text-slate-800 transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
                     >
-                        <FileAttachmentIcon size={14} className="text-muted-foreground" />
+                        <FileAttachmentIcon size={15} className="text-slate-600" />
                         <span className="hidden sm:inline">Tempel Daftar Massal</span>
-                        <span className="sm:hidden">Tempel</span>
+                        <span className="sm:hidden">Tempel Massal</span>
                     </button>
                 </div>
             </div>
 
             {/* ── Scope Filter Tabs (Semua / Terpilih / Belum Terpilih) ── */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                <div className="flex items-center p-1 bg-black/[0.04] rounded-xl border border-black/[0.06] text-xs font-medium w-full sm:w-auto">
+                <div className="flex items-center p-1.5 bg-slate-200/75 rounded-2xl border border-slate-300/70 text-xs font-medium w-full sm:w-auto shadow-2xs">
                     <button
                         type="button"
                         onClick={() => {
                             setScope('all');
                             setCurrentPage(1);
                         }}
-                        className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                        className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
                             scope === 'all'
-                                ? 'bg-white text-foreground shadow-xs font-semibold'
-                                : 'text-muted-foreground hover:text-foreground'
+                                ? 'bg-white text-slate-950 shadow-xs font-bold border border-black/5'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 font-semibold'
                         }`}
                     >
-                        <UserGroupIcon size={14} />
+                        <UserGroupIcon size={15} />
                         <span>Semua Peserta</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/5 font-mono">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 font-mono font-bold text-slate-700">
                             {participants.length}
                         </span>
                     </button>
@@ -460,19 +460,19 @@ export function ParticipantEnrollmentPicker({
                             setScope('selected');
                             setCurrentPage(1);
                         }}
-                        className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                        className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
                             scope === 'selected'
-                                ? 'bg-white text-primary shadow-xs font-semibold'
-                                : 'text-muted-foreground hover:text-foreground'
+                                ? 'bg-white text-emerald-900 shadow-xs font-bold border border-emerald-300'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 font-semibold'
                         }`}
                     >
-                        <Tick02Icon size={14} />
+                        <Tick02Icon size={15} className={scope === 'selected' ? 'text-emerald-600' : ''} />
                         <span>Terpilih</span>
                         <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
                                 selectedUserIds.length > 0
-                                    ? 'bg-primary/10 text-primary font-bold'
-                                    : 'bg-black/5'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-slate-100 text-slate-600'
                             }`}
                         >
                             {selectedUserIds.length}
@@ -485,15 +485,15 @@ export function ParticipantEnrollmentPicker({
                             setScope('unselected');
                             setCurrentPage(1);
                         }}
-                        className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                        className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
                             scope === 'unselected'
-                                ? 'bg-white text-foreground shadow-xs font-semibold'
-                                : 'text-muted-foreground hover:text-foreground'
+                                ? 'bg-white text-slate-950 shadow-xs font-bold border border-black/5'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 font-semibold'
                         }`}
                     >
-                        <UserIcon size={14} />
+                        <UserIcon size={15} />
                         <span>Belum Terpilih</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/5 font-mono">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 font-mono font-bold text-slate-700">
                             {Math.max(0, participants.length - selectedUserIds.length)}
                         </span>
                     </button>
@@ -505,9 +505,9 @@ export function ParticipantEnrollmentPicker({
                         <button
                             type="button"
                             onClick={handleClearAllSelections}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100/80 border border-rose-200 shadow-2xs active:scale-95 transition-all cursor-pointer"
                         >
-                            <Delete02Icon size={14} />
+                            <Delete02Icon size={15} />
                             <span>Kosongkan Pilihan</span>
                         </button>
                     )}
@@ -515,16 +515,16 @@ export function ParticipantEnrollmentPicker({
                     <button
                         type="button"
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
+                        className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer ${
                             showFilters || activeFiltersCount > 0
-                                ? 'bg-primary/10 border-primary/30 text-primary shadow-xs'
-                                : 'border-black/10 bg-white hover:bg-black/5 text-foreground'
+                                ? 'bg-slate-900 border-slate-950 text-white'
+                                : 'border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 text-slate-800'
                         }`}
                     >
-                        <FilterIcon size={14} />
+                        <FilterIcon size={15} />
                         <span>Filter Lanjutan</span>
                         {activeFiltersCount > 0 && (
-                            <span className="bg-primary text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                            <span className="bg-emerald-500 text-white text-[10px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-extrabold">
                                 {activeFiltersCount}
                             </span>
                         )}
@@ -694,18 +694,18 @@ export function ParticipantEnrollmentPicker({
                             <button
                                 type="button"
                                 onClick={handleSelectAllFiltered}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-medium text-xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs hover:shadow-sm border border-emerald-700/30 transition-all active:scale-95 cursor-pointer"
                             >
-                                <CheckListIcon size={14} />
+                                <CheckListIcon size={15} />
                                 <span>Pilih Semua Hasil Filter ({totalFiltered})</span>
                             </button>
 
                             <button
                                 type="button"
                                 onClick={handleDeselectFiltered}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-black/5 hover:bg-black/10 text-muted-foreground hover:text-foreground font-medium text-xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 font-bold text-xs border border-slate-300 shadow-2xs transition-all active:scale-95 cursor-pointer"
                             >
-                                <Cancel01Icon size={14} />
+                                <Cancel01Icon size={15} />
                                 <span>Batal Pilih Filter</span>
                             </button>
                         </>

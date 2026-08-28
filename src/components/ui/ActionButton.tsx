@@ -38,21 +38,21 @@ export function ActionButton({
     type = "button"
 }: Props) {
     const baseClasses =
-        "inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-semibold transition-all duration-150 border shadow-2xs active:scale-95 cursor-pointer disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100"
+        "inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition-all duration-150 border shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100"
 
     const variants: Record<ActionButtonVariant, string> = {
         default:
-            "text-slate-700 hover:text-slate-950 bg-white hover:bg-slate-50 border-black/10 dark:bg-slate-900 dark:text-slate-200 dark:border-white/10 dark:hover:bg-slate-800",
+            "text-slate-800 hover:text-slate-950 bg-white hover:bg-slate-50 border-slate-300 hover:border-slate-400 dark:bg-slate-900 dark:text-slate-200 dark:border-white/10 dark:hover:bg-slate-800",
         secondary:
-            "text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200/80 border-black/5 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700",
+            "text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200/90 border-slate-300/80 hover:border-slate-400 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700",
         primary:
-            "text-white bg-slate-900 hover:bg-slate-800 border-transparent shadow-xs dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100",
+            "text-white bg-slate-900 hover:bg-slate-800 border-slate-950/20 shadow-xs hover:shadow-sm dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100",
         success:
-            "text-white bg-emerald-600 hover:bg-emerald-700 border-transparent shadow-xs",
+            "text-white bg-emerald-600 hover:bg-emerald-700 border-emerald-700/30 shadow-xs hover:shadow-sm",
         warning:
-            "text-white bg-amber-600 hover:bg-amber-700 border-transparent shadow-xs",
+            "text-white bg-amber-600 hover:bg-amber-700 border-amber-700/30 shadow-xs hover:shadow-sm",
         destructive:
-            "text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border-rose-200 hover:border-transparent dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-700",
+            "text-rose-800 hover:text-white bg-rose-50 hover:bg-rose-600 border-rose-300 hover:border-rose-600 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-700",
         ghost:
             "text-muted-foreground hover:text-foreground bg-transparent hover:bg-slate-100 border-transparent shadow-none dark:hover:bg-slate-800"
     }

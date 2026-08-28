@@ -10,21 +10,21 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-slate-900 text-white hover:bg-slate-800 shadow-xs dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100",
-        primary: "bg-slate-900 text-white hover:bg-slate-800 shadow-xs dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100",
-        success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs focus-visible:ring-emerald-500/30",
-        warning: "bg-amber-600 text-white hover:bg-amber-700 shadow-xs focus-visible:ring-amber-500/30",
-        destructive: "bg-rose-600 text-white hover:bg-rose-700 shadow-xs focus-visible:ring-rose-500/30",
-        "destructive-outline": "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100/80 focus-visible:ring-rose-500/30 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60",
+        default: "bg-slate-900 text-white hover:bg-slate-800 shadow-xs hover:shadow-sm border border-slate-950/20 active:scale-95 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100",
+        primary: "bg-slate-900 text-white hover:bg-slate-800 shadow-xs hover:shadow-sm border border-slate-950/20 active:scale-95 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100",
+        success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs hover:shadow-sm border border-emerald-700/30 active:scale-95 focus-visible:ring-emerald-500/30",
+        warning: "bg-amber-600 text-white hover:bg-amber-700 shadow-xs hover:shadow-sm border border-amber-700/30 active:scale-95 focus-visible:ring-amber-500/30",
+        destructive: "bg-rose-600 text-white hover:bg-rose-700 shadow-xs hover:shadow-sm border border-rose-700/30 active:scale-95 focus-visible:ring-rose-500/30",
+        "destructive-outline": "bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100/90 hover:border-rose-400 shadow-2xs hover:shadow-xs active:scale-95 focus-visible:ring-rose-500/30 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60",
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border border-slate-300/90 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 hover:border-slate-400 shadow-2xs hover:shadow-xs active:scale-95 aria-expanded:bg-muted aria-expanded:text-foreground dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800",
         secondary:
-          "bg-slate-100 text-slate-800 hover:bg-slate-200 border border-black/5 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700",
+          "bg-slate-100 text-slate-800 hover:bg-slate-200/90 hover:text-slate-950 border border-slate-300/80 hover:border-slate-400 shadow-2xs hover:shadow-xs active:scale-95 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "hover:bg-slate-100 hover:text-slate-900 active:scale-95 aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-slate-800",
         link: "text-primary underline-offset-4 hover:underline",
-        "subtle-emerald": "bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60",
-        "subtle-amber": "bg-amber-50 text-amber-900 border border-amber-200/80 hover:bg-amber-100/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60",
+        "subtle-emerald": "bg-emerald-50 text-emerald-900 border border-emerald-300 hover:bg-emerald-100 hover:border-emerald-400 shadow-2xs hover:shadow-xs active:scale-95 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60",
+        "subtle-amber": "bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100 hover:border-amber-400 shadow-2xs hover:shadow-xs active:scale-95 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60",
       },
       size: {
         default:

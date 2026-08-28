@@ -123,10 +123,10 @@ export default function UsersManagerPage() {
                 
                 <Link
                     href="/admin/users/import"
-                    className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-600/20 bg-emerald-600/10 px-4 py-2.5 text-sm font-semibold text-emerald-800 shadow-sm transition-colors hover:bg-emerald-600/20 active:scale-95 sm:w-auto"
+                    className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100/80 px-4 py-2.5 text-xs sm:text-sm font-bold text-emerald-900 shadow-2xs hover:shadow-xs active:scale-95 transition-all cursor-pointer sm:w-auto"
                 >
-                    <CloudUploadIcon size={18} />
-                    Import Massal Excel
+                    <CloudUploadIcon size={18} className="text-emerald-700" />
+                    <span>Import Massal Excel</span>
                 </Link>
             </div>
 

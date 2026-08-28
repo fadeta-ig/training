@@ -315,18 +315,24 @@ export default function CreateSessionPage() {
                     description="Pilih dan tandai peserta yang berhak mengikuti sesi ini dengan filter cerdas."
                 />
 
-                <div className="flex justify-stretch pt-4 sm:justify-end">
+                <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-4">
+                    <Link
+                        href="/admin/sessions"
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-950 text-sm font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
+                    >
+                        Batal
+                    </Link>
                     <button
                         type="submit"
                         disabled={loading}
-                        className="flex w-full min-w-0 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg disabled:opacity-50 sm:w-auto sm:min-w-[200px] cursor-pointer"
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold shadow-xs hover:shadow-sm border border-slate-950/20 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
                     >
                         {loading ? (
                             <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
                         ) : (
                             <>
-                                <FloppyDiskIcon size={20} />
-                                Simpan Sesi & Peserta
+                                <FloppyDiskIcon size={18} />
+                                <span>Simpan Sesi & Peserta</span>
                             </>
                         )}
                     </button>

@@ -33,21 +33,28 @@ export function ManagementPageHeader({
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
             </div>
 
-            <div className="grid shrink-0 grid-cols-1 gap-2 sm:flex">
+            <div className="grid shrink-0 grid-cols-1 gap-2.5 sm:flex sm:items-center">
                 <Button
                     type="button"
                     variant="outline"
                     size="lg"
-                    className="w-full sm:w-auto"
+                    className="w-full sm:w-auto font-bold"
                     onClick={onRefresh}
                     disabled={isRefreshing}
                 >
-                    <RefreshCw className={cn(isRefreshing && 'animate-spin')} />
-                    Segarkan
+                    <RefreshCw className={cn('size-4 text-slate-600', isRefreshing && 'animate-spin')} />
+                    <span>Segarkan</span>
                 </Button>
                 {actionLabel && actionHref && (
-                    <Link href={actionHref} className={cn(buttonVariants({ size: 'lg' }), 'w-full sm:w-auto')}>
-                        <Plus /> {actionLabel}
+                    <Link
+                        href={actionHref}
+                        className={cn(
+                            buttonVariants({ size: 'lg', variant: 'default' }),
+                            'w-full sm:w-auto font-bold shadow-xs hover:shadow-sm'
+                        )}
+                    >
+                        <Plus className="size-4.5" />
+                        <span>{actionLabel}</span>
                     </Link>
                 )}
             </div>

@@ -46,22 +46,23 @@ export function PageHeader({
 
                 {onRefresh && (
                     <button
+                        type="button"
                         onClick={onRefresh}
                         disabled={isRefreshing}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-black/5 focus:outline-none focus:ring-2 focus:ring-ring active:scale-95 sm:w-auto"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-800 shadow-2xs transition-all hover:bg-slate-50 hover:border-slate-400 hover:shadow-xs active:scale-95 cursor-pointer disabled:opacity-50 sm:w-auto"
                     >
-                        <RefreshIcon size={18} className={isRefreshing ? 'animate-spin' : ''} />
-                        Segarkan
+                        <RefreshIcon size={17} className={isRefreshing ? 'animate-spin text-slate-600' : 'text-slate-600'} />
+                        <span>Segarkan</span>
                     </button>
                 )}
 
                 {actionLabel && actionHref && (
                     <Link
                         href={actionHref}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background shadow-sm transition-colors hover:bg-foreground/90 focus:outline-none focus:ring-2 focus:ring-ring active:scale-95 sm:w-auto"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm border border-slate-950/20 transition-all active:scale-95 cursor-pointer sm:w-auto"
                     >
-                        <PlusSignIcon size={18} />
-                        {actionLabel}
+                        <PlusSignIcon size={17} />
+                        <span>{actionLabel}</span>
                     </Link>
                 )}
             </div>

@@ -174,10 +174,10 @@ export default function SessionsPage() {
                 {userRole === 'admin' && (
                     <Link
                         href="/admin/sessions/create"
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-medium rounded-xl transition-all shadow-xs active:scale-[0.98]"
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs hover:shadow-sm border border-slate-950/20 active:scale-95 transition-all cursor-pointer"
                     >
-                        <Add01Icon size={16} />
-                        Buat Sesi Baru
+                        <Add01Icon size={17} />
+                        <span>Buat Sesi Baru</span>
                     </Link>
                 )}
             </div>
@@ -409,10 +409,10 @@ export default function SessionsPage() {
 
                                             {/* Action Buttons */}
                                             <td className="px-5 py-4 align-middle text-right">
-                                                <div className="flex items-center justify-end gap-1">
+                                                <div className="flex items-center justify-end gap-1.5">
                                                     <Link
                                                         href={`/admin/sessions/${session.id}`}
-                                                        className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                                                        className="p-2 rounded-xl text-slate-700 hover:text-slate-950 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 shadow-2xs transition-all active:scale-95 cursor-pointer"
                                                         title="Detail Sesi"
                                                     >
                                                         <ViewIcon size={16} />
@@ -422,14 +422,15 @@ export default function SessionsPage() {
                                                         <>
                                                             <Link
                                                                 href={`/admin/sessions/${session.id}/edit`}
-                                                                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                                                                className="p-2 rounded-xl text-slate-700 hover:text-slate-950 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 shadow-2xs transition-all active:scale-95 cursor-pointer"
                                                                 title="Edit Sesi"
                                                             >
                                                                 <PencilEdit01Icon size={16} />
                                                             </Link>
                                                             <button
+                                                                type="button"
                                                                 onClick={() => handleDelete(session.id, session.title)}
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                                                className="p-2 rounded-xl text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-2xs transition-all active:scale-95 cursor-pointer"
                                                                 title="Hapus Sesi"
                                                             >
                                                                 <Delete02Icon size={16} />

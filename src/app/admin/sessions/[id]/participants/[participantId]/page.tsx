@@ -13,7 +13,8 @@ import {
 } from 'hugeicons-react';
 import { GraduationVerdictModal } from '@/components/admin/GraduationVerdictModal';
 import { CertificateUploadModal } from '@/components/admin/CertificateUploadModal';
-import { Award, FileBadge2, Printer, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react';
+import { Award, FileBadge2, Printer, CheckCircle2, Sparkles, AlertCircle, FileText, Copy, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 
 type DetailData = {
     session: { id: string; title: string };
@@ -212,88 +213,159 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                 </div>
 
                 {/* Graduation Verdict & Certificate Management Card */}
-                <div className="bg-white rounded-xl border border-black/5 p-4 sm:p-5 shadow-2xs">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-start gap-3.5">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                <div className="bg-white rounded-2xl border border-black/5 p-5 sm:p-6 shadow-2xs space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${
                                 participant.graduation_status === 'passed'
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                    ? 'bg-emerald-600 text-white'
                                     : participant.graduation_status === 'failed'
-                                    ? 'bg-red-50 text-red-700 border border-red-200/60'
-                                    : 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                    ? 'bg-rose-600 text-white'
+                                    : 'bg-amber-500 text-white'
                             }`}>
-                                <Award className="size-5" />
+                                <Award className="size-6" />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-1.5">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                                        Status Kelulusan:
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Keputusan Kelulusan:
                                     </span>
                                     {participant.graduation_status === 'passed' ? (
-                                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                                            <CheckCircle2 size={12} className="text-emerald-600" /> LULUS
+                                        <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-0.5 rounded-full text-xs font-bold shadow-2xs">
+                                            <CheckCircle2 size={13} className="text-emerald-600" /> LULUS
                                         </span>
                                     ) : participant.graduation_status === 'failed' ? (
-                                        <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200/80 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                                            <AlertCircle size={12} className="text-red-600" /> TIDAK LULUS
+                                        <span className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-800 border border-rose-300 px-3 py-0.5 rounded-full text-xs font-bold shadow-2xs">
+                                            <AlertCircle size={13} className="text-rose-600" /> TIDAK LULUS
                                         </span>
                                     ) : (
-                                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200/80 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                                            <Sparkles size={12} className="text-amber-600" /> Menunggu Keputusan
-                                        </span>
-                                    )}
-
-                                    {participant.skl_number && (
-                                        <span className="font-mono text-[11px] text-muted-foreground">
-                                            • No. SKL: <strong className="text-foreground">{participant.skl_number}</strong>
+                                        <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-900 border border-amber-300 px-3 py-0.5 rounded-full text-xs font-bold shadow-2xs">
+                                            <Sparkles size={13} className="text-amber-600" /> Menunggu Keputusan
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-muted-foreground leading-relaxed">
                                     {participant.graduation_notes || 'Belum ada catatan evaluasi khusus untuk peserta ini.'}
                                 </p>
                             </div>
                         </div>
 
-                        {/* Action Buttons for Graduation & Certificate */}
-                        <div className="flex items-center gap-2 flex-wrap shrink-0">
-                            {participant.graduation_status === 'passed' && (
-                                <>
+                        {/* Top Action Button: Tetapkan Kelulusan */}
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setShowVerdictModal(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-xs active:scale-95 cursor-pointer"
+                            >
+                                <Award className="size-4" />
+                                <span>Tetapkan / Ubah Kelulusan</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Sub-cards for SKL and Official Certificate when Passed */}
+                    {participant.graduation_status === 'passed' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-black/5">
+                            {/* SKL Card */}
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="size-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                                        <FileText className="size-4.5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-bold text-emerald-950 truncate">
+                                            Surat Keterangan Lulus (SKL)
+                                        </p>
+                                        <p className="text-[11px] font-mono text-emerald-800 truncate">
+                                            No: {participant.skl_number || 'SKL-REGISTERED'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
                                     <a
                                         href={`/api/participant/sessions/${sessionId}/skl?userId=${participantId}`}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors border border-black/5"
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-lg bg-white hover:bg-emerald-100/70 text-emerald-900 border border-emerald-300 transition-colors shadow-2xs"
+                                        title="Buka / Cetak SKL Resmi"
                                     >
-                                        <Printer className="size-3.5 text-slate-600" />
-                                        <span>Cetak SKL</span>
+                                        <Printer className="size-3.5 text-emerald-700" />
+                                        <span>Cetak</span>
                                     </a>
-
                                     <button
                                         type="button"
-                                        onClick={() => setShowCertModal(true)}
-                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                                            participant.certificate_file_url
-                                                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                                : 'bg-amber-600 hover:bg-amber-700 text-white shadow-2xs'
-                                        }`}
+                                        onClick={async () => {
+                                            const url = `${window.location.origin}/verify/skl/${participant.id}`;
+                                            await navigator.clipboard.writeText(url);
+                                            toast.success('Tautan Verifikasi SKL Berhasil Disalin!');
+                                        }}
+                                        className="p-1.5 rounded-lg text-emerald-700 hover:text-emerald-950 hover:bg-emerald-100 transition-colors"
+                                        title="Salin Link Verifikasi Publik SKL"
                                     >
-                                        <FileBadge2 className="size-3.5" />
-                                        <span>{participant.certificate_file_url ? 'Kelola Sertifikat' : '+ Upload Sertifikat'}</span>
+                                        <Copy className="size-4" />
                                     </button>
-                                </>
-                            )}
+                                </div>
+                            </div>
 
-                            <button
-                                type="button"
-                                onClick={() => setShowVerdictModal(true)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition-colors shadow-2xs"
-                            >
-                                <Award className="size-3.5" />
-                                <span>Tetapkan Kelulusan</span>
-                            </button>
+                            {/* Certificate Card */}
+                            <div className={`rounded-xl border p-3.5 flex items-center justify-between gap-3 ${
+                                participant.certificate_file_url
+                                    ? 'border-emerald-200 bg-emerald-50/50'
+                                    : 'border-amber-200 bg-amber-50/50'
+                            }`}>
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
+                                        participant.certificate_file_url
+                                            ? 'bg-emerald-600 text-white'
+                                            : 'bg-amber-500 text-white'
+                                    }`}>
+                                        <FileBadge2 className="size-4.5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-bold text-foreground truncate">
+                                            {participant.certificate_file_url ? 'Sertifikat Resmi Terbit' : 'Sertifikat Belum Diunggah'}
+                                        </p>
+                                        <p className="text-[11px] font-mono text-muted-foreground truncate">
+                                            {participant.certificate_number ? `No: ${participant.certificate_number}` : participant.certificate_file_url ? 'Berkas Aktif' : 'Menunggu Berkas Penguji'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    {participant.certificate_file_url ? (
+                                        <>
+                                            <a
+                                                href={participant.certificate_file_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-lg bg-white hover:bg-emerald-100/70 text-emerald-900 border border-emerald-300 transition-colors shadow-2xs"
+                                                title="Lihat Berkas Sertifikat"
+                                            >
+                                                <ExternalLink className="size-3.5 text-emerald-700" />
+                                                <span>Lihat</span>
+                                            </a>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCertModal(true)}
+                                                className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors border border-black/5"
+                                            >
+                                                Ganti
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCertModal(true)}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-2xs transition-all active:scale-95 cursor-pointer"
+                                        >
+                                            <FileBadge2 className="size-3.5" />
+                                            <span>+ Upload Sertifikat</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
 

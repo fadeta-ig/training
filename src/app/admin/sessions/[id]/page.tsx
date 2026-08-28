@@ -27,7 +27,7 @@ import { useIsSeb } from '@/hooks/useSeb';
 import { Pagination } from '@/components/ui/Pagination';
 import { GraduationVerdictModal } from '@/components/admin/GraduationVerdictModal';
 import { CertificateUploadModal } from '@/components/admin/CertificateUploadModal';
-import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles, FileBadge2, Copy, ExternalLink, ShieldCheck } from 'lucide-react';
 
 type User = {
     id: string;
@@ -668,55 +668,72 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                 <button
                                                     type="button"
                                                     onClick={() => setSelectedParticipantForVerdict(p)}
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all hover:scale-105 active:scale-95"
-                                                    title="Klik untuk mengubah status kelulusan"
+                                                    className="inline-flex items-center gap-1.5 rounded-full text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                                                    title="Klik untuk menetapkan / mengubah status kelulusan"
                                                 >
                                                     {isPassed ? (
-                                                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
-                                                            <CheckCircle2 size={11} className="text-emerald-600" /> LULUS
+                                                        <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 rounded-full shadow-2xs">
+                                                            <CheckCircle2 size={13} className="text-emerald-600" /> LULUS
                                                         </span>
                                                     ) : isFailed ? (
-                                                        <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200/80 px-2.5 py-0.5 rounded-full">
-                                                            <AlertCircle size={11} className="text-red-600" /> TIDAK LULUS
+                                                        <span className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-800 border border-rose-300 px-3 py-1 rounded-full shadow-2xs">
+                                                            <AlertCircle size={13} className="text-rose-600" /> TIDAK LULUS
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200/80 px-2.5 py-0.5 rounded-full">
-                                                            <Sparkles size={11} className="text-amber-600" /> Menunggu
+                                                        <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-900 border border-amber-300 px-3 py-1 rounded-full shadow-2xs">
+                                                            <Sparkles size={13} className="text-amber-600" /> MENUNGGU
                                                         </span>
                                                     )}
                                                 </button>
                                             </td>
-                                            <td className="px-4 py-3.5 text-center align-middle">
+                                            <td className="px-4 py-3.5 align-middle">
                                                 {isPassed ? (
-                                                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                                        {/* SKL Document Button */}
-                                                        <a
-                                                            href={`/api/participant/sessions/${session.id}/skl?userId=${p.id}`}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 px-2 py-1 rounded-md transition-colors border border-black/5"
-                                                            title="Buka / Cetak Surat Keterangan Lulus (SKL)"
-                                                        >
-                                                            <Printer className="size-3 text-slate-600" /> SKL
-                                                        </a>
+                                                    <div className="flex flex-col items-center gap-1.5">
+                                                        {/* SKL Status Pill */}
+                                                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                                            <a
+                                                                href={`/api/participant/sessions/${session.id}/skl?userId=${p.id}`}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors border border-black/5 shadow-2xs"
+                                                                title="Buka / Cetak Surat Keterangan Lulus (SKL)"
+                                                            >
+                                                                <Printer className="size-3 text-slate-700" /> Cetak SKL
+                                                            </a>
+
+                                                            {p.session_participant_id && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={async () => {
+                                                                        const url = `${window.location.origin}/verify/skl/${p.session_participant_id}`;
+                                                                        await navigator.clipboard.writeText(url);
+                                                                        toast.success('Tautan Verifikasi SKL Berhasil Disalin!');
+                                                                    }}
+                                                                    className="p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 transition-colors"
+                                                                    title="Salin Link Verifikasi Publik SKL"
+                                                                >
+                                                                    <Copy className="size-3.5" />
+                                                                </button>
+                                                            )}
+                                                        </div>
 
                                                         {/* Official Certificate Status */}
                                                         {p.certificate_file_url ? (
-                                                            <div className="inline-flex items-center gap-1">
+                                                            <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-300 px-2.5 py-0.5 rounded-lg">
                                                                 <a
                                                                     href={p.certificate_file_url}
                                                                     target="_blank"
                                                                     rel="noreferrer"
-                                                                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md transition-colors"
-                                                                    title="Lihat Sertifikat Resmi"
+                                                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 hover:underline"
+                                                                    title="Lihat Berkas Sertifikat Resmi"
                                                                 >
-                                                                    <FileText className="size-3 text-emerald-600" /> Terbit
+                                                                    <FileBadge2 className="size-3.5 text-emerald-600" /> Sertifikat Terbit
                                                                 </a>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setSelectedParticipantForCert(p)}
-                                                                    className="text-[10px] text-muted-foreground hover:text-foreground underline"
-                                                                    title="Ganti / Perbarui Sertifikat"
+                                                                    className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 underline pl-1 border-l border-emerald-300"
+                                                                    title="Ganti / Perbarui Berkas Sertifikat"
                                                                 >
                                                                     Edit
                                                                 </button>
@@ -725,30 +742,32 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setSelectedParticipantForCert(p)}
-                                                                className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2 py-1 rounded-md transition-colors"
-                                                                title="Unggah Berkas Sertifikat Resmi"
+                                                                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-900 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg transition-all shadow-2xs cursor-pointer active:scale-95"
+                                                                title="Unggah Berkas Sertifikat Resmi untuk Peserta Ini"
                                                             >
-                                                                <UploadCloud className="size-3 text-amber-600" /> + Upload
+                                                                <UploadCloud className="size-3.5 text-amber-700" /> + Upload Sertifikat
                                                             </button>
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[11px] text-muted-foreground font-mono">-</span>
+                                                    <div className="text-center text-[11px] text-slate-400 italic">
+                                                        Belum Lulus
+                                                    </div>
                                                 )}
                                             </td>
                                             <td className="px-4 py-3.5 text-center align-middle">
-                                                <div className="flex items-center justify-center gap-1">
+                                                <div className="flex items-center justify-center gap-1.5">
                                                     <button
                                                         type="button"
                                                         onClick={() => setSelectedParticipantForVerdict(p)}
-                                                        className="inline-flex items-center justify-center p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
-                                                        title="Ubah Keputusan Kelulusan"
+                                                        className="inline-flex items-center justify-center p-1.5 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors border border-black/5"
+                                                        title="Tetapkan / Ubah Keputusan Kelulusan"
                                                     >
-                                                        <Award className="size-3.5" />
+                                                        <Award className="size-4 text-slate-700" />
                                                     </button>
                                                     <Link
                                                         href={`/admin/sessions/${session.id}/participants/${p.id}`}
-                                                        className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 px-2 py-1 rounded-md transition-colors"
+                                                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors border border-black/5"
                                                     >
                                                         Detail
                                                     </Link>

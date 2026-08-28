@@ -12,6 +12,7 @@ import {
     Clock01Icon,
     Task01Icon
 } from 'hugeicons-react';
+import { Printer, FileBadge2 } from 'lucide-react';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/ui/Pagination';
 
@@ -301,10 +302,11 @@ export default function RiwayatPage() {
                                                     href={`/api/participant/sessions/${s.id}/skl`}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold rounded-lg transition-colors"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold rounded-xl transition-colors shadow-2xs"
                                                     title="Unduh Surat Keterangan Lulus (SKL)"
                                                 >
-                                                    Unduh SKL
+                                                    <Printer className="size-3.5 text-emerald-700" />
+                                                    <span>Unduh SKL</span>
                                                 </a>
                                             )}
 
@@ -314,19 +316,20 @@ export default function RiwayatPage() {
                                                     href={s.certificate_file_url}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-2xs"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
                                                     title="Unduh Sertifikat Resmi"
                                                 >
-                                                    Sertifikat Resmi
+                                                    <FileBadge2 className="size-3.5" />
+                                                    <span>Sertifikat Resmi</span>
                                                 </a>
                                             )}
 
                                             {/* Action Button */}
                                             <Link
                                                 href={`/dashboard/sesi/${s.id}`}
-                                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200/70 text-slate-800 text-xs font-medium rounded-lg transition-colors shrink-0 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200"
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-colors shrink-0 shadow-xs dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
                                             >
-                                                Lihat Detail
+                                                <span>Detail</span>
                                                 <ArrowRight01Icon
                                                     size={14}
                                                     className="group-hover:translate-x-0.5 transition-transform"

@@ -16,6 +16,7 @@ export default function EditParticipantPage() {
     const [isFetching, setIsFetching] = useState(true);
     const [nip, setNip] = useState<string | null>(null);
     const [copiedNip, setCopiedNip] = useState(false);
+    const [regenerateNip, setRegenerateNip] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -77,13 +78,17 @@ export default function EditParticipantPage() {
             const res = await fetch(`/api/admin/participants/${participantId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    regenerate_nip: regenerateNip,
+                })
             });
 
             const result = await res.json();
 
             if (res.ok && result.success) {
                 toast.success('Data peserta berhasil diperbarui!');
+                if (result.nip) setNip(result.nip);
                 router.push('/admin/participants');
                 router.refresh();
             } else {
@@ -201,6 +206,19 @@ export default function EditParticipantPage() {
                                 value={formData.batch}
                                 onChange={e => setFormData({ ...formData, batch: e.target.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '') })}
                             />
+                            
+                            {/* Regenerate NIP Toggle */}
+                            <label className="flex items-center gap-2 pt-1 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={regenerateNip}
+                                    onChange={e => setRegenerateNip(e.target.checked)}
+                                    className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                />
+                                <span className="text-xs font-semibold text-emerald-700">
+                                    🔄 Perbarui NIP otomatis sesuai Batch baru saat disimpan
+                                </span>
+                            </label>
                         </div>
 
                         <div className="space-y-2">

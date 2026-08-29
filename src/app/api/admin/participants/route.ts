@@ -35,9 +35,13 @@ async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const { page, limit, offset } = parsePagination(searchParams, 10, 10000);
-        const search = searchParams.get('search') || '';
-        const institution = searchParams.get('institution') || '';
-        const batchParam = searchParams.get('batch');
+        const search = (searchParams.get('search') || '').trim();
+        const institution = (searchParams.get('institution') || '').trim();
+        const batchParam = (searchParams.get('batch') || '').trim();
+        const genderParam = (searchParams.get('gender') || '').trim();
+        const dateFromParam = (searchParams.get('date_from') || '').trim();
+        const dateToParam = (searchParams.get('date_to') || '').trim();
+        const sortByParam = (searchParams.get('sort_by') || 'created_desc').trim();
 
         let countQuery = `
       SELECT COUNT(*) as total 
@@ -61,11 +65,12 @@ async function handleGet(request: NextRequest) {
         const params: (string | number)[] = [];
 
         if (search) {
-            const searchClause = ` AND (u.username LIKE ? OR u.full_name LIKE ? OR p.institution LIKE ? OR p.nip LIKE ?)`;
+            const searchClause = ` AND (u.username LIKE ? OR u.full_name LIKE ? OR p.institution LIKE ? OR p.nip LIKE ? OR p.phone_number LIKE ?)`;
             countQuery += searchClause;
             query += searchClause;
-            countParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
-            params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+            const s = `%${search}%`;
+            countParams.push(s, s, s, s, s);
+            params.push(s, s, s, s, s);
         }
 
         if (institution && institution !== 'all') {
@@ -86,21 +91,106 @@ async function handleGet(request: NextRequest) {
             const batchClause = ` AND p.batch = ?`;
             countQuery += batchClause;
             query += batchClause;
-            countParams.push(batchParam.trim());
-            params.push(batchParam.trim());
+            countParams.push(batchParam);
+            params.push(batchParam);
         }
 
-        query += ` ORDER BY u.created_at DESC LIMIT ? OFFSET ?`;
+        if (genderParam && genderParam !== 'all') {
+            const genderClause = ` AND p.gender = ?`;
+            countQuery += genderClause;
+            query += genderClause;
+            countParams.push(genderParam);
+            params.push(genderParam);
+        }
+
+        if (dateFromParam) {
+            const dateFromClause = ` AND DATE(COALESCE(p.registration_date, p.created_at, u.created_at)) >= ?`;
+            countQuery += dateFromClause;
+            query += dateFromClause;
+            countParams.push(dateFromParam);
+            params.push(dateFromParam);
+        }
+
+        if (dateToParam) {
+            const dateToClause = ` AND DATE(COALESCE(p.registration_date, p.created_at, u.created_at)) <= ?`;
+            countQuery += dateToClause;
+            query += dateToClause;
+            countParams.push(dateToParam);
+            params.push(dateToParam);
+        }
+
+        let orderByClause = 'ORDER BY u.created_at DESC';
+        switch (sortByParam) {
+            case 'created_asc':
+                orderByClause = 'ORDER BY u.created_at ASC';
+                break;
+            case 'name_asc':
+                orderByClause = 'ORDER BY u.full_name ASC';
+                break;
+            case 'name_desc':
+                orderByClause = 'ORDER BY u.full_name DESC';
+                break;
+            case 'nip_asc':
+                orderByClause = 'ORDER BY p.nip ASC';
+                break;
+            case 'nip_desc':
+                orderByClause = 'ORDER BY p.nip DESC';
+                break;
+            case 'batch_asc':
+                orderByClause = 'ORDER BY p.batch ASC, p.nip ASC';
+                break;
+            case 'batch_desc':
+                orderByClause = 'ORDER BY p.batch DESC, p.nip ASC';
+                break;
+            case 'reg_date_desc':
+                orderByClause = 'ORDER BY COALESCE(p.registration_date, u.created_at) DESC';
+                break;
+            case 'reg_date_asc':
+                orderByClause = 'ORDER BY COALESCE(p.registration_date, u.created_at) ASC';
+                break;
+            case 'created_desc':
+            default:
+                orderByClause = 'ORDER BY u.created_at DESC';
+                break;
+        }
+
+        query += ` ${orderByClause} LIMIT ? OFFSET ?`;
         params.push(limit, offset);
 
-        const countResult = await executeQuery<{ total: number }[]>(countQuery, countParams);
-        const total = countResult[0]?.total || 0;
+        const [countResult, participants, institutionsResult, batchesResult] = await Promise.all([
+            executeQuery<{ total: number }[]>(countQuery, countParams),
+            executeQuery(query, params),
+            executeQuery<{ institution: string }[]>(
+                `SELECT DISTINCT p.institution 
+                 FROM participant_profiles p 
+                 JOIN users u ON u.id = p.user_id 
+                 WHERE u.role = 'trainee' AND p.institution IS NOT NULL AND p.institution != '' 
+                 ORDER BY p.institution ASC`
+            ),
+            executeQuery<{ batch: string }[]>(
+                `SELECT DISTINCT p.batch 
+                 FROM participant_profiles p 
+                 JOIN users u ON u.id = p.user_id 
+                 WHERE u.role = 'trainee' AND p.batch IS NOT NULL AND p.batch != '' 
+                 ORDER BY p.batch ASC`
+            ),
+        ]);
 
-        const participants = await executeQuery(query, params);
+        const total = countResult[0]?.total || 0;
+        const availableInstitutions = Array.isArray(institutionsResult)
+            ? institutionsResult.map((r) => r.institution).filter(Boolean)
+            : [];
+        const availableBatches = Array.isArray(batchesResult)
+            ? batchesResult.map((r) => r.batch).filter(Boolean)
+            : [];
 
         return NextResponse.json({
             success: true,
             data: participants,
+            meta: {
+                availableInstitutions,
+                availableBatches,
+            },
             pagination: {
                 total,
                 page,

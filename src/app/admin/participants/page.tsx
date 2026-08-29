@@ -8,17 +8,17 @@ import {
     Delete02Icon,
     RefreshIcon,
     Alert02Icon,
-    Search01Icon,
-    CloudUploadIcon,
     Tick02Icon,
     Cancel01Icon,
-    CheckmarkCircle02Icon
+    CheckmarkCircle02Icon,
 } from 'hugeicons-react';
+import { RotateCcw } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
+import { ParticipantsFilter, type ParticipantFilters } from '@/components/admin/ParticipantsFilter';
 import { toast } from 'sonner';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -30,9 +30,20 @@ type Participant = {
     institution: string | null;
     institution_code: string | null;
     batch: string;
+    gender?: string | null;
     registration_date: string | null;
     phone_number: string | null;
     created_at: string;
+};
+
+const DEFAULT_FILTERS: ParticipantFilters = {
+    search: '',
+    institution: 'all',
+    batch: 'all',
+    gender: 'all',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'created_desc',
 };
 
 export default function ParticipantsManagerPage() {
@@ -43,7 +54,9 @@ export default function ParticipantsManagerPage() {
     const [pageSize, setPageSize] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [filters, setFilters] = useState<ParticipantFilters>(DEFAULT_FILTERS);
+    const [availableInstitutions, setAvailableInstitutions] = useState<string[]>([]);
+    const [availableBatches, setAvailableBatches] = useState<string[]>([]);
     const [userRole, setUserRole] = useState<string>('');
     const { confirm, ConfirmComponent } = useConfirm();
 
@@ -54,32 +67,57 @@ export default function ParticipantsManagerPage() {
     const [preserveSequence, setPreserveSequence] = useState(true);
     const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
 
-    const fetchParticipants = useCallback(async (targetPage: number, limit: number, search: string) => {
+    const fetchParticipants = useCallback(async (
+        targetPage: number,
+        limit: number,
+        currentFilters: ParticipantFilters
+    ) => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/admin/participants?page=${targetPage}&limit=${limit}&search=${encodeURIComponent(search)}`);
+            const queryParams = new URLSearchParams({
+                page: String(targetPage),
+                limit: String(limit),
+                search: currentFilters.search,
+                institution: currentFilters.institution,
+                batch: currentFilters.batch,
+                gender: currentFilters.gender,
+                date_from: currentFilters.dateFrom,
+                date_to: currentFilters.dateTo,
+                sort_by: currentFilters.sortBy,
+            });
+
+            const res = await fetch(`/api/admin/participants?${queryParams.toString()}`);
             if (!res.ok) throw new Error('Gagal memuat data peserta');
             const result = await res.json();
             if (result.success) {
                 setParticipants(result.data);
                 if (result.pagination) {
                     setTotalPages(result.pagination.totalPages);
-                    setTotalItems(result.pagination.total || result.data.length);
+                    setTotalItems(result.pagination.total ?? result.data.length);
+                }
+                if (result.meta) {
+                    if (Array.isArray(result.meta.availableInstitutions)) {
+                        setAvailableInstitutions(result.meta.availableInstitutions);
+                    }
+                    if (Array.isArray(result.meta.availableBatches)) {
+                        setAvailableBatches(result.meta.availableBatches);
+                    }
                 }
             } else {
                 throw new Error(result.error || 'Terjadi kesalahan sistem');
             }
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Gagal memuat data';
+            setError(message);
         } finally {
             setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchParticipants(page, pageSize, searchQuery);
-    }, [page, pageSize, searchQuery, fetchParticipants]);
+        fetchParticipants(page, pageSize, filters);
+    }, [page, pageSize, filters, fetchParticipants]);
 
     useEffect(() => {
         fetch('/api/auth/me')
@@ -92,8 +130,13 @@ export default function ParticipantsManagerPage() {
             .catch(() => {});
     }, []);
 
-    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchQuery(e.target.value);
+    const handleFilterChange = (newFilters: Partial<ParticipantFilters>) => {
+        setFilters((prev) => ({ ...prev, ...newFilters }));
+        setPage(1);
+    };
+
+    const handleResetFilters = () => {
+        setFilters(DEFAULT_FILTERS);
         setPage(1);
     };
 
@@ -149,12 +192,13 @@ export default function ParticipantsManagerPage() {
                 toast.success(result.message || 'Batch dan NIP peserta berhasil diperbarui!');
                 setIsBulkModalOpen(false);
                 setSelectedIds(new Set());
-                fetchParticipants(page, pageSize, searchQuery);
+                fetchParticipants(page, pageSize, filters);
             } else {
                 toast.error(result.error || 'Gagal memperbarui batch peserta');
             }
-        } catch (err: any) {
-            toast.error('Terjadi kesalahan koneksi', { description: err.message });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Terjadi kesalahan koneksi';
+            toast.error(message);
         } finally {
             setIsBulkSubmitting(false);
         }
@@ -178,13 +222,24 @@ export default function ParticipantsManagerPage() {
                 throw new Error(result.error || 'Gagal menghapus peserta');
             }
             toast.success('Peserta berhasil dihapus');
-            fetchParticipants(page, pageSize, searchQuery);
-        } catch (err: any) {
-            toast.error(err.message || 'Terjadi kesalahan sistem');
+            fetchParticipants(page, pageSize, filters);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Terjadi kesalahan sistem';
+            toast.error(message);
         }
     };
 
     const isAllSelected = participants.length > 0 && selectedIds.size === participants.length;
+
+    const hasActiveFilters = Boolean(
+        filters.search.trim() ||
+        (filters.institution && filters.institution !== 'all') ||
+        (filters.batch && filters.batch !== 'all') ||
+        (filters.gender && filters.gender !== 'all') ||
+        filters.dateFrom ||
+        filters.dateTo ||
+        (filters.sortBy && filters.sortBy !== 'created_desc')
+    );
 
     return (
         <div className="space-y-6 max-w-6xl mx-auto pb-12">
@@ -195,7 +250,7 @@ export default function ParticipantsManagerPage() {
                 icon={<UserGroupIcon size={28} className="text-muted-foreground" />}
                 actionLabel={userRole === 'admin' ? 'Tambah Peserta' : undefined}
                 actionHref={userRole === 'admin' ? '/admin/participants/new' : undefined}
-                onRefresh={() => fetchParticipants(page, pageSize, searchQuery)}
+                onRefresh={() => fetchParticipants(page, pageSize, filters)}
                 isRefreshing={isLoading}
             />
 
@@ -216,14 +271,14 @@ export default function ParticipantsManagerPage() {
                         <button
                             type="button"
                             onClick={() => setSelectedIds(new Set())}
-                            className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                            className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
                         >
                             Batal Pilih
                         </button>
                         <button
                             type="button"
                             onClick={handleOpenBulkModal}
-                            className="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                            className="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
                         >
                             <RefreshIcon size={14} />
                             <span>Ubah Batch &amp; NIP Massal</span>
@@ -232,32 +287,16 @@ export default function ParticipantsManagerPage() {
                 </div>
             )}
 
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                <div className="relative w-full flex-1 sm:max-w-sm">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        <Search01Icon size={18} />
-                    </span>
-                    <input
-                        type="text"
-                        placeholder="Cari NIP, nama, email, instansi..."
-                        value={searchQuery}
-                        onChange={handleSearch}
-                        className="w-full glass-input pl-11 pr-4 py-2.5 rounded-xl text-sm focus:outline-none"
-                    />
-                </div>
-
-                {userRole === 'admin' && (
-                    <div className="flex items-center gap-2">
-                        <Link
-                            href="/admin/participants/import"
-                            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100/80 px-4 py-2.5 text-xs sm:text-sm font-bold text-emerald-900 shadow-2xs hover:shadow-xs active:scale-95 transition-all cursor-pointer sm:w-auto"
-                        >
-                            <CloudUploadIcon size={18} className="text-emerald-700" />
-                            <span>Import Massal Excel</span>
-                        </Link>
-                    </div>
-                )}
-            </div>
+            {/* Comprehensive Filter Bar */}
+            <ParticipantsFilter
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                onReset={handleResetFilters}
+                availableInstitutions={availableInstitutions}
+                availableBatches={availableBatches}
+                totalItems={totalItems}
+                userRole={userRole}
+            />
 
             {error && (
                 <div className="bg-destructive/10 border border-destructive/20 text-destructive px-5 py-4 rounded-xl flex items-start gap-3">
@@ -309,10 +348,26 @@ export default function ParticipantsManagerPage() {
                                     <td colSpan={userRole === 'admin' ? 8 : 6} className="px-6 py-10">
                                         <EmptyState
                                             icon={<UserGroupIcon size={48} className="mb-4 opacity-20" />}
-                                            title="Belum ada peserta"
-                                            description="Sistem belum memiliki akun peserta."
-                                            actionLabel={userRole === 'admin' ? 'Tambah Peserta' : undefined}
-                                            actionHref={userRole === 'admin' ? '/admin/participants/new' : undefined}
+                                            title={hasActiveFilters ? 'Tidak ada peserta yang cocok' : 'Belum ada peserta'}
+                                            description={
+                                                hasActiveFilters
+                                                    ? 'Coba sesuaikan kata kunci atau atur ulang filter pencarian Anda.'
+                                                    : 'Sistem belum memiliki akun peserta.'
+                                            }
+                                            action={
+                                                hasActiveFilters ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleResetFilters}
+                                                        className="mt-2 px-4 py-2 text-xs font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                                                    >
+                                                        <RotateCcw className="size-3.5" />
+                                                        <span>Reset Filter</span>
+                                                    </button>
+                                                ) : undefined
+                                            }
+                                            actionLabel={!hasActiveFilters && userRole === 'admin' ? 'Tambah Peserta' : undefined}
+                                            actionHref={!hasActiveFilters && userRole === 'admin' ? '/admin/participants/new' : undefined}
                                         />
                                     </td>
                                 </tr>

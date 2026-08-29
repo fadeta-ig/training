@@ -1,13 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UserCircleIcon, Tick01Icon, AlertCircleIcon, Copy01Icon, Building02Icon, Calendar01Icon, IdIcon, SecurityLockIcon } from 'hugeicons-react';
+import {
+    UserCircleIcon,
+    Tick01Icon,
+    AlertCircleIcon,
+    Copy01Icon,
+    Building02Icon,
+    Calendar01Icon,
+    SecurityLockIcon,
+    Mail01Icon,
+    Call02Icon,
+    InformationCircleIcon,
+    CheckmarkCircle02Icon,
+    IdIcon,
+} from 'hugeicons-react';
 import { toast } from 'sonner';
 
 export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [message, setMessage] = useState({ type: '', text: '' });
+    const [message, setMessage] = useState<{ type: 'error' | 'success' | ''; text: string }>({ type: '', text: '' });
     const [copiedNip, setCopiedNip] = useState(false);
 
     const [participantInfo, setParticipantInfo] = useState<{
@@ -34,13 +47,13 @@ export default function ProfilePage() {
         institution: '',
         current_password: '',
         new_password: '',
-        confirm_password: ''
+        confirm_password: '',
     });
 
     useEffect(() => {
         fetch('/api/participant/profile')
-            .then(res => res.json())
-            .then(data => {
+            .then((res) => res.json())
+            .then((data) => {
                 if (data.success && data.data) {
                     const d = data.data;
                     setParticipantInfo({
@@ -50,7 +63,7 @@ export default function ProfilePage() {
                         registration_date: d.registration_date || null,
                         created_at: d.created_at || null,
                     });
-                    setFormData(prev => ({
+                    setFormData((prev) => ({
                         ...prev,
                         full_name: d.full_name || '',
                         username: d.username || '',
@@ -58,7 +71,7 @@ export default function ProfilePage() {
                         address: d.address || '',
                         date_of_birth: d.date_of_birth ? d.date_of_birth.split('T')[0] : '',
                         gender: d.gender || '',
-                        institution: d.institution || ''
+                        institution: d.institution || '',
                     }));
                 }
             })
@@ -73,7 +86,7 @@ export default function ProfilePage() {
         if (!participantInfo.nip) return;
         await navigator.clipboard.writeText(participantInfo.nip);
         setCopiedNip(true);
-        toast.success('NIP disalin ke clipboard!');
+        toast.success('NIP disalin ke clipboard');
         setTimeout(() => setCopiedNip(false), 2000);
     };
 
@@ -96,14 +109,14 @@ export default function ProfilePage() {
             const res = await fetch('/api/participant/profile', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(formData),
             });
             const data = await res.json();
 
             if (data.success) {
                 setMessage({ type: 'success', text: 'Profil berhasil diperbarui' });
-                toast.success('Profil Berhasil Diperbarui!', { description: 'Perubahan data profil dan keamanan akun Anda telah tersimpan.' });
-                setFormData(prev => ({ ...prev, current_password: '', new_password: '', confirm_password: '' }));
+                toast.success('Profil Berhasil Diperbarui', { description: 'Perubahan data profil dan keamanan akun Anda telah tersimpan.' });
+                setFormData((prev) => ({ ...prev, current_password: '', new_password: '', confirm_password: '' }));
             } else {
                 const errMsg = data.error || 'Terjadi kesalahan saat menyimpan perubahan';
                 setMessage({ type: 'error', text: errMsg });
@@ -119,185 +132,345 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center p-20">
-                <div className="w-8 h-8 border-4 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+            <div className="flex justify-center items-center p-24">
+                <div className="w-7 h-7 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin" />
             </div>
         );
     }
 
+    const registrationDateFormatted = participantInfo.registration_date
+        ? new Date(participantInfo.registration_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+        : participantInfo.created_at
+        ? new Date(participantInfo.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '-';
+
+    const getInitials = (name: string) => {
+        if (!name) return 'PS';
+        const parts = name.trim().split(' ');
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    };
+
     return (
-        <div className="max-w-3xl mx-auto space-y-6 pb-12">
+        <div className="max-w-6xl mx-auto space-y-6 pb-12">
+            {/* Page Header */}
             <div>
-                <h1 className="text-2xl font-bold tracking-tight">Profil & Identitas Peserta</h1>
-                <p className="text-muted-foreground text-sm mt-1">Kelola detail identitas, instansi, dan keamanan akun pelatihan Anda.</p>
+                <h1 className="text-xl font-bold text-slate-900">Profil & Identitas Peserta</h1>
+                <p className="text-xs text-slate-500 mt-1">Kelola informasi data diri resmi, instansi, dan keamanan akun pelatihan Anda.</p>
             </div>
 
+            {/* Notification Banner */}
             {message.text && (
-                <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-semibold ${message.type === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-emerald-100 text-emerald-800'}`}>
-                    {message.type === 'error' ? <AlertCircleIcon size={20} /> : <Tick01Icon size={20} />}
-                    {message.text}
+                <div className={`p-4 rounded-xl flex items-center gap-3 text-xs font-semibold border ${
+                    message.type === 'error'
+                        ? 'bg-red-50 text-red-800 border-red-200'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                }`}>
+                    {message.type === 'error' ? <AlertCircleIcon size={18} className="shrink-0" /> : <Tick01Icon size={18} className="shrink-0" />}
+                    <span>{message.text}</span>
                 </div>
             )}
 
-            {/* Official Participant Identity Card */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-7 shadow-lg border border-slate-700/50">
-                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-44 h-44 bg-primary/20 rounded-full blur-2xl pointer-events-none" />
-
-                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                    <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
-                            <UserCircleIcon size={36} />
+            {/* Clean Light Participant Header Card */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-7">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    {/* User Identity Info */}
+                    <div className="flex items-start sm:items-center gap-4 min-w-0">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-bold text-lg shrink-0">
+                            {getInitials(formData.full_name)}
                         </div>
-                        <div>
-                            <span className="text-[11px] font-bold text-emerald-400 tracking-wider uppercase bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-full inline-block">
-                                Peserta Terverifikasi
-                            </span>
-                            <h2 className="text-xl font-bold mt-1 text-white">{formData.full_name || 'Peserta'}</h2>
-                            <p className="text-xs text-slate-300 font-mono mt-0.5">{formData.username}</p>
+                        <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                                <h2 className="text-lg sm:text-xl font-bold text-slate-900 truncate">
+                                    {formData.full_name || 'Peserta Pelatihan'}
+                                </h2>
+                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
+                                    <CheckmarkCircle02Icon size={13} />
+                                    Terverifikasi
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+                                <span className="font-mono">{formData.username}</span>
+                                <span>•</span>
+                                <span>{formData.institution || 'Instansi Peserta'}</span>
+                            </div>
                         </div>
                     </div>
 
+                    {/* NIP Card */}
                     {participantInfo.nip && (
-                        <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3.5 flex items-center justify-between gap-3 self-start sm:self-auto">
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center justify-between gap-4 self-start lg:self-auto shrink-0">
                             <div className="min-w-0">
-                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Nomor Induk Peserta (NIP)</p>
-                                <p className="text-sm font-mono font-bold text-white tracking-wider mt-0.5">{participantInfo.nip}</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nomor Induk Peserta (NIP)</p>
+                                <p className="text-sm font-mono font-bold text-slate-900 mt-0.5 tracking-wider">{participantInfo.nip}</p>
                             </div>
                             <button
                                 type="button"
                                 onClick={handleCopyNip}
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer shrink-0"
+                                className="p-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition-colors cursor-pointer shrink-0"
                                 title="Salin NIP"
                             >
-                                {copiedNip ? <Tick01Icon size={16} className="text-emerald-400" /> : <Copy01Icon size={16} />}
+                                {copiedNip ? <Tick01Icon size={16} className="text-emerald-600" /> : <Copy01Icon size={16} />}
                             </button>
                         </div>
                     )}
                 </div>
 
-                {/* Identity Metadata Footer */}
-                <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
+                {/* Identity Metadata Strip */}
+                <div className="mt-6 pt-5 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                     <div>
-                        <span className="text-slate-400 block text-[11px]">Institusi / Organisasi:</span>
-                        <p className="font-semibold text-slate-100 truncate mt-0.5">
-                            {formData.institution || 'Umum'}
-                        </p>
+                        <span className="text-slate-500 block text-[11px] font-medium">Institusi / Instansi</span>
+                        <p className="font-semibold text-slate-800 truncate mt-0.5">{formData.institution || '-'}</p>
                     </div>
                     <div>
-                        <span className="text-slate-400 block text-[11px]">Batch Pelatihan:</span>
-                        <p className="font-semibold text-emerald-300 mt-0.5">
-                            Batch {participantInfo.batch || 1}
-                        </p>
+                        <span className="text-slate-500 block text-[11px] font-medium">Batch Pelatihan</span>
+                        <p className="font-semibold text-emerald-700 mt-0.5">Batch {participantInfo.batch || 1}</p>
                     </div>
-                    <div className="col-span-2 sm:col-span-1">
-                        <span className="text-slate-400 block text-[11px]">Tanggal Pendaftaran:</span>
-                        <p className="font-semibold text-slate-100 mt-0.5">
-                            {participantInfo.registration_date
-                                ? new Date(participantInfo.registration_date).toLocaleDateString('id-ID', { dateStyle: 'medium' })
-                                : participantInfo.created_at
-                                ? new Date(participantInfo.created_at).toLocaleDateString('id-ID', { dateStyle: 'medium' })
-                                : '-'}
-                        </p>
+                    <div>
+                        <span className="text-slate-500 block text-[11px] font-medium">Tanggal Registrasi</span>
+                        <p className="font-semibold text-slate-800 mt-0.5">{registrationDateFormatted}</p>
+                    </div>
+                    <div>
+                        <span className="text-slate-500 block text-[11px] font-medium">Status Akun</span>
+                        <p className="font-semibold text-slate-800 mt-0.5">Peserta Aktif</p>
                     </div>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="glass-card p-6 md:p-8 space-y-6">
-                    <h2 className="text-base font-bold border-b border-black/5 pb-3 flex items-center gap-2">
-                        <Building02Icon size={18} className="text-muted-foreground" />
-                        Data Diri & Kontak
-                    </h2>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nama Lengkap</label>
-                            <input type="text" name="full_name" value={formData.full_name} onChange={handleChange} required
-                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:ring-2 focus:ring-foreground/20 outline-none text-sm transition-all" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email (Akun Login)</label>
-                            <input type="text" value={formData.username} disabled
-                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-black/5 text-muted-foreground text-sm cursor-not-allowed" />
-                            <p className="text-[10px] text-muted-foreground px-1">Email login terikat dengan akun dan tidak dapat diubah.</p>
+            {/* Main Content Form Grid */}
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left Forms Section (8 cols) */}
+                <div className="lg:col-span-8 space-y-6">
+                    {/* Form Section 1: Data Diri & Kontak */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-7 space-y-6">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
+                                    <Building02Icon size={16} />
+                                </div>
+                                <div>
+                                    <h2 className="text-sm font-bold text-slate-900">Data Diri & Kontak</h2>
+                                    <p className="text-[11px] text-slate-500">Informasi resmi yang digunakan pada dokumen kelulusan dan sertifikasi.</p>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nomor Telepon / WhatsApp</label>
-                            <input type="tel" name="phone_number" value={formData.phone_number} onChange={handleChange}
-                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:ring-2 focus:ring-foreground/20 outline-none text-sm transition-all" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">
+                                    Nama Lengkap <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    name="full_name"
+                                    value={formData.full_name}
+                                    onChange={handleChange}
+                                    required
+                                    placeholder="Masukkan nama lengkap sesuai identitas"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">Email Akun Login</label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={formData.username}
+                                        disabled
+                                        className="w-full pl-3.5 pr-20 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-mono cursor-not-allowed"
+                                    />
+                                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-slate-200 text-slate-600 text-[10px] font-semibold px-2 py-0.5 rounded">
+                                        Terkunci
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">Nomor Telepon / WhatsApp</label>
+                                <input
+                                    type="tel"
+                                    name="phone_number"
+                                    value={formData.phone_number}
+                                    onChange={handleChange}
+                                    placeholder="Contoh: 081234567890"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">
+                                    Jenis Kelamin <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    name="gender"
+                                    value={formData.gender}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors cursor-pointer"
+                                >
+                                    <option value="">Pilih Jenis Kelamin</option>
+                                    <option value="L">Laki-Laki</option>
+                                    <option value="P">Perempuan</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">Tanggal Lahir</label>
+                                <input
+                                    type="date"
+                                    name="date_of_birth"
+                                    value={formData.date_of_birth}
+                                    onChange={handleChange}
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">Institusi / Unit Kerja</label>
+                                <input
+                                    type="text"
+                                    name="institution"
+                                    value={formData.institution}
+                                    onChange={handleChange}
+                                    placeholder="Nama instansi atau organisasi"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors"
+                                />
+                            </div>
+
+                            <div className="sm:col-span-2 space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">Alamat Domisili</label>
+                                <textarea
+                                    name="address"
+                                    value={formData.address}
+                                    onChange={handleChange}
+                                    rows={3}
+                                    placeholder="Alamat lengkap tempat tinggal"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors resize-none"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Form Section 2: Keamanan Kata Sandi */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-7 space-y-6">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
+                                    <SecurityLockIcon size={16} />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-900">Keamanan Kata Sandi</h3>
+                                    <p className="text-[11px] text-slate-500">Kosongkan kolom jika Anda tidak bermaksud mengubah kata sandi akun.</p>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Jenis Kelamin</label>
-                            <select name="gender" value={formData.gender} onChange={handleChange}
-                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:ring-2 focus:ring-foreground/20 outline-none text-sm transition-all">
-                                <option value="">Pilih...</option>
-                                <option value="L">Laki-Laki</option>
-                                <option value="P">Perempuan</option>
-                            </select>
-                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div className="sm:col-span-2 space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">Kata Sandi Saat Ini</label>
+                                <input
+                                    type="password"
+                                    name="current_password"
+                                    value={formData.current_password}
+                                    onChange={handleChange}
+                                    placeholder="Masukkan kata sandi saat ini untuk verifikasi"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors"
+                                />
+                            </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Tanggal Lahir</label>
-                            <input type="date" name="date_of_birth" value={formData.date_of_birth} onChange={handleChange}
-                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:ring-2 focus:ring-foreground/20 outline-none text-sm transition-all" />
-                        </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">Kata Sandi Baru</label>
+                                <input
+                                    type="password"
+                                    name="new_password"
+                                    value={formData.new_password}
+                                    onChange={handleChange}
+                                    placeholder="Minimal 8 karakter"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors"
+                                />
+                            </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Institusi / Instansi</label>
-                            <input type="text" name="institution" value={formData.institution} onChange={handleChange}
-                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:ring-2 focus:ring-foreground/20 outline-none text-sm transition-all" />
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">Konfirmasi Kata Sandi Baru</label>
+                                <input
+                                    type="password"
+                                    name="confirm_password"
+                                    value={formData.confirm_password}
+                                    onChange={handleChange}
+                                    placeholder="Ulangi kata sandi baru"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors"
+                                />
+                            </div>
                         </div>
+                    </div>
 
-                        <div className="md:col-span-2 space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Alamat Domisili</label>
-                            <textarea name="address" value={formData.address} onChange={handleChange} rows={3}
-                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:ring-2 focus:ring-foreground/20 outline-none text-sm transition-all resize-none"></textarea>
-                        </div>
+                    {/* Submit Bar */}
+                    <div className="flex items-center justify-end gap-3 pt-2">
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                            {submitting ? (
+                                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Tick01Icon size={16} />
+                            )}
+                            <span>Simpan Perubahan</span>
+                        </button>
                     </div>
                 </div>
 
-                <div className="glass-card p-6 md:p-8 space-y-6">
-                    <div>
-                        <h3 className="text-base font-bold flex items-center gap-2">
-                            <SecurityLockIcon size={18} className="text-muted-foreground" />
-                            Keamanan Kata Sandi
-                        </h3>
-                        <p className="text-sm text-muted-foreground mt-1">Kosongkan bagian ini jika Anda tidak ingin mengganti kata sandi.</p>
+                {/* Right Information Sidebar Section (4 cols) */}
+                <div className="lg:col-span-4 space-y-6">
+                    {/* Information Guide Card */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                        <div className="flex items-center gap-2 text-slate-900 font-bold text-xs">
+                            <InformationCircleIcon size={16} className="text-slate-600" />
+                            <span>Ketentuan Data Profil</span>
+                        </div>
+                        <ul className="space-y-2.5 text-xs text-slate-600 leading-relaxed">
+                            <li className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
+                                <span><strong>Nama Lengkap:</strong> Akan dicantumkan persis pada Surat Keterangan Lulus (SKL) dan Sertifikat Kompetensi Resmi.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
+                                <span><strong>NIP Peserta:</strong> Berfungsi sebagai kode identifikasi tunggal pada portal audit verifikasi keaslian dokumen.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
+                                <span><strong>Email Login:</strong> Bersifat permanen dan tidak dapat diganti demi integritas riwayat sesi pembelajaran Anda.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
+                                <span><strong>Kontak Aktif:</strong> Pastikan nomor WhatsApp selalu aktif untuk konfirmasi kelulusan dan jadwal ujian.</span>
+                            </li>
+                        </ul>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Password Saat Ini</label>
-                            <input type="password" name="current_password" value={formData.current_password} onChange={handleChange}
-                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:ring-2 focus:ring-foreground/20 outline-none text-sm transition-all" />
-                        </div>
-                        <div className="hidden md:block"></div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Password Baru</label>
-                            <input type="password" name="new_password" value={formData.new_password} onChange={handleChange}
-                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:ring-2 focus:ring-foreground/20 outline-none text-sm transition-all" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Konfirmasi Password Baru</label>
-                            <input type="password" name="confirm_password" value={formData.confirm_password} onChange={handleChange}
-                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:ring-2 focus:ring-foreground/20 outline-none text-sm transition-all" />
+                    {/* Account Status Card */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                        <h3 className="text-xs font-bold text-slate-900 border-b border-slate-100 pb-2">Status Akun Pelatihan</h3>
+                        <div className="space-y-2 text-xs">
+                            <div className="flex items-center justify-between text-slate-600">
+                                <span>Tipe Akses</span>
+                                <span className="font-semibold text-slate-900">Peserta (Trainee)</span>
+                            </div>
+                            <div className="flex items-center justify-between text-slate-600">
+                                <span>Status Keaktifan</span>
+                                <span className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                    Aktif
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between text-slate-600">
+                                <span>Enkripsi Kata Sandi</span>
+                                <span className="font-semibold text-slate-900">Bcrypt Terproteksi</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <div className="flex justify-end">
-                    <button type="submit" disabled={submitting}
-                        className="flex items-center gap-2 bg-foreground text-background px-8 py-3 rounded-xl text-sm font-bold hover:bg-foreground/90 transition-colors active:scale-95 disabled:opacity-50 cursor-pointer shadow-sm">
-                        {submitting ? (
-                            <span className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin"></span>
-                        ) : (
-                            <Tick01Icon size={18} />
-                        )}
-                        Simpan Perubahan
-                    </button>
                 </div>
             </form>
         </div>

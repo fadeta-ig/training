@@ -32,7 +32,7 @@ try {
 }
 
 async function run() {
-    const sklNumber = 'SKL/2026/08/BATCH-001/A8F2K';
+    const sklNumber = '024/E/SK/VIII/2026';
     const enrollmentId = 'ENR-9842-8712-A8F2K';
     const verificationPayload = `https://lms.nusamitraconsulting.com/verify/skl/${enrollmentId}?no=${encodeURIComponent(sklNumber)}`;
     
@@ -46,19 +46,24 @@ async function run() {
         }
     });
 
+    const participantName = 'Ahmad Fauzi, S.Kom';
+    const institutionName = 'Badan Kepegawaian & Pengembangan SDM';
+    const certificationName = 'Pelatihan dan Sertifikasi Profesi International Certified Project Officer (CPO)';
+    const printDate = '25 Agustus 2026';
+
     const html = `<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Surat Keterangan Lulus (SKL) - Ahmad Fauzi, S.Kom</title>
+    <title>Surat Keterangan Hasil Ujian - ${participantName}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
     <style>
         @page {
             size: A4 portrait;
-            margin: 12mm 15mm;
+            margin: 14mm 16mm;
         }
         * {
             box-sizing: border-box;
@@ -69,7 +74,7 @@ async function run() {
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             color: #1e293b;
             background-color: #ffffff;
-            line-height: 1.5;
+            line-height: 1.6;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -77,7 +82,7 @@ async function run() {
             max-width: 210mm;
             margin: 0 auto;
             background: #ffffff;
-            padding: 8mm 10mm;
+            padding: 4mm 6mm;
             position: relative;
         }
         
@@ -88,7 +93,7 @@ async function run() {
             justify-content: space-between;
             border-bottom: 3px double #0f172a;
             padding-bottom: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
         .logo-container {
             display: flex;
@@ -105,178 +110,216 @@ async function run() {
             text-align: right;
         }
         .company-name {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 800;
             color: #0f172a;
             letter-spacing: -0.02em;
             text-transform: uppercase;
         }
         .company-sub {
-            font-size: 11px;
+            font-size: 10.5px;
             color: #475569;
             margin-top: 2px;
             font-weight: 500;
         }
         .company-address {
-            font-size: 10px;
+            font-size: 9.5px;
             color: #64748b;
-            margin-top: 3px;
+            margin-top: 2px;
             max-width: 340px;
-            line-height: 1.4;
-        }
-        
-        /* Document Title */
-        .doc-title-box {
-            text-align: center;
-            margin: 18px 0 22px 0;
-        }
-        .doc-title {
-            font-size: 20px;
-            font-weight: 800;
-            color: #0f172a;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            text-decoration: underline;
-            text-underline-offset: 5px;
-        }
-        .doc-number {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            font-weight: 600;
-            color: #475569;
-            margin-top: 8px;
+            line-height: 1.35;
         }
 
-        /* Statement Text */
-        .statement {
+        /* Top Header Meta (Location Date & Ref Info) */
+        .doc-header-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 22px;
+            font-size: 13px;
+            color: #1e293b;
+        }
+        .meta-left {
+            flex: 1;
+        }
+        .meta-table {
+            border-collapse: collapse;
+        }
+        .meta-table td {
+            padding: 2px 0;
+            vertical-align: top;
+            font-size: 13px;
+        }
+        .meta-label {
+            width: 80px;
+            color: #1e293b;
+            font-weight: 500;
+        }
+        .meta-sep {
+            width: 18px;
+            color: #1e293b;
+            text-align: center;
+        }
+        .meta-val {
+            color: #0f172a;
+            font-weight: 600;
+        }
+        .meta-right {
+            text-align: right;
+            font-size: 13px;
+            font-weight: 500;
+            color: #1e293b;
+            white-space: nowrap;
+        }
+
+        /* Recipient Section */
+        .recipient-box {
+            margin-bottom: 22px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #1e293b;
+        }
+        .recipient-title {
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .recipient-name {
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .recipient-inst {
+            font-weight: 600;
+            color: #334155;
+        }
+
+        /* Salutation */
+        .salutation {
+            font-size: 13px;
+            margin-bottom: 14px;
+            color: #1e293b;
+        }
+
+        /* Statement Paragraphs */
+        .body-paragraph {
             font-size: 13px;
             text-align: justify;
             margin-bottom: 16px;
-            color: #334155;
-            line-height: 1.6;
+            color: #1e293b;
+            line-height: 1.65;
         }
 
-        /* Trainee Bio Table */
-        .bio-table {
+        /* Results Table (3 Columns: NAMA, SERTIFIKASI, KETERANGAN) */
+        .results-table-container {
+            margin: 22px 0;
+        }
+        .results-table {
             width: 100%;
-            margin: 14px 0 20px 0;
             border-collapse: collapse;
+            border: 1.5px solid #334155;
         }
-        .bio-table td {
-            padding: 7px 10px;
-            font-size: 13px;
-            vertical-align: top;
-        }
-        .bio-label {
-            width: 185px;
-            color: #64748b;
-            font-weight: 500;
-        }
-        .bio-separator {
-            width: 15px;
-            color: #94a3b8;
-            font-weight: bold;
-        }
-        .bio-value {
+        .results-table th {
+            background-color: #cbd5e1;
             color: #0f172a;
-            font-weight: 600;
-        }
-
-        /* Verdict Box */
-        .verdict-box {
-            background: #f0fdf4;
-            border: 2px solid #bbf7d0;
-            border-radius: 10px;
-            padding: 14px 18px;
-            text-align: center;
-            margin: 18px 0 20px 0;
-        }
-        .verdict-label {
-            font-size: 11px;
             font-weight: 700;
+            font-size: 12.5px;
+            padding: 10px 14px;
+            border: 1.5px solid #334155;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: #166534;
+            letter-spacing: 0.04em;
+            text-align: center;
         }
-        .verdict-status {
-            font-size: 20px;
-            font-weight: 800;
-            color: #15803d;
+        .results-table td {
+            border: 1.5px solid #334155;
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #0f172a;
+            vertical-align: middle;
+        }
+        .col-nama {
+            width: 40%;
+            font-weight: 600;
+            text-align: left;
+        }
+        .col-sertifikasi {
+            width: 42%;
+            text-align: left;
+        }
+        .col-keterangan {
+            width: 18%;
+            text-align: center;
+            font-weight: 700;
             letter-spacing: 0.05em;
-            margin-top: 3px;
-        }
-        .verdict-desc {
-            font-size: 11.5px;
-            color: #166534;
-            margin-top: 4px;
         }
 
-        /* Clause Footer */
-        .clause {
-            font-size: 11px;
-            color: #64748b;
-            text-align: justify;
-            line-height: 1.55;
-            margin-top: 16px;
-            border-left: 3px solid #cbd5e1;
-            padding-left: 12px;
-            font-style: italic;
+        /* Closing Section */
+        .closing-section {
+            margin-top: 14px;
         }
 
         /* Signatures Section */
-        .signatures {
+        .signature-container {
+            margin-top: 26px;
             display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-top: 32px;
-            padding-top: 8px;
+            justify-content: flex-end;
         }
         .signature-box {
             text-align: center;
-            width: 240px;
+            width: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        .sign-date {
-            font-size: 11.5px;
-            color: #475569;
-            margin-bottom: 5px;
-        }
-        .sign-role {
-            font-size: 11.5px;
-            font-weight: 600;
-            color: #0f172a;
+        .sign-salute {
+            font-size: 13px;
+            color: #1e293b;
+            margin-bottom: 8px;
+            width: 100%;
+            text-align: center;
         }
         .qr-wrapper {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            margin: 6px 0;
+            margin: 6px 0 10px 0;
         }
         .qr-img {
-            width: 78px;
-            height: 78px;
+            width: 82px;
+            height: 82px;
             border: 1px solid #e2e8f0;
             border-radius: 6px;
             padding: 3px;
             background: #ffffff;
         }
         .qr-hint {
-            font-size: 8.5px;
+            font-size: 9px;
             color: #64748b;
-            margin-top: 3px;
+            margin-top: 4px;
             font-weight: 500;
         }
         .sign-name {
-            font-size: 12.5px;
+            font-size: 13px;
             font-weight: 700;
             color: #0f172a;
             text-decoration: underline;
-            text-underline-offset: 3px;
+            text-underline-offset: 4px;
         }
         .sign-title {
-            font-size: 10.5px;
+            font-size: 11.5px;
+            color: #475569;
+            margin-top: 3px;
+        }
+
+        /* Verification Badge Bottom */
+        .doc-footer-audit {
+            margin-top: 36px;
+            padding-top: 12px;
+            border-top: 1px dashed #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
             color: #64748b;
-            margin-top: 2px;
         }
     </style>
 </head>
@@ -295,79 +338,81 @@ async function run() {
             </div>
         </div>
 
-        <!-- Title -->
-        <div class="doc-title-box">
-            <h1 class="doc-title">SURAT KETERANGAN LULUS</h1>
-            <div class="doc-number">Nomor: ${sklNumber}</div>
+        <!-- Header Meta (Reference Info & Date) -->
+        <div class="doc-header-meta">
+            <div class="meta-left">
+                <table class="meta-table">
+                    <tr>
+                        <td class="meta-label">No</td>
+                        <td class="meta-sep">:</td>
+                        <td class="meta-val">${sklNumber}</td>
+                    </tr>
+                    <tr>
+                        <td class="meta-label">Perihal</td>
+                        <td class="meta-sep">:</td>
+                        <td class="meta-val">Surat Keterangan Hasil Ujian</td>
+                    </tr>
+                    <tr>
+                        <td class="meta-label">Lampiran</td>
+                        <td class="meta-sep">:</td>
+                        <td class="meta-val">-</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="meta-right">
+                Surabaya, ${printDate}
+            </div>
         </div>
 
-        <!-- Body Statement -->
-        <p class="statement">
-            Yang bertanda tangan di bawah ini, Tim Evaluasi & Penguji <strong>Nusamitra Consulting</strong> menerangkan dengan sebenarnya bahwa:
+        <!-- Recipient Information -->
+        <div class="recipient-box">
+            <div class="recipient-title">Kepada Yth :</div>
+            <div class="recipient-name">${participantName}</div>
+            <div class="recipient-inst">${institutionName}</div>
+        </div>
+
+        <!-- Salutation -->
+        <div class="salutation">Dengan Hormat,</div>
+
+        <!-- Body Opening Statement -->
+        <p class="body-paragraph">
+            Bersama dengan surat ini kami sampaikan hasil dari pengujian yang telah dilakukan oleh <strong>Assesor American Academy</strong> sebagai tindak lanjut <strong>&ldquo;Exam Preparation Course&rdquo;</strong> yang merupakan proses akhir dari rangkaian kegiatan Pelatihan dan Sertifikasi Profesi International melalui American Academy of Project Management.
         </p>
 
-        <!-- Participant Details Table -->
-        <table class="bio-table">
-            <tr>
-                <td class="bio-label">Nama Lengkap</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value" style="font-size: 13.5px; text-transform: uppercase;">Ahmad Fauzi, S.Kom</td>
-            </tr>
-            <tr>
-                <td class="bio-label">Nomor Induk Pegawai (NIP)</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value" style="font-family: 'JetBrains Mono', monospace;">198904152015031002</td>
-            </tr>
-            <tr>
-                <td class="bio-label">Instansi / Unit Kerja</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value">Badan Kepegawaian & Pengembangan SDM</td>
-            </tr>
-            <tr>
-                <td class="bio-label">Program Pelatihan</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value">Pelatihan Transformasi Digital & Manajemen Data</td>
-            </tr>
-            <tr>
-                <td class="bio-label">Modul / Materi Uji</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value">Program Komprehensif Arsitektur Cloud</td>
-            </tr>
-            <tr>
-                <td class="bio-label">Waktu Pelaksanaan</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value">25 Agustus 2026</td>
-            </tr>
-        </table>
-
-        <!-- Verdict Banner -->
-        <div class="verdict-box">
-            <div class="verdict-label">Hasil Keputusan Evaluasi</div>
-            <div class="verdict-status">D I N Y A T A K A N &nbsp; L U L U S</div>
-            <div class="verdict-desc">Telah memenuhi seluruh standar kompetensi, kelulusan ujian, dan persyaratan pelatihan yang ditetapkan.</div>
+        <!-- Results Table (3 Columns without C3) -->
+        <div class="results-table-container">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th style="width: 38%;">NAMA</th>
+                        <th style="width: 44%;">SERTIFIKASI</th>
+                        <th style="width: 18%;">KETERANGAN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-nama">${participantName}</td>
+                        <td class="col-sertifikasi">${certificationName}</td>
+                        <td class="col-keterangan">LULUS</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
-        <!-- Clause -->
-        <div class="clause">
-            Surat Keterangan Lulus (SKL) ini diterbitkan secara sah oleh sistem sebagai dokumen keterangan kelulusan sementara sembari menunggu penerbitan dan penyerahan Sertifikat Resmi Asli. Surat ini dapat dipergunakan sebagaimana mestinya.
+        <!-- Closing Paragraphs -->
+        <div class="closing-section">
+            <p class="body-paragraph">
+                Selanjutnya akan dilakukan penerbitan Sertifikat Kompetensi / Profesi International melalui American Academy of Project Management.
+            </p>
+            <p class="body-paragraph">
+                Demikian surat keterangan ini kami sampaikan, terima kasih atas perhatian dan kerjasamanya.
+            </p>
         </div>
 
-        <!-- Signatures -->
-        <div class="signatures">
-            <div class="signature-box" style="text-align: left;">
-                <div style="font-size: 9.5px; color: #64748b; font-family: monospace;">
-                    <div>Kode Verifikasi:</div>
-                    <div style="font-weight: 700; color: #0f172a; margin-top: 2px; font-size: 10.5px;">${enrollmentId}</div>
-                    <div style="margin-top: 3px; color: #16a34a; font-weight: 600;">Status: TERVERIFIKASI SISTEM</div>
-                    <div style="font-size: 9px; color: #94a3b8; margin-top: 5px; font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1.4;">
-                        Dokumen ini diterbitkan dan tercatat resmi secara digital pada pangkalan data Nusamitra Consulting.
-                    </div>
-                </div>
-            </div>
-
+        <!-- Signatures & Dynamic QR Verification -->
+        <div class="signature-container">
             <div class="signature-box">
-                <div class="sign-date">Diterbitkan pada: 25 Agustus 2026</div>
-                <div class="sign-role">Tim Penilai & Penguji</div>
+                <div class="sign-salute">Hormat Kami,</div>
                 <div class="qr-wrapper">
                     <img src="${qrCodeDataUrl}" alt="QR Verification" class="qr-img" />
                     <span class="qr-hint">Pindai untuk Verifikasi</span>
@@ -375,6 +420,12 @@ async function run() {
                 <div class="sign-name">Nusamitra Training Directorate</div>
                 <div class="sign-title">Direktorat Pelatihan & Sertifikasi</div>
             </div>
+        </div>
+
+        <!-- Footer Audit Trail -->
+        <div class="doc-footer-audit">
+            <div>ID Dokumen: <code>${enrollmentId}</code></div>
+            <div>Status: <strong>TERCATAT RESMI DIGITAL</strong></div>
         </div>
     </div>
 
@@ -385,7 +436,7 @@ async function run() {
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
-    const outputPath = path.join(outputDir, 'Surat_Keterangan_Lulus_SKL_Sample.pdf');
+    const outputPath = path.join(outputDir, 'Surat_Keterangan_Hasil_Ujian_Sample.pdf');
 
     const launchOptions = {
         headless: true,
@@ -404,10 +455,10 @@ async function run() {
         format: 'A4',
         printBackground: true,
         margin: {
-            top: '10mm',
-            right: '12mm',
-            bottom: '10mm',
-            left: '12mm'
+            top: '12mm',
+            right: '15mm',
+            bottom: '12mm',
+            left: '15mm'
         }
     });
 

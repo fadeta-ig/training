@@ -11,17 +11,14 @@ const graduationSchema = z.object({
     certificate_number: z.string().max(100).optional().nullable(),
 });
 
+const ROMAN_MONTHS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+
 function generateSklNumber(batch: string = '1'): string {
     const now = new Date();
     const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const safeBatch = (batch || '1').trim().toUpperCase();
-    const isNumeric = /^\d+$/.test(safeBatch);
-    const batchFormatted = isNumeric
-        ? `B${safeBatch.padStart(2, '0')}`
-        : safeBatch;
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    return `SKL/${year}/${month}/${batchFormatted}/${randomSuffix}`;
+    const romanMonth = ROMAN_MONTHS[now.getMonth()] || 'I';
+    const randomSuffix = Math.floor(100 + Math.random() * 900);
+    return `${randomSuffix}/E/SK/${romanMonth}/${year}`;
 }
 
 async function handlePost(

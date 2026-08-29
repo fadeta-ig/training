@@ -62,16 +62,28 @@ async function handleGet(
             return new NextResponse('Peserta belum dinyatakan LULUS pada sesi ini. SKL belum dapat diterbitkan.', { status: 403 });
         }
 
-        const sklNumber = data.skl_number || `SKL/${new Date().getFullYear()}/TEMP/${data.enrollment_id.slice(0, 8)}`;
-        const printDate = data.graduation_decided_at
-            ? new Date(data.graduation_decided_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-            : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        // Format date and Roman month
+        const decidedDateObj = data.graduation_decided_at ? new Date(data.graduation_decided_at) : new Date();
+        const ROMAN_MONTHS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+        const romanMonth = ROMAN_MONTHS[decidedDateObj.getMonth()] || 'I';
+        const currentYear = decidedDateObj.getFullYear();
 
-        const sessionDate = new Date(data.start_time).toLocaleDateString('id-ID', {
+        const printDate = decidedDateObj.toLocaleDateString('id-ID', {
             day: 'numeric',
             month: 'long',
-            year: 'numeric',
+            year: 'numeric'
         });
+
+        // Format SKL Number according to official pattern (<<No. SKL>>/E/SK/<<Bln Romawi>>/<<Tahun>>)
+        let sklNumber = data.skl_number || '';
+        if (!sklNumber) {
+            const shortId = (data.enrollment_id || '001').slice(0, 3).toUpperCase();
+            sklNumber = `${shortId}/E/SK/${romanMonth}/${currentYear}`;
+        } else if (!sklNumber.includes('/E/SK/')) {
+            const parts = sklNumber.split('/');
+            const seq = parts[parts.length - 1] || '001';
+            sklNumber = `${seq}/E/SK/${romanMonth}/${currentYear}`;
+        }
 
         // Load Nusamitra logo as base64 for self-contained print reliability
         let logoBase64 = '';
@@ -110,6 +122,9 @@ async function handleGet(
             },
         });
 
+        const participantName = data.full_name || data.username || '-';
+        const institutionName = data.institution || 'Instansi Peserta Terdaftar';
+        const certificationName = data.session_title || data.module_title || 'Pelatihan dan Sertifikasi Profesi International';
 
         // Format HTML print document
         const html = `<!DOCTYPE html>
@@ -117,14 +132,14 @@ async function handleGet(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Surat Keterangan Lulus (SKL) - ${data.full_name || data.username}</title>
+    <title>Surat Keterangan Hasil Ujian - ${participantName}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
     <style>
         @page {
             size: A4 portrait;
-            margin: 14mm 16mm;
+            margin: 15mm 18mm;
         }
         * {
             box-sizing: border-box;
@@ -135,7 +150,7 @@ async function handleGet(
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             color: #1e293b;
             background-color: #f8fafc;
-            line-height: 1.5;
+            line-height: 1.6;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -144,7 +159,7 @@ async function handleGet(
             min-height: 297mm;
             margin: 20px auto;
             background: #ffffff;
-            padding: 16mm 18mm;
+            padding: 16mm 20mm;
             position: relative;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
@@ -171,8 +186,8 @@ async function handleGet(
             align-items: center;
             justify-content: space-between;
             border-bottom: 3px double #0f172a;
-            padding-bottom: 14px;
-            margin-bottom: 22px;
+            padding-bottom: 12px;
+            margin-bottom: 24px;
         }
         .logo-container {
             display: flex;
@@ -180,7 +195,7 @@ async function handleGet(
             gap: 14px;
         }
         .logo-img {
-            height: 54px;
+            height: 52px;
             width: auto;
             max-width: 190px;
             object-fit: contain;
@@ -189,152 +204,178 @@ async function handleGet(
             text-align: right;
         }
         .company-name {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 800;
             color: #0f172a;
             letter-spacing: -0.02em;
             text-transform: uppercase;
         }
         .company-sub {
-            font-size: 11px;
+            font-size: 10.5px;
             color: #475569;
             margin-top: 2px;
             font-weight: 500;
         }
         .company-address {
-            font-size: 10px;
+            font-size: 9.5px;
             color: #64748b;
-            margin-top: 3px;
+            margin-top: 2px;
             max-width: 340px;
-            line-height: 1.4;
-        }
-        
-        /* Document Title */
-        .doc-title-box {
-            text-align: center;
-            margin: 20px 0 24px 0;
-        }
-        .doc-title {
-            font-size: 20px;
-            font-weight: 800;
-            color: #0f172a;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            text-decoration: underline;
-            text-underline-offset: 5px;
-        }
-        .doc-number {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            font-weight: 600;
-            color: #475569;
-            margin-top: 8px;
+            line-height: 1.35;
         }
 
-        /* Statement Text */
-        .statement {
+        /* Top Header Meta (Location Date & Ref Info) */
+        .doc-header-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 22px;
             font-size: 13px;
-            text-align: justify;
-            margin-bottom: 18px;
-            color: #334155;
-            line-height: 1.6;
+            color: #1e293b;
         }
-
-        /* Trainee Bio Table */
-        .bio-table {
-            width: 100%;
-            margin: 16px 0 22px 0;
+        .meta-left {
+            flex: 1;
+        }
+        .meta-table {
             border-collapse: collapse;
         }
-        .bio-table td {
-            padding: 7px 10px;
-            font-size: 13px;
+        .meta-table td {
+            padding: 2px 0;
             vertical-align: top;
+            font-size: 13px;
         }
-        .bio-label {
-            width: 185px;
-            color: #64748b;
+        .meta-label {
+            width: 80px;
+            color: #1e293b;
             font-weight: 500;
         }
-        .bio-separator {
-            width: 15px;
-            color: #94a3b8;
-            font-weight: bold;
+        .meta-sep {
+            width: 18px;
+            color: #1e293b;
+            text-align: center;
         }
-        .bio-value {
+        .meta-val {
             color: #0f172a;
             font-weight: 600;
         }
-
-        /* Verdict Box */
-        .verdict-box {
-            background: #f0fdf4;
-            border: 2px solid #bbf7d0;
-            border-radius: 10px;
-            padding: 14px 20px;
-            text-align: center;
-            margin: 20px 0 22px 0;
+        .meta-right {
+            text-align: right;
+            font-size: 13px;
+            font-weight: 500;
+            color: #1e293b;
+            white-space: nowrap;
         }
-        .verdict-label {
-            font-size: 11px;
+
+        /* Recipient Section */
+        .recipient-box {
+            margin-bottom: 22px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #1e293b;
+        }
+        .recipient-title {
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .recipient-name {
             font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: #166534;
+            color: #0f172a;
         }
-        .verdict-status {
-            font-size: 22px;
-            font-weight: 800;
-            color: #15803d;
-            letter-spacing: 0.05em;
-            margin-top: 4px;
-        }
-        .verdict-desc {
-            font-size: 12px;
-            color: #166534;
-            margin-top: 5px;
+        .recipient-inst {
+            font-weight: 600;
+            color: #334155;
         }
 
-        /* Clause Footer */
-        .clause {
-            font-size: 11.5px;
-            color: #64748b;
+        /* Salutation */
+        .salutation {
+            font-size: 13px;
+            margin-bottom: 14px;
+            color: #1e293b;
+        }
+
+        /* Statement Paragraphs */
+        .body-paragraph {
+            font-size: 13px;
             text-align: justify;
-            line-height: 1.6;
-            margin-top: 18px;
-            border-left: 3px solid #cbd5e1;
-            padding-left: 14px;
-            font-style: italic;
+            margin-bottom: 16px;
+            color: #1e293b;
+            line-height: 1.65;
+        }
+
+        /* Results Table (3 Columns: NAMA, SERTIFIKASI, KETERANGAN) */
+        .results-table-container {
+            margin: 22px 0;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1.5px solid #334155;
+        }
+        .results-table th {
+            background-color: #cbd5e1;
+            color: #0f172a;
+            font-weight: 700;
+            font-size: 12.5px;
+            padding: 10px 14px;
+            border: 1.5px solid #334155;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-align: center;
+        }
+        .results-table td {
+            border: 1.5px solid #334155;
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #0f172a;
+            vertical-align: middle;
+        }
+        .col-nama {
+            width: 40%;
+            font-weight: 600;
+            text-align: left;
+        }
+        .col-sertifikasi {
+            width: 42%;
+            text-align: left;
+        }
+        .col-keterangan {
+            width: 18%;
+            text-align: center;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        /* Closing Section */
+        .closing-section {
+            margin-top: 14px;
         }
 
         /* Signatures Section */
-        .signatures {
+        .signature-container {
+            margin-top: 26px;
             display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-top: 36px;
-            padding-top: 8px;
+            justify-content: flex-end;
         }
         .signature-box {
             text-align: center;
-            width: 240px;
+            width: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        .sign-date {
-            font-size: 12px;
-            color: #475569;
-            margin-bottom: 6px;
-        }
-        .sign-role {
-            font-size: 12px;
-            font-weight: 600;
-            color: #0f172a;
+        .sign-salute {
+            font-size: 13px;
+            color: #1e293b;
+            margin-bottom: 8px;
+            width: 100%;
+            text-align: center;
         }
         .qr-wrapper {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            margin: 8px 0;
+            margin: 6px 0 10px 0;
         }
         .qr-img {
             width: 82px;
@@ -347,7 +388,7 @@ async function handleGet(
         .qr-hint {
             font-size: 9px;
             color: #64748b;
-            margin-top: 3px;
+            margin-top: 4px;
             font-weight: 500;
         }
         .sign-name {
@@ -358,9 +399,21 @@ async function handleGet(
             text-underline-offset: 4px;
         }
         .sign-title {
-            font-size: 11px;
+            font-size: 11.5px;
+            color: #475569;
+            margin-top: 3px;
+        }
+
+        /* Verification Badge Bottom */
+        .doc-footer-audit {
+            margin-top: 36px;
+            padding-top: 12px;
+            border-top: 1px dashed #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
             color: #64748b;
-            margin-top: 2px;
         }
 
         /* Print Controls Floating Bar */
@@ -426,7 +479,7 @@ async function handleGet(
             <div class="logo-container">
                 ${logoBase64 
                     ? `<img src="${logoBase64}" alt="Nusamitra Consulting" class="logo-img" />`
-                    : `<div style="font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.03em;">NUSAMITRA</div>`
+                    : `<div style="font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.03em;">NUSAMITRA</div>`
                 }
             </div>
             <div class="company-info">
@@ -436,79 +489,81 @@ async function handleGet(
             </div>
         </div>
 
-        <!-- Title -->
-        <div class="doc-title-box">
-            <h1 class="doc-title">SURAT KETERANGAN LULUS</h1>
-            <div class="doc-number">Nomor: ${sklNumber}</div>
+        <!-- Header Meta (Reference Info & Date) -->
+        <div class="doc-header-meta">
+            <div class="meta-left">
+                <table class="meta-table">
+                    <tr>
+                        <td class="meta-label">No</td>
+                        <td class="meta-sep">:</td>
+                        <td class="meta-val">${sklNumber}</td>
+                    </tr>
+                    <tr>
+                        <td class="meta-label">Perihal</td>
+                        <td class="meta-sep">:</td>
+                        <td class="meta-val">Surat Keterangan Hasil Ujian</td>
+                    </tr>
+                    <tr>
+                        <td class="meta-label">Lampiran</td>
+                        <td class="meta-sep">:</td>
+                        <td class="meta-val">-</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="meta-right">
+                Surabaya, ${printDate}
+            </div>
         </div>
 
-        <!-- Body Statement -->
-        <p class="statement">
-            Yang bertanda tangan di bawah ini, Tim Evaluasi & Penguji <strong>Nusamitra Consulting</strong> menerangkan dengan sebenarnya bahwa:
+        <!-- Recipient Information -->
+        <div class="recipient-box">
+            <div class="recipient-title">Kepada Yth :</div>
+            <div class="recipient-name">${participantName}</div>
+            <div class="recipient-inst">${institutionName}</div>
+        </div>
+
+        <!-- Salutation -->
+        <div class="salutation">Dengan Hormat,</div>
+
+        <!-- Body Opening Statement -->
+        <p class="body-paragraph">
+            Bersama dengan surat ini kami sampaikan hasil dari pengujian yang telah dilakukan oleh <strong>Assesor American Academy</strong> sebagai tindak lanjut <strong>&ldquo;Exam Preparation Course&rdquo;</strong> yang merupakan proses akhir dari rangkaian kegiatan Pelatihan dan Sertifikasi Profesi International melalui American Academy of Project Management.
         </p>
 
-        <!-- Participant Details Table -->
-        <table class="bio-table">
-            <tr>
-                <td class="bio-label">Nama Lengkap</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value" style="font-size: 14px; text-transform: uppercase;">${data.full_name || data.username}</td>
-            </tr>
-            ${data.nip ? `<tr>
-                <td class="bio-label">Nomor Induk Pegawai (NIP)</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value" style="font-family: 'JetBrains Mono', monospace;">${data.nip}</td>
-            </tr>` : ''}
-            <tr>
-                <td class="bio-label">Instansi / Unit Kerja</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value">${data.institution || '-'}</td>
-            </tr>
-            <tr>
-                <td class="bio-label">Program Pelatihan</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value">${data.session_title}</td>
-            </tr>
-            <tr>
-                <td class="bio-label">Modul / Materi Uji</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value">${data.module_title || 'Program Komprehensif'}</td>
-            </tr>
-            <tr>
-                <td class="bio-label">Waktu Pelaksanaan</td>
-                <td class="bio-separator">:</td>
-                <td class="bio-value">${sessionDate}</td>
-            </tr>
-        </table>
-
-        <!-- Verdict Banner -->
-        <div class="verdict-box">
-            <div class="verdict-label">Hasil Keputusan Evaluasi</div>
-            <div class="verdict-status">D I N Y A T A K A N &nbsp; L U L U S</div>
-            <div class="verdict-desc">${data.graduation_notes || 'Telah memenuhi seluruh standar kompetensi, kelulusan ujian, dan persyaratan pelatihan yang ditetapkan.'}</div>
+        <!-- Results Table (3 Columns without C3) -->
+        <div class="results-table-container">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th style="width: 38%;">NAMA</th>
+                        <th style="width: 44%;">SERTIFIKASI</th>
+                        <th style="width: 18%;">KETERANGAN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-nama">${participantName}</td>
+                        <td class="col-sertifikasi">${certificationName}</td>
+                        <td class="col-keterangan">LULUS</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
-        <!-- Clause -->
-        <div class="clause">
-            Surat Keterangan Lulus (SKL) ini diterbitkan secara sah oleh sistem sebagai dokumen keterangan kelulusan sementara sembari menunggu penerbitan dan penyerahan Sertifikat Resmi Asli. Surat ini dapat dipergunakan sebagaimana mestinya.
+        <!-- Closing Paragraphs -->
+        <div class="closing-section">
+            <p class="body-paragraph">
+                Selanjutnya akan dilakukan penerbitan Sertifikat Kompetensi / Profesi International melalui American Academy of Project Management.
+            </p>
+            <p class="body-paragraph">
+                Demikian surat keterangan ini kami sampaikan, terima kasih atas perhatian dan kerjasamanya.
+            </p>
         </div>
 
-        <!-- Signatures -->
-        <div class="signatures">
-            <div class="signature-box" style="text-align: left;">
-                <div style="font-size: 10.5px; color: #64748b; font-family: monospace;">
-                    <div>Kode Verifikasi:</div>
-                    <div style="font-weight: 700; color: #0f172a; margin-top: 2px; font-size: 11px;">${data.enrollment_id}</div>
-                    <div style="margin-top: 4px; color: #16a34a; font-weight: 600;">Status: TERVERIFIKASI SISTEM</div>
-                    <div style="font-size: 9.5px; color: #94a3b8; margin-top: 6px; font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1.4;">
-                        Dokumen ini diterbitkan dan tercatat resmi secara digital pada pangkalan data Nusamitra Consulting.
-                    </div>
-                </div>
-            </div>
-
+        <!-- Signatures & Dynamic QR Verification -->
+        <div class="signature-container">
             <div class="signature-box">
-                <div class="sign-date">Diterbitkan pada: ${printDate}</div>
-                <div class="sign-role">Tim Penilai & Penguji</div>
+                <div class="sign-salute">Hormat Kami,</div>
                 <div class="qr-wrapper">
                     <img src="${qrCodeDataUrl}" alt="QR Verification" class="qr-img" />
                     <span class="qr-hint">Pindai untuk Verifikasi</span>
@@ -516,6 +571,12 @@ async function handleGet(
                 <div class="sign-name">Nusamitra Training Directorate</div>
                 <div class="sign-title">Direktorat Pelatihan & Sertifikasi</div>
             </div>
+        </div>
+
+        <!-- Footer Audit Trail -->
+        <div class="doc-footer-audit">
+            <div>ID Dokumen: <code>${data.enrollment_id}</code></div>
+            <div>Status: <strong>TERCATAT RESMI DIGITAL</strong></div>
         </div>
     </div>
 
@@ -535,4 +596,5 @@ async function handleGet(
 }
 
 export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer', 'trainee'] });
+
 

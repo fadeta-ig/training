@@ -8,6 +8,8 @@ import {
     StarIcon,
     Tick02Icon,
     Cancel01Icon,
+    ViewIcon,
+    ViewOffIcon,
 } from 'hugeicons-react';
 import {
     Shuffle,
@@ -94,6 +96,7 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                 const fetchedQuestions: QuestionItemData[] = qData.data;
                 setQuestions(fetchedQuestions);
                 setLocalOrder(fetchedQuestions.map((q) => q.id));
+                setExpandedIds(new Set(fetchedQuestions.map((q) => q.id)));
                 setIsDirty(false);
             }
             if (eData.success) setExam(eData.data);
@@ -400,6 +403,16 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
         });
     };
 
+    const isAllExpanded = questions.length > 0 && expandedIds.size === questions.length;
+
+    const toggleExpandAll = () => {
+        if (isAllExpanded) {
+            setExpandedIds(new Set());
+        } else {
+            setExpandedIds(new Set(questions.map((q) => q.id)));
+        }
+    };
+
     const renderAnswerPreview = (q: QuestionItemData) => {
         const qType = q.question_type || 'multiple_choice';
         const parsed = q.options_json
@@ -569,13 +582,14 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
             <PageHeader
                 title={exam ? `Bank Soal: ${exam.title}` : 'Bank Soal'}
                 description={`Total ${questions.length} soal • Bobot total ${totalPts} poin`}
-                icon={<HelpCircleIcon size={28} className="text-muted-foreground" />}
+                icon={<HelpCircleIcon size={22} className="text-slate-700" />}
+                actionsPosition="below"
                 actions={userRole === 'admin' ? (
                     <Link
                         href={`/admin/exams/${examId}/questions/import`}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-700/30 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-800 transition-all hover:bg-emerald-100 sm:w-auto sm:text-sm"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-600/30 bg-emerald-50/90 px-4 py-2.5 text-xs sm:text-sm font-semibold text-emerald-800 transition-all hover:bg-emerald-100 hover:border-emerald-500/50 shadow-2xs hover:shadow-xs active:scale-[0.98] whitespace-nowrap cursor-pointer"
                     >
-                        <FileSpreadsheet className="size-4" />
+                        <FileSpreadsheet className="size-4 text-emerald-700 shrink-0" />
                         <span>Import Excel</span>
                     </Link>
                 ) : undefined}
@@ -612,6 +626,26 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                             >
                                 <ArrowDownUp className={`size-3.5 ${isResetting ? 'animate-spin' : 'text-emerald-600'}`} />
                                 {isResetting ? 'Mengurutkan...' : 'Urut Nomor'}
+                            </button>
+
+                            {/* Expand / Collapse All Toggle */}
+                            <button
+                                type="button"
+                                onClick={toggleExpandAll}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-black/10 text-foreground hover:bg-slate-100 transition-all shadow-2xs"
+                                title={isAllExpanded ? 'Tutup detail semua soal' : 'Buka detail semua soal'}
+                            >
+                                {isAllExpanded ? (
+                                    <>
+                                        <ViewOffIcon size={14} className="text-slate-600" />
+                                        <span>Tutup Detail</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <ViewIcon size={14} className="text-slate-600" />
+                                        <span>Buka Detail</span>
+                                    </>
+                                )}
                             </button>
 
                             {/* Undo Button */}

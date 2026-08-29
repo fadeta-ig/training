@@ -11,9 +11,9 @@ const participantUpdateSchema = z.object({
     phone_number: z.string().optional().nullable(),
     address: z.string().optional().nullable(),
     date_of_birth: z.string().optional().nullable(),
-    gender: z.enum(['L', 'P']).optional().nullable(),
+    gender: z.enum(['L', 'P'], { message: 'Jenis kelamin wajib diisi' }),
     institution: z.string().optional().nullable(),
-    batch: z.coerce.number().int().min(1).optional().nullable(),
+    batch: z.preprocess((val) => (val === '' || val == null ? null : String(val).trim()), z.string().max(50).optional().nullable()),
     registration_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal pendaftaran harus YYYY-MM-DD').optional().nullable(),
 });
 
@@ -101,7 +101,7 @@ async function handlePut(
                     phone_number || null,
                     address || null,
                     date_of_birth || null,
-                    gender || null,
+                    gender || 'L',
                     institution || null,
                     batch || null,
                     registration_date || null,
@@ -121,9 +121,9 @@ async function handlePut(
                         phone_number || null,
                         address || null,
                         date_of_birth || null,
-                        gender || null,
+                        gender || 'L',
                         institution || null,
-                        batch || 1,
+                        batch || '1',
                         registration_date || new Date().toISOString().slice(0, 10),
                     ]
                 );

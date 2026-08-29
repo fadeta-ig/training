@@ -37,10 +37,85 @@ interface RegistrationItem {
     date_of_birth: string | null;
     institution: string | null;
     institution_code: string | null;
-    batch: number;
+    batch: string;
     target_certification_id: string | null;
     target_certification_name: string | null;
     target_period: string | null;
+}
+
+/**
+ * Smart Batch Suggestion — auto-generates batch code from certification name + target period.
+ * E.g. "Certified Strategic Business Analyst" + "September 2026" → "CSBA-SEP26"
+ */
+function generateBatchSuggestion(certName: string | null, targetPeriod: string | null): string {
+    if (!certName) return '1';
+
+    // Extract initials/code from certification name (skip noise words)
+    const NOISE = new Set(['DAN', 'DAN/ATAU', 'OF', 'THE', 'AND', 'FOR', 'IN', 'PELATIHAN', 'SERTIFIKASI', '&']);
+    const words = certName
+        .replace(/[^a-zA-Z\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 0 && !NOISE.has(w.toUpperCase()));
+
+    const code = words.length >= 2
+        ? words.map(w => w[0].toUpperCase()).join('').slice(0, 6)
+        : certName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase();
+
+    if (!targetPeriod) return code;
+
+    // Parse month + year from target period (e.g. "September 2026" → "SEP26")
+    const MONTH_MAP: Record<string, string> = {
+        januari: 'JAN', februari: 'FEB', maret: 'MAR', april: 'APR',
+        mei: 'MEI', juni: 'JUN', juli: 'JUL', agustus: 'AGS',
+        september: 'SEP', oktober: 'OKT', november: 'NOV', desember: 'DES',
+    };
+
+    const parts = targetPeriod.trim().split(/\s+/);
+    const monthKey = (parts[0] || '').toLowerCase();
+    const yearStr = parts[1] || '';
+    const monthCode = MONTH_MAP[monthKey] || monthKey.slice(0, 3).toUpperCase();
+    const yearShort = yearStr.length === 4 ? yearStr.slice(-2) : yearStr;
+
+    return yearShort ? `${code}-${monthCode}${yearShort}` : code;
+}
+
+/**
+ * Generates a preview NIP string for display purposes (client-side only).
+ * Uses the same logic as server formatNip but without DB sequence lookup.
+ */
+function previewNip(institution: string | null, batch: string): string {
+    // Extract institution code (simplified client-side version)
+    const NOISE = new Set(['PT', 'CV', 'TBK', 'PERSERO', 'PERUM', 'YAYASAN', 'DAN']);
+    let code = 'GEN';
+    if (institution && institution.trim()) {
+        const clean = institution.replace(/[^\w\s]/gi, ' ').trim().toUpperCase();
+        const words = clean.split(/\s+/).filter(Boolean);
+        const significant = words.filter(w => !NOISE.has(w));
+        const src = significant.length > 0 ? significant : words;
+        if (src.length === 1) {
+            const single = src[0];
+            if (single.length <= 4) {
+                code = single;
+            } else {
+                const consonants = single.replace(/[AEIOU]/g, '');
+                code = consonants.length >= 3 ? consonants.slice(0, 4) : single.slice(0, 4);
+            }
+        } else if (src.length >= 2) {
+            code = src.map(w => w[0]).join('').slice(0, 5);
+        }
+    }
+
+    const safeBatch = (batch || '1').trim().toUpperCase();
+    const isNumeric = /^\d+$/.test(safeBatch);
+
+    if (isNumeric) {
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        return `${code}-B${safeBatch.padStart(2, '0')}-${yy}${mm}-001`;
+    }
+
+    return `${code}-${safeBatch}-001`;
 }
 
 export default function RegistrationsAdminPage() {
@@ -60,7 +135,7 @@ export default function RegistrationsAdminPage() {
     const [selectedItem, setSelectedItem] = useState<RegistrationItem | null>(null);
     const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-    const [batchInput, setBatchInput] = useState<number>(1);
+    const [batchInput, setBatchInput] = useState<string>('1');
     const [rejectionReason, setRejectionReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -94,7 +169,12 @@ export default function RegistrationsAdminPage() {
 
     const handleOpenApprove = (item: RegistrationItem) => {
         setSelectedItem(item);
-        setBatchInput(item.batch && item.batch > 0 ? item.batch : 1);
+        // Smart Batch Suggestion — auto pre-fill dari Program Sertifikasi + Target Periode
+        const suggested = generateBatchSuggestion(
+            item.target_certification_name,
+            item.target_period
+        );
+        setBatchInput(suggested);
         setIsApproveModalOpen(true);
     };
 
@@ -333,7 +413,7 @@ export default function RegistrationsAdminPage() {
                                                         {item.nip}
                                                     </span>
                                                     <span className="text-[10px] text-muted-foreground font-semibold">
-                                                        Batch {item.batch}
+                                                        {item.batch}
                                                     </span>
                                                 </div>
                                             ) : (
@@ -412,7 +492,7 @@ export default function RegistrationsAdminPage() {
                 )}
             </GlassCard>
 
-            {/* Modal Setujui (Approve) & Generate NIP */}
+            {/* Modal Setujui (Approve) & Generate NIP — with Smart Batch Suggestion & Live NIP Preview */}
             {isApproveModalOpen && selectedItem && (
                 <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -451,21 +531,37 @@ export default function RegistrationsAdminPage() {
                                 </div>
                             </div>
 
-                            {/* Batch Input */}
+                            {/* Batch Input — Smart Pre-fill */}
                             <div className="space-y-1.5">
                                 <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                                    Tetapkan Nomor Batch <span className="text-destructive">*</span>
+                                    Kode Batch Pelatihan <span className="text-destructive">*</span>
                                 </label>
                                 <input
-                                    type="number"
-                                    min={1}
+                                    type="text"
                                     required
-                                    className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-foreground focus:bg-white focus:outline-none focus:border-foreground"
+                                    maxLength={50}
+                                    className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-foreground focus:bg-white focus:outline-none focus:border-foreground uppercase tracking-wide"
+                                    placeholder="Contoh: CSBA-SEP26 atau 1"
                                     value={batchInput}
-                                    onChange={(e) => setBatchInput(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                                    onChange={(e) => setBatchInput(e.target.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, ''))}
                                 />
                                 <p className="text-[11px] text-muted-foreground">
-                                    Nomor batch akan disematkan ke dalam format Nomor Induk Peserta (NIP).
+                                    Otomatis diusulkan dari program &amp; periode target. Anda dapat mengedit jika diperlukan.
+                                </p>
+                            </div>
+
+                            {/* Live Reactive NIP Preview */}
+                            <div className="bg-slate-800 rounded-xl p-3.5 space-y-1">
+                                <span className="text-slate-500 text-[10px] uppercase tracking-widest font-semibold block">
+                                    Preview NIP Resmi
+                                </span>
+                                <span className="text-emerald-400 text-sm font-mono font-bold tracking-wide block">
+                                    {batchInput.trim()
+                                        ? previewNip(selectedItem.institution, batchInput)
+                                        : '—'}
+                                </span>
+                                <p className="text-slate-500 text-[10px]">
+                                    Nomor urut (001) akan dihitung otomatis oleh sistem saat data disimpan.
                                 </p>
                             </div>
 
@@ -491,7 +587,7 @@ export default function RegistrationsAdminPage() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || !batchInput.trim()}
                                     className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5"
                                 >
                                     {isSubmitting ? 'Memproses...' : 'Setujui & Terbitkan NIP'}

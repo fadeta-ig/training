@@ -6,7 +6,7 @@ import { generateSingleNip } from '@/lib/nip';
 import { z } from 'zod';
 
 const approveSchema = z.object({
-    batch: z.coerce.number().int().min(1, 'Batch minimal 1').default(1),
+    batch: z.string().trim().min(1, 'Kode batch wajib diisi').max(50, 'Kode batch maksimal 50 karakter').default('1'),
 });
 
 async function handlePost(
@@ -27,7 +27,7 @@ async function handlePost(
             return NextResponse.json({ success: false, error: firstError }, { status: 400 });
         }
 
-        const batchNumber = parseResult.data.batch;
+        const batchValue = parseResult.data.batch;
 
         // Fetch current registration details
         const users = await executeQuery<any[]>(
@@ -57,7 +57,7 @@ async function handlePost(
             if (!generatedNip) {
                 const nipResult = await generateSingleNip(connection, {
                     institution: targetUser.institution,
-                    batch: batchNumber,
+                    batch: batchValue,
                     registration_date: targetUser.registration_date || new Date(),
                 });
                 generatedNip = nipResult.nip;
@@ -78,7 +78,7 @@ async function handlePost(
                 `UPDATE participant_profiles 
                  SET nip = ?, batch = ?, institution_code = COALESCE(NULLIF(institution_code, ''), ?)
                  WHERE user_id = ?`,
-                [generatedNip, batchNumber, institutionCode || 'GEN', targetUserId]
+                [generatedNip, batchValue, institutionCode || 'GEN', targetUserId]
             );
 
             await connection.commit();
@@ -94,7 +94,7 @@ async function handlePost(
             approved_by: user.username,
             target_user: targetUser.username,
             full_name: targetUser.full_name,
-            batch: batchNumber,
+            batch: batchValue,
             generated_nip: generatedNip,
         });
 
@@ -104,7 +104,7 @@ async function handlePost(
             data: {
                 id: targetUserId,
                 nip: generatedNip,
-                batch: batchNumber,
+                batch: batchValue,
                 approval_status: 'approved',
             },
         });

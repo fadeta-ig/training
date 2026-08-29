@@ -16,9 +16,9 @@ const participantSchema = z.object({
     phone_number: z.string().optional().nullable(),
     address: z.string().optional().nullable(),
     date_of_birth: z.string().optional().nullable(),
-    gender: z.preprocess((val) => (val === '' ? null : val), z.enum(['L', 'P']).nullable().optional()),
+    gender: z.enum(['L', 'P'], { message: 'Jenis kelamin wajib diisi (L atau P)' }),
     institution: z.string().optional().nullable(),
-    batch: z.preprocess((val) => (val === '' || val === null || val === undefined ? 1 : Number(val)), z.number().int().min(1).default(1)),
+    batch: z.preprocess((val) => (val === '' || val === null || val === undefined ? '1' : String(val).trim()), z.string().min(1).max(50).default('1')),
     registration_date: z.preprocess((val) => (val === '' || val === null || val === undefined ? new Date().toISOString().slice(0, 10) : String(val)), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal pendaftaran harus YYYY-MM-DD').default(() => new Date().toISOString().slice(0, 10))),
 });
 
@@ -83,14 +83,11 @@ async function handleGet(request: NextRequest) {
         }
 
         if (batchParam && batchParam !== 'all') {
-            const parsedBatch = parseInt(batchParam, 10);
-            if (!isNaN(parsedBatch)) {
-                const batchClause = ` AND p.batch = ?`;
-                countQuery += batchClause;
-                query += batchClause;
-                countParams.push(parsedBatch);
-                params.push(parsedBatch);
-            }
+            const batchClause = ` AND p.batch = ?`;
+            countQuery += batchClause;
+            query += batchClause;
+            countParams.push(batchParam.trim());
+            params.push(batchParam.trim());
         }
 
         query += ` ORDER BY u.created_at DESC LIMIT ? OFFSET ?`;
@@ -175,7 +172,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                     phone_number || null,
                     address || null,
                     date_of_birth || null,
-                    gender || null,
+                    gender || 'L',
                     institution || null,
                     institutionCode || null,
                     batch,

@@ -23,7 +23,7 @@ const profileUpdateSchema = z.object({
         z.null(),
         dateOnlySchema,
     ]).optional(),
-    gender: z.union([z.enum(['L', 'P']), z.literal(''), z.null()]).optional(),
+    gender: z.enum(['L', 'P'], { message: 'Jenis kelamin wajib dipilih' }),
     institution: optionalText(150),
     current_password: z.string().max(128).optional(),
     new_password: z.string().min(8).max(128).optional(),

@@ -630,7 +630,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                     <span className="text-xs font-medium text-foreground">{p.institution || '-'}</span>
                                                     {p.batch && (
                                                         <span className="inline-flex items-center w-fit px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                            Batch {p.batch}
+                                                            {/^\d+$/.test(String(p.batch)) ? `Batch ${p.batch}` : p.batch}
                                                         </span>
                                                     )}
                                                 </div>

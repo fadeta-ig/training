@@ -108,34 +108,57 @@ export function formatYearMonth(dateInput?: string | Date | null): string {
 }
 
 /**
- * Formats standard NIP string: [CODE]-B[BATCH]-[YYMM]-[SEQ]
- * Example: TLKM-B01-2608-001
+ * Detects if a batch string is purely numeric (legacy format like '1', '2', '03').
+ */
+function isNumericBatch(batch: string): boolean {
+  return /^\d+$/.test(batch.trim());
+}
+
+/**
+ * Formats standard NIP string based on batch type:
+ * - Numeric batch (legacy):  [CODE]-B[BATCH]-[YYMM]-[SEQ]  e.g. TLKM-B01-2608-001
+ * - Custom string batch:     [CODE]-[BATCH]-[SEQ]           e.g. TLKM-CSBA-SEP26-001
+ *
+ * Custom string batches already encode period info (e.g. SEP26) so YYMM is omitted
+ * to avoid redundancy.
  */
 export function formatNip(
   institutionCode: string,
-  batch: number,
+  batch: string,
   yearMonth: string,
   sequence: number
 ): string {
   const safeCode = (institutionCode || 'GEN').toUpperCase().trim();
-  const safeBatch = Math.max(1, Math.floor(batch || 1));
-  const batchStr = String(safeBatch).padStart(2, '0');
+  const safeBatch = (batch || '1').trim().toUpperCase();
   const seqStr = String(sequence).padStart(3, '0');
 
-  return `${safeCode}-B${batchStr}-${yearMonth}-${seqStr}`;
+  if (isNumericBatch(safeBatch)) {
+    // Legacy format: CODE-B01-YYMM-001
+    const batchStr = safeBatch.padStart(2, '0');
+    return `${safeCode}-B${batchStr}-${yearMonth}-${seqStr}`;
+  }
+
+  // Custom batch format: CODE-CSBA-SEP26-001 (YYMM omitted — already in batch string)
+  return `${safeCode}-${safeBatch}-${seqStr}`;
 }
 
 /**
  * Resolves the highest sequence number existing in DB for a specific institution, batch, and yearMonth prefix.
+ * Supports both numeric (legacy) and custom string batches.
  */
 export async function getLatestSequence(
   connection: PoolConnection,
   institution: string | null,
-  batch: number,
+  batch: string,
   yearMonth: string,
   institutionCode: string
 ): Promise<number> {
-  const prefix = `${institutionCode}-B${String(batch).padStart(2, '0')}-${yearMonth}-%`;
+  const safeBatch = (batch || '1').trim().toUpperCase();
+
+  // Build LIKE prefix matching the NIP format used for this batch type
+  const prefix = isNumericBatch(safeBatch)
+    ? `${institutionCode}-B${safeBatch.padStart(2, '0')}-${yearMonth}-%`
+    : `${institutionCode}-${safeBatch}-%`;
 
   const [rows] = await connection.execute<any[]>(
     `SELECT nip FROM participant_profiles 
@@ -144,7 +167,7 @@ export async function getLatestSequence(
        AND nip LIKE ?
      ORDER BY nip DESC
      LIMIT 50`,
-    [institution || null, institution || null, batch, prefix]
+    [institution || null, institution || null, safeBatch, prefix]
   );
 
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -168,7 +191,7 @@ export async function getLatestSequence(
 
 export interface NipGenerationItem {
   institution?: string | null;
-  batch?: number | null;
+  batch?: string | null;
   registration_date?: string | Date | null;
   registrationDate?: string | Date | null;
 }
@@ -176,6 +199,8 @@ export interface NipGenerationItem {
 /**
  * Generates an array of unique, sequential NIPs for bulk items within an active database transaction.
  * Thread-safe / collision-free via in-memory sequence tracking per (institution, batch, yearMonth) group.
+ *
+ * Backward compatible: batch '1' → CODE-B01-YYMM-001, batch 'CSBA-SEP26' → CODE-CSBA-SEP26-001
  */
 export async function generateBulkNips(
   connection: PoolConnection,
@@ -187,7 +212,7 @@ export async function generateBulkNips(
   // 1. Identify all unique groups
   for (const item of items) {
     const instName = (item.institution || '').trim();
-    const batch = Math.max(1, Math.floor(Number(item.batch) || 1));
+    const batch = (item.batch || '1').toString().trim();
     const regDate = item.registration_date ?? item.registrationDate;
     const yearMonth = formatYearMonth(regDate);
     const code = extractInstitutionCode(instName);
@@ -214,8 +239,8 @@ export async function generateBulkNips(
 
   for (const item of items) {
     const instName = (item.institution || '').trim();
-    const batch = Math.max(1, Math.floor(Number(item.batch) || 1));
-    const yearMonth = formatYearMonth(item.registration_date);
+    const batch = (item.batch || '1').toString().trim();
+    const yearMonth = formatYearMonth(item.registration_date ?? item.registrationDate);
     const groupKey = `${instName}:::${batch}:::${yearMonth}`;
 
     const code = groupCodes.get(groupKey) || 'GEN';

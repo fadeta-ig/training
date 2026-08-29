@@ -34,13 +34,13 @@ export interface ParticipantProfile {
     phone_number: string | null;
     address: string | null;
     date_of_birth: string | null;
-    gender: 'L' | 'P' | null;
+    gender: 'L' | 'P';
     institution: string | null;
     institution_code: string | null;
     target_certification_id?: string | null;
     target_certification_name?: string | null;
     target_period?: string | null;
-    batch: number;
+    batch: string;
     registration_date: string;
     created_at: string;
     updated_at: string;
@@ -203,7 +203,7 @@ export interface AuthPayload {
     role: 'admin' | 'trainer' | 'trainee';
     nip?: string | null;
     institution?: string | null;
-    batch?: number | null;
+    batch?: string | null;
     registration_date?: string | null;
 }
 

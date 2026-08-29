@@ -3,13 +3,14 @@ import ExcelJS from 'exceljs';
 export interface ParticipantTemplateRow {
     fullName: string;
     email: string;
-    phoneNumber: string;
-    institution: string;
-    batch?: number | string;
-    registrationDate?: string;
+    gender: 'L' | 'P';
     dateOfBirth: string;
-    gender: 'L' | 'P' | string;
+    phoneNumber: string;
     address: string;
+    institution: string;
+    targetCertificationName?: string;
+    batch?: string;
+    registrationDate?: string;
 }
 
 export interface UserTemplateRow {
@@ -26,7 +27,7 @@ export interface SessionExportRow {
     fullName: string;
     nip?: string;
     institution?: string;
-    batch?: number | string;
+    batch?: string;
     username: string;
     status: string;
     score: string | number;
@@ -40,7 +41,7 @@ export interface CredentialExportRow {
     nip?: string;
     email: string;
     institution?: string;
-    batch?: number | string;
+    batch?: string;
     registrationDate?: string;
     role?: string;
     password?: string;
@@ -73,7 +74,8 @@ const THIN_BORDER: Partial<ExcelJS.Borders> = {
 };
 
 /**
- * Generates an elegant, professional Excel workbook for Participant Bulk Import
+ * Generates an elegant, professional Excel workbook for Participant Bulk Import.
+ * 10-column layout: Identity fields (left) → Program/Batch fields (right).
  */
 export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     const workbook = new ExcelJS.Workbook();
@@ -86,7 +88,7 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     });
 
     // 1. Instruction Title / Banner
-    sheet.mergeCells('A1:I1');
+    sheet.mergeCells('A1:J1');
     const bannerCell = sheet.getCell('A1');
     bannerCell.value = '📋 PANDUAN PENGISIAN TEMPLATE IMPORT PESERTA LMS';
     bannerCell.font = { name: FONT_FAMILY, size: 12, bold: true, color: { argb: 'FF0F172A' } };
@@ -95,9 +97,9 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     sheet.getRow(1).height = 28;
 
     // 2. Guidelines Notes
-    sheet.mergeCells('A2:I2');
+    sheet.mergeCells('A2:J2');
     const noteCell = sheet.getCell('A2');
-    noteCell.value = '• Kolom bertanda (*) WAJIB diisi. NIP digenerate OTOMATIS oleh sistem. Batch default: 1 (per institusi). Tanggal Pendaftaran default: hari ini. Format Tanggal: YYYY-MM-DD. Jenis Kelamin: L/P.';
+    noteCell.value = '• Kolom bertanda (*) WAJIB diisi. NIP digenerate OTOMATIS oleh sistem. Jenis Kelamin WAJIB: L (Laki-laki) atau P (Perempuan). Batch contoh: CSBA-SEP26. Format Tanggal: YYYY-MM-DD.';
     noteCell.font = { name: FONT_FAMILY, size: 9.5, italic: true, color: { argb: 'FF475569' } };
     noteCell.fill = BANNER_FILL;
     noteCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -106,17 +108,18 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     // Empty separator row
     sheet.getRow(3).height = 10;
 
-    // 3. Table Headers
+    // 3. Table Headers — 10 columns, identity left → program right
     const headers = [
         'Nama Lengkap *',
-        'Email Aktif *',
-        'No HP *',
-        'Institusi *',
-        'Batch (Gelombang)',
+        'Email Aktif (Username Login) *',
+        'Jenis Kelamin (L/P) *',
+        'Tanggal Lahir (YYYY-MM-DD) *',
+        'No HP / WhatsApp *',
+        'Alamat Domisili',
+        'Institusi / Unit Kerja *',
+        'Program Sertifikasi',
+        'Batch Pelatihan',
         'Tanggal Pendaftaran (YYYY-MM-DD)',
-        'Tanggal Lahir (YYYY-MM-DD)',
-        'Jenis Kelamin (L/P)',
-        'Alamat',
     ];
 
     const headerRow = sheet.getRow(4);
@@ -135,24 +138,26 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
         {
             fullName: 'Ahmad Dahlan',
             email: 'ahmad.dahlan@example.com',
-            phoneNumber: '081234567890',
-            institution: 'PT Telkom Indonesia',
-            batch: 1,
-            registrationDate: new Date().toISOString().slice(0, 10),
-            dateOfBirth: '1995-05-20',
             gender: 'L',
+            dateOfBirth: '1995-05-20',
+            phoneNumber: '081234567890',
             address: 'Jl. Merdeka No. 45, Jakarta Pusat',
+            institution: 'PT Telkom Indonesia',
+            targetCertificationName: 'Certified Strategic Business Analyst',
+            batch: 'CSBA-SEP26',
+            registrationDate: new Date().toISOString().slice(0, 10),
         },
         {
             fullName: 'Siti Nurhaliza',
             email: 'siti.nurhaliza@example.com',
-            phoneNumber: '089876543210',
-            institution: 'RSUD Dr Soetomo',
-            batch: 1,
-            registrationDate: new Date().toISOString().slice(0, 10),
-            dateOfBirth: '1998-11-12',
             gender: 'P',
+            dateOfBirth: '1998-11-12',
+            phoneNumber: '089876543210',
             address: 'Jl. Mawar No. 12, Surabaya',
+            institution: 'RSUD Dr Soetomo',
+            targetCertificationName: 'Pelatihan Transformasi Digital & Tata Kelola IT',
+            batch: 'TDIT-OKT26',
+            registrationDate: new Date().toISOString().slice(0, 10),
         },
     ];
 
@@ -163,13 +168,14 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
         const values = [
             sample.fullName,
             sample.email,
-            sample.phoneNumber,
-            sample.institution,
-            sample.batch || 1,
-            sample.registrationDate || '',
-            sample.dateOfBirth,
             sample.gender,
+            sample.dateOfBirth,
+            sample.phoneNumber,
             sample.address,
+            sample.institution,
+            sample.targetCertificationName || '',
+            sample.batch || '1',
+            sample.registrationDate || '',
         ];
 
         values.forEach((val, colIdx) => {
@@ -183,12 +189,13 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
                 fgColor: { argb: sIdx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC' },
             };
 
-            // Formatting specifics
-            if (colIdx === 2) {
+            // Formatting specifics based on column position
+            if (colIdx === 2 || colIdx === 3 || colIdx === 8 || colIdx === 9) {
+                // Gender, DOB, Batch, Registration Date → centered
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            } else if (colIdx === 4) {
                 // Phone number as text format to keep leading zeroes
                 cell.numFmt = '@';
-                cell.alignment = { vertical: 'middle', horizontal: 'center' };
-            } else if (colIdx === 4 || colIdx === 5 || colIdx === 6 || colIdx === 7) {
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
             } else {
                 cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -198,30 +205,31 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
 
     // 5. Setup Column Widths
     sheet.columns = [
-        { width: 28 }, // Nama Lengkap
-        { width: 34 }, // Email Aktif
-        { width: 20 }, // No HP
-        { width: 28 }, // Institusi
-        { width: 20 }, // Batch
-        { width: 32 }, // Tanggal Pendaftaran
-        { width: 28 }, // Tanggal Lahir
-        { width: 22 }, // Jenis Kelamin
-        { width: 40 }, // Alamat
+        { width: 28 }, // A: Nama Lengkap
+        { width: 34 }, // B: Email Aktif
+        { width: 22 }, // C: Jenis Kelamin
+        { width: 28 }, // D: Tanggal Lahir
+        { width: 20 }, // E: No HP
+        { width: 40 }, // F: Alamat
+        { width: 28 }, // G: Institusi
+        { width: 34 }, // H: Program Sertifikasi
+        { width: 22 }, // I: Batch Pelatihan
+        { width: 32 }, // J: Tanggal Pendaftaran
     ];
 
-    // 6. Data Validation for Gender (rows 5 to 500)
+    // 6. Data Validation for Gender (Column C, rows 5 to 500) — MANDATORY
     for (let r = 5; r <= 500; r++) {
-        const genderCell = sheet.getCell(`H${r}`);
+        const genderCell = sheet.getCell(`C${r}`);
         genderCell.dataValidation = {
             type: 'list',
-            allowBlank: true,
+            allowBlank: false,
             formulae: ['"L,P"'],
             showErrorMessage: true,
-            errorTitle: 'Pilihan Tidak Valid',
-            error: 'Pilih "L" untuk Laki-laki atau "P" untuk Perempuan.',
+            errorTitle: 'Jenis Kelamin Wajib Diisi',
+            error: 'Pilih "L" untuk Laki-laki atau "P" untuk Perempuan. Kolom ini WAJIB diisi.',
         };
-        // Phone number formatting for empty rows
-        sheet.getCell(`C${r}`).numFmt = '@';
+        // Phone number formatting for empty rows (Column E)
+        sheet.getCell(`E${r}`).numFmt = '@';
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -465,7 +473,7 @@ export async function generateSessionReportXlsx(params: {
                 row.fullName,
                 row.nip || '-',
                 row.institution || '-',
-                row.batch || 1,
+                row.batch || '1',
                 row.username,
                 row.status,
                 row.score,
@@ -584,7 +592,7 @@ export async function generateCredentialsReportXlsx(params: {
             row.nip || '-',
             row.email,
             row.institution || '-',
-            row.batch || 1,
+            row.batch || '1',
             row.registrationDate || '-',
             row.password || '******',
             row.status,

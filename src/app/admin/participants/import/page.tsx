@@ -26,7 +26,8 @@ interface ParsedRow {
     email: string;
     phone_number: string;
     institution: string;
-    batch: number;
+    target_certification_name?: string;
+    batch: string;
     registration_date: string;
     date_of_birth: string;
     gender: string;
@@ -41,7 +42,7 @@ interface CredentialResult {
     password: string;
     nip?: string;
     institution?: string | null;
-    batch?: number;
+    batch?: string;
     registrationDate?: string;
 }
 
@@ -121,17 +122,14 @@ export default function BulkImportParticipantsPage() {
                 });
 
                 const name = normalized['nama lengkap'] || normalized['nama'] || normalized['name'] || '';
-                const email = (normalized['email aktif'] || normalized['email'] || '').toLowerCase();
-                const phone_number = normalized['no hp'] || normalized['no. hp'] || normalized['telepon'] || normalized['phone'] || '';
-                const institution = normalized['institusi'] || normalized['instansi'] || normalized['institution'] || '';
+                const email = (normalized['email aktif (username login)'] || normalized['email aktif'] || normalized['email'] || '').toLowerCase();
+                const phone_number = normalized['no hp / whatsapp'] || normalized['no hp'] || normalized['no. hp'] || normalized['telepon'] || normalized['phone'] || '';
+                const institution = normalized['institusi / unit kerja'] || normalized['institusi'] || normalized['instansi'] || normalized['institution'] || '';
+                const target_certification_name = normalized['program sertifikasi'] || normalized['program'] || normalized['sertifikasi'] || '';
 
                 // Batch
-                let batch = 1;
-                const batchRaw = normalized['batch (gelombang)'] || normalized['batch'] || normalized['gelombang'] || '1';
-                const parsedBatch = parseInt(batchRaw, 10);
-                if (!isNaN(parsedBatch) && parsedBatch > 0) {
-                    batch = parsedBatch;
-                }
+                const batchRaw = normalized['batch pelatihan'] || normalized['batch (gelombang)'] || normalized['batch'] || normalized['gelombang'] || '1';
+                const batch = batchRaw.trim() || '1';
 
                 // Registration Date
                 let registration_date = normalized['tanggal pendaftaran (yyyy-mm-dd)'] || normalized['tanggal pendaftaran'] || normalized['tanggal daftar'] || todayStr;
@@ -147,12 +145,18 @@ export default function BulkImportParticipantsPage() {
                     date_of_birth = date_of_birth.split('T')[0];
                 }
 
-                let gender = (normalized['jenis kelamin (l/p)'] || normalized['jenis kelamin'] || normalized['gender'] || '').toUpperCase();
-                if (gender !== 'L' && gender !== 'P') {
-                    gender = '';
+                // Gender Normalization
+                const rawGender = (normalized['jenis kelamin (l/p)'] || normalized['jenis kelamin'] || normalized['gender'] || '').toUpperCase().trim();
+                const MALE_VARIANTS = ['L', 'LAKI-LAKI', 'LAKI', 'PRIA', 'MALE', 'M'];
+                const FEMALE_VARIANTS = ['P', 'PEREMPUAN', 'WANITA', 'FEMALE', 'F'];
+                let gender = '';
+                if (MALE_VARIANTS.includes(rawGender)) {
+                    gender = 'L';
+                } else if (FEMALE_VARIANTS.includes(rawGender)) {
+                    gender = 'P';
                 }
 
-                const address = normalized['alamat'] || normalized['address'] || '';
+                const address = normalized['alamat domisili'] || normalized['alamat'] || normalized['address'] || '';
 
                 let isValid = true;
                 let errorReason = '';
@@ -166,6 +170,9 @@ export default function BulkImportParticipantsPage() {
                 } else if (seenEmails.has(email)) {
                     isValid = false;
                     errorReason = 'Duplikasi email dalam file';
+                } else if (!gender) {
+                    isValid = false;
+                    errorReason = 'Jenis kelamin wajib diisi (L untuk Laki-laki atau P untuk Perempuan)';
                 } else {
                     seenEmails.add(email);
                 }
@@ -176,6 +183,7 @@ export default function BulkImportParticipantsPage() {
                     email,
                     phone_number,
                     institution,
+                    target_certification_name,
                     batch,
                     registration_date,
                     date_of_birth,
@@ -214,6 +222,7 @@ export default function BulkImportParticipantsPage() {
                         email: r.email,
                         phone_number: r.phone_number,
                         institution: r.institution,
+                        target_certification_name: r.target_certification_name,
                         batch: r.batch,
                         registration_date: r.registration_date,
                         date_of_birth: r.date_of_birth,
@@ -263,7 +272,7 @@ export default function BulkImportParticipantsPage() {
                 nip: c.nip || '-',
                 email: c.email,
                 institution: c.institution || '-',
-                batch: c.batch || 1,
+                batch: c.batch || '1',
                 registrationDate: c.registrationDate || '-',
                 password: c.password,
                 status: 'Berhasil Diimport'
@@ -579,11 +588,13 @@ export default function BulkImportParticipantsPage() {
                                         <th className="px-4 py-3.5 text-center">Status</th>
                                         <th className="px-4 py-3.5">Nama Lengkap</th>
                                         <th className="px-4 py-3.5">Email</th>
-                                        <th className="px-4 py-3.5">Instansi & Batch</th>
-                                        <th className="px-4 py-3.5">Tgl Pendaftaran</th>
-                                        <th className="px-4 py-3.5">No. HP</th>
-                                        <th className="px-4 py-3.5">Tanggal Lahir</th>
                                         <th className="px-4 py-3.5 text-center">L/P</th>
+                                        <th className="px-4 py-3.5">Tanggal Lahir</th>
+                                        <th className="px-4 py-3.5">No. HP</th>
+                                        <th className="px-4 py-3.5">Alamat</th>
+                                        <th className="px-4 py-3.5">Instansi & Batch</th>
+                                        <th className="px-4 py-3.5">Program Sertifikasi</th>
+                                        <th className="px-4 py-3.5">Tgl Pendaftaran</th>
                                         <th className="px-4 py-3.5">Keterangan / Error</th>
                                     </tr>
                                 </thead>
@@ -604,18 +615,30 @@ export default function BulkImportParticipantsPage() {
                                             </td>
                                             <td className="px-4 py-3 font-semibold text-foreground">{r.name || '-'}</td>
                                             <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.email || '-'}</td>
+                                            <td className="px-4 py-3 text-center font-bold text-xs">
+                                                {r.gender ? (
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${r.gender === 'L' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700'}`}>
+                                                        {r.gender}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-rose-600 font-bold text-xs">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.date_of_birth || '-'}</td>
+                                            <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.phone_number || '-'}</td>
+                                            <td className="px-4 py-3 text-muted-foreground text-xs max-w-[150px] truncate">{r.address || '-'}</td>
                                             <td className="px-4 py-3 text-muted-foreground">
                                                 <div className="flex flex-col gap-1 items-start">
                                                     <span className="font-medium text-foreground">{r.institution || '-'}</span>
                                                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                        Batch {r.batch || 1}
+                                                        {/^\d+$/.test(r.batch) ? `Batch ${r.batch}` : r.batch}
                                                     </span>
                                                 </div>
                                             </td>
+                                            <td className="px-4 py-3 text-xs text-foreground font-medium max-w-[200px] truncate">
+                                                {r.target_certification_name || '-'}
+                                            </td>
                                             <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.registration_date || '-'}</td>
-                                            <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.phone_number || '-'}</td>
-                                            <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.date_of_birth || '-'}</td>
-                                            <td className="px-4 py-3 text-center font-bold text-xs">{r.gender || '-'}</td>
                                             <td className="px-4 py-3 text-xs">
                                                 {r.isValid ? (
                                                     <span className="text-emerald-700 font-medium">Siap diimport (NIP Auto)</span>
@@ -680,7 +703,7 @@ export default function BulkImportParticipantsPage() {
                                                 </span>
                                             )}
                                             <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                Batch {c.batch || 1}
+                                                {/^\d+$/.test(String(c.batch || '1')) ? `Batch ${c.batch}` : c.batch}
                                             </span>
                                         </div>
                                     </div>

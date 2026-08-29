@@ -44,7 +44,7 @@ export const GET = withAuth(async (
             username: string | null;
             nip: string | null;
             institution: string | null;
-            batch: number | null;
+            batch: string | null;
             status: string | null;
             score: number | string | null;
             attempts_count: number | null;
@@ -76,7 +76,7 @@ export const GET = withAuth(async (
                 fullName: row.full_name || '-',
                 nip: row.nip || '-',
                 institution: row.institution || '-',
-                batch: row.batch || 1,
+                batch: row.batch || '1',
                 username: row.username || '-',
                 status: statusLabel,
                 score: scoreDisplay,

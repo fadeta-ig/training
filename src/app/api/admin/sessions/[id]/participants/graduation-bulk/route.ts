@@ -11,11 +11,15 @@ const bulkGraduationSchema = z.object({
     graduation_notes: z.string().max(1000).optional().nullable(),
 });
 
-function generateSklNumber(batch: number = 1): string {
+function generateSklNumber(batch: string = '1'): string {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const batchFormatted = `B${String(batch).padStart(2, '0')}`;
+    const safeBatch = (batch || '1').trim().toUpperCase();
+    const isNumeric = /^\d+$/.test(safeBatch);
+    const batchFormatted = isNumeric
+        ? `B${safeBatch.padStart(2, '0')}`
+        : safeBatch;
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     return `SKL/${year}/${month}/${batchFormatted}/${randomSuffix}`;
 }
@@ -66,7 +70,7 @@ async function handlePost(
         for (const p of participants) {
             let sklNumberToSet = p.skl_number || null;
             if (graduation_status === 'passed' && !sklNumberToSet) {
-                sklNumberToSet = generateSklNumber(p.batch || 1);
+                sklNumberToSet = generateSklNumber(p.batch || '1');
             }
 
             await connection.execute(

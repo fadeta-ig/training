@@ -15,11 +15,26 @@ interface ImportItem {
     email: string;
     phone_number?: string | null;
     institution?: string | null;
-    batch?: number | string | null;
+    batch?: string | null;
     registration_date?: string | null;
     date_of_birth?: string | null;
-    gender?: 'L' | 'P' | null;
+    gender?: 'L' | 'P' | string | null;
     address?: string | null;
+    target_certification_name?: string | null;
+}
+
+/**
+ * Normalizes gender input from various formats to 'L' or 'P'.
+ * Supports: L, P, Laki-laki, Perempuan, Pria, Wanita, Male, Female, M, F
+ */
+function normalizeGender(raw: string | null | undefined): 'L' | 'P' | null {
+    if (!raw) return null;
+    const cleaned = raw.trim().toUpperCase();
+    const MALE_VARIANTS = ['L', 'LAKI-LAKI', 'LAKI', 'PRIA', 'MALE', 'M'];
+    const FEMALE_VARIANTS = ['P', 'PEREMPUAN', 'WANITA', 'FEMALE', 'F'];
+    if (MALE_VARIANTS.includes(cleaned)) return 'L';
+    if (FEMALE_VARIANTS.includes(cleaned)) return 'P';
+    return null;
 }
 
 function generateRandomPassword(length = 14) {
@@ -81,17 +96,21 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
 
             seenEmails.add(cleanEmail);
 
-            let parsedBatch = 1;
+            let parsedBatch = '1';
             if (item.batch !== undefined && item.batch !== null && String(item.batch).trim() !== '') {
-                const parsed = parseInt(String(item.batch), 10);
-                if (!isNaN(parsed) && parsed > 0) {
-                    parsedBatch = parsed;
-                }
+                parsedBatch = String(item.batch).trim();
             }
 
             let regDate = todayStr;
             if (item.registration_date && /^\d{4}-\d{2}-\d{2}$/.test(String(item.registration_date).trim())) {
                 regDate = String(item.registration_date).trim();
+            }
+
+            // Normalize and validate gender — MANDATORY
+            const normalizedGender = normalizeGender(item.gender as string);
+            if (!normalizedGender) {
+                failed.push({ name: cleanName, email: cleanEmail, reason: 'Jenis kelamin wajib diisi (L untuk Laki-laki atau P untuk Perempuan)' });
+                continue;
             }
 
             validQueue.push({
@@ -103,8 +122,9 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 batch: parsedBatch,
                 registration_date: regDate,
                 date_of_birth: item.date_of_birth ? String(item.date_of_birth).trim() : null,
-                gender: item.gender === 'L' || item.gender === 'P' ? item.gender : null,
+                gender: normalizedGender,
                 address: item.address ? String(item.address).trim() : null,
+                target_certification_name: item.target_certification_name ? String(item.target_certification_name).trim() : null,
             });
         }
 
@@ -128,14 +148,14 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
 
         const existingSet = new Set((existingUsers || []).map(u => u.username.toLowerCase()));
 
-        const readyToInsert: Array<ImportItem & { batch: number }> = [];
+        const readyToInsert: Array<ImportItem & { batch: string }> = [];
         for (const item of validQueue) {
             if (existingSet.has(item.email)) {
                 failed.push({ name: item.name, email: item.email, reason: 'Email sudah terdaftar di sistem' });
             } else {
                 readyToInsert.push({
                     ...item,
-                    batch: Number(item.batch) || 1,
+                    batch: String(item.batch || '1'),
                 });
             }
         }
@@ -158,7 +178,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             password: string;
             nip: string;
             institution: string | null;
-            batch: number;
+            batch: string;
             registrationDate: string;
         }[] = [];
 
@@ -176,7 +196,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 const profileId = uuidv4();
                 const nip = nips[idx];
                 const institutionCode = institutionCodes[idx];
-                const batchNum = Number(participant.batch) || 1;
+                const batchVal = String(participant.batch) || '1';
                 const regDate = participant.registration_date || todayStr;
 
                 await connection.execute(
@@ -194,10 +214,10 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                         participant.phone_number || null,
                         participant.address || null,
                         participant.date_of_birth || null,
-                        participant.gender || null,
+                        participant.gender || 'L',
                         participant.institution || null,
                         institutionCode || null,
-                        batchNum,
+                        batchVal,
                         regDate,
                     ]
                 );
@@ -208,7 +228,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                     password: rawPassword,
                     nip: nip,
                     institution: participant.institution || null,
-                    batch: batchNum,
+                    batch: batchVal,
                     registrationDate: regDate,
                 });
             }

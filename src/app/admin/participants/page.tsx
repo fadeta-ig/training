@@ -26,7 +26,7 @@ type Participant = {
     nip: string | null;
     institution: string | null;
     institution_code: string | null;
-    batch: number;
+    batch: string;
     registration_date: string | null;
     phone_number: string | null;
     created_at: string;
@@ -214,7 +214,7 @@ export default function ParticipantsManagerPage() {
                                                 <span className="font-medium text-foreground">{p.institution || '-'}</span>
                                                 {p.batch && (
                                                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                        Batch {p.batch}
+                                                        {/^\d+$/.test(String(p.batch).trim()) ? `Batch ${p.batch}` : p.batch}
                                                     </span>
                                                 )}
                                             </div>

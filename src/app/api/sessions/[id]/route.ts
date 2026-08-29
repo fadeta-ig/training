@@ -85,7 +85,7 @@ async function handleGet(
                     full_name: p.full_name,
                     nip: p.nip || null,
                     institution: p.institution || null,
-                    batch: p.batch || 1,
+                    batch: p.batch || '1',
                     completed_items: Number(p.completed_items || 0),
                     total_items: totalItems,
                     progress: totalItems > 0 ? Math.round((Number(p.completed_items || 0) / totalItems) * 100) : 0,

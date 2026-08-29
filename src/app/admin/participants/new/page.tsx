@@ -10,7 +10,7 @@ type Credentials = {
     username: string;
     password: string;
     nip?: string;
-    batch?: number;
+    batch?: string;
     registration_date?: string;
     institution?: string;
 };
@@ -28,7 +28,7 @@ export default function NewParticipantPage() {
         date_of_birth: '',
         gender: '',
         institution: '',
-        batch: 1,
+        batch: '1',
         registration_date: new Date().toISOString().slice(0, 10),
     });
 
@@ -41,7 +41,7 @@ export default function NewParticipantPage() {
 
     const handleCopyAll = async () => {
         if (!credentials) return;
-        const text = `Data Akun Peserta\nNama: ${formData.name}\nNIP: ${credentials.nip || '-'}\nUsername: ${credentials.username}\nPassword: ${credentials.password}\nBatch: ${credentials.batch || 1}\nInstansi: ${credentials.institution || '-'}`;
+        const text = `Data Akun Peserta\nNama: ${formData.name}\nNIP: ${credentials.nip || '-'}\nUsername: ${credentials.username}\nPassword: ${credentials.password}\nBatch: ${credentials.batch || '1'}\nInstansi: ${credentials.institution || '-'}`;
         await navigator.clipboard.writeText(text);
         toast.success('Semua kredensial disalin!');
     };
@@ -178,7 +178,7 @@ export default function NewParticipantPage() {
                             </div>
                             <div>
                                 <span className="text-muted-foreground">Angkatan / Batch:</span>
-                                <p className="font-semibold text-foreground">Batch {credentials.batch || 1}</p>
+                                <p className="font-semibold text-foreground">{/^\d+$/.test(String(credentials.batch || '1')) ? `Batch ${credentials.batch}` : credentials.batch}</p>
                             </div>
                         </div>
                     </div>
@@ -219,7 +219,7 @@ export default function NewParticipantPage() {
                                         date_of_birth: '',
                                         gender: '',
                                         institution: '',
-                                        batch: 1,
+                                        batch: '1',
                                         registration_date: new Date().toISOString().slice(0, 10),
                                     });
                                 }}
@@ -309,17 +309,17 @@ export default function NewParticipantPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-foreground">Batch (Angkatan Pelatihan)</label>
+                            <label className="text-sm font-bold text-foreground">Batch (Angkatan / Gelombang Pelatihan) <span className="text-destructive">*</span></label>
                             <input
-                                type="number"
-                                min={1}
+                                type="text"
+                                maxLength={50}
                                 required
-                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
-                                placeholder="1"
+                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none uppercase"
+                                placeholder="Contoh: CSBA-SEP26 atau 1"
                                 value={formData.batch}
-                                onChange={e => setFormData({ ...formData, batch: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                                onChange={e => setFormData({ ...formData, batch: e.target.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '') })}
                             />
-                            <p className="text-[11px] text-muted-foreground">Batch bersifat independen per institusi.</p>
+                            <p className="text-[11px] text-muted-foreground">Dapat berupa angka gelombang (1) atau kode sertifikasi (CSBA-SEP26).</p>
                         </div>
 
                         <div className="space-y-2">
@@ -359,8 +359,9 @@ export default function NewParticipantPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-foreground">Jenis Kelamin</label>
+                            <label className="text-sm font-bold text-foreground">Jenis Kelamin <span className="text-destructive">*</span></label>
                             <select
+                                required
                                 className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none appearance-none"
                                 value={formData.gender}
                                 onChange={e => setFormData({ ...formData, gender: e.target.value })}

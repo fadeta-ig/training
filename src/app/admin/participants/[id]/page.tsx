@@ -24,7 +24,7 @@ export default function EditParticipantPage() {
         date_of_birth: '',
         gender: '',
         institution: '',
-        batch: 1,
+        batch: '1',
         registration_date: '',
     });
 
@@ -45,7 +45,7 @@ export default function EditParticipantPage() {
                         date_of_birth: data.date_of_birth ? data.date_of_birth.split('T')[0] : '',
                         gender: data.gender || '',
                         institution: data.institution || '',
-                        batch: data.batch || 1,
+                        batch: data.batch ? String(data.batch) : '1',
                         registration_date: data.registration_date ? data.registration_date.split('T')[0] : '',
                     });
                 } else {
@@ -191,14 +191,15 @@ export default function EditParticipantPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-foreground">Batch (Angkatan Pelatihan)</label>
+                            <label className="text-sm font-bold text-foreground">Batch (Angkatan / Gelombang Pelatihan) <span className="text-destructive">*</span></label>
                             <input
-                                type="number"
-                                min={1}
+                                type="text"
+                                maxLength={50}
                                 required
-                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
+                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none uppercase"
+                                placeholder="Contoh: CSBA-SEP26 atau 1"
                                 value={formData.batch}
-                                onChange={e => setFormData({ ...formData, batch: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                                onChange={e => setFormData({ ...formData, batch: e.target.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '') })}
                             />
                         </div>
 
@@ -237,8 +238,9 @@ export default function EditParticipantPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-foreground">Jenis Kelamin</label>
+                            <label className="text-sm font-bold text-foreground">Jenis Kelamin <span className="text-destructive">*</span></label>
                             <select
+                                required
                                 className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none appearance-none"
                                 value={formData.gender}
                                 onChange={e => setFormData({ ...formData, gender: e.target.value })}

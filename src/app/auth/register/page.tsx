@@ -105,6 +105,11 @@ export default function RegisterPage() {
             return;
         }
 
+        if (!formData.gender) {
+            setError('Jenis kelamin wajib dipilih (Laki-laki atau Perempuan).');
+            return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -402,9 +407,10 @@ export default function RegisterPage() {
                                         {/* Jenis Kelamin */}
                                         <div className="space-y-1.5">
                                             <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider">
-                                                Jenis Kelamin
+                                                Jenis Kelamin <span className="text-destructive">*</span>
                                             </label>
                                             <select
+                                                required
                                                 className="w-full h-11 px-3.5 rounded-xl bg-slate-50/70 border border-slate-200 text-sm text-foreground focus:bg-white focus:outline-none focus:border-foreground focus:ring-4 focus:ring-foreground/5 transition-all"
                                                 value={formData.gender}
                                                 onChange={(e) => setFormData({ ...formData, gender: e.target.value as 'L' | 'P' | '' })}

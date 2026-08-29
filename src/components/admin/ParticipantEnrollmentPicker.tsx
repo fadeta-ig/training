@@ -27,7 +27,7 @@ export type ParticipantItem = {
     username: string; // email or username
     full_name: string;
     nip?: string | null;
-    batch?: number | null;
+    batch?: string | null;
     registration_date?: string | null;
     email?: string;
     phone_number?: string | null;
@@ -110,17 +110,17 @@ export function ParticipantEnrollmentPicker({
 
     // --- Available Batches (Dynamically scoped by selected institution) ---
     const availableBatches = useMemo(() => {
-        const batches = new Set<number>();
+        const batches = new Set<string>();
         participants.forEach((p) => {
             const instMatch =
                 selectedInstitution === 'all' ||
                 (selectedInstitution === '__NONE__' && !p.institution) ||
                 p.institution?.trim() === selectedInstitution;
             if (instMatch && p.batch) {
-                batches.add(Number(p.batch));
+                batches.add(String(p.batch).trim());
             }
         });
-        return Array.from(batches).sort((a, b) => a - b);
+        return Array.from(batches).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     }, [participants, selectedInstitution]);
 
     // --- Filter & Sort Logic ---
@@ -145,10 +145,7 @@ export function ParticipantEnrollmentPicker({
 
         // 3. Batch Filter
         if (selectedBatch !== 'all') {
-            const parsedB = parseInt(selectedBatch, 10);
-            if (!isNaN(parsedB)) {
-                result = result.filter((p) => (Number(p.batch) || 1) === parsedB);
-            }
+            result = result.filter((p) => String(p.batch || '1').trim() === selectedBatch);
         }
 
         // 4. Gender Filter
@@ -614,8 +611,8 @@ export function ParticipantEnrollmentPicker({
                             >
                                 <option value="all">Semua Batch</option>
                                 {availableBatches.map((b) => (
-                                    <option key={b} value={String(b)}>
-                                        Batch {b}
+                                    <option key={b} value={b}>
+                                        {/^\d+$/.test(b) ? `Batch ${b}` : b}
                                     </option>
                                 ))}
                             </select>
@@ -842,7 +839,7 @@ export function ParticipantEnrollmentPicker({
                                                         {user.institution && (
                                                             <p className="text-[11px] text-primary/80 md:hidden mt-0.5 truncate flex items-center gap-1">
                                                                 <Building02Icon size={11} />
-                                                                {user.institution} {user.batch ? `• Batch ${user.batch}` : ''}
+                                                                {user.institution} {user.batch ? `• ${/^\d+$/.test(String(user.batch)) ? `Batch ${user.batch}` : user.batch}` : ''}
                                                             </p>
                                                         )}
                                                     </div>
@@ -866,7 +863,7 @@ export function ParticipantEnrollmentPicker({
                                                     )}
                                                     {user.batch && (
                                                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                            Batch {user.batch}
+                                                            {/^\d+$/.test(String(user.batch)) ? `Batch ${user.batch}` : user.batch}
                                                         </span>
                                                     )}
                                                 </div>

@@ -121,7 +121,37 @@ CREATE TABLE exams (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 5. Questions (Butir Soal — Multi-type)
+-- 5. Question Import Batches (Staging, Idempotensi, Audit, Rollback)
+-- ─────────────────────────────────────────────
+CREATE TABLE question_import_batches (
+  id                VARCHAR(36) PRIMARY KEY,
+  exam_id           VARCHAR(36) NOT NULL,
+  created_by        VARCHAR(36) NULL,
+  original_filename VARCHAR(255) NOT NULL,
+  file_sha256       CHAR(64) NOT NULL,
+  payload_sha256    CHAR(64) NOT NULL,
+  template_version  VARCHAR(20) NOT NULL,
+  status            ENUM('previewed','committed','rolled_back','expired','failed')
+                      NOT NULL DEFAULT 'previewed',
+  question_count    INT NOT NULL DEFAULT 0,
+  total_points      INT NOT NULL DEFAULT 0,
+  payload_json      LONGTEXT NULL,
+  expires_at        DATETIME NOT NULL,
+  committed_at      DATETIME NULL,
+  rolled_back_at    DATETIME NULL,
+  created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_question_import_exam_created (exam_id, created_at),
+  INDEX idx_question_import_exam_file (exam_id, file_sha256),
+  INDEX idx_question_import_exam_payload (exam_id, payload_sha256),
+  INDEX idx_question_import_status_expiry (status, expires_at),
+  CONSTRAINT fk_question_import_exam
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+  CONSTRAINT fk_question_import_user
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ─────────────────────────────────────────────
+-- 6. Questions (Butir Soal — Multi-type)
 -- ─────────────────────────────────────────────
 CREATE TABLE questions (
   id                   VARCHAR(36) PRIMARY KEY,
@@ -135,14 +165,21 @@ CREATE TABLE questions (
   correct_answer       TEXT NULL,
   points               INT NOT NULL DEFAULT 1,
   sequence_order       INT NOT NULL DEFAULT 0,
+  import_batch_id      VARCHAR(36) NULL,
+  source_question_code VARCHAR(50) NULL,
+  source_sheet         VARCHAR(50) NULL,
+  source_row           INT NULL,
   INDEX idx_questions_exam (exam_id),
   INDEX idx_questions_exam_order (exam_id, sequence_order),
+  INDEX idx_questions_import_batch (import_batch_id),
   CONSTRAINT fk_questions_exam
-    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+  CONSTRAINT fk_questions_import_batch
+    FOREIGN KEY (import_batch_id) REFERENCES question_import_batches(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 6. Modules (Learning Path / Kerangka Urutan)
+-- 7. Modules (Learning Path / Kerangka Urutan)
 -- ─────────────────────────────────────────────
 CREATE TABLE modules (
   id          VARCHAR(36)  PRIMARY KEY,
@@ -152,7 +189,7 @@ CREATE TABLE modules (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 7. Module Items (Urutan item di dalam modul)
+-- 8. Module Items (Urutan item di dalam modul)
 -- ─────────────────────────────────────────────
 CREATE TABLE module_items (
   id             VARCHAR(36) PRIMARY KEY,
@@ -167,7 +204,7 @@ CREATE TABLE module_items (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 8. Sessions (Jadwal Pelaksanaan Sesi)
+-- 9. Sessions (Jadwal Pelaksanaan Sesi)
 -- ─────────────────────────────────────────────
 CREATE TABLE sessions (
   id             VARCHAR(36)  PRIMARY KEY,
@@ -186,7 +223,7 @@ CREATE TABLE sessions (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 9. Session Participants (Peserta Terdaftar)
+-- 10. Session Participants (Peserta Terdaftar)
 -- ─────────────────────────────────────────────
 CREATE TABLE session_participants (
   id                      VARCHAR(36) PRIMARY KEY,
@@ -211,7 +248,7 @@ CREATE TABLE session_participants (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 10. User Progress (Tracking Keterbukaan & Nilai)
+-- 11. User Progress (Tracking Keterbukaan & Nilai)
 -- ─────────────────────────────────────────────
 CREATE TABLE user_progress (
   id                 VARCHAR(36)   PRIMARY KEY,
@@ -237,7 +274,7 @@ CREATE TABLE user_progress (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 11. Exam Answers (Rekaman Jawaban Per Individu)
+-- 12. Exam Answers (Rekaman Jawaban Per Individu)
 -- ─────────────────────────────────────────────
 CREATE TABLE exam_answers (
   id              VARCHAR(36)  PRIMARY KEY,
@@ -266,7 +303,7 @@ CREATE TABLE exam_answers (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 12. Proctor Snapshots (Webcam Capture Periodik)
+-- 13. Proctor Snapshots (Webcam Capture Periodik)
 -- ─────────────────────────────────────────────
 CREATE TABLE proctor_snapshots (
   id          VARCHAR(36) PRIMARY KEY,
@@ -282,7 +319,7 @@ CREATE TABLE proctor_snapshots (
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
--- 13. Notifications (Sistem Notifikasi)
+-- 14. Notifications (Sistem Notifikasi)
 -- ─────────────────────────────────────────────
 CREATE TABLE notifications (
   id          VARCHAR(36) PRIMARY KEY,
@@ -321,7 +358,7 @@ CREATE TABLE exam_answer_drafts (
     FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- 14. Audit Logs (Aktivitas Kritis)
+-- 15. Audit Logs (Aktivitas Kritis)
 CREATE TABLE audit_logs (
   id          VARCHAR(36) PRIMARY KEY,
   user_id     VARCHAR(36) NULL,

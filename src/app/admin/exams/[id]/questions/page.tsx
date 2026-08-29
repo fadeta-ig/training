@@ -19,6 +19,7 @@ import {
     AlertCircle,
     Info,
     RotateCcw,
+    FileSpreadsheet,
 } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -569,6 +570,15 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                 title={exam ? `Bank Soal: ${exam.title}` : 'Bank Soal'}
                 description={`Total ${questions.length} soal • Bobot total ${totalPts} poin`}
                 icon={<HelpCircleIcon size={28} className="text-muted-foreground" />}
+                actions={userRole === 'admin' ? (
+                    <Link
+                        href={`/admin/exams/${examId}/questions/import`}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-700/30 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-800 transition-all hover:bg-emerald-100 sm:w-auto sm:text-sm"
+                    >
+                        <FileSpreadsheet className="size-4" />
+                        <span>Import Excel</span>
+                    </Link>
+                ) : undefined}
                 actionLabel={userRole === 'admin' ? 'Tambah Soal Baru' : undefined}
                 actionHref={userRole === 'admin' ? `/admin/exams/${examId}/questions/new` : undefined}
                 onRefresh={fetchData}

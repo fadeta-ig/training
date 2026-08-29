@@ -34,7 +34,7 @@ export const questionSchema = z.object({
         .nullable()
         .optional()
         .refine((value) => !value || isSafePublicUrl(value), 'URL gambar soal tidak aman atau tidak valid'),
-    options: z.array(optionSchema).optional(),
+    options: z.array(optionSchema).max(10, 'Maksimal 10 opsi jawaban').optional(),
     correct_option_index: z.number().int().min(0).optional(),
     correct_option_indices: z.array(z.number().int().min(0)).optional(),
     correct_answer: z.string().trim().optional(),

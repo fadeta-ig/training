@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Copy, Check, LockKeyhole, X, MessageSquare, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 
 interface RequestMaterialModalProps {
     isOpen: boolean;
@@ -24,6 +25,19 @@ export function RequestMaterialModal({
     sessionSchedule,
 }: RequestMaterialModalProps) {
     const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
@@ -50,13 +64,18 @@ Terima kasih banyak atas perhatian dan bantuannya.`;
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
-            <div
-                className="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-hidden rounded-2xl border border-black/10 bg-background shadow-2xl animate-in zoom-in-95 duration-200 dark:border-white/10 flex flex-col"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="request-material-modal-title"
+        <ClientPortal>
+            <div 
+                className="fixed inset-0 z-[9999] flex items-center justify-center p-3.5 sm:p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200"
+                onClick={onClose}
             >
+                <div
+                    className="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-hidden rounded-2xl border border-black/10 bg-background shadow-2xl animate-in zoom-in-95 duration-200 dark:border-white/10 flex flex-col"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="request-material-modal-title"
+                    onClick={(e) => e.stopPropagation()}
+                >
                 {/* Header */}
                 <div className="flex items-start justify-between border-b px-5 py-4 sm:px-6">
                     <div className="flex items-center gap-3">
@@ -135,5 +154,6 @@ Terima kasih banyak atas perhatian dan bantuannya.`;
                 </div>
             </div>
         </div>
+        </ClientPortal>
     );
 }

@@ -6,6 +6,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 import { toast } from 'sonner';
 import {
     UserCheck01Icon,
@@ -494,165 +495,181 @@ export default function RegistrationsAdminPage() {
 
             {/* Modal Setujui (Approve) & Generate NIP — with Smart Batch Suggestion & Live NIP Preview */}
             {isApproveModalOpen && selectedItem && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-                                <CheckmarkCircle02Icon size={20} className="text-emerald-600" />
-                                <span>Persetujuan Akun Peserta</span>
-                            </h3>
-                            <button
-                                type="button"
-                                onClick={() => setIsApproveModalOpen(false)}
-                                className="text-muted-foreground hover:text-foreground p-1 rounded-lg"
-                            >
-                                <CancelCircleIcon size={18} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleApproveSubmit} className="p-6 space-y-4">
-                            {/* Summary Detail */}
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2 text-xs">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Nama Peserta:</span>
-                                    <span className="font-bold text-foreground">{selectedItem.full_name}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Instansi:</span>
-                                    <span className="font-semibold text-foreground">{selectedItem.institution || '-'}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Program Diminati:</span>
-                                    <span className="font-semibold text-foreground text-right">{selectedItem.target_certification_name || '-'}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Rencana Pelaksanaan:</span>
-                                    <span className="font-bold text-emerald-700">{selectedItem.target_period || '-'}</span>
-                                </div>
-                            </div>
-
-                            {/* Batch Input — Smart Pre-fill */}
-                            <div className="space-y-1.5">
-                                <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                                    Kode Batch Pelatihan <span className="text-destructive">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    maxLength={50}
-                                    className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-foreground focus:bg-white focus:outline-none focus:border-foreground uppercase tracking-wide"
-                                    placeholder="Contoh: CSBA-SEP26 atau 1"
-                                    value={batchInput}
-                                    onChange={(e) => setBatchInput(e.target.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, ''))}
-                                />
-                                <p className="text-[11px] text-muted-foreground">
-                                    Otomatis diusulkan dari program &amp; periode target. Anda dapat mengedit jika diperlukan.
-                                </p>
-                            </div>
-
-                            {/* Live Reactive NIP Preview */}
-                            <div className="bg-slate-800 rounded-xl p-3.5 space-y-1">
-                                <span className="text-slate-500 text-[10px] uppercase tracking-widest font-semibold block">
-                                    Preview NIP Resmi
-                                </span>
-                                <span className="text-emerald-400 text-sm font-mono font-bold tracking-wide block">
-                                    {batchInput.trim()
-                                        ? previewNip(selectedItem.institution, batchInput)
-                                        : '—'}
-                                </span>
-                                <p className="text-slate-500 text-[10px]">
-                                    Nomor urut (001) akan dihitung otomatis oleh sistem saat data disimpan.
-                                </p>
-                            </div>
-
-                            {/* Auto-NIP Notice */}
-                            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5 text-xs text-emerald-900 flex items-start gap-2.5">
-                                <InformationCircleIcon size={18} className="text-emerald-700 shrink-0 mt-0.5" />
-                                <div className="space-y-1 leading-relaxed">
-                                    <span className="font-bold">Penerbitan NIP Otomatis:</span>
-                                    <p className="text-[11px] text-emerald-800">
-                                        Saat disetujui, sistem akan secara atomik men-generate <strong>NIP resmi</strong> berbasis kode instansi & batch yang Anda tentukan, kemudian mengaktifkan akun peserta.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Footer Actions */}
-                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <ClientPortal>
+                    <div 
+                        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => setIsApproveModalOpen(false)}
+                    >
+                        <div 
+                            className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                                <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                                    <CheckmarkCircle02Icon size={20} className="text-emerald-600" />
+                                    <span>Persetujuan Akun Peserta</span>
+                                </h3>
                                 <button
                                     type="button"
                                     onClick={() => setIsApproveModalOpen(false)}
-                                    className="h-10 px-4 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100"
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded-lg"
                                 >
-                                    Batal
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting || !batchInput.trim()}
-                                    className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5"
-                                >
-                                    {isSubmitting ? 'Memproses...' : 'Setujui & Terbitkan NIP'}
+                                    <CancelCircleIcon size={18} />
                                 </button>
                             </div>
-                        </form>
+
+                            <form onSubmit={handleApproveSubmit} className="p-6 space-y-4">
+                                {/* Summary Detail */}
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2 text-xs">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Nama Peserta:</span>
+                                        <span className="font-bold text-foreground">{selectedItem.full_name}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Instansi:</span>
+                                        <span className="font-semibold text-foreground">{selectedItem.institution || '-'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Program Diminati:</span>
+                                        <span className="font-semibold text-foreground text-right">{selectedItem.target_certification_name || '-'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Rencana Pelaksanaan:</span>
+                                        <span className="font-bold text-emerald-700">{selectedItem.target_period || '-'}</span>
+                                    </div>
+                                </div>
+
+                                {/* Batch Input — Smart Pre-fill */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
+                                        Kode Batch Pelatihan <span className="text-destructive">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        maxLength={50}
+                                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-foreground focus:bg-white focus:outline-none focus:border-foreground uppercase tracking-wide"
+                                        placeholder="Contoh: CSBA-SEP26 atau 1"
+                                        value={batchInput}
+                                        onChange={(e) => setBatchInput(e.target.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, ''))}
+                                    />
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Otomatis diusulkan dari program &amp; periode target. Anda dapat mengedit jika diperlukan.
+                                    </p>
+                                </div>
+
+                                {/* Live Reactive NIP Preview */}
+                                <div className="bg-slate-800 rounded-xl p-3.5 space-y-1">
+                                    <span className="text-slate-500 text-[10px] uppercase tracking-widest font-semibold block">
+                                        Preview NIP Resmi
+                                    </span>
+                                    <span className="text-emerald-400 text-sm font-mono font-bold tracking-wide block">
+                                        {batchInput.trim()
+                                            ? previewNip(selectedItem.institution, batchInput)
+                                            : '—'}
+                                    </span>
+                                    <p className="text-slate-500 text-[10px]">
+                                        Nomor urut (001) akan dihitung otomatis oleh sistem saat data disimpan.
+                                    </p>
+                                </div>
+
+                                {/* Auto-NIP Notice */}
+                                <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5 text-xs text-emerald-900 flex items-start gap-2.5">
+                                    <InformationCircleIcon size={18} className="text-emerald-700 shrink-0 mt-0.5" />
+                                    <div className="space-y-1 leading-relaxed">
+                                        <span className="font-bold">Penerbitan NIP Otomatis:</span>
+                                        <p className="text-[11px] text-emerald-800">
+                                            Saat disetujui, sistem akan secara atomik men-generate <strong>NIP resmi</strong> berbasis kode instansi & batch yang Anda tentukan, kemudian mengaktifkan akun peserta.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Footer Actions */}
+                                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsApproveModalOpen(false)}
+                                        className="h-10 px-4 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting || !batchInput.trim()}
+                                        className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5"
+                                    >
+                                        {isSubmitting ? 'Memproses...' : 'Setujui & Terbitkan NIP'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
+                </ClientPortal>
             )}
 
             {/* Modal Tolak (Reject) */}
             {isRejectModalOpen && selectedItem && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="font-bold text-base text-destructive flex items-center gap-2">
-                                <CancelCircleIcon size={20} />
-                                <span>Tolak Pendaftaran Peserta</span>
-                            </h3>
-                            <button
-                                type="button"
-                                onClick={() => setIsRejectModalOpen(false)}
-                                className="text-muted-foreground hover:text-foreground p-1 rounded-lg"
-                            >
-                                <CancelCircleIcon size={18} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleRejectSubmit} className="p-6 space-y-4">
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                Anda akan menolak pengajuan pendaftaran akun untuk <strong>{selectedItem.full_name}</strong> ({selectedItem.username}).
-                            </p>
-
-                            <div className="space-y-1.5">
-                                <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                                    Alasan Penolakan (Opsional)
-                                </label>
-                                <textarea
-                                    rows={3}
-                                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-foreground focus:bg-white focus:outline-none focus:border-foreground"
-                                    placeholder="Contoh: Instansi atau data kontak tidak valid..."
-                                    value={rejectionReason}
-                                    onChange={(e) => setRejectionReason(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <ClientPortal>
+                    <div 
+                        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => setIsRejectModalOpen(false)}
+                    >
+                        <div 
+                            className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                                <h3 className="font-bold text-base text-destructive flex items-center gap-2">
+                                    <CancelCircleIcon size={20} />
+                                    <span>Tolak Pendaftaran Peserta</span>
+                                </h3>
                                 <button
                                     type="button"
                                     onClick={() => setIsRejectModalOpen(false)}
-                                    className="h-10 px-4 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100"
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded-lg"
                                 >
-                                    Batal
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="h-10 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm transition-all shadow-sm disabled:opacity-50"
-                                >
-                                    {isSubmitting ? 'Memproses...' : 'Konfirmasi Penolakan'}
+                                    <CancelCircleIcon size={18} />
                                 </button>
                             </div>
-                        </form>
+
+                            <form onSubmit={handleRejectSubmit} className="p-6 space-y-4">
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Anda akan menolak pengajuan pendaftaran akun untuk <strong>{selectedItem.full_name}</strong> ({selectedItem.username}).
+                                </p>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
+                                        Alasan Penolakan (Opsional)
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-foreground focus:bg-white focus:outline-none focus:border-foreground"
+                                        placeholder="Contoh: Instansi atau data kontak tidak valid..."
+                                        value={rejectionReason}
+                                        onChange={(e) => setRejectionReason(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsRejectModalOpen(false)}
+                                        className="h-10 px-4 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="h-10 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm transition-all shadow-sm disabled:opacity-50"
+                                    >
+                                        {isSubmitting ? 'Memproses...' : 'Konfirmasi Penolakan'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
+                </ClientPortal>
             )}
         </div>
     );

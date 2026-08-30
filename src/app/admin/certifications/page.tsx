@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 import { useConfirm } from '@/hooks/useConfirm';
 import { toast } from 'sonner';
 import {
@@ -334,99 +335,107 @@ export default function CertificationsAdminPage() {
 
             {/* Modal Tambah / Edit Program */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="font-bold text-base text-foreground">
-                                {editingCert ? 'Edit Program Sertifikasi' : 'Tambah Program Sertifikasi Baru'}
-                            </h3>
-                            <button
-                                type="button"
-                                onClick={() => setIsModalOpen(false)}
-                                className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-slate-100"
-                            >
-                                <CancelCircleIcon size={18} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            {/* Nama Program */}
-                            <div className="space-y-1.5">
-                                <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                                    Nama Program Sertifikasi <span className="text-destructive">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-foreground focus:bg-white focus:outline-none focus:border-foreground"
-                                    placeholder="Contoh: Sertifikasi Tata Kelola IT & Cloud Architecture"
-                                    value={formState.name}
-                                    onChange={(e) => setFormState({ ...formState, name: e.target.value })}
-                                />
-                            </div>
-
-                            {/* Kode Program */}
-                            <div className="space-y-1.5">
-                                <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                                    Kode Program (Opsional)
-                                </label>
-                                <input
-                                    type="text"
-                                    className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-foreground font-mono uppercase focus:bg-white focus:outline-none focus:border-foreground"
-                                    placeholder="Contoh: CERT-TKIT"
-                                    value={formState.code}
-                                    onChange={(e) => setFormState({ ...formState, code: e.target.value.toUpperCase() })}
-                                />
-                            </div>
-
-                            {/* Deskripsi */}
-                            <div className="space-y-1.5">
-                                <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                                    Deskripsi Singkat Program
-                                </label>
-                                <textarea
-                                    rows={3}
-                                    className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-foreground focus:bg-white focus:outline-none focus:border-foreground"
-                                    placeholder="Penjelasan ringkas mengenai kompetensi dan materi uji..."
-                                    value={formState.description}
-                                    onChange={(e) => setFormState({ ...formState, description: e.target.value })}
-                                />
-                            </div>
-
-                            {/* Status Aktif */}
-                            <div className="flex items-center gap-3 pt-2">
-                                <input
-                                    type="checkbox"
-                                    id="is_active_checkbox"
-                                    className="w-4 h-4 rounded text-foreground focus:ring-foreground"
-                                    checked={formState.is_active}
-                                    onChange={(e) => setFormState({ ...formState, is_active: e.target.checked })}
-                                />
-                                <label htmlFor="is_active_checkbox" className="text-sm font-medium text-foreground cursor-pointer">
-                                    Aktifkan program (ditampilkan di formulir pendaftaran peserta)
-                                </label>
-                            </div>
-
-                            {/* Modal Footer */}
-                            <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                <ClientPortal>
+                    <div 
+                        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => setIsModalOpen(false)}
+                    >
+                        <div 
+                            className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                                <h3 className="font-bold text-base text-foreground">
+                                    {editingCert ? 'Edit Program Sertifikasi' : 'Tambah Program Sertifikasi Baru'}
+                                </h3>
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="h-10 px-4 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 transition-colors"
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-slate-100"
                                 >
-                                    Batal
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSaving}
-                                    className="h-10 px-5 rounded-xl bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-all disabled:opacity-50"
-                                >
-                                    {isSaving ? 'Menyimpan...' : editingCert ? 'Perbarui Program' : 'Simpan Program'}
+                                    <CancelCircleIcon size={18} />
                                 </button>
                             </div>
-                        </form>
+
+                            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                                {/* Nama Program */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
+                                        Nama Program Sertifikasi <span className="text-destructive">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-foreground focus:bg-white focus:outline-none focus:border-foreground"
+                                        placeholder="Contoh: Sertifikasi Tata Kelola IT & Cloud Architecture"
+                                        value={formState.name}
+                                        onChange={(e) => setFormState({ ...formState, name: e.target.value })}
+                                    />
+                                </div>
+
+                                {/* Kode Program */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
+                                        Kode Program (Opsional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-foreground font-mono uppercase focus:bg-white focus:outline-none focus:border-foreground"
+                                        placeholder="Contoh: CERT-TKIT"
+                                        value={formState.code}
+                                        onChange={(e) => setFormState({ ...formState, code: e.target.value.toUpperCase() })}
+                                    />
+                                </div>
+
+                                {/* Deskripsi */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
+                                        Deskripsi Singkat Program
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-foreground focus:bg-white focus:outline-none focus:border-foreground"
+                                        placeholder="Penjelasan ringkas mengenai kompetensi dan materi uji..."
+                                        value={formState.description}
+                                        onChange={(e) => setFormState({ ...formState, description: e.target.value })}
+                                    />
+                                </div>
+
+                                {/* Status Aktif */}
+                                <div className="flex items-center gap-3 pt-2">
+                                    <input
+                                        type="checkbox"
+                                        id="is_active_checkbox"
+                                        className="w-4 h-4 rounded text-foreground focus:ring-foreground"
+                                        checked={formState.is_active}
+                                        onChange={(e) => setFormState({ ...formState, is_active: e.target.checked })}
+                                    />
+                                    <label htmlFor="is_active_checkbox" className="text-sm font-medium text-foreground cursor-pointer">
+                                        Aktifkan program (ditampilkan di formulir pendaftaran peserta)
+                                    </label>
+                                </div>
+
+                                {/* Modal Footer */}
+                                <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsModalOpen(false)}
+                                        className="h-10 px-4 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 transition-colors"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isSaving}
+                                        className="h-10 px-5 rounded-xl bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-all disabled:opacity-50"
+                                    >
+                                        {isSaving ? 'Menyimpan...' : editingCert ? 'Perbarui Program' : 'Simpan Program'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
+                </ClientPortal>
             )}
         </div>
     );

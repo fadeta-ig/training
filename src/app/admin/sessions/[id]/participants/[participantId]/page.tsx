@@ -13,6 +13,7 @@ import {
 } from 'hugeicons-react';
 import { GraduationVerdictModal } from '@/components/admin/GraduationVerdictModal';
 import { CertificateUploadModal } from '@/components/admin/CertificateUploadModal';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 import { Award, FileBadge2, Printer, CheckCircle2, Sparkles, AlertCircle, FileText, Copy, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -487,154 +488,162 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
 
             {/* Modal Override Akses Ujian Peserta */}
             {overrideTarget && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-                    <div className="bg-white rounded-2xl border border-black/10 shadow-2xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-                        <div className="flex items-center justify-between border-b border-black/5 pb-3">
-                            <h3 className="text-base font-semibold text-foreground">
-                                Kelola Akses Ujian Peserta
-                            </h3>
-                            <button
-                                type="button"
-                                onClick={() => setOverrideTarget(null)}
-                                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Ujian:</p>
-                            <p className="text-sm font-semibold text-foreground">{overrideTarget.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                                Status Peserta Saat Ini:{' '}
-                                <span className="font-semibold text-foreground capitalize">{overrideTarget.status}</span>
-                            </p>
-                        </div>
-
-                        {overrideMessage && (
-                            <div
-                                className={`p-3 rounded-xl text-xs font-medium ${
-                                    overrideMessage.type === 'success'
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                        : 'bg-red-50 text-red-700 border border-red-200'
-                                }`}
-                            >
-                                {overrideMessage.text}
+                <ClientPortal>
+                    <div 
+                        className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+                        onClick={() => setOverrideTarget(null)}
+                    >
+                        <div 
+                            className="bg-white rounded-2xl border border-black/10 shadow-2xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                                <h3 className="text-base font-semibold text-foreground">
+                                    Kelola Akses Ujian Peserta
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setOverrideTarget(null)}
+                                    className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                                >
+                                    ✕
+                                </button>
                             </div>
-                        )}
 
-                        <div className="space-y-3 pt-1">
-                            <div>
-                                <label className="block text-xs font-medium text-foreground mb-1.5">
-                                    Pilih Aksi Override:
-                                </label>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    <label
-                                        className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors ${
-                                            overrideAction === 'resume'
-                                                ? 'border-primary bg-primary/5 text-primary'
-                                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <input
-                                                type="radio"
-                                                name="overrideAction"
-                                                value="resume"
-                                                checked={overrideAction === 'resume'}
-                                                onChange={() => setOverrideAction('resume')}
-                                                className="accent-primary"
-                                            />
-                                            <span className="text-xs font-semibold">Lanjutkan Ujian</span>
-                                        </div>
-                                        <span className="text-[11px] text-muted-foreground leading-snug">
-                                            Simpan jawaban draft lama, buka akses pengerjaan.
-                                        </span>
-                                    </label>
+                            <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">Ujian:</p>
+                                <p className="text-sm font-semibold text-foreground">{overrideTarget.title}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Status Peserta Saat Ini:{' '}
+                                    <span className="font-semibold text-foreground capitalize">{overrideTarget.status}</span>
+                                </p>
+                            </div>
 
-                                    <label
-                                        className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors ${
-                                            overrideAction === 'reset'
-                                                ? 'border-red-500 bg-red-50 text-red-700'
-                                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <input
-                                                type="radio"
-                                                name="overrideAction"
-                                                value="reset"
-                                                checked={overrideAction === 'reset'}
-                                                onChange={() => setOverrideAction('reset')}
-                                                className="accent-red-500"
-                                            />
-                                            <span className="text-xs font-semibold">Ulang dari Awal</span>
-                                        </div>
-                                        <span className="text-[11px] text-muted-foreground leading-snug">
-                                            Hapus draft & nilai lama, mulai bersih dari nol.
-                                        </span>
+                            {overrideMessage && (
+                                <div
+                                    className={`p-3 rounded-xl text-xs font-medium ${
+                                        overrideMessage.type === 'success'
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                            : 'bg-red-50 text-red-700 border border-red-200'
+                                    }`}
+                                >
+                                    {overrideMessage.text}
+                                </div>
+                            )}
+
+                            <div className="space-y-3 pt-1">
+                                <div>
+                                    <label className="block text-xs font-medium text-foreground mb-1.5">
+                                        Pilih Aksi Override:
                                     </label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <label
+                                            className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors ${
+                                                overrideAction === 'resume'
+                                                    ? 'border-primary bg-primary/5 text-primary'
+                                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <input
+                                                    type="radio"
+                                                    name="overrideAction"
+                                                    value="resume"
+                                                    checked={overrideAction === 'resume'}
+                                                    onChange={() => setOverrideAction('resume')}
+                                                    className="accent-primary"
+                                                />
+                                                <span className="text-xs font-semibold">Lanjutkan Ujian</span>
+                                            </div>
+                                            <span className="text-[11px] text-muted-foreground leading-snug">
+                                                Simpan jawaban draft lama, buka akses pengerjaan.
+                                            </span>
+                                        </label>
+
+                                        <label
+                                            className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors ${
+                                                overrideAction === 'reset'
+                                                    ? 'border-red-500 bg-red-50 text-red-700'
+                                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <input
+                                                    type="radio"
+                                                    name="overrideAction"
+                                                    value="reset"
+                                                    checked={overrideAction === 'reset'}
+                                                    onChange={() => setOverrideAction('reset')}
+                                                    className="accent-red-600"
+                                                />
+                                                <span className="text-xs font-semibold text-red-700">Reset Ujian Ulang</span>
+                                            </div>
+                                            <span className="text-[11px] text-muted-foreground leading-snug">
+                                                Hapus riwayat jawaban dan mulai dari attempt baru.
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-medium text-foreground mb-1">
+                                        Tambahan Waktu (Menit):
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="180"
+                                        value={extraMinutes}
+                                        onChange={(e) => setExtraMinutes(Number(e.target.value))}
+                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        placeholder="Contoh: 15"
+                                    />
+                                    <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                                        {overrideAction === 'resume'
+                                            ? 'Tambahan menit akan ditambahkan ke batas waktu sesi peserta.'
+                                            : '0 = Mengikuti durasi standar ujian.'}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-medium text-foreground mb-1">
+                                        Alasan Override (Untuk Audit Log):
+                                    </label>
+                                    <textarea
+                                        value={reason}
+                                        onChange={(e) => setReason(e.target.value)}
+                                        rows={2}
+                                        className="w-full p-2.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        placeholder="Contoh: Kendala Wi-Fi padam saat pengerjaan"
+                                    />
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-medium text-foreground mb-1">
-                                    {overrideAction === 'resume' ? 'Tambahan Waktu (Menit):' : 'Batas Durasi Ujian (Menit):'}
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="180"
-                                    value={extraMinutes}
-                                    onChange={(e) => setExtraMinutes(Number(e.target.value))}
-                                    className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    placeholder="Contoh: 15"
-                                />
-                                <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                                    {overrideAction === 'resume'
-                                        ? 'Tambahan menit akan ditambahkan ke batas waktu sesi peserta.'
-                                        : '0 = Mengikuti durasi standar ujian.'}
-                                </span>
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/5">
+                                <button
+                                    type="button"
+                                    onClick={() => setOverrideTarget(null)}
+                                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                                    disabled={submittingOverride}
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleExecuteOverride}
+                                    disabled={submittingOverride}
+                                    className={`px-4 py-1.5 rounded-xl text-xs font-semibold text-white transition-colors shadow-2xs ${
+                                        overrideAction === 'reset'
+                                            ? 'bg-red-600 hover:bg-red-700'
+                                            : 'bg-primary hover:bg-primary/90'
+                                    }`}
+                                >
+                                    {submittingOverride ? 'Memproses...' : 'Konfirmasi & Simpan'}
+                                </button>
                             </div>
-
-                            <div>
-                                <label className="block text-xs font-medium text-foreground mb-1">
-                                    Alasan Override (Untuk Audit Log):
-                                </label>
-                                <textarea
-                                    value={reason}
-                                    onChange={(e) => setReason(e.target.value)}
-                                    rows={2}
-                                    className="w-full p-2.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    placeholder="Contoh: Kendala Wi-Fi padam saat pengerjaan"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/5">
-                            <button
-                                type="button"
-                                onClick={() => setOverrideTarget(null)}
-                                className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                                disabled={submittingOverride}
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleExecuteOverride}
-                                disabled={submittingOverride}
-                                className={`px-4 py-1.5 rounded-xl text-xs font-semibold text-white transition-colors shadow-2xs ${
-                                    overrideAction === 'reset'
-                                        ? 'bg-red-600 hover:bg-red-700'
-                                        : 'bg-primary hover:bg-primary/90'
-                                }`}
-                            >
-                                {submittingOverride ? 'Memproses...' : 'Konfirmasi & Simpan'}
-                            </button>
                         </div>
                     </div>
-                </div>
+                </ClientPortal>
             )}
 
             {/* Individual Graduation Verdict Modal */}

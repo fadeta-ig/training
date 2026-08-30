@@ -19,6 +19,7 @@ import { ActionButton } from '@/components/ui/ActionButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
 import { ParticipantsFilter, type ParticipantFilters } from '@/components/admin/ParticipantsFilter';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 import { toast } from 'sonner';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -451,84 +452,92 @@ export default function ParticipantsManagerPage() {
 
             {/* Modal Dialog: Ubah Batch & NIP Massal */}
             {isBulkModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-                                <RefreshIcon size={20} className="text-emerald-600" />
-                                <span>Ubah Batch &amp; NIP Massal</span>
-                            </h3>
-                            <button
-                                type="button"
-                                onClick={() => setIsBulkModalOpen(false)}
-                                className="text-muted-foreground hover:text-foreground p-1 rounded-lg"
-                            >
-                                <Cancel01Icon size={18} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleBulkBatchSubmit} className="p-6 space-y-4">
-                            <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-3.5 text-xs text-emerald-900 space-y-1">
-                                <p className="font-bold flex items-center gap-1.5">
-                                    <CheckmarkCircle02Icon size={16} className="text-emerald-700" />
-                                    <span>{selectedIds.size} peserta akan diperbarui:</span>
-                                </p>
-                                <p className="text-[11px] text-emerald-800">
-                                    Batch dan format NIP seluruh peserta terpilih akan disinkronkan secara atomik.
-                                </p>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                                    Kode Batch Baru <span className="text-destructive">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    maxLength={50}
-                                    className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-foreground focus:bg-white focus:outline-none focus:border-foreground uppercase tracking-wide"
-                                    placeholder="Contoh: CSBA-SEP26"
-                                    value={bulkBatchInput}
-                                    onChange={(e) => setBulkBatchInput(e.target.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, ''))}
-                                />
-                            </div>
-
-                            <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50/50 cursor-pointer select-none">
-                                <input
-                                    type="checkbox"
-                                    checked={preserveSequence}
-                                    onChange={(e) => setPreserveSequence(e.target.checked)}
-                                    className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 mt-0.5 cursor-pointer"
-                                />
-                                <div className="text-xs">
-                                    <span className="font-bold text-foreground block">
-                                        Pertahankan 3 Digit Nomor Urut Asli (Rekomendasi)
-                                    </span>
-                                    <span className="text-muted-foreground text-[11px]">
-                                        Contoh: <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">UCS-B01-2608-017</code> ➔ <code className="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold">UCS-{bulkBatchInput || 'BATCH'}-017</code>
-                                    </span>
-                                </div>
-                            </label>
-
-                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <ClientPortal>
+                    <div 
+                        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => setIsBulkModalOpen(false)}
+                    >
+                        <div 
+                            className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                                    <RefreshIcon size={20} className="text-emerald-600" />
+                                    <span>Ubah Batch &amp; NIP Massal</span>
+                                </h3>
                                 <button
                                     type="button"
                                     onClick={() => setIsBulkModalOpen(false)}
-                                    className="h-10 px-4 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100"
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded-lg"
                                 >
-                                    Batal
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isBulkSubmitting || !bulkBatchInput.trim()}
-                                    className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5"
-                                >
-                                    {isBulkSubmitting ? 'Memproses...' : 'Simpan & Perbarui NIP'}
+                                    <Cancel01Icon size={18} />
                                 </button>
                             </div>
-                        </form>
+
+                            <form onSubmit={handleBulkBatchSubmit} className="p-6 space-y-4">
+                                <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-3.5 text-xs text-emerald-900 space-y-1">
+                                    <p className="font-bold flex items-center gap-1.5">
+                                        <CheckmarkCircle02Icon size={16} className="text-emerald-700" />
+                                        <span>{selectedIds.size} peserta akan diperbarui:</span>
+                                    </p>
+                                    <p className="text-[11px] text-emerald-800">
+                                        Batch dan format NIP seluruh peserta terpilih akan disinkronkan secara atomik.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
+                                        Kode Batch Baru <span className="text-destructive">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        maxLength={50}
+                                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-foreground focus:bg-white focus:outline-none focus:border-foreground uppercase tracking-wide"
+                                        placeholder="Contoh: CSBA-SEP26"
+                                        value={bulkBatchInput}
+                                        onChange={(e) => setBulkBatchInput(e.target.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, ''))}
+                                    />
+                                </div>
+
+                                <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50/50 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={preserveSequence}
+                                        onChange={(e) => setPreserveSequence(e.target.checked)}
+                                        className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 mt-0.5 cursor-pointer"
+                                    />
+                                    <div className="text-xs">
+                                        <span className="font-bold text-foreground block">
+                                            Pertahankan 3 Digit Nomor Urut Asli (Rekomendasi)
+                                        </span>
+                                        <span className="text-muted-foreground text-[11px]">
+                                            Contoh: <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">UCS-B01-2608-017</code> ➔ <code className="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold">UCS-{bulkBatchInput || 'BATCH'}-017</code>
+                                        </span>
+                                    </div>
+                                </label>
+
+                                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsBulkModalOpen(false)}
+                                        className="h-10 px-4 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isBulkSubmitting || !bulkBatchInput.trim()}
+                                        className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5"
+                                    >
+                                        {isBulkSubmitting ? 'Memproses...' : 'Simpan & Perbarui NIP'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
+                </ClientPortal>
             )}
         </div>
     );

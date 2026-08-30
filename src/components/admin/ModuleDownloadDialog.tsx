@@ -14,6 +14,7 @@ import {
     Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 
 interface ModuleDownloadDialogProps {
     isOpen: boolean;
@@ -43,6 +44,19 @@ export function ModuleDownloadDialog({
     const [isDownloading, setIsDownloading] = useState<boolean>(false);
     const [items, setItems] = useState<ModuleItemSummary[]>([]);
     const [isLoadingItems, setIsLoadingItems] = useState<boolean>(false);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
 
     useEffect(() => {
         if (isOpen && moduleId) {
@@ -177,14 +191,21 @@ export function ModuleDownloadDialog({
         }
     };
 
+        if (!isOpen) return null;
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div
-                className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col font-sans"
-                style={{ fontFamily: 'Tahoma, Segoe UI, Arial, sans-serif' }}
-                role="dialog"
-                aria-modal="true"
+        <ClientPortal>
+            <div 
+                className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={onClose}
             >
+                <div
+                    className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col font-sans"
+                    style={{ fontFamily: 'Tahoma, Segoe UI, Arial, sans-serif' }}
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={(e) => e.stopPropagation()}
+                >
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
                     <div className="flex items-center gap-3">
@@ -390,5 +411,6 @@ export function ModuleDownloadDialog({
                 </div>
             </div>
         </div>
+        </ClientPortal>
     );
 }

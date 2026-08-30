@@ -21,6 +21,7 @@ import {
     X,
 } from 'lucide-react';
 import WebcamProctor from '@/components/proctor/WebcamProctor';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIsSeb } from '@/hooks/useSeb';
 import { Badge } from '@/components/ui/badge';
@@ -1029,33 +1030,41 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
             {/* Mobile Slide-Up Question Palette Bottom Sheet */}
             {mobilePaletteOpen && (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 backdrop-blur-xs animate-in fade-in duration-150 lg:hidden">
-                    <div className="w-full bg-white rounded-t-2xl border-t border-black/10 p-5 space-y-4 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-200 shadow-xl">
-                        <div className="flex items-center justify-between border-b border-black/5 pb-3">
-                            <h3 className="text-sm font-semibold text-foreground">Daftar Nomor Soal</h3>
-                            <button
-                                type="button"
-                                onClick={() => setMobilePaletteOpen(false)}
-                                className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
-                            >
-                                <X className="size-4" />
-                            </button>
-                        </div>
+                <ClientPortal>
+                    <div 
+                        className="fixed inset-0 z-[9999] flex items-end justify-center bg-slate-950/40 backdrop-blur-xs animate-in fade-in duration-150 lg:hidden"
+                        onClick={() => setMobilePaletteOpen(false)}
+                    >
+                        <div 
+                            className="w-full bg-white rounded-t-2xl border-t border-black/10 p-5 space-y-4 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-200 shadow-xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                                <h3 className="text-sm font-semibold text-foreground">Daftar Nomor Soal</h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setMobilePaletteOpen(false)}
+                                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+                                >
+                                    <X className="size-4" />
+                                </button>
+                            </div>
 
-                        {renderQuestionPalette(true)}
+                            {renderQuestionPalette(true)}
 
-                        <div className="pt-2 border-t border-black/5 flex justify-end">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setMobilePaletteOpen(false)}
-                                className="w-full sm:w-auto text-xs font-medium rounded-lg"
-                            >
-                                Tutup
-                            </Button>
+                            <div className="pt-2 border-t border-black/5 flex justify-end">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setMobilePaletteOpen(false)}
+                                    className="w-full sm:w-auto text-xs font-medium rounded-lg"
+                                >
+                                    Tutup
+                                </Button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </ClientPortal>
             )}
 
             {/* Submission Checklist Breakdown Modal */}

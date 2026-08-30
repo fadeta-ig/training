@@ -7,6 +7,7 @@ import {
     InformationCircleIcon,
     Cancel01Icon
 } from 'hugeicons-react';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 
 export type AlertType = 'success' | 'error' | 'info' | 'warning';
 
@@ -46,32 +47,34 @@ export default function AlertCustom({ message, type, onClose, duration = 5000 }:
     };
 
     return (
-        <div
-            className={`fixed inset-x-3 top-3 z-50 transition-all duration-300 transform sm:inset-x-auto sm:right-6 sm:top-6 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
-                }`}
-        >
-            <div className={`glass-card w-full min-w-0 max-w-md border-2 p-4 shadow-2xl flex items-start gap-3 backdrop-blur-xl sm:min-w-[300px] ${styles[type]}`}>
-                <div className="shrink-0 mt-0.5">
-                    {icons[type]}
+        <ClientPortal>
+            <div
+                className={`fixed inset-x-3 top-3 z-[9999] transition-all duration-300 transform sm:inset-x-auto sm:right-6 sm:top-6 ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
+                    }`}
+            >
+                <div className={`glass-card w-full min-w-0 max-w-md border-2 p-4 shadow-2xl flex items-start gap-3 backdrop-blur-xl sm:min-w-[300px] ${styles[type]}`}>
+                    <div className="shrink-0 mt-0.5">
+                        {icons[type]}
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-sm font-bold text-slate-800 leading-tight">
+                            {type === 'error' ? 'Gagal' : type === 'success' ? 'Berhasil' : 'Informasi'}
+                        </p>
+                        <p className="text-xs text-slate-600 mt-1 font-medium italic">
+                            {message}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        aria-label="Tutup notifikasi"
+                        onClick={handleClose}
+                        className="shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                        <Cancel01Icon size={16} />
+                    </button>
                 </div>
-                <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-800 leading-tight">
-                        {type === 'error' ? 'Gagal' : type === 'success' ? 'Berhasil' : 'Informasi'}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1 font-medium italic">
-                        {message}
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    aria-label="Tutup notifikasi"
-                    onClick={handleClose}
-                    className="shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                    <Cancel01Icon size={16} />
-                </button>
             </div>
-        </div>
+        </ClientPortal>
     );
 }
 

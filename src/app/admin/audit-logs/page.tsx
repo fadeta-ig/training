@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Pagination } from '@/components/ui/Pagination';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 import {
     Activity01Icon,
     Search01Icon,
@@ -198,46 +199,51 @@ export default function AuditLogsPage() {
 
             {/* JSON Payload Detail Modal */}
             {selectedLog && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 sm:p-4">
+                <ClientPortal>
                     <div 
-                        className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 sm:max-h-[85dvh]"
-                        onClick={(e) => e.stopPropagation()}
+                        className="fixed inset-0 z-[9999] flex items-center justify-center p-3 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200 sm:p-4"
+                        onClick={() => setSelectedLog(null)}
                     >
-                        <div className="flex items-start justify-between gap-3 border-b border-black/5 bg-slate-50/50 px-4 py-4 sm:items-center sm:px-6">
-                            <div className="min-w-0">
-                                <h3 className="font-bold text-lg text-slate-800">Detail Payload Aktivitas</h3>
-                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                    <span className="break-all rounded bg-black/5 px-1.5 font-mono">Action: {selectedLog.action_type}</span>
-                                    <span>•</span>
-                                    <span>Entity: {selectedLog.entity}</span>
+                        <div 
+                            className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 sm:max-h-[85dvh]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-start justify-between gap-3 border-b border-black/5 bg-slate-50/50 px-4 py-4 sm:items-center sm:px-6">
+                                <div className="min-w-0">
+                                    <h3 className="font-bold text-lg text-slate-800">Detail Payload Aktivitas</h3>
+                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                        <span className="break-all rounded bg-black/5 px-1.5 font-mono">Action: {selectedLog.action_type}</span>
+                                        <span>•</span>
+                                        <span>Entity: {selectedLog.entity}</span>
+                                    </div>
                                 </div>
+                                <button
+                                    type="button"
+                                    aria-label="Tutup detail aktivitas"
+                                    onClick={() => setSelectedLog(null)}
+                                    className="p-2 -mr-2 rounded-xl hover:bg-black/5 text-muted-foreground transition-colors"
+                                >
+                                    <Cancel01Icon size={20} />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                aria-label="Tutup detail aktivitas"
-                                onClick={() => setSelectedLog(null)}
-                                className="p-2 -mr-2 rounded-xl hover:bg-black/5 text-muted-foreground transition-colors"
-                            >
-                                <Cancel01Icon size={20} />
-                            </button>
-                        </div>
-                        
-                        <div className="flex-1 overflow-y-auto bg-slate-900 p-4 sm:p-6">
-                            <pre className="text-emerald-400 font-mono text-[13px] leading-relaxed whitespace-pre-wrap break-words">
-                                {JSON.stringify(selectedLog.details, null, 2)}
-                            </pre>
-                        </div>
-                        
-                        <div className="flex justify-stretch border-t border-black/5 bg-slate-50 px-4 py-4 sm:justify-end sm:px-6">
-                            <button
-                                onClick={() => setSelectedLog(null)}
-                                className="w-full rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold transition-colors hover:bg-black/5 sm:w-auto"
-                            >
-                                Tutup Panel
-                            </button>
+                            
+                            <div className="flex-1 overflow-y-auto bg-slate-900 p-4 sm:p-6">
+                                <pre className="text-emerald-400 font-mono text-[13px] leading-relaxed whitespace-pre-wrap break-words">
+                                    {JSON.stringify(selectedLog.details, null, 2)}
+                                </pre>
+                            </div>
+                            
+                            <div className="flex justify-stretch border-t border-black/5 bg-slate-50 px-4 py-4 sm:justify-end sm:px-6">
+                                <button
+                                    onClick={() => setSelectedLog(null)}
+                                    className="w-full rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold transition-colors hover:bg-black/5 sm:w-auto"
+                                >
+                                    Tutup Panel
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </ClientPortal>
             )}
         </div>
     );

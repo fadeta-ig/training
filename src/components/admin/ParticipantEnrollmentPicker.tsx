@@ -20,6 +20,7 @@ import {
     FileAttachmentIcon
 } from 'hugeicons-react';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 import { toast } from 'sonner';
 
 export type ParticipantItem = {
@@ -983,84 +984,92 @@ export function ParticipantEnrollmentPicker({
 
             {/* ── Quick Paste Dialog / Modal ── */}
             {isPasteModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-                    <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-black/10 space-y-4 animate-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b border-black/[0.08] pb-3">
-                            <div className="flex items-center gap-2">
-                                <FileAttachmentIcon size={20} className="text-primary" />
-                                <h3 className="font-semibold text-foreground text-sm sm:text-base">
-                                    Tempel Daftar Email / Username Massal
-                                </h3>
+                <ClientPortal>
+                    <div 
+                        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150"
+                        onClick={() => setIsPasteModalOpen(false)}
+                    >
+                        <div 
+                            className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-black/10 space-y-4 animate-in zoom-in-95 duration-150"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between border-b border-black/[0.08] pb-3">
+                                <div className="flex items-center gap-2">
+                                    <FileAttachmentIcon size={20} className="text-primary" />
+                                    <h3 className="font-semibold text-foreground text-sm sm:text-base">
+                                        Tempel Daftar Email / Username Massal
+                                    </h3>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPasteModalOpen(false)}
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded-md"
+                                >
+                                    <Cancel01Icon size={18} />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setIsPasteModalOpen(false)}
-                                className="text-muted-foreground hover:text-foreground p-1 rounded-md"
-                            >
-                                <Cancel01Icon size={18} />
-                            </button>
-                        </div>
 
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                            Salin daftar email, username, atau ID peserta dari Excel / teks memo, lalu
-                            tempelkan di bawah ini. Anda dapat memisahkannya dengan baris baru, koma, atau titik koma.
-                        </p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                Salin daftar email, username, atau ID peserta dari Excel / teks memo, lalu
+                                tempelkan di bawah ini. Anda dapat memisahkannya dengan baris baru, koma, atau titik koma.
+                            </p>
 
-                        <div className="space-y-2">
-                            <textarea
-                                rows={6}
-                                value={pasteText}
-                                onChange={(e) => setPasteText(e.target.value)}
-                                placeholder="Contoh:&#10;peserta1@gmail.com&#10;peserta2@gmail.com, peserta3@nusamitra.com&#10;user.alpha"
-                                className="w-full p-3 rounded-xl border border-black/10 bg-black/[0.02] focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs font-mono transition-all"
-                            />
-                        </div>
+                            <div className="space-y-2">
+                                <textarea
+                                    rows={6}
+                                    value={pasteText}
+                                    onChange={(e) => setPasteText(e.target.value)}
+                                    placeholder="Contoh:&#10;peserta1@gmail.com&#10;peserta2@gmail.com, peserta3@nusamitra.com&#10;user.alpha"
+                                    className="w-full p-3 rounded-xl border border-black/10 bg-black/[0.02] focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 text-xs font-mono transition-all"
+                                />
+                            </div>
 
-                        {pasteResult && (
-                            <div className="p-3 rounded-xl bg-black/[0.03] border border-black/[0.06] text-xs space-y-1.5">
-                                <div className="flex items-center justify-between font-semibold">
-                                    <span className="text-emerald-700 flex items-center gap-1">
-                                        <Tick02Icon size={14} /> {pasteResult.matchedCount} peserta ditemukan & ditandai
-                                    </span>
-                                    {pasteResult.newlyAddedCount > 0 && (
-                                        <span className="text-muted-foreground">
-                                            (+{pasteResult.newlyAddedCount} baru ditambahkan)
+                            {pasteResult && (
+                                <div className="p-3 rounded-xl bg-black/[0.03] border border-black/[0.06] text-xs space-y-1.5">
+                                    <div className="flex items-center justify-between font-semibold">
+                                        <span className="text-emerald-700 flex items-center gap-1">
+                                            <Tick02Icon size={14} /> {pasteResult.matchedCount} peserta ditemukan & ditandai
                                         </span>
+                                        {pasteResult.newlyAddedCount > 0 && (
+                                            <span className="text-muted-foreground">
+                                                (+{pasteResult.newlyAddedCount} baru ditambahkan)
+                                            </span>
+                                        )}
+                                    </div>
+                                    {pasteResult.unmatched.length > 0 && (
+                                        <div className="text-destructive pt-1 border-t border-black/5">
+                                            <p className="font-medium">
+                                                {pasteResult.unmatched.length} email/username tidak terdaftar di sistem:
+                                            </p>
+                                            <p className="text-[11px] font-mono text-muted-foreground truncate">
+                                                {pasteResult.unmatched.slice(0, 5).join(', ')}
+                                                {pasteResult.unmatched.length > 5 && ` (+${pasteResult.unmatched.length - 5} lainnya)`}
+                                            </p>
+                                        </div>
                                     )}
                                 </div>
-                                {pasteResult.unmatched.length > 0 && (
-                                    <div className="text-destructive pt-1 border-t border-black/5">
-                                        <p className="font-medium">
-                                            {pasteResult.unmatched.length} email/username tidak terdaftar di sistem:
-                                        </p>
-                                        <p className="text-[11px] font-mono text-muted-foreground truncate">
-                                            {pasteResult.unmatched.slice(0, 5).join(', ')}
-                                            {pasteResult.unmatched.length > 5 && ` (+${pasteResult.unmatched.length - 5} lainnya)`}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                            )}
 
-                        <div className="flex items-center justify-end gap-2 pt-2">
-                            <button
-                                type="button"
-                                onClick={() => setIsPasteModalOpen(false)}
-                                className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-black/5 transition-colors"
-                            >
-                                Tutup
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleProcessPaste}
-                                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-xs hover:bg-primary/90 transition-all flex items-center gap-1.5"
-                            >
-                                <CheckmarkCircle02Icon size={15} />
-                                Tandai Otomatis
-                            </button>
+                            <div className="flex items-center justify-end gap-2 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPasteModalOpen(false)}
+                                    className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-black/5 transition-colors"
+                                >
+                                    Tutup
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleProcessPaste}
+                                    className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-xs hover:bg-primary/90 transition-all flex items-center gap-1.5"
+                                >
+                                    <CheckmarkCircle02Icon size={15} />
+                                    Tandai Otomatis
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </ClientPortal>
             )}
         </GlassCard>
     );

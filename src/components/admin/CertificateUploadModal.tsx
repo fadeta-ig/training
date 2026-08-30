@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { FileBadge2, X, UploadCloud, CheckCircle2, Loader2, Trash2, ExternalLink, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { ClientPortal } from '@/components/ui/ClientPortal';
 
 interface CertificateUploadModalProps {
     isOpen: boolean;
@@ -36,12 +37,25 @@ export function CertificateUploadModal({
     const isAlreadyUploaded = Boolean(participant?.certificate_file_url);
 
     useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
+
+    useEffect(() => {
         if (participant) {
             setCertNumber(participant.certificate_number || '');
             setFileUrl(participant.certificate_file_url || null);
             setFileName(participant.certificate_file_url ? 'Berkas Sertifikat Resmi Aktif' : null);
         }
-    }, [participant]);
+    }, [participant, isOpen]);
 
     if (!isOpen || !participant) return null;
 
@@ -129,12 +143,17 @@ export function CertificateUploadModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-            <div
-                className="w-full max-w-lg overflow-hidden rounded-3xl border border-black/10 bg-white shadow-2xl animate-in zoom-in-95 duration-200 dark:border-white/10 dark:bg-slate-900 flex flex-col"
-                role="dialog"
-                aria-modal="true"
+        <ClientPortal>
+            <div 
+                className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+                onClick={onClose}
             >
+                <div
+                    className="w-full max-w-lg overflow-hidden rounded-3xl border border-black/10 bg-white shadow-2xl animate-in zoom-in-95 duration-200 dark:border-white/10 dark:bg-slate-900 flex flex-col"
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={(e) => e.stopPropagation()}
+                >
                 {/* Header */}
                 <div className="flex items-start justify-between border-b border-black/5 dark:border-white/5 px-6 py-4.5">
                     <div className="flex items-center gap-3">
@@ -305,5 +324,6 @@ export function CertificateUploadModal({
                 </form>
             </div>
         </div>
+        </ClientPortal>
     );
 }

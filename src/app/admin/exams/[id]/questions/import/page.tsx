@@ -8,6 +8,7 @@ import {
     CheckCircle2,
     Download,
     FileSpreadsheet,
+    FileText,
     Info,
     LoaderCircle,
     RotateCcw,
@@ -264,13 +265,23 @@ export default function QuestionImportPage({ params }: { params: Promise<{ id: s
                         <p className="mt-1 break-words text-sm text-muted-foreground">{examTitle} · format XLSX terstruktur untuk 6 tipe soal</p>
                     </div>
                 </div>
-                <a
-                    href={`/api/admin/exams/${examId}/questions/import/template`}
-                    download
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-700/30 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 transition-colors hover:bg-emerald-100"
-                >
-                    <Download className="size-4" /> Unduh Template Resmi
-                </a>
+                <div className="flex flex-wrap items-center gap-2">
+                    <a
+                        href="/Panduan_Import_Soal_Excel.pdf"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-700/30 bg-sky-50 px-4 py-2.5 text-sm font-bold text-sky-800 transition-colors hover:bg-sky-100"
+                    >
+                        <FileText className="size-4" /> Unduh Panduan PDF
+                    </a>
+                    <a
+                        href={`/api/admin/exams/${examId}/questions/import/template`}
+                        download
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-700/30 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 transition-colors hover:bg-emerald-100"
+                    >
+                        <Download className="size-4" /> Unduh Template Resmi
+                    </a>
+                </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2" aria-label="Tahapan import">

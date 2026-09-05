@@ -6,32 +6,71 @@ function sanitizeEmailSubject(subject: string): string {
     return subject.replace(/[\r\n]+/g, ' ').trim().slice(0, 200);
 }
 
+const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
+const isSecure = process.env.SMTP_SECURE !== undefined
+    ? process.env.SMTP_SECURE === 'true'
+    : smtpPort === 465;
+
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '465', 10),
-    secure: true,
+    host: process.env.SMTP_HOST || 'mail.nusamitraconsulting.com',
+    port: smtpPort,
+    secure: isSecure,
     auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: process.env.SMTP_USER || 'lms@nusamitraconsulting.com',
+        pass: process.env.SMTP_PASS || '',
+    },
+    tls: {
+        rejectUnauthorized: false,
     },
 });
 
-export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
+function getFromAddress(customSenderName?: string): string {
+    const senderName = customSenderName || process.env.SMTP_FROM_NAME || 'LMS Nusamitra Consulting';
+    const senderEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'lms@nusamitraconsulting.com';
+    return `"${senderName}" <${senderEmail}>`;
+}
+
+const defaultReplyTo = process.env.SMTP_REPLY_TO || 'support@nusamitraconsulting.com';
+
+export async function sendEmail({
+    to,
+    subject,
+    html,
+    text,
+}: {
+    to: string;
+    subject: string;
+    html: string;
+    text?: string;
+}) {
+    // Generate fallback text jika tidak disediakan untuk memenuhi standar anti-spam MIME
+    const plainText = text || html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
     const mailOptions = {
-        from: `"LMS Nusamitra Consulting" <${process.env.SMTP_USER}>`,
+        from: getFromAddress(),
+        replyTo: defaultReplyTo,
         to,
         subject: sanitizeEmailSubject(subject),
+        text: plainText,
         html,
+        headers: {
+            'X-Auto-Response-Suppress': 'OOF, AutoReply',
+            'Precedence': 'bulk',
+        },
     };
     return transporter.sendMail(mailOptions);
 }
 
 export async function sendPasswordResetEmail(to: string, resetLink: string) {
     const safeResetLink = escapeHtml(resetLink);
+    const plainText = `Reset Password LMS Nusamitra Consulting\n\nHalo,\n\nKami menerima permintaan untuk mereset password akun Anda di LMS Nusamitra Consulting. Jika Anda tidak merasa melakukan permintaan ini, silakan abaikan email ini.\n\nBuka tautan berikut untuk membuat password baru:\n${resetLink}\n\nTautan ini hanya berlaku selama 1 jam.\n\nSalam Hormat,\nTim Manajemen Pelatihan LMS Nusamitra Consulting\nhttps://nusamitraconsulting.com`;
+
     const mailOptions = {
-        from: `"LMS Nusamitra Consulting" <${process.env.SMTP_USER}>`,
+        from: getFromAddress(),
+        replyTo: defaultReplyTo,
         to,
-        subject: 'Permintaan Reset Password',
+        subject: 'Permintaan Reset Password - LMS Nusamitra Consulting',
+        text: plainText,
         html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px;">
             <h2 style="color: #047857; border-bottom: 2px solid #059669; padding-bottom: 12px;">Reset Password LMS Nusamitra Consulting</h2>
@@ -46,10 +85,14 @@ export async function sendPasswordResetEmail(to: string, resetLink: string) {
                 ${safeResetLink}
             </p>
             <p style="color: #64748b; font-size: 12px; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-                Link ini hanya berlaku selama 1 jam. Terima kasih,<br/>Tim Manajemen Pelatihan
+                Link ini hanya berlaku selama 1 jam.<br/>
+                Nusamitra Consulting | Website: <a href="https://nusamitraconsulting.com" style="color: #059669;">nusamitraconsulting.com</a>
             </p>
         </div>
         `,
+        headers: {
+            'X-Auto-Response-Suppress': 'OOF, AutoReply',
+        },
     };
 
     return transporter.sendMail(mailOptions);
@@ -61,10 +104,14 @@ export async function sendCredentialEmail(to: string, participantName: string, p
     const safeTo = escapeHtml(to);
     const safePass = escapeHtml(pass);
     const safeLoginUrl = escapeHtml(`${baseUrl}/auth/login`);
+    const plainText = `Kredensial Akun LMS Nusamitra Consulting\n\nHalo ${participantName},\n\nAkun Anda untuk platform pembelajaran LMS Nusamitra Consulting telah didaftarkan oleh administrator. Berikut adalah rincian informasi login Anda:\n\nUsername (Email): ${to}\nPassword: ${pass}\n\nSilakan masuk melalui portal kami:\n${baseUrl}/auth/login\n\nPenting: Segera ganti password Anda setelah pertama kali login demi keamanan akun!\n\nSalam Hormat,\nTim Manajemen Pelatihan LMS Nusamitra Consulting\nhttps://nusamitraconsulting.com`;
+
     const mailOptions = {
-        from: `"LMS Nusamitra Consulting" <${process.env.SMTP_USER}>`,
+        from: getFromAddress(),
+        replyTo: defaultReplyTo,
         to,
-        subject: 'Informasi Kredensial Akun LMS Anda',
+        subject: 'Informasi Kredensial Akun LMS Nusamitra Consulting',
+        text: plainText,
         html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px;">
             <h2 style="color: #047857; border-bottom: 2px solid #059669; padding-bottom: 12px;">Kredensial Akun LMS Nusamitra Consulting</h2>
@@ -90,10 +137,14 @@ export async function sendCredentialEmail(to: string, participantName: string, p
             </p>
             
             <p style="color: #64748b; font-size: 12px; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-                Jika Anda merasa tidak berafiliasi dengan program pelatihan ini, harap abaikan pesan email ini.<br/><br/>Salam Hormat,<br/>Tim Manajemen Pelatihan
+                Jika Anda merasa tidak berafiliasi dengan program pelatihan ini, harap abaikan pesan email ini.<br/><br/>
+                Nusamitra Consulting | Website: <a href="https://nusamitraconsulting.com" style="color: #059669;">nusamitraconsulting.com</a>
             </p>
         </div>
         `,
+        headers: {
+            'X-Auto-Response-Suppress': 'OOF, AutoReply',
+        },
     };
 
     return transporter.sendMail(mailOptions);
@@ -112,10 +163,14 @@ export async function sendSessionReminderEmail(bccEmails: string[], sessionDetai
     const safeTime = escapeHtml(timeStr);
     const safeDashboardUrl = escapeHtml(`${baseUrl}/dashboard`);
 
+    const plainText = `[Pengingat] Jadwal Sesi Pelatihan: ${sessionDetail.title}\n\nHalo Peserta,\n\nMengingatkan Anda bahwa sesi pembelajaran ${sessionDetail.title} akan/sedang berlangsung:\n- Modul/Sesi: ${sessionDetail.title}\n- Tanggal: ${dateStr}\n- Waktu Mulai: ${timeStr}\n\nPastikan Anda telah bersiap dengan jaringan koneksi yang stabil sebelum sesi ujian / materi dieksekusi secara terawasi.\n\nAkses Dashboard Anda di: ${baseUrl}/dashboard\n\nSalam Hormat,\nTim Manajemen Pelatihan LMS Nusamitra Consulting\nhttps://nusamitraconsulting.com`;
+
     const mailOptions = {
-        from: `"LMS System Admin" <${process.env.SMTP_USER}>`,
+        from: getFromAddress('LMS System Admin'),
+        replyTo: defaultReplyTo,
         bcc: bccEmails, // Use BCC to hide recipients from each other
         subject: sanitizeEmailSubject(`[Pengingat] Jadwal Sesi Pelatihan: ${sessionDetail.title}`),
+        text: plainText,
         html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px;">
             <h2 style="color: #0369a1; border-bottom: 2px solid #0284c7; padding-bottom: 12px;">Panggilan Sesi Pelatihan Aktif</h2>
@@ -146,10 +201,14 @@ export async function sendSessionReminderEmail(bccEmails: string[], sessionDetai
             </div>
             
             <p style="color: #64748b; font-size: 12px; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-                Anda menerima rincian notifikasi email sistem ini karena Administrator telah mengaitkan Anda ke dalam Sesi. Evaluasi dan ketentuan berlaku mutlak.
+                Anda menerima rincian notifikasi email sistem ini karena Administrator telah mengaitkan Anda ke dalam Sesi.<br/>
+                Nusamitra Consulting | Website: <a href="https://nusamitraconsulting.com" style="color: #0284c7;">nusamitraconsulting.com</a>
             </p>
         </div>
         `,
+        headers: {
+            'X-Auto-Response-Suppress': 'OOF, AutoReply',
+        },
     };
 
     return transporter.sendMail(mailOptions);

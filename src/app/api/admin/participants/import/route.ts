@@ -9,6 +9,7 @@ import pool from '@/lib/db';
 import logger from '@/lib/logger';
 import crypto from 'crypto';
 import { generateBulkNips } from '@/lib/nip';
+import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
 
 interface ImportItem {
     name: string;
@@ -199,14 +200,16 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 const batchVal = String(participant.batch) || '1';
                 const regDate = participant.registration_date || todayStr;
 
+                await ensureInitialPasswordColumn();
+
                 await connection.execute(
                     `INSERT INTO users (id, username, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)`,
                     [userId, participant.email, passwordHash, participant.name, 'trainee']
                 );
 
                 await connection.execute(
-                    `INSERT INTO participant_profiles (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    `INSERT INTO participant_profiles (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date, initial_password) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         profileId,
                         userId,
@@ -219,6 +222,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                         institutionCode || null,
                         batchVal,
                         regDate,
+                        rawPassword,
                     ]
                 );
 

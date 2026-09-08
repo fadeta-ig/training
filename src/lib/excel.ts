@@ -48,6 +48,22 @@ export interface CredentialExportRow {
     status: string;
 }
 
+export interface ParticipantDetailExportRow {
+    no: number;
+    fullName: string;
+    nip?: string;
+    email: string;
+    password?: string;
+    phoneNumber?: string;
+    gender?: string;
+    dateOfBirth?: string;
+    address?: string;
+    institution?: string;
+    batch?: string;
+    registrationDate?: string;
+}
+
+
 // Styling Constants
 const FONT_FAMILY = 'Segoe UI';
 const HEADER_FILL: ExcelJS.Fill = {
@@ -638,6 +654,149 @@ export async function generateCredentialsReportXlsx(params: {
     const buffer = await workbook.xlsx.writeBuffer();
     return new Uint8Array(buffer);
 }
+
+/**
+ * Generates an elegant, detailed Excel export of participants including credential and profile details.
+ */
+export async function generateParticipantsDetailExportXlsx(params: {
+    title: string;
+    exportedAt: string;
+    rows: ParticipantDetailExportRow[];
+}): Promise<Uint8Array> {
+    const { title, exportedAt, rows } = params;
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'LMS Platform';
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet('Data Peserta', {
+        views: [{ showGridLines: true }],
+        pageSetup: { orientation: 'landscape', fitToPage: true },
+    });
+
+    // 1. Header Banner
+    sheet.mergeCells('A1:L1');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = `👥 ${title.toUpperCase()}`;
+    titleCell.font = { name: FONT_FAMILY, size: 13, bold: true, color: { argb: 'FF0F172A' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    sheet.getRow(1).height = 30;
+
+    sheet.getCell('A2').value = `Diunduh pada: ${exportedAt} | Total: ${rows.length} Peserta`;
+    sheet.getCell('A2').font = { name: FONT_FAMILY, size: 9.5, color: { argb: 'FF64748B' } };
+    sheet.getRow(3).height = 8; // Spacer
+
+    // 2. Table Headers
+    const headers = [
+        'No',
+        'Nama Lengkap',
+        'NIP',
+        'Email / Username',
+        'Password Akun',
+        'No. Telepon / WhatsApp',
+        'L/P',
+        'Tgl Lahir',
+        'Alamat',
+        'Instansi / Lembaga',
+        'Batch',
+        'Tgl Pendaftaran',
+    ];
+
+    const headerRow = sheet.getRow(4);
+    headerRow.height = 26;
+    headers.forEach((h, idx) => {
+        const cell = headerRow.getCell(idx + 1);
+        cell.value = h;
+        cell.font = HEADER_FONT;
+        cell.fill = HEADER_FILL;
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = THIN_BORDER;
+    });
+
+    // 3. Table Rows
+    if (rows.length === 0) {
+        sheet.mergeCells('A5:L5');
+        const emptyCell = sheet.getCell('A5');
+        emptyCell.value = 'Belum ada data peserta yang tersedia.';
+        emptyCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        emptyCell.font = { name: FONT_FAMILY, size: 10, italic: true, color: { argb: 'FF94A3B8' } };
+        sheet.getRow(5).height = 24;
+    } else {
+        rows.forEach((row, idx) => {
+            const dataRow = sheet.getRow(5 + idx);
+            dataRow.height = 22;
+
+            const values = [
+                row.no,
+                row.fullName,
+                row.nip || '-',
+                row.email,
+                row.password || '******',
+                row.phoneNumber || '-',
+                row.gender || '-',
+                row.dateOfBirth || '-',
+                row.address || '-',
+                row.institution || '-',
+                row.batch || '1',
+                row.registrationDate || '-',
+            ];
+
+            values.forEach((val, colIdx) => {
+                const cell = dataRow.getCell(colIdx + 1);
+                cell.value = val;
+                cell.font = { name: FONT_FAMILY, size: 10, color: { argb: 'FF1E293B' } };
+                cell.border = THIN_BORDER;
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC' },
+                };
+
+                // Center align: No (0), NIP (2), Password (4), No HP (5), Gender (6), Tgl Lahir (7), Batch (10), Tgl Daftar (11)
+                if ([0, 2, 4, 5, 6, 7, 10, 11].includes(colIdx)) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                } else {
+                    cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                }
+
+                // Special styling for password column
+                if (colIdx === 4) {
+                    cell.font = { 
+                        name: FONT_FAMILY, 
+                        size: 9.5, 
+                        bold: Boolean(row.password && row.password !== '******'), 
+                        color: { argb: row.password && row.password !== '******' ? 'FF0F172A' : 'FF94A3B8' } 
+                    };
+                }
+
+                // Special styling for NIP column
+                if (colIdx === 2 && row.nip) {
+                    cell.font = { name: FONT_FAMILY, size: 9.5, bold: true, color: { argb: 'FF0284C7' } };
+                }
+            });
+        });
+    }
+
+    // 4. Column Widths
+    sheet.columns = [
+        { width: 6 },  // No
+        { width: 28 }, // Nama Lengkap
+        { width: 24 }, // NIP
+        { width: 32 }, // Email / Username
+        { width: 20 }, // Password Akun
+        { width: 20 }, // No. HP
+        { width: 8 },  // L/P
+        { width: 14 }, // Tgl Lahir
+        { width: 30 }, // Alamat
+        { width: 26 }, // Instansi
+        { width: 10 }, // Batch
+        { width: 16 }, // Tgl Daftar
+    ];
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Uint8Array(buffer);
+}
+
 
 /**
  * Universal client/server function to parse Spreadsheet (XLSX, XLS) or raw rows into JSON objects

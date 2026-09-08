@@ -1,18 +1,20 @@
 'use client';
 
 import { useCallback, useState, useEffect } from 'react';
-import Link from 'next/link';
 import {
     UserGroupIcon,
     PencilEdit02Icon,
     Delete02Icon,
     RefreshIcon,
     Alert02Icon,
-    Tick02Icon,
     Cancel01Icon,
     CheckmarkCircle02Icon,
+    MailSend01Icon,
+    Key01Icon,
+    Copy01Icon,
+    Tick01Icon,
 } from 'hugeicons-react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, FileSpreadsheet } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { ActionButton } from '@/components/ui/ActionButton';
@@ -67,6 +69,22 @@ export default function ParticipantsManagerPage() {
     const [bulkBatchInput, setBulkBatchInput] = useState('');
     const [preserveSequence, setPreserveSequence] = useState(true);
     const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+
+    // Credential Resend states
+    interface SingleCredentialModalData {
+        id: string;
+        name: string;
+        email: string;
+        nip?: string | null;
+        password?: string;
+        emailSent: boolean;
+        error?: string;
+    }
+    const [singleCredentialModal, setSingleCredentialModal] = useState<SingleCredentialModalData | null>(null);
+    const [isResendingSingleId, setIsResendingSingleId] = useState<string | null>(null);
+    const [copiedModalPassword, setCopiedModalPassword] = useState(false);
+    const [isBulkResendModalOpen, setIsBulkResendModalOpen] = useState(false);
+    const [isBulkResending, setIsBulkResending] = useState(false);
 
     const fetchParticipants = useCallback(async (
         targetPage: number,
@@ -205,6 +223,85 @@ export default function ParticipantsManagerPage() {
         }
     };
 
+    const handleResendSingle = async (p: Participant) => {
+        const isConfirmed = await confirm({
+            title: 'Kirim Ulang Kredensial Peserta?',
+            message: `Apakah Anda yakin ingin mengatur ulang dan mengirim kredensial baru untuk "${p.name}" (${p.email})? Password baru akan dibuat dan dikirimkan langsung ke email peserta.`,
+            confirmLabel: 'Ya, Kirim Kredensial',
+            cancelLabel: 'Batal',
+        });
+        if (!isConfirmed) return;
+
+        setIsResendingSingleId(p.id);
+        try {
+            const res = await fetch('/api/admin/participants/resend-credentials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ participant_ids: [p.id] }),
+            });
+            const result = await res.json();
+            if (res.ok && result.success && result.results?.length > 0) {
+                const item = result.results[0];
+                setSingleCredentialModal({
+                    id: p.id,
+                    name: p.name,
+                    email: p.email,
+                    nip: p.nip,
+                    password: item.newPassword,
+                    emailSent: item.emailSent,
+                    error: item.error,
+                });
+                if (item.emailSent) {
+                    toast.success('Kredensial baru berhasil dikirim ke email peserta!');
+                } else {
+                    toast.warning('Password diperbarui, namun pengiriman email gagal.', {
+                        description: item.error || 'Silakan salin password secara manual.',
+                    });
+                }
+            } else {
+                toast.error(result.error || 'Gagal mengirim ulang kredensial');
+            }
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Terjadi kesalahan sistem';
+            toast.error(message);
+        } finally {
+            setIsResendingSingleId(null);
+        }
+    };
+
+    const handleBulkResendSubmit = async () => {
+        if (selectedIds.size === 0) return;
+        setIsBulkResending(true);
+        try {
+            const res = await fetch('/api/admin/participants/resend-credentials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ participant_ids: Array.from(selectedIds) }),
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                toast.success(result.message || 'Kredensial massal berhasil diproses!');
+                setIsBulkResendModalOpen(false);
+                setSelectedIds(new Set());
+                fetchParticipants(page, pageSize, filters);
+            } else {
+                toast.error(result.error || 'Gagal memproses kredensial massal');
+            }
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Terjadi kesalahan koneksi';
+            toast.error(message);
+        } finally {
+            setIsBulkResending(false);
+        }
+    };
+
+    const handleDownloadSelectedExcel = () => {
+        if (selectedIds.size === 0) return;
+        const ids = Array.from(selectedIds).join(',');
+        toast.info(`Menyiapkan unduhan data ${selectedIds.size} peserta terpilih...`);
+        window.location.href = `/api/admin/participants/export?ids=${encodeURIComponent(ids)}`;
+    };
+
     const deleteParticipant = async (id: string, name: string) => {
         const isConfirmed = await confirm({
             title: 'Hapus Peserta Permanen?',
@@ -268,7 +365,7 @@ export default function ParticipantsManagerPage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                         <button
                             type="button"
                             onClick={() => setSelectedIds(new Set())}
@@ -278,15 +375,34 @@ export default function ParticipantsManagerPage() {
                         </button>
                         <button
                             type="button"
+                            onClick={handleDownloadSelectedExcel}
+                            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer border border-slate-700"
+                            title="Unduh Excel untuk peserta yang dipilih"
+                        >
+                            <FileSpreadsheet className="size-3.5 text-emerald-400" />
+                            <span>Download Excel ({selectedIds.size})</span>
+                        </button>
+                        <button
+                            type="button"
                             onClick={handleOpenBulkModal}
-                            className="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
+                            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
                         >
                             <RefreshIcon size={14} />
-                            <span>Ubah Batch &amp; NIP Massal</span>
+                            <span>Ubah Batch &amp; NIP</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setIsBulkResendModalOpen(true)}
+                            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
+                            title="Kirim ulang kredensial login ke email seluruh peserta yang dipilih"
+                        >
+                            <MailSend01Icon size={14} />
+                            <span>Kirim Kredensial Massal</span>
                         </button>
                     </div>
                 </div>
             )}
+
 
             {/* Comprehensive Filter Bar */}
             <ParticipantsFilter
@@ -417,6 +533,18 @@ export default function ParticipantsManagerPage() {
                                             {userRole === 'admin' && (
                                                 <td className="px-6 py-4 text-right space-x-1.5 flex justify-end gap-1.5">
                                                     <ActionButton
+                                                        onClick={() => handleResendSingle(p)}
+                                                        disabled={isResendingSingleId === p.id}
+                                                        icon={
+                                                            isResendingSingleId === p.id ? (
+                                                                <RefreshIcon size={16} className="animate-spin text-blue-600" />
+                                                            ) : (
+                                                                <MailSend01Icon size={16} className="text-blue-600" />
+                                                            )
+                                                        }
+                                                        title="Kirim Ulang Kredensial (Reset & Kirim Password ke Email)"
+                                                    />
+                                                    <ActionButton
                                                         href={`/admin/participants/${p.id}`}
                                                         icon={<PencilEdit02Icon size={16} />}
                                                         title="Edit Peserta"
@@ -429,6 +557,7 @@ export default function ParticipantsManagerPage() {
                                                     />
                                                 </td>
                                             )}
+
                                         </tr>
                                     );
                                 })
@@ -539,7 +668,200 @@ export default function ParticipantsManagerPage() {
                     </div>
                 </ClientPortal>
             )}
+
+            {/* Modal Dialog: Hasil Kirim Ulang Kredensial Tunggal */}
+            {singleCredentialModal && (
+                <ClientPortal>
+                    <div 
+                        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => setSingleCredentialModal(null)}
+                    >
+                        <div 
+                            className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                                    <Key01Icon size={20} className="text-emerald-600" />
+                                    <span>Kredensial Peserta Diperbarui</span>
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setSingleCredentialModal(null)}
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded-lg cursor-pointer"
+                                >
+                                    <Cancel01Icon size={18} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                {singleCredentialModal.emailSent ? (
+                                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs text-emerald-900 space-y-1">
+                                        <p className="font-bold flex items-center gap-1.5">
+                                            <CheckmarkCircle02Icon size={16} className="text-emerald-700 shrink-0" />
+                                            <span>Email Kredensial Berhasil Terkirim!</span>
+                                        </p>
+                                        <p className="text-[11px] text-emerald-800">
+                                            Username dan password baru telah dikirimkan secara langsung ke email <b>{singleCredentialModal.email}</b>.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 space-y-1">
+                                        <p className="font-bold flex items-center gap-1.5">
+                                            <Alert02Icon size={16} className="text-amber-700 shrink-0" />
+                                            <span>Password Diperbarui (Email Tertunda)</span>
+                                        </p>
+                                        <p className="text-[11px] text-amber-800">
+                                            Password baru berhasil disimpan di sistem, namun email belum berhasil terkirim. Anda dapat menyalin kredensial di bawah ini untuk dibagikan secara manual.
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+                                    <div>
+                                        <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Nama Peserta</span>
+                                        <span className="font-bold text-foreground text-sm">{singleCredentialModal.name}</span>
+                                    </div>
+                                    {singleCredentialModal.nip && (
+                                        <div>
+                                            <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">NIP Resmi</span>
+                                            <span className="font-mono font-bold text-primary">{singleCredentialModal.nip}</span>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Username / Email</span>
+                                        <span className="font-mono font-bold text-foreground">{singleCredentialModal.email}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Password Baru</span>
+                                        <div className="flex items-center justify-between mt-1 bg-white p-2.5 rounded-lg border border-slate-200">
+                                            <span className="font-mono font-bold text-base tracking-wider text-slate-900 select-all">
+                                                {singleCredentialModal.password}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    if (singleCredentialModal.password) {
+                                                        await navigator.clipboard.writeText(singleCredentialModal.password);
+                                                        setCopiedModalPassword(true);
+                                                        toast.success('Password disalin ke clipboard!');
+                                                        setTimeout(() => setCopiedModalPassword(false), 2000);
+                                                    }
+                                                }}
+                                                className="p-1.5 text-muted-foreground hover:text-foreground rounded-md hover:bg-slate-100 cursor-pointer"
+                                                title="Salin Password"
+                                            >
+                                                {copiedModalPassword ? <Tick01Icon size={16} className="text-emerald-600" /> : <Copy01Icon size={16} />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const text = `Kredensial Akun LMS Nusamitra\nNama: ${singleCredentialModal.name}\nNIP: ${singleCredentialModal.nip || '-'}\nUsername: ${singleCredentialModal.email}\nPassword: ${singleCredentialModal.password}\nLogin: ${window.location.origin}/auth/login`;
+                                            await navigator.clipboard.writeText(text);
+                                            toast.success('Seluruh info kredensial disalin!');
+                                        }}
+                                        className="h-10 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                        <Copy01Icon size={14} />
+                                        <span>Salin Lengkap</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSingleCredentialModal(null)}
+                                        className="h-10 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-all shadow-sm cursor-pointer"
+                                    >
+                                        Tutup
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </ClientPortal>
+            )}
+
+            {/* Modal Dialog: Konfirmasi Kirim Kredensial Massal */}
+            {isBulkResendModalOpen && (
+                <ClientPortal>
+                    <div 
+                        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => !isBulkResending && setIsBulkResendModalOpen(false)}
+                    >
+                        <div 
+                            className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                                    <MailSend01Icon size={20} className="text-blue-600" />
+                                    <span>Kirim Ulang Kredensial Massal</span>
+                                </h3>
+                                {!isBulkResending && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsBulkResendModalOpen(false)}
+                                        className="text-muted-foreground hover:text-foreground p-1 rounded-lg cursor-pointer"
+                                    >
+                                        <Cancel01Icon size={18} />
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3.5 text-xs text-blue-900 space-y-1.5">
+                                    <p className="font-bold flex items-center gap-1.5">
+                                        <CheckmarkCircle02Icon size={16} className="text-blue-700 shrink-0" />
+                                        <span>{selectedIds.size} Peserta Terpilih</span>
+                                    </p>
+                                    <p className="text-[11px] text-blue-800 leading-relaxed">
+                                        Sistem akan menghasilkan password acak baru yang aman untuk setiap peserta terpilih, menyimpannya di database, dan mengirimkan email kredensial resmi ke masing-masing kotak masuk mereka.
+                                    </p>
+                                </div>
+
+                                <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-3 text-[11px] text-amber-900 flex items-start gap-2">
+                                    <Alert02Icon size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                                    <span>Password peserta yang lama tidak akan berlaku lagi setelah proses ini dijalankan.</span>
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        disabled={isBulkResending}
+                                        onClick={() => setIsBulkResendModalOpen(false)}
+                                        className="h-10 px-4 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={isBulkResending}
+                                        onClick={handleBulkResendSubmit}
+                                        className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                        {isBulkResending ? (
+                                            <>
+                                                <RefreshIcon size={14} className="animate-spin" />
+                                                <span>Sedang Mengirim...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <MailSend01Icon size={14} />
+                                                <span>Kirim Kredensial Sekarang</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </ClientPortal>
+            )}
         </div>
     );
 }
+
 

@@ -274,3 +274,45 @@ export class ParticipantError extends Error {
         this.name = 'ParticipantError';
     }
 }
+
+let checkedInitialPasswordColumn = false;
+
+/**
+ * Ensures that the initial_password column exists in participant_profiles table.
+ * Executed defensively to avoid runtime SQL errors on legacy database schemas.
+ */
+export async function ensureInitialPasswordColumn(): Promise<void> {
+    if (checkedInitialPasswordColumn) return;
+    try {
+        const columns = await executeQuery<{ COLUMN_NAME: string }[]>(
+            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME = 'initial_password'`
+        );
+        if (!columns || columns.length === 0) {
+            await executeQuery(
+                `ALTER TABLE participant_profiles ADD COLUMN initial_password VARCHAR(255) NULL AFTER registration_date`
+            );
+        }
+        checkedInitialPasswordColumn = true;
+    } catch (err) {
+        logger.warn('SCHEMA_MIGRATION', 'Could not ensure initial_password column', {
+            error: err instanceof Error ? err.message : String(err),
+        });
+        checkedInitialPasswordColumn = true;
+    }
+}
+
+/**
+ * Generates a clean, highly secure, readable random password.
+ * Avoids easily confused characters (0, O, I, l).
+ */
+export function generateSecurePassword(length = 12): string {
+    const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ!@#$%&*';
+    const bytes = crypto.randomBytes(length);
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars[bytes[i] % chars.length];
+    }
+    return result;
+}
+

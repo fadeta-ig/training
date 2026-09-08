@@ -9,7 +9,7 @@ import {
     RefreshIcon,
     UserIcon,
 } from 'hugeicons-react';
-import { Filter, ArrowDownUp, RotateCcw, Building2, Layers } from 'lucide-react';
+import { Filter, ArrowDownUp, RotateCcw, Building2, Layers, FileSpreadsheet } from 'lucide-react';
 import Link from 'next/link';
 
 export interface ParticipantFilters {
@@ -139,6 +139,28 @@ export function ParticipantsFilter({
                                 {activeFilterCount}
                             </span>
                         )}
+                    </button>
+
+                    {/* Download Excel */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            const params = new URLSearchParams({
+                                search: filters.search || '',
+                                institution: filters.institution || 'all',
+                                batch: filters.batch || 'all',
+                                gender: filters.gender || 'all',
+                                date_from: filters.dateFrom || '',
+                                date_to: filters.dateTo || '',
+                                sort_by: filters.sortBy || 'created_desc',
+                            });
+                            window.location.href = `/api/admin/participants/export?${params.toString()}`;
+                        }}
+                        className="inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 text-xs font-semibold text-slate-700 shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
+                        title="Unduh seluruh data peserta sesuai filter aktif (lengkap dengan password, NIP, & profil)"
+                    >
+                        <FileSpreadsheet className="size-4 text-emerald-600 shrink-0" />
+                        <span>Download Excel</span>
                     </button>
 
                     {/* Import Massal Excel (Admin only) */}

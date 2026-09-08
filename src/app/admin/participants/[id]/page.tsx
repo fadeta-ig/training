@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { PencilEdit01Icon, FloppyDiskIcon, ArrowLeft01Icon, RefreshIcon, Copy01Icon, Tick01Icon, Calendar01Icon, Building02Icon } from 'hugeicons-react';
+import { PencilEdit01Icon, FloppyDiskIcon, ArrowLeft01Icon, RefreshIcon, Copy01Icon, Tick01Icon, Calendar01Icon, Building02Icon, MailSend01Icon } from 'hugeicons-react';
 import Link from 'next/link';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ export default function EditParticipantPage() {
 
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
+    const [isResending, setIsResending] = useState(false);
     const [nip, setNip] = useState<string | null>(null);
     const [copiedNip, setCopiedNip] = useState(false);
     const [regenerateNip, setRegenerateNip] = useState(false);
@@ -68,6 +69,37 @@ export default function EditParticipantPage() {
         setCopiedNip(true);
         toast.success('NIP disalin ke clipboard!');
         setTimeout(() => setCopiedNip(false), 2000);
+    };
+
+    const handleResendCredentials = async () => {
+        if (!participantId || !formData.email) return;
+        setIsResending(true);
+        try {
+            const res = await fetch('/api/admin/participants/resend-credentials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ participant_ids: [participantId] }),
+            });
+            const result = await res.json();
+            if (res.ok && result.success && result.results?.length > 0) {
+                const item = result.results[0];
+                if (item.emailSent) {
+                    toast.success('Kredensial berhasil dikirim!', {
+                        description: `Password baru dibuat dan dikirim ke ${formData.email}. Password: ${item.newPassword}`,
+                    });
+                } else {
+                    toast.warning('Password diperbarui (Email tertunda)', {
+                        description: `Password baru: ${item.newPassword}`,
+                    });
+                }
+            } else {
+                toast.error('Gagal mengirim kredensial', { description: result.error });
+            }
+        } catch (err: any) {
+            toast.error('Terjadi kesalahan koneksi', { description: err.message });
+        } finally {
+            setIsResending(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -132,6 +164,16 @@ export default function EditParticipantPage() {
                         Perbarui informasi identitas, instansi, batch, dan tanggal pendaftaran peserta.
                     </p>
                 </div>
+                <button
+                    type="button"
+                    onClick={handleResendCredentials}
+                    disabled={isResending}
+                    className="ml-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                    title="Reset password dan kirim kredensial baru ke email peserta"
+                >
+                    {isResending ? <RefreshIcon size={16} className="animate-spin" /> : <MailSend01Icon size={16} />}
+                    <span>{isResending ? 'Mengirim...' : 'Kirim Ulang Kredensial'}</span>
+                </button>
             </div>
 
             {/* NIP Official Identity Badge */}

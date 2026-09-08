@@ -111,18 +111,8 @@ export async function sendCredentialEmail(to: string, participantName: string, p
     const sebDownloadUrl = SEB_DOWNLOAD_URL;
     const safeSebUrl = escapeHtml(sebDownloadUrl);
 
-    // Flyer panduan pelaksanaan ujian di direktori public/images
-    const flyerPath = path.join(process.cwd(), 'public', 'images', 'Flyer Panduan LMS.jpeg');
-    const flyerExists = fs.existsSync(flyerPath);
-
-    const attachments: Array<{ filename: string; path: string; cid?: string }> = [];
-    if (flyerExists) {
-        attachments.push({
-            filename: 'Flyer_Panduan_Pelaksanaan_Ujian_LMS.jpeg',
-            path: flyerPath,
-            cid: 'flyerPanduanLMS',
-        });
-    }
+    const flyerUrl = `${baseUrl}/images/Flyer%20Panduan%20LMS.jpeg`;
+    const safeFlyerUrl = escapeHtml(flyerUrl);
 
     const plainText = `Halo ${participantName},
 
@@ -153,7 +143,8 @@ KETENTUAN PENTING:
 - Dilarang membuka catatan, tab peramban lain, atau meminta bantuan pihak ketiga.
 - Jawaban tersimpan secara berkala dan akan terkirim otomatis saat batas waktu ujian berakhir.
 
-Lampiran bagan panduan langkah pelaksanaan ujian disertakan pada email ini.
+Bagan panduan langkah-langkah pelaksanaan ujian dapat diakses melalui tautan berikut:
+${flyerUrl}
 
 Hormat kami,
 Tim Manajemen Pelatihan LMS Nusamitra Consulting
@@ -166,7 +157,6 @@ Website: https://nusamitraconsulting.com
         to,
         subject: sanitizeEmailSubject(`Informasi Akun dan Panduan Ujian Sertifikasi - ${participantName}`),
         text: plainText,
-        attachments,
         headers: {
             'X-Auto-Response-Suppress': 'OOF, AutoReply',
         },
@@ -258,17 +248,17 @@ Website: https://nusamitraconsulting.com
                         </table>
                     </div>
 
-                    <!-- Section: Lampiran Bagan Panduan -->
-                    ${flyerExists ? `
+                    <!-- Section: Bagan Panduan -->
                     <div style="margin-bottom: 28px; border-top: 1px solid #e2e8f0; padding-top: 24px;">
-                        <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #64748b; margin-bottom: 6px;">Lampiran Bagan Panduan</div>
-                        <div style="font-size: 13px; color: #475569; margin-bottom: 14px;">Bagan alur langkah-langkah pelaksanaan ujian sertifikasi:</div>
-                        <div style="border: 1px solid #e2e8f0; border-radius: 4px; overflow: hidden; background-color: #ffffff;">
-                            <img src="cid:flyerPanduanLMS" alt="Panduan Pelaksanaan Ujian LMS" style="display: block; width: 100%; height: auto;" />
+                        <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #64748b; margin-bottom: 6px;">Bagan Panduan Pelaksanaan Ujian</div>
+                        <div style="font-size: 13px; color: #475569; margin-bottom: 14px;">Bagan alur langkah-langkah pelaksanaan ujian sertifikasi dapat Anda pelajari dan unduh:</div>
+                        <div style="border: 1px solid #e2e8f0; border-radius: 4px; overflow: hidden; background-color: #ffffff; margin-bottom: 12px;">
+                            <img src="${safeFlyerUrl}" alt="Panduan Pelaksanaan Ujian LMS" style="display: block; width: 100%; height: auto;" />
                         </div>
-                        <div style="font-size: 12px; color: #64748b; margin-top: 8px;">*File panduan ini juga terlampir dalam email untuk dapat disimpan pada perangkat Anda.</div>
+                        <div>
+                            <a href="${safeFlyerUrl}" target="_blank" style="display: inline-block; background-color: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; padding: 7px 16px; font-size: 12px; font-weight: 600; text-decoration: none; border-radius: 4px;">Lihat / Unduh Gambar Panduan</a>
+                        </div>
                     </div>
-                    ` : ''}
 
                     <!-- Section: Ketentuan Penting -->
                     <div style="border-left: 3px solid #0f172a; background-color: #f8fafc; padding: 14px 16px; margin-bottom: 24px;">

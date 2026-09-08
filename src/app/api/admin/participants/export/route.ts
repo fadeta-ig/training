@@ -163,7 +163,7 @@ async function handleGet(request: NextRequest, _authUser: AuthenticatedUser) {
         const dateSuffix = new Date().toISOString().slice(0, 10);
         const filename = `Data_Detail_Peserta_${dateSuffix}.xlsx`;
 
-        return new NextResponse(xlsxBuffer, {
+        return new NextResponse(Buffer.from(xlsxBuffer), {
             status: 200,
             headers: {
                 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

@@ -21,6 +21,7 @@ export type AuditActionType =
     | 'ROLLBACK_QUESTION_IMPORT'
     | 'RESET_PASSWORD'
     | 'SEND_CREDENTIALS'
+    | 'RESEND_CREDENTIALS'
     | 'SUBMIT_EXAM'
     | 'START_EXAM'
     | 'EXAM_OVERRIDE_RESUME'

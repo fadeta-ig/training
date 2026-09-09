@@ -6,6 +6,9 @@ import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import logger from '@/lib/logger';
 import { checkRateLimit } from '@/lib/rate-limit';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /** Maps MIME types to the media_type enum and server-controlled extension. */
 const ALLOWED_TYPES: Record<string, { mediaType: string; extension: string }> = {
     'image/jpeg': { mediaType: 'image', extension: 'jpg' },
@@ -24,6 +27,20 @@ const ALLOWED_TYPES: Record<string, { mediaType: string; extension: string }> = 
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { mediaType: 'document', extension: 'docx' },
     'application/vnd.ms-powerpoint': { mediaType: 'document', extension: 'ppt' },
     'application/vnd.openxmlformats-officedocument.presentationml.presentation': { mediaType: 'document', extension: 'pptx' },
+};
+
+/** Extension fallback for browsers or operating systems sending generic application/octet-stream */
+const EXTENSION_FALLBACK_MAP: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 };
 
 const MAX_FILE_SIZE_IMAGE = 10 * 1024 * 1024;   // 10 MB
@@ -56,7 +73,9 @@ function hasExpectedSignature(mimeType: string, buffer: Buffer): boolean {
             && buffer.subarray(8, 12).toString('ascii') === 'WEBP';
     }
     if (lower.includes('pdf')) {
-        return buffer.subarray(0, 4).toString('ascii') === '%PDF';
+        // According to ISO 32000-1 (section 7.5.2), %PDF can appear in the first 1024 bytes
+        const sample = buffer.subarray(0, Math.min(buffer.length, 1024)).toString('latin1');
+        return sample.includes('%PDF-') || sample.includes('%PDF');
     }
     if (lower.includes('msword') || lower.includes('powerpoint')) {
         return startsWithBytes(buffer, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
@@ -72,7 +91,6 @@ function hasExpectedSignature(mimeType: string, buffer: Buffer): boolean {
     return false;
 }
 
-
 function sanitizeOriginalFilename(name: string): string {
     return name.replace(/[^\w.\- ()]/g, '_').slice(0, 255) || 'upload';
 }
@@ -82,10 +100,10 @@ function sanitizeOriginalFilename(name: string): string {
  * Stores files in `public/uploads/` and returns the accessible URL.
  */
 async function handlePost(request: NextRequest, user: AuthenticatedUser) {
-    const blocked = checkRateLimit(request, { ...UPLOAD_RATE_LIMIT, identifier: user.id });
-    if (blocked) return blocked;
-
     try {
+        const blocked = checkRateLimit(request, { ...UPLOAD_RATE_LIMIT, identifier: user.id });
+        if (blocked) return blocked;
+
         const formData = await request.formData();
         const file = formData.get('file') as File | null;
 
@@ -96,11 +114,23 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
             );
         }
 
-        const allowedType = ALLOWED_TYPES[file.type];
+        // Resolve MIME type with fallback to extension if browser sent generic octet-stream or empty
+        let resolvedMime = file.type;
+        if (!resolvedMime || resolvedMime === 'application/octet-stream') {
+            const ext = path.extname(file.name).toLowerCase();
+            if (EXTENSION_FALLBACK_MAP[ext]) {
+                resolvedMime = EXTENSION_FALLBACK_MAP[ext];
+            }
+        }
+
+        const allowedType = ALLOWED_TYPES[resolvedMime];
         if (!allowedType) {
-            const allowed = Object.keys(ALLOWED_TYPES).join(', ');
+            const allowedExts = Object.keys(EXTENSION_FALLBACK_MAP).join(', ');
             return NextResponse.json(
-                { success: false, error: `Tipe file tidak diizinkan: ${file.type}. Tipe yang diizinkan: ${allowed}` },
+                {
+                    success: false,
+                    error: `Tipe file "${file.name}" tidak diizinkan. Ekstensi yang didukung: ${allowedExts}`,
+                },
                 { status: 400 }
             );
         }
@@ -109,7 +139,10 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
         if (file.size > maxSize) {
             const limitMB = Math.round(maxSize / (1024 * 1024));
             return NextResponse.json(
-                { success: false, error: `Ukuran file melebihi batas maksimum ${limitMB}MB.` },
+                {
+                    success: false,
+                    error: `Ukuran berkas "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)}MB) melebihi batas maksimum ${limitMB}MB.`,
+                },
                 { status: 400 }
             );
         }
@@ -117,9 +150,12 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        if (!hasExpectedSignature(file.type, buffer)) {
+        if (!hasExpectedSignature(resolvedMime, buffer)) {
             return NextResponse.json(
-                { success: false, error: 'Isi file tidak sesuai dengan tipe file yang dikirim.' },
+                {
+                    success: false,
+                    error: `Isi berkas "${file.name}" tidak sesuai atau rusak (header file tidak valid).`,
+                },
                 { status: 400 }
             );
         }
@@ -137,7 +173,7 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
 
         logger.info('FILE_UPLOAD', `File berhasil diunggah: ${file.name} -> ${uniqueFilename}`, {
             originalName: file.name,
-            mimeType: file.type,
+            mimeType: resolvedMime,
             sizeBytes: file.size,
             mediaCategory: allowedType.mediaType,
             url: fileUrl,
@@ -151,7 +187,7 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
             media_type: allowedType.mediaType,
             message: 'File berhasil diunggah.',
         });
-    } catch (error) {
+    } catch (error: unknown) {
         logger.error('FILE_UPLOAD', 'Gagal mengunggah file', error);
         const message = error instanceof Error ? error.message : 'Kesalahan sistem';
         return NextResponse.json(

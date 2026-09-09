@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { FileBadge2, X, UploadCloud, CheckCircle2, Loader2, Trash2, ExternalLink, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { ClientPortal } from '@/components/ui/ClientPortal';
+import { safeFetchJson } from '@/lib/api-client';
 
 interface CertificateUploadModalProps {
     isOpen: boolean;
@@ -74,21 +75,18 @@ export function CertificateUploadModal({
         formData.append('file', file);
 
         try {
-            const res = await fetch('/api/upload', {
+            const res = await safeFetchJson<{ success: boolean; url: string; error?: string }>('/api/upload', {
                 method: 'POST',
                 body: formData,
             });
-            const data = await res.json();
 
-            if (res.ok && data.success) {
-                setFileUrl(data.url);
+            if (res.ok && res.data?.success) {
+                setFileUrl(res.data.url);
                 setFileName(file.name);
                 toast.success('Berkas sertifikat berhasil diunggah!');
             } else {
-                toast.error(data.error || 'Gagal mengunggah file.');
+                toast.error(res.error || 'Gagal mengunggah berkas sertifikat.');
             }
-        } catch {
-            toast.error('Gagal terhubung ke server upload.');
         } finally {
             setIsUploading(false);
         }

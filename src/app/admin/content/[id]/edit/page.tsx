@@ -7,6 +7,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import MediaAttachmentManager from '@/components/ui/MediaAttachmentManager';
 import type { MediaItem } from '@/components/ui/MediaAttachmentManager';
+import { safeFetchJson } from '@/lib/api-client';
 
 const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), { ssr: false });
 
@@ -27,17 +28,16 @@ export default function EditTrainingPage({ params }: { params: Promise<{ id: str
     useEffect(() => {
         const fetchTraining = async () => {
             try {
-                const res = await fetch(`/api/trainings/${resolvedParams.id}`);
-                const data = await res.json();
-                if (data.success) {
+                const res = await safeFetchJson<{ success: boolean; data: any; error?: string }>(`/api/trainings/${resolvedParams.id}`);
+                if (res.ok && res.data?.success) {
                     setFormData({
-                        title: data.data.title,
-                        content_html: data.data.content_html,
+                        title: res.data.data.title,
+                        content_html: res.data.data.content_html,
                     });
                     // Map existing media to form-compatible shape
-                    if (data.data.media && Array.isArray(data.data.media)) {
+                    if (res.data.data.media && Array.isArray(res.data.data.media)) {
                         setMedia(
-                            data.data.media.map((m: any) => ({
+                            res.data.data.media.map((m: any) => ({
                                 media_type: m.media_type,
                                 media_url: m.media_url,
                                 original_filename: m.original_filename || '',
@@ -45,10 +45,11 @@ export default function EditTrainingPage({ params }: { params: Promise<{ id: str
                         );
                     }
                 } else {
-                    throw new Error(data.error);
+                    throw new Error(res.error || 'Gagal memuat materi');
                 }
-            } catch (err: any) {
-                setError(err.message);
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : 'Gagal memuat materi';
+                setError(message);
             } finally {
                 setIsLoading(false);
             }
@@ -62,22 +63,21 @@ export default function EditTrainingPage({ params }: { params: Promise<{ id: str
         setError(null);
 
         try {
-            const res = await fetch(`/api/trainings/${resolvedParams.id}`, {
+            const res = await safeFetchJson<{ success: boolean; error?: string }>(`/api/trainings/${resolvedParams.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...formData, media })
             });
 
-            const result = await res.json();
-
-            if (result.success) {
+            if (res.ok && res.data?.success) {
                 router.push('/admin/content');
                 router.refresh();
             } else {
-                throw new Error(result.error || 'Gagal menyimpan perubahan materi');
+                throw new Error(res.error || 'Gagal menyimpan perubahan materi');
             }
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Gagal menyimpan materi';
+            setError(message);
         } finally {
             setIsSaving(false);
         }

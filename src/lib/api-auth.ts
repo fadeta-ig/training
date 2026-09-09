@@ -132,7 +132,16 @@ export function withAuth(
             );
         }
 
-        return handler(request, user, context);
+        try {
+            return await handler(request, user, context);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan sistem internal';
+            console.error('[API_AUTH_UNHANDLED_ERROR]', error);
+            return NextResponse.json(
+                { success: false, error: errorMessage },
+                { status: 500 }
+            );
+        }
     };
 }
 

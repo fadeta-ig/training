@@ -15,6 +15,7 @@ import {
 } from 'hugeicons-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { safeFetchJson } from '@/lib/api-client';
 
 const QUESTION_TYPES = [
     { value: 'multiple_choice', label: 'Pilihan Ganda', description: 'Satu jawaban benar dari beberapa opsi' },
@@ -78,9 +79,17 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
     }, [examId, questionId]);
 
     const uploadImage = async (file: File): Promise<string | null> => {
-        const fd = new FormData(); fd.append('file', file);
-        try { const r = await fetch('/api/upload', { method: 'POST', body: fd }); const d = await r.json(); if (d.success) return d.url; toast.error(d.error || 'Gagal mengunggah gambar.'); return null; }
-        catch { toast.error('Gagal mengunggah gambar.'); return null; }
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await safeFetchJson<{ success: boolean; url: string; error?: string }>('/api/upload', {
+            method: 'POST',
+            body: fd,
+        });
+        if (res.ok && res.data?.success) {
+            return res.data.url;
+        }
+        toast.error(res.error || 'Gagal mengunggah gambar.');
+        return null;
     };
     const handleQuestionImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (!f) return; const u = await uploadImage(f); if (u) setQuestionImage(u); e.target.value = ''; };
     const handleOptionImageUpload = async (idx: number, file: File) => { const u = await uploadImage(file); if (u) { const n = [...options]; n[idx] = { ...n[idx], image: u }; setOptions(n); } };

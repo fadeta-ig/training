@@ -11,6 +11,8 @@ import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import { useCallback, useRef } from 'react';
+import { toast } from 'sonner';
+import { safeFetchJson } from '@/lib/api-client';
 import './rich-text-editor.css';
 
 type RichTextEditorProps = {
@@ -52,20 +54,32 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
     const handleImageUpload = useCallback(async (file: File) => {
         if (!editor) return;
 
+        const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+        const allowedImageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+
+        if (!allowedImageExts.includes(ext)) {
+            toast.error(`Format berkas "${file.name}" bukan gambar yang didukung (JPG, PNG, GIF, WebP).`);
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error(`Ukuran gambar "${file.name}" melebihi batas maksimal 10MB.`);
+            return;
+        }
+
         const formData = new FormData();
         formData.append('file', file);
 
-        try {
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            const result = await res.json();
+        const res = await safeFetchJson<{ success: boolean; url: string; error?: string }>('/api/upload', {
+            method: 'POST',
+            body: formData,
+        });
 
-            if (result.success) {
-                editor.chain().focus().setImage({ src: result.url }).run();
-            } else {
-                alert(result.error || 'Gagal mengunggah gambar.');
-            }
-        } catch {
-            alert('Terjadi kesalahan saat mengunggah gambar.');
+        if (res.ok && res.data?.success) {
+            editor.chain().focus().setImage({ src: res.data.url }).run();
+            toast.success('Gambar berhasil disisipkan');
+        } else {
+            toast.error(res.error || 'Gagal mengunggah gambar');
         }
     }, [editor]);
 

@@ -14,6 +14,7 @@ import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/ad
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { SortableMediaItem } from './SortableMediaItem';
 import { toast } from 'sonner';
+import { safeFetchJson } from '@/lib/api-client';
 
 /** Represents a single media attachment in the form state */
 export interface MediaItem {
@@ -32,6 +33,23 @@ const ACCEPT_MAP: Record<string, string> = {
     pdf: 'application/pdf',
     document: '.doc,.docx,.ppt,.pptx',
 };
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;   // 10 MB
+const MAX_DOC_SIZE_BYTES = 25 * 1024 * 1024;     // 25 MB
+const ALLOWED_EXTENSIONS = [
+    '.jpg', '.jpeg', '.png', '.gif', '.webp',
+    '.pdf',
+    '.doc', '.docx', '.ppt', '.pptx'
+];
+
+interface UploadApiResponse {
+    success: boolean;
+    url: string;
+    filename: string;
+    original_filename: string;
+    media_type: 'video' | 'image' | 'pdf' | 'document';
+    error?: string;
+}
 
 /**
  * Reusable admin UI for adding, removing, and reordering media attachments on training materials.
@@ -121,20 +139,38 @@ export default function MediaAttachmentManager({ items, onChange }: MediaAttachm
     };
 
     const uploadSingleFile = async (file: File): Promise<MediaItem | null> => {
+        const lastDot = file.name.lastIndexOf('.');
+        const ext = lastDot !== -1 ? file.name.slice(lastDot).toLowerCase() : '';
+
+        if (!ALLOWED_EXTENSIONS.includes(ext)) {
+            throw new Error(`Format berkas "${file.name}" tidak didukung. Harap pilih PDF, PPT, Word, atau Gambar.`);
+        }
+
+        const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+        const maxSize = isImage ? MAX_IMAGE_SIZE_BYTES : MAX_DOC_SIZE_BYTES;
+        const limitMB = isImage ? 10 : 25;
+
+        if (file.size > maxSize) {
+            const actualMB = (file.size / (1024 * 1024)).toFixed(1);
+            throw new Error(`Ukuran berkas "${file.name}" (${actualMB}MB) melebihi batas maksimal ${limitMB}MB.`);
+        }
+
         const formData = new FormData();
         formData.append('file', file);
 
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        const result = await res.json();
+        const res = await safeFetchJson<UploadApiResponse>('/api/upload', {
+            method: 'POST',
+            body: formData,
+        });
 
-        if (!result.success) {
-            throw new Error(result.error || `Upload gagal untuk ${file.name}`);
+        if (!res.ok || !res.data?.success) {
+            throw new Error(res.error || `Upload gagal untuk "${file.name}"`);
         }
 
         return {
-            media_type: result.media_type,
-            media_url: result.url,
-            original_filename: result.original_filename || file.name,
+            media_type: res.data.media_type,
+            media_url: res.data.url,
+            original_filename: res.data.original_filename || file.name,
         };
     };
 
@@ -144,14 +180,12 @@ export default function MediaAttachmentManager({ items, onChange }: MediaAttachm
 
         setUploading(true);
         const uploaded: MediaItem[] = [];
-        let failedCount = 0;
 
         for (const file of fileArray) {
             try {
                 const item = await uploadSingleFile(file);
                 if (item) uploaded.push(item);
             } catch (err: unknown) {
-                failedCount++;
                 const message = err instanceof Error ? err.message : 'Gagal mengunggah file';
                 toast.error(message);
             }

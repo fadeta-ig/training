@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ClientPortalProps {
@@ -8,15 +8,16 @@ interface ClientPortalProps {
     targetSelector?: string;
 }
 
+const emptySubscribe = () => () => {};
+
 export function ClientPortal({ children, targetSelector }: ClientPortalProps) {
-    const [mounted, setMounted] = useState(false);
+    const isMounted = useSyncExternalStore(
+        emptySubscribe,
+        () => true,
+        () => false
+    );
 
-    useEffect(() => {
-        setMounted(true);
-        return () => setMounted(false);
-    }, []);
-
-    if (!mounted || typeof document === 'undefined') {
+    if (!isMounted || typeof document === 'undefined') {
         return null;
     }
 
@@ -26,3 +27,4 @@ export function ClientPortal({ children, targetSelector }: ClientPortalProps) {
 
     return createPortal(children, container);
 }
+

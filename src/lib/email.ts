@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import nodemailer from 'nodemailer';
 import { escapeHtml } from '@/lib/sanitize';
 import { getAppBaseUrl } from '@/lib/app-url';
@@ -24,7 +22,7 @@ const transporter = nodemailer.createTransport({
         pass: process.env.SMTP_PASS || '',
     },
     tls: {
-        rejectUnauthorized: false,
+        rejectUnauthorized: process.env.SMTP_ALLOW_INSECURE_TLS === 'true' ? false : true,
     },
 });
 

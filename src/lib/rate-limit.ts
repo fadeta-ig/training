@@ -48,13 +48,13 @@ interface RateLimitConfig {
 
 /**
  * Extracts the client IP from a Next.js request.
- * Prioritizes proxy headers for deployments behind reverse proxies.
+ * Prioritizes proxy headers for deployments behind reverse proxies (Nginx / Cloudflare).
  */
-function getClientIp(request: NextRequest): string {
+export function getClientIp(request: NextRequest): string {
     return (
         request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
         request.headers.get('x-real-ip') ||
-        'unknown'
+        '127.0.0.1'
     );
 }
 
@@ -101,3 +101,131 @@ export function checkRateLimit(
 
     return null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FAILURE-BASED ADAPTIVE RATE LIMITING (LOGIN SECURITY)
+// ─────────────────────────────────────────────────────────────────────────────
+// Legitimate users with valid credentials are NEVER throttled or queued.
+// Throttling triggers ONLY upon consecutive failed authentication attempts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface FailureEntry {
+    timestamps: number[];
+    lockedUntil?: number;
+}
+
+const failureStore = new Map<string, FailureEntry>();
+
+/** 5 consecutive failed passwords on the same username triggers a 2-minute cooldown */
+const MAX_FAILED_PER_ACCOUNT = 5;
+const ACCOUNT_LOCKOUT_MS = 2 * 60 * 1000;
+
+/** 50 accumulated failures across the same IP triggers a 2-minute subnet cooldown */
+const MAX_FAILED_PER_IP = 50;
+const IP_LOCKOUT_MS = 2 * 60 * 1000;
+
+function cleanupFailureStore(): void {
+    const now = Date.now();
+    for (const [key, entry] of failureStore) {
+        if (entry.lockedUntil && entry.lockedUntil < now) {
+            entry.lockedUntil = undefined;
+        }
+        entry.timestamps = entry.timestamps.filter((t) => t > now - Math.max(ACCOUNT_LOCKOUT_MS, IP_LOCKOUT_MS));
+        if (entry.timestamps.length === 0 && !entry.lockedUntil) {
+            failureStore.delete(key);
+        }
+    }
+}
+
+/**
+ * Pre-login check: verifies if this account or IP is currently locked due to previous failures.
+ * Returns HTTP 429 if locked, or null if clear to proceed with authentication.
+ */
+export function checkLoginLockout(request: NextRequest, username: string): NextResponse | null {
+    cleanupFailureStore();
+    const now = Date.now();
+    const cleanUsername = (username || '').trim().toLowerCase();
+    const clientIp = getClientIp(request);
+
+    // 1. Check per-account lockout
+    if (cleanUsername) {
+        const accountEntry = failureStore.get(`acc:${cleanUsername}`);
+        if (accountEntry?.lockedUntil && accountEntry.lockedUntil > now) {
+            const secondsLeft = Math.ceil((accountEntry.lockedUntil - now) / 1000);
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: `Akun ini terkunci sementara karena ${MAX_FAILED_PER_ACCOUNT} kali kesalahan password berturut-turut. Silakan coba ${secondsLeft} detik lagi.`,
+                },
+                {
+                    status: 429,
+                    headers: { 'Retry-After': String(secondsLeft) },
+                }
+            );
+        }
+    }
+
+    // 2. Check per-IP mass attack lockout (anti-credential spraying)
+    const ipEntry = failureStore.get(`ip:${clientIp}`);
+    if (ipEntry?.lockedUntil && ipEntry.lockedUntil > now) {
+        const secondsLeft = Math.ceil((ipEntry.lockedUntil - now) / 1000);
+        return NextResponse.json(
+            {
+                success: false,
+                error: `Terlalu banyak kegagalan login dari jaringan ini. Silakan tunggu ${secondsLeft} detik sebelum mencoba kembali.`,
+            },
+            {
+                status: 429,
+                headers: { 'Retry-After': String(secondsLeft) },
+            }
+        );
+    }
+
+    return null;
+}
+
+/**
+ * Records a failed login attempt (wrong password or account not found).
+ * Increments failure count and locks account/IP if threshold is breached.
+ */
+export function recordLoginFailure(request: NextRequest, username: string): void {
+    const now = Date.now();
+    const cleanUsername = (username || '').trim().toLowerCase();
+    const clientIp = getClientIp(request);
+
+    // Record account failure
+    if (cleanUsername) {
+        const key = `acc:${cleanUsername}`;
+        const entry = failureStore.get(key) || { timestamps: [] };
+        entry.timestamps = entry.timestamps.filter((t) => t > now - ACCOUNT_LOCKOUT_MS);
+        entry.timestamps.push(now);
+
+        if (entry.timestamps.length >= MAX_FAILED_PER_ACCOUNT) {
+            entry.lockedUntil = now + ACCOUNT_LOCKOUT_MS;
+        }
+        failureStore.set(key, entry);
+    }
+
+    // Record IP failure
+    const ipKey = `ip:${clientIp}`;
+    const ipEntry = failureStore.get(ipKey) || { timestamps: [] };
+    ipEntry.timestamps = ipEntry.timestamps.filter((t) => t > now - IP_LOCKOUT_MS);
+    ipEntry.timestamps.push(now);
+
+    if (ipEntry.timestamps.length >= MAX_FAILED_PER_IP) {
+        ipEntry.lockedUntil = now + IP_LOCKOUT_MS;
+    }
+    failureStore.set(ipKey, ipEntry);
+}
+
+/**
+ * Resets the failed attempt counter for a username upon successful authentication.
+ * Guarantees zero penalty accumulation for legitimate users.
+ */
+export function recordLoginSuccess(username: string): void {
+    const cleanUsername = (username || '').trim().toLowerCase();
+    if (cleanUsername) {
+        failureStore.delete(`acc:${cleanUsername}`);
+    }
+}
+

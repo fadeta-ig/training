@@ -40,7 +40,7 @@ export async function GET(
         const targetPath = path.resolve(uploadsDir, ...pathSegments);
 
         // Security check: prevent path traversal attacks outside public/uploads
-        if (!targetPath.startsWith(uploadsDir)) {
+        if (!targetPath.startsWith(uploadsDir + path.sep) && targetPath !== uploadsDir) {
             return new NextResponse('Forbidden', { status: 403 });
         }
 

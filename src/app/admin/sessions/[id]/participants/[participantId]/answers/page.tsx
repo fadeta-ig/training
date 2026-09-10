@@ -165,6 +165,18 @@ export default function ParticipantAnswersPage({
     const [selectedExamId, setSelectedExamId] = useState('');
     const [selectedAttemptNumber, setSelectedAttemptNumber] = useState<number | null>(null);
     const [gradingAnswerId, setGradingAnswerId] = useState<string | null>(null);
+    const [userRole, setUserRole] = useState<'admin' | 'trainer' | null>(null);
+
+    useEffect(() => {
+        fetch('/api/auth/me')
+            .then((res) => res.json())
+            .then((json) => {
+                if (json?.success && json?.user?.role) {
+                    setUserRole(json.user.role);
+                }
+            })
+            .catch(() => undefined);
+    }, []);
 
     const loadAnswers = useCallback(async (initial = false) => {
         if (initial) setLoading(true);
@@ -394,26 +406,33 @@ export default function ParticipantAnswersPage({
                                                     ? `Dinilai oleh ${answer.grader_name || 'Admin'} pada ${new Date(answer.graded_at).toLocaleString('id-ID')}`
                                                     : 'Jawaban ini memerlukan penilaian manual.'}
                                             </p>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    type="button"
-                                                    variant={answer.grading_status === 'graded' && !answer.is_correct ? 'destructive' : 'outline'}
-                                                    disabled={gradingAnswerId !== null}
-                                                    onClick={() => gradeEssay(answer, false)}
-                                                >
-                                                    {gradingAnswerId === answer.id ? <Loader2 className="animate-spin" /> : <X />}
-                                                    Salah
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    className="bg-emerald-700 text-white hover:bg-emerald-800"
-                                                    disabled={gradingAnswerId !== null}
-                                                    onClick={() => gradeEssay(answer, true)}
-                                                >
-                                                    {gradingAnswerId === answer.id ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-                                                    Benar
-                                                </Button>
-                                            </div>
+                                            {userRole === 'trainer' ? (
+                                                <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+                                                    <AlertCircle className="size-3.5 shrink-0" />
+                                                    <span>Mode Peninjauan: Penilaian manual esai hanya dapat dilakukan oleh Administrator.</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant={answer.grading_status === 'graded' && !answer.is_correct ? 'destructive' : 'outline'}
+                                                        disabled={gradingAnswerId !== null}
+                                                        onClick={() => gradeEssay(answer, false)}
+                                                    >
+                                                        {gradingAnswerId === answer.id ? <Loader2 className="animate-spin" /> : <X />}
+                                                        Salah
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        className="bg-emerald-700 text-white hover:bg-emerald-800"
+                                                        disabled={gradingAnswerId !== null}
+                                                        onClick={() => gradeEssay(answer, true)}
+                                                    >
+                                                        {gradingAnswerId === answer.id ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+                                                        Benar
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </CardContent>

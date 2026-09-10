@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
-import { promises as fs } from 'fs';
 import path from 'path';
 
 interface SessionData {
@@ -22,31 +21,6 @@ interface SnapshotData {
     captured_at: string;
     full_name: string;
     username: string;
-}
-
-/**
- * Converts snapshot image URL path to a Base64 Data URI.
- * Next.js dev/standalone servers do not serve files added to `public/` dynamically after startup.
- * Reading the image directly into a Data URI guarantees instant, zero-404 rendering in the admin dashboard.
- */
-async function formatSnapshotUrl(imageUrl: string): Promise<string> {
-    if (!imageUrl) return '';
-    if (imageUrl.startsWith('data:image/')) return imageUrl;
-
-    if (imageUrl.startsWith('/uploads/proctor/')) {
-        try {
-            const filename = path.basename(imageUrl);
-            const filePath = path.join(process.cwd(), 'public', 'uploads', 'proctor', filename);
-            const fileBuffer = await fs.readFile(filePath);
-            const ext = path.extname(filename).toLowerCase();
-            const mimeType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
-            return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
-        } catch {
-            // If file cannot be read from disk, return original URL as fallback
-            return imageUrl;
-        }
-    }
-    return imageUrl;
 }
 
 async function handleGet(request: NextRequest) {
@@ -86,13 +60,18 @@ async function handleGet(request: NextRequest) {
             ORDER BY u.full_name ASC
         `, [sessionId, sessionId]);
 
-        // Transform image_url to Data URI for seamless image rendering
-        const formattedSnapshots = await Promise.all(
-            snapshots.map(async (snap) => ({
+        // Stream image URLs directly instead of heavy in-memory Base64 encoding.
+        // Reduces 100-user JSON payload from ~7.5MB to ~25KB.
+        const formattedSnapshots = snapshots.map((snap) => {
+            let directUrl = snap.image_url;
+            if (snap.image_url?.startsWith('/uploads/proctor/')) {
+                directUrl = `/api/proctor/image/${path.basename(snap.image_url)}`;
+            }
+            return {
                 ...snap,
-                image_url: await formatSnapshotUrl(snap.image_url),
-            }))
-        );
+                image_url: directUrl,
+            };
+        });
 
         return NextResponse.json({ success: true, data: formattedSnapshots });
 

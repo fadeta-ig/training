@@ -207,4 +207,4 @@ async function handleGet(
     }
 }
 
-export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });
+export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer'] });

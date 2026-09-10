@@ -46,6 +46,13 @@ function parseSnapshot(value: string | null): Snapshot | null {
 }
 
 async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
+    if (authUser.role !== 'admin') {
+        return NextResponse.json(
+            { success: false, error: 'Penilaian manual soal esai hanya dapat dilakukan oleh Administrator.' },
+            { status: 403 },
+        );
+    }
+
     let connection;
 
     try {

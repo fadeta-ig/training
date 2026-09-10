@@ -125,14 +125,14 @@ export default function NewParticipantPage() {
                     <div className="space-y-3 text-left">
                         {/* NIP */}
                         {credentials.nip && (
-                            <div className="bg-primary/[0.06] border border-primary/20 rounded-xl p-4 flex items-center justify-between gap-3">
+                            <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-4 flex items-center justify-between gap-3 dark:bg-slate-900/60 dark:border-slate-800">
                                 <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-primary uppercase tracking-wider">Nomor Induk Peserta (NIP)</p>
-                                    <p className="text-sm font-mono font-bold mt-0.5 tracking-wider text-primary truncate">{credentials.nip}</p>
+                                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Nomor Induk Peserta (NIP)</p>
+                                    <p className="text-sm font-mono font-bold mt-0.5 tracking-wider text-slate-900 dark:text-white truncate">{credentials.nip}</p>
                                 </div>
                                 <button
                                     onClick={() => handleCopy(credentials.nip || '', 'nip')}
-                                    className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors shrink-0"
+                                    className="p-2 rounded-lg hover:bg-slate-200/60 text-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors shrink-0"
                                     title="Salin NIP"
                                 >
                                     {copiedField === 'nip' ? <Tick01Icon size={16} className="text-emerald-600" /> : <Copy01Icon size={16} />}

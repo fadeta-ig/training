@@ -428,7 +428,7 @@ export default function ParticipantsManagerPage() {
             <GlassCard className="overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-black/5 border-b border-black/5 text-muted-foreground font-medium uppercase text-xs tracking-wider">
+                        <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur-xs border-b border-black/5 text-muted-foreground font-medium uppercase text-xs tracking-wider shadow-2xs dark:bg-slate-900/95">
                             <tr>
                                 {userRole === 'admin' && (
                                     <th className="px-4 py-4 w-10 text-center rounded-tl-2xl">
@@ -506,7 +506,7 @@ export default function ParticipantsManagerPage() {
                                             <td className="px-6 py-4 font-semibold text-foreground">{p.name}</td>
                                             <td className="px-6 py-4">
                                                 {p.nip ? (
-                                                    <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-primary/10 text-primary border border-primary/20">
+                                                    <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
                                                         {p.nip}
                                                     </span>
                                                 ) : (

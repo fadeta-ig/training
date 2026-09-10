@@ -541,7 +541,7 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                                         <label
                                             className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors ${
                                                 overrideAction === 'resume'
-                                                    ? 'border-primary bg-primary/5 text-primary'
+                                                    ? 'border-slate-900 bg-slate-100 text-slate-900 dark:border-white dark:bg-white/10 dark:text-white'
                                                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                                             }`}
                                         >

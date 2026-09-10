@@ -97,7 +97,7 @@ export function DashboardSidebar({ isOpen, onClose, user }: DashboardSidebarProp
                 {/* Fixed User Profile at Bottom */}
                 <div className={`mt-auto border-t border-black/5 transition-all duration-300 ${isOpen ? 'p-4' : 'p-2'}`}>
                     <div className={`flex items-center ${isOpen ? 'gap-3' : 'justify-center'}`}>
-                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 flex items-center justify-center shrink-0">
                             <UserCircleIcon size={22} />
                         </div>
                         {isOpen && (

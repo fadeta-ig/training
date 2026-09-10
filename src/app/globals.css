@@ -202,8 +202,8 @@
 
 /* ── Scrollbar Styling ── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -211,10 +211,41 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.25);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.45);
 }
+
+/* ── Legacy Browser Compatibility Guard (Windows 7 / Chromium <= 109) ── */
+@supports not (color: color-mix(in lab, red, red)) {
+  .bg-primary\/5 { background-color: rgba(0, 0, 0, 0.05) !important; }
+  .bg-primary\/6 { background-color: rgba(0, 0, 0, 0.06) !important; }
+  .bg-primary\/\[0\.05\] { background-color: rgba(0, 0, 0, 0.05) !important; }
+  .bg-primary\/\[0\.06\] { background-color: rgba(0, 0, 0, 0.06) !important; }
+  .bg-primary\/10 { background-color: rgba(0, 0, 0, 0.08) !important; }
+  .bg-primary\/15 { background-color: rgba(0, 0, 0, 0.12) !important; }
+  .bg-primary\/20 { background-color: rgba(0, 0, 0, 0.16) !important; }
+  .bg-primary\/30 { background-color: rgba(0, 0, 0, 0.25) !important; }
+  .border-primary\/10 { border-color: rgba(0, 0, 0, 0.10) !important; }
+  .border-primary\/15 { border-color: rgba(0, 0, 0, 0.15) !important; }
+  .border-primary\/20 { border-color: rgba(0, 0, 0, 0.20) !important; }
+  .border-primary\/30 { border-color: rgba(0, 0, 0, 0.30) !important; }
+  .border-primary\/80 { border-color: rgba(0, 0, 0, 0.80) !important; }
+  .text-primary\/80 { color: rgba(0, 0, 0, 0.80) !important; }
+
+  .ring-primary\/20 { --tw-ring-color: rgba(0, 0, 0, 0.20) !important; }
+  .ring-primary\/40 { --tw-ring-color: rgba(0, 0, 0, 0.40) !important; }
+  .hover\:bg-primary\/10:hover { background-color: rgba(0, 0, 0, 0.08) !important; }
+
+  :is(.dark *) .bg-primary\/5 { background-color: rgba(255, 255, 255, 0.05) !important; }
+  :is(.dark *) .bg-primary\/10 { background-color: rgba(255, 255, 255, 0.10) !important; }
+  :is(.dark *) .border-primary\/20 { border-color: rgba(255, 255, 255, 0.20) !important; }
+  :is(.dark *) .text-primary\/80 { color: rgba(255, 255, 255, 0.80) !important; }
+  :is(.dark *) .ring-primary\/20 { --tw-ring-color: rgba(255, 255, 255, 0.20) !important; }
+  :is(.dark *) .ring-primary\/40 { --tw-ring-color: rgba(255, 255, 255, 0.40) !important; }
+  :is(.dark *) .hover\:bg-primary\/10:hover { background-color: rgba(255, 255, 255, 0.10) !important; }
+}
+

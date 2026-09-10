@@ -617,7 +617,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-medium text-foreground">{p.full_name || p.username}</span>
                                                         {p.nip && (
-                                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20">
+                                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
                                                                 {p.nip}
                                                             </span>
                                                         )}

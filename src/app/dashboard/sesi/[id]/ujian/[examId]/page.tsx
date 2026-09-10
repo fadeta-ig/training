@@ -146,7 +146,7 @@ function AnswerEditor({
                             className={cn(
                                 'flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors',
                                 selected
-                                    ? 'border-primary/80 bg-primary/5 text-foreground ring-1 ring-primary/40'
+                                    ? 'border-slate-800 bg-slate-100 text-foreground ring-1 ring-slate-800/30 dark:border-white dark:bg-white/10 dark:ring-white/20'
                                     : 'border-border bg-background hover:bg-muted/40',
                             )}
                         >
@@ -181,7 +181,7 @@ function AnswerEditor({
                             htmlFor={`${question.id}-multi-${index}`}
                             className={cn(
                                 'flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors',
-                                checked ? 'border-primary/80 bg-primary/5 text-foreground ring-1 ring-primary/40' : 'border-border hover:bg-muted/40',
+                                checked ? 'border-slate-800 bg-slate-100 text-foreground ring-1 ring-slate-800/30 dark:border-white dark:bg-white/10 dark:ring-white/20' : 'border-border hover:bg-muted/40',
                             )}
                         >
                             <Checkbox

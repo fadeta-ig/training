@@ -261,7 +261,7 @@ export function DashboardHeader({ toggleSidebar, user }: DashboardHeaderProps) {
                                 </p>
                                 {user?.nip ? (
                                     <div className="mt-1 flex items-center gap-1.5">
-                                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20">
+                                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
                                             {user.nip}
                                         </span>
                                         {user.batch && (

@@ -275,7 +275,7 @@ export default function CertificationsAdminPage() {
                                                 {cert.description || '-'}
                                             </td>
                                             <td className="py-3.5 px-4 text-center">
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold text-xs">
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700 font-semibold text-xs">
                                                     <UserGroupIcon size={12} />
                                                     {cert.participant_count || 0}
                                                 </span>

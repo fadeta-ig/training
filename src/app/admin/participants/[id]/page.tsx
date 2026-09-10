@@ -178,15 +178,15 @@ export default function EditParticipantPage() {
 
             {/* NIP Official Identity Badge */}
             {nip && (
-                <div className="bg-primary/[0.06] border border-primary/20 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 dark:bg-slate-900/60 dark:border-slate-800">
                     <div className="space-y-1">
-                        <p className="text-xs font-bold text-primary uppercase tracking-wider">Nomor Induk Peserta (NIP Resmi)</p>
-                        <p className="text-lg font-mono font-bold tracking-wider text-primary">{nip}</p>
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Nomor Induk Peserta (NIP Resmi)</p>
+                        <p className="text-lg font-mono font-bold tracking-wider text-slate-900 dark:text-white">{nip}</p>
                     </div>
                     <button
                         type="button"
                         onClick={handleCopyNip}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-primary/20 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors shadow-xs self-start sm:self-auto cursor-pointer"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors shadow-xs self-start sm:self-auto cursor-pointer"
                     >
                         {copiedNip ? <Tick01Icon size={16} className="text-emerald-600" /> : <Copy01Icon size={16} />}
                         <span>{copiedNip ? 'Tersalin' : 'Salin NIP'}</span>

@@ -379,7 +379,7 @@ export default function RegisterPage() {
                                                 disabled={isUpcoming}
                                                 className={`flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl text-left transition-all ${
                                                     isActive
-                                                        ? 'bg-primary/10 border border-primary/20 text-primary cursor-default'
+                                                        ? 'bg-slate-900/10 border border-slate-900/20 text-slate-900 cursor-default'
                                                         : isCompleted
                                                         ? 'bg-slate-50 hover:bg-slate-100 text-foreground cursor-pointer'
                                                         : 'opacity-40 text-muted-foreground cursor-not-allowed'
@@ -646,7 +646,7 @@ export default function RegisterPage() {
                                                         }}
                                                         className={`h-14 rounded-xl border flex items-center justify-center gap-2.5 transition-all font-semibold text-sm ${
                                                             formData.gender === 'L'
-                                                                ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/20 shadow-xs'
+                                                                ? 'border-slate-900 bg-slate-100 text-slate-900 ring-2 ring-slate-900/20 shadow-xs'
                                                                 : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100 text-slate-700'
                                                         }`}
                                                     >
@@ -666,7 +666,7 @@ export default function RegisterPage() {
                                                         }}
                                                         className={`h-14 rounded-xl border flex items-center justify-center gap-2.5 transition-all font-semibold text-sm ${
                                                             formData.gender === 'P'
-                                                                ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/20 shadow-xs'
+                                                                ? 'border-slate-900 bg-slate-100 text-slate-900 ring-2 ring-slate-900/20 shadow-xs'
                                                                 : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100 text-slate-700'
                                                         }`}
                                                     >

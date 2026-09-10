@@ -173,7 +173,7 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
     if (initialLoading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-                <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin dark:border-slate-700 dark:border-t-white"></div>
                 <p className="text-sm font-medium text-muted-foreground">Memuat data sesi...</p>
             </div>
         );

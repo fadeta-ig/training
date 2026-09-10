@@ -699,7 +699,7 @@ export default function BulkImportParticipantsPage() {
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
                                             {c.nip && (
-                                                <span className="px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-primary/10 text-primary border border-primary/20">
+                                                <span className="px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
                                                     {c.nip}
                                                 </span>
                                             )}

@@ -135,11 +135,11 @@ export default function MonitoringDashboard() {
 
             {loading && !refreshing ? (
                 <div className="flex justify-center items-center h-64">
-                    <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+                    <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-slate-900 animate-spin dark:border-slate-700 dark:border-t-white" />
                 </div>
             ) : !selectedSessionId ? (
                 <div className="glass-card flex flex-col items-center justify-center h-64 text-center p-6 space-y-4">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-800 dark:text-slate-200">
                         <Calendar01Icon size={32} />
                     </div>
                     <div>

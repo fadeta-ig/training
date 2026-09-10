@@ -140,12 +140,12 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                             title={!isOpen ? 'Manajemen Pembelajaran' : undefined}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group active:scale-95 ${
                                 isLearningActive
-                                    ? 'bg-primary/10 text-primary font-semibold'
+                                    ? 'bg-slate-900/10 text-slate-900 font-semibold dark:bg-white/10 dark:text-white'
                                     : 'text-muted-foreground hover:bg-black/5 hover:text-foreground'
                             } ${!isOpen && 'justify-center'}`}
                         >
                             <div className="flex items-center gap-3">
-                                <span className={`${isLearningActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'} transition-colors shrink-0`}>
+                                <span className={`${isLearningActive ? 'text-slate-900 dark:text-white' : 'text-muted-foreground group-hover:text-foreground'} transition-colors shrink-0`}>
                                     <FolderLibraryIcon size={20} />
                                 </span>
                                 {isOpen && <span className="truncate">Manajemen Pembelajaran</span>}
@@ -159,7 +159,7 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
 
                         {/* Submenu Items */}
                         {(showLearningItems || !isOpen) && (
-                            <div className={`space-y-1 transition-all ${isOpen ? 'pl-4 border-l-2 border-primary/15 ml-4 mt-1' : ''}`}>
+                            <div className={`space-y-1 transition-all ${isOpen ? 'pl-4 border-l-2 border-slate-200 dark:border-slate-800 ml-4 mt-1' : ''}`}>
                                 <NavLink
                                     href="/admin/content"
                                     label="Trainings (Materi)"
@@ -195,12 +195,12 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                             title={!isOpen ? 'Manajemen Kepesertaan' : undefined}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group active:scale-95 ${
                                 isParticipantsGroupActive
-                                    ? 'bg-primary/10 text-primary font-semibold'
+                                    ? 'bg-slate-900/10 text-slate-900 font-semibold dark:bg-white/10 dark:text-white'
                                     : 'text-muted-foreground hover:bg-black/5 hover:text-foreground'
                             } ${!isOpen && 'justify-center relative'}`}
                         >
                             <div className="flex items-center gap-3 min-w-0">
-                                <span className={`${isParticipantsGroupActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'} transition-colors shrink-0`}>
+                                <span className={`${isParticipantsGroupActive ? 'text-slate-900 dark:text-white' : 'text-muted-foreground group-hover:text-foreground'} transition-colors shrink-0`}>
                                     <UserGroupIcon size={20} />
                                 </span>
                                 {isOpen && <span className="truncate">Manajemen Kepesertaan</span>}
@@ -225,7 +225,7 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
 
                         {/* Submenu Items */}
                         {(showParticipantsGroupItems || !isOpen) && (
-                            <div className={`space-y-1 transition-all ${isOpen ? 'pl-4 border-l-2 border-primary/15 ml-4 mt-1' : ''}`}>
+                            <div className={`space-y-1 transition-all ${isOpen ? 'pl-4 border-l-2 border-slate-200 dark:border-slate-800 ml-4 mt-1' : ''}`}>
                                 <NavLink
                                     href="/admin/registrations"
                                     label="Persetujuan Pendaftaran"
@@ -277,7 +277,7 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                             <p className="text-sm font-semibold truncate">{user?.full_name || 'Loading...'}</p>
                             <p className="text-xs text-muted-foreground truncate">
                                 @{user?.username || 'admin'} 
-                                {user?.role === 'trainer' && <span className="ml-1 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Trainer</span>}
+                                {user?.role === 'trainer' && <span className="ml-1 text-[10px] bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 px-1.5 py-0.5 rounded-full border border-slate-200/80 dark:border-slate-700 font-medium">Trainer</span>}
                             </p>
                         </div>
                     </div>

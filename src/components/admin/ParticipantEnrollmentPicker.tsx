@@ -750,7 +750,7 @@ export function ParticipantEnrollmentPicker({
                                 <tr>
                                     <td colSpan={5} className="px-4 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                                            <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                                            <div className="w-6 h-6 border-2 border-slate-200 border-t-slate-900 rounded-full animate-spin dark:border-slate-700 dark:border-t-white" />
                                             <span className="text-xs font-medium">
                                                 Memuat data peserta...
                                             </span>
@@ -788,7 +788,7 @@ export function ParticipantEnrollmentPicker({
                                             onClick={() => handleToggleUser(user.id)}
                                             className={`transition-colors cursor-pointer select-none ${
                                                 isSelected
-                                                    ? 'bg-primary/[0.05] hover:bg-primary/[0.09]'
+                                                    ? 'bg-slate-900/[0.05] hover:bg-slate-900/[0.08] dark:bg-white/[0.08] dark:hover:bg-white/[0.12]'
                                                     : 'hover:bg-black/[0.02]'
                                             }`}
                                         >
@@ -822,7 +822,7 @@ export function ParticipantEnrollmentPicker({
                                                                 {user.full_name || 'Tanpa Nama'}
                                                             </p>
                                                             {user.nip && (
-                                                                <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-primary/10 text-primary border border-primary/20">
+                                                                <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
                                                                     {user.nip}
                                                                 </span>
                                                             )}
@@ -838,7 +838,7 @@ export function ParticipantEnrollmentPicker({
                                                         </p>
                                                         {/* Mobile-only institution preview */}
                                                         {user.institution && (
-                                                            <p className="text-[11px] text-primary/80 md:hidden mt-0.5 truncate flex items-center gap-1">
+                                                            <p className="text-[11px] text-slate-700 dark:text-slate-300 md:hidden mt-0.5 truncate flex items-center gap-1">
                                                                 <Building02Icon size={11} />
                                                                 {user.institution} {user.batch ? `• ${/^\d+$/.test(String(user.batch)) ? `Batch ${user.batch}` : user.batch}` : ''}
                                                             </p>
@@ -888,7 +888,7 @@ export function ParticipantEnrollmentPicker({
                                             {/* Selection Status Badge */}
                                             <td className="px-4 py-3 text-center">
                                                 {isSelected ? (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20 shadow-2xs">
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 shadow-2xs">
                                                         <Tick02Icon size={12} />
                                                         Terdaftar
                                                     </span>

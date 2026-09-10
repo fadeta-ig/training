@@ -117,7 +117,7 @@ export function AdminHeader({ toggleSidebar, user }: AdminHeaderProps) {
                                     </div>
                                 ) : (
                                     notifications.map((notif) => (
-                                        <div key={notif.id} className={`px-4 py-3 hover:bg-black/5 transition-colors cursor-pointer border-b border-black/5 last:border-0 ${!notif.is_read ? 'bg-primary/5' : ''}`}>
+                                        <div key={notif.id} className={`px-4 py-3 hover:bg-black/5 transition-colors cursor-pointer border-b border-black/5 last:border-0 ${!notif.is_read ? 'bg-slate-100/70 dark:bg-slate-800/50' : ''}`}>
                                             <p className="text-sm font-semibold">{notif.title}</p>
                                             <p className="text-xs text-muted-foreground mt-0.5">{notif.message}</p>
                                             <p className="text-[10px] text-muted-foreground/70 mt-1.5">{formatTime(notif.created_at)}</p>

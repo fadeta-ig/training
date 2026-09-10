@@ -127,7 +127,7 @@ export function ParticipantsFilter({
                         onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
                         className={`inline-flex items-center justify-center gap-1.5 h-10 px-3.5 rounded-xl text-xs font-semibold border transition-all shadow-2xs cursor-pointer ${
                             isAdvancedOpen || activeFilterCount > 0
-                                ? 'bg-primary/10 border-primary/30 text-primary font-bold shadow-xs'
+                                ? 'bg-slate-900/10 border-slate-900/20 text-slate-900 font-bold shadow-xs dark:bg-white/10 dark:text-white dark:border-white/20'
                                 : 'bg-white border-black/10 text-slate-700 hover:bg-slate-50'
                         }`}
                         title="Filter lanjutan (Gender, Tanggal, Pengurutan)"

@@ -52,7 +52,7 @@ export function ConfirmDialog({
                 >
                     <div className="p-4 sm:p-6">
                         <div className="flex items-start gap-4">
-                            <div className={`p-3 rounded-full shrink-0 ${isDestructive ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+                            <div className={`p-3 rounded-full shrink-0 ${isDestructive ? 'bg-destructive/10 text-destructive' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'}`}>
                                 <Alert02Icon size={24} />
                             </div>
                             <div>

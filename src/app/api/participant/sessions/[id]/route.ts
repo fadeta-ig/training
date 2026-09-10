@@ -16,7 +16,9 @@ async function handleGet(
         const { id: sessionId } = await context.params;
 
         // Shared helpers handle 404s/403s internally by throwing ParticipantError
-        await verifyEnrollment(sessionId, user.id);
+        if (user.role === 'trainee') {
+            await verifyEnrollment(sessionId, user.id);
+        }
         const { session, isActive, isEnded } = await validateSessionTiming(sessionId, user.id);
 
         const moduleRows = await executeQuery<{ title: string }[]>(
@@ -78,7 +80,9 @@ async function handleGet(
             let progressStatus = item.raw_progress_status;
             let canRetake = false;
 
-            if (progressStatus === 'completed') {
+            if (user.role !== 'trainee') {
+                progressStatus = 'open';
+            } else if (progressStatus === 'completed') {
                 // Completed items generally remain accessible
                 if (item.item_type === 'exam') {
                     const parsedScore = Number(item.score);
@@ -159,4 +163,4 @@ async function handleGet(
     }
 }
 
-export const GET = withAuth(handleGet, { allowedRoles: ['trainee'] });
+export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer', 'trainee'] });

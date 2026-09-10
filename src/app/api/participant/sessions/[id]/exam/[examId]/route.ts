@@ -47,18 +47,18 @@ async function handleGet(
 
         // Phase 1: Parallel enrollment + session timing validation
         const [, { session, isUpcoming, isEnded }] = await Promise.all([
-            verifyEnrollment(sessionId, user.id),
+            user.role === 'trainee' ? verifyEnrollment(sessionId, user.id) : Promise.resolve(null),
             validateSessionTiming(sessionId, user.id),
         ]);
 
-        if (isUpcoming) {
+        if (user.role === 'trainee' && isUpcoming) {
             return NextResponse.json({ success: false, error: 'Sesi belum dimulai' }, { status: 400 });
         }
-        if (isEnded) {
+        if (user.role === 'trainee' && isEnded) {
             return NextResponse.json({ success: false, error: 'Sesi sudah berakhir' }, { status: 400 });
         }
 
-        validateSebAccess(_request, session);
+        validateSebAccess(_request, session, user.role);
         const moduleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
 
         // Phase 2: Parallel exam rules + current progress
@@ -84,30 +84,32 @@ async function handleGet(
             && Number(currentProgress.score ?? 0) < Number(rules.passing_grade)
             && Number(currentProgress.attempts_count || 0) < Number(rules.max_attempts || 1);
 
-        if (currentProgress?.status === 'completed' && !canRetake) {
+        if (user.role === 'trainee' && currentProgress?.status === 'completed' && !canRetake) {
             return NextResponse.json({ success: false, error: 'Ujian sudah diselesaikan' }, { status: 403 });
         }
 
-        await assertCurrentItemAccessible(sessionId, user.id, session, moduleItem, canRetake);
+        if (user.role === 'trainee') {
+            await assertCurrentItemAccessible(sessionId, user.id, session, moduleItem, canRetake);
 
-        await executeQuery(
-            `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status, last_attempt_start)
-             VALUES (?, ?, ?, ?, 'open', UTC_TIMESTAMP())
-             ON DUPLICATE KEY UPDATE id = id`,
-            [uuidv4(), user.id, sessionId, moduleItem.id]
-        );
+            await executeQuery(
+                `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status, last_attempt_start)
+                 VALUES (?, ?, ?, ?, 'open', UTC_TIMESTAMP())
+                 ON DUPLICATE KEY UPDATE id = id`,
+                [uuidv4(), user.id, sessionId, moduleItem.id]
+            );
 
-        // Initialize an attempt once. Mark remedial progress as open so draft
-        // persistence and submission share the same active-attempt state.
-        await executeQuery(
-            `UPDATE user_progress
-             SET status = 'open', last_attempt_start = UTC_TIMESTAMP()
-             WHERE user_id = ?
-               AND session_id = ?
-               AND module_item_id = ?
-               AND last_attempt_start IS NULL`,
-            [user.id, sessionId, moduleItem.id]
-        );
+            // Initialize an attempt once. Mark remedial progress as open so draft
+            // persistence and submission share the same active-attempt state.
+            await executeQuery(
+                `UPDATE user_progress
+                 SET status = 'open', last_attempt_start = UTC_TIMESTAMP()
+                 WHERE user_id = ?
+                   AND session_id = ?
+                   AND module_item_id = ?
+                   AND last_attempt_start IS NULL`,
+                [user.id, sessionId, moduleItem.id]
+            );
+        }
 
         // Determine if current attempt is remedial and requires a distinct exam package
         const currentAttemptsCount = Number(currentProgress?.attempts_count || 0);
@@ -221,12 +223,12 @@ async function handleGet(
                 },
                 questions: sanitized,
                 existingAnswers,
-                serverTime: progress[0].server_time_utc,
+                serverTime: progress?.[0]?.server_time_utc || new Date().toISOString(),
                 sessionEnd: session.end_time,
                 enableProctoring: !!session.enable_proctoring,
-                attemptStart: progress[0].attempt_start_utc,
+                attemptStart: progress?.[0]?.attempt_start_utc || new Date().toISOString(),
                 attemptNumber: attemptNumber,
-                attemptVersion: progress[0].attempt_version || 1,
+                attemptVersion: progress?.[0]?.attempt_version || 1,
             },
         });
     } catch (error) {
@@ -238,4 +240,4 @@ async function handleGet(
     }
 }
 
-export const GET = withAuth(handleGet, { allowedRoles: ['trainee'] });
+export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer', 'trainee'] });

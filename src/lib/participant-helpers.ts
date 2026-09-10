@@ -82,9 +82,10 @@ export async function validateSessionTiming(
 /** Validate Safe Exam Browser headers. Throws 403 on invalid access. */
 export function validateSebAccess(
     request: NextRequest,
-    session: Session
+    session: Session,
+    userRole?: string
 ): void {
-    if (!session.require_seb) return;
+    if (!session.require_seb || (userRole && userRole !== 'trainee')) return;
 
     const userAgent = request.headers.get('user-agent') || '';
     const configKeyHash = request.headers.get('x-safeexambrowser-configkeyhash');

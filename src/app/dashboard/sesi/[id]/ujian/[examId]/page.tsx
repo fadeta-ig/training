@@ -14,7 +14,6 @@ import {
     CloudAlert,
     CloudUpload,
     Flag,
-    HelpCircle,
     Layers,
     LogOut,
     Send,
@@ -741,23 +740,21 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const criticalTime = timeLeft <= 3 * 60;
     const warningTime = timeLeft <= 10 * 60 && !criticalTime;
 
-    const saveLabel = saveState === 'saving'
-        ? 'Menyimpan draft...'
-        : saveState === 'offline'
-            ? 'Offline - Tersimpan di cache lokal'
+    const saveLabel = !isOnline || saveState === 'offline'
+        ? 'Offline - Tersimpan di cache lokal'
+        : saveState === 'saving'
+            ? 'Menyimpan draft...'
             : saveState === 'error'
                 ? 'Gagal menyimpan ke server'
                 : saveState === 'saved'
                     ? 'Tersimpan ke server'
                     : 'Autosave siap';
 
-    const SaveIcon = saveState === 'saving'
-        ? CloudUpload
-        : saveState === 'offline'
-            ? CloudAlert
-            : saveState === 'error'
-                ? CloudAlert
-                : Cloud;
+    const SaveIcon = (!isOnline || saveState === 'offline' || saveState === 'error')
+        ? CloudAlert
+        : saveState === 'saving'
+            ? CloudUpload
+            : Cloud;
 
     const renderQuestionPalette = (isDrawer = false) => (
         <div className="space-y-3">

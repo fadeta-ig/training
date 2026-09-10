@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
-import { withAuth } from '@/lib/api-auth';
 import logger from '@/lib/logger';
 import { escapeHtml } from '@/lib/sanitize';
 
-export const GET = withAuth(async (
+export async function GET(
     request: NextRequest,
-    user,
-    context?: { params: Promise<{ id: string }> }
-) => {
+    context: { params: Promise<{ id: string }> }
+) {
     const resolvedParams = await context?.params;
     const sessionId = resolvedParams?.id;
     
@@ -17,18 +15,18 @@ export const GET = withAuth(async (
     }
 
     try {
-        // Cek sesi & apakah user terdaftar
+        // Cek sesi dan apakah mewajibkan SEB
         const queryStr = `
              SELECT s.id, s.require_seb, s.seb_config_key, s.title
              FROM sessions s
-             JOIN session_participants sp ON s.id = sp.session_id
-             WHERE s.id = ? AND sp.user_id = ?
+             WHERE s.id = ?
+             LIMIT 1
         `;
         
-        const sessions = await executeQuery<any[]>(queryStr, [sessionId, user.id]);
+        const sessions = await executeQuery<any[]>(queryStr, [sessionId]);
 
-        if (sessions.length === 0) {
-            return NextResponse.json({ success: false, message: 'Akses Ditolak' }, { status: 403 });
+        if (!sessions || sessions.length === 0) {
+            return NextResponse.json({ success: false, message: 'Sesi tidak ditemukan' }, { status: 404 });
         }
 
         const session = sessions[0];
@@ -140,6 +138,9 @@ export const GET = withAuth(async (
             headers: {
                 'Content-Type': 'application/seb',
                 'Content-Disposition': `attachment; filename="Ujian_${safeFilename}.seb"`,
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
             },
         });
     } catch (error) {
@@ -149,4 +150,4 @@ export const GET = withAuth(async (
             { status: 500 }
         );
     }
-}, { allowedRoles: ['trainee'] });
+}

@@ -23,16 +23,18 @@ async function handleGet(
     try {
         const { id: sessionId, trainingId } = await context.params;
 
-        await verifyEnrollment(sessionId, user.id);
+        if (user.role === 'trainee') {
+            await verifyEnrollment(sessionId, user.id);
+        }
         const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId);
 
-        if (isUpcoming) {
+        if (user.role === 'trainee' && isUpcoming) {
             return NextResponse.json({ success: false, error: 'Sesi belum dimulai' }, { status: 400 });
         }
 
         const moduleItem = await getSessionModuleItem(session.module_id, 'training', trainingId);
 
-        if (isEnded) {
+        if (user.role === 'trainee' && isEnded) {
             return NextResponse.json(
                 {
                     success: false,
@@ -46,7 +48,9 @@ async function handleGet(
             );
         }
 
-        await assertCurrentItemAccessible(sessionId, user.id, session, moduleItem, true);
+        if (user.role === 'trainee') {
+            await assertCurrentItemAccessible(sessionId, user.id, session, moduleItem, true);
+        }
 
         // Fetch training content
         const training = await executeQuery<any[]>(
@@ -85,4 +89,4 @@ async function handleGet(
     }
 }
 
-export const GET = withAuth(handleGet, { allowedRoles: ['trainee'] });
+export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer', 'trainee'] });

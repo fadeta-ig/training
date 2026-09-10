@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test:question-import": "node --experimental-strip-types scripts/test-question-import.mjs",
     "db:migrate-users": "node scripts/migrate-users.mjs",
-    "db:migrate-question-import": "node scripts/migrate-question-import.mjs"
+    "db:migrate-question-import": "node scripts/migrate-question-import.mjs",
+    "db:migrate-initial-password": "node scripts/migrate-add-initial-password.mjs"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^3.0.0",

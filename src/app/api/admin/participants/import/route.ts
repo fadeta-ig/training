@@ -9,7 +9,7 @@ import pool from '@/lib/db';
 import logger from '@/lib/logger';
 import crypto from 'crypto';
 import { generateBulkNips } from '@/lib/nip';
-import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
+import { ensureInitialPasswordColumn, generateSecurePassword } from '@/lib/participant-helpers';
 
 interface ImportItem {
     name: string;
@@ -38,14 +38,6 @@ function normalizeGender(raw: string | null | undefined): 'L' | 'P' | null {
     return null;
 }
 
-function generateRandomPassword(length = 14) {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < length; i++) {
-        password += chars.charAt(crypto.randomInt(chars.length));
-    }
-    return password;
-}
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -191,7 +183,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
 
             for (let idx = 0; idx < readyToInsert.length; idx++) {
                 const participant = readyToInsert[idx];
-                const rawPassword = generateRandomPassword();
+                const rawPassword = generateSecurePassword(12);
                 const passwordHash = await bcrypt.hash(rawPassword, 10);
                 const userId = uuidv4();
                 const profileId = uuidv4();

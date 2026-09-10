@@ -6,6 +6,7 @@ import logger from '@/lib/logger';
 import crypto from 'crypto';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { validateMutationOrigin } from '@/lib/api-auth';
+import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
 
 const RESET_PASSWORD_RATE_LIMIT = { windowMs: 60_000, maxRequests: 5 };
 
@@ -59,6 +60,12 @@ export async function POST(request: NextRequest) {
         await executeQuery(
             `UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?`,
             [hashedPassword, user.id]
+        );
+
+        await ensureInitialPasswordColumn();
+        await executeQuery(
+            `UPDATE participant_profiles SET initial_password = ? WHERE user_id = ?`,
+            [newPassword, user.id]
         );
 
         // Audit Trail

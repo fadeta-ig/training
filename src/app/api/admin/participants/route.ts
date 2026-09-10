@@ -9,7 +9,7 @@ import pool from '@/lib/db';
 import crypto from 'crypto';
 import { parsePagination } from '@/lib/sanitize';
 import { generateSingleNip } from '@/lib/nip';
-import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
+import { ensureInitialPasswordColumn, generateSecurePassword } from '@/lib/participant-helpers';
 
 const participantSchema = z.object({
     name: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(100),
@@ -23,14 +23,7 @@ const participantSchema = z.object({
     registration_date: z.preprocess((val) => (val === '' || val === null || val === undefined ? new Date().toISOString().slice(0, 10) : String(val)), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal pendaftaran harus YYYY-MM-DD').default(() => new Date().toISOString().slice(0, 10))),
 });
 
-function generateRandomPassword(length = 14) {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < length; i++) {
-        password += chars.charAt(crypto.randomInt(chars.length));
-    }
-    return password;
-}
+
 
 async function handleGet(request: NextRequest) {
     try {
@@ -227,7 +220,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             );
         }
 
-        const rawPassword = generateRandomPassword();
+        const rawPassword = generateSecurePassword(12);
         const password_hash = await bcrypt.hash(rawPassword, 10);
         const userId = uuidv4();
         const profileId = uuidv4();

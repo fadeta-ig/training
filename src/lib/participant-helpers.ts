@@ -305,15 +305,44 @@ export async function ensureInitialPasswordColumn(): Promise<void> {
 
 /**
  * Generates a clean, highly secure, readable random password.
- * Avoids easily confused characters (0, O, I, l).
+ * - Always starts with an alphabetic letter (A-Z, a-z) to avoid Excel/CSV formula prefix issues (=, +, -, @).
+ * - Excludes visually ambiguous characters (0, O, o, 1, l, I).
+ * - Guaranteed to contain uppercase, lowercase, numbers (2-9), and safe symbols (!#$%&*).
+ * - 100% compatible with Excel, CSV, and human reading.
  */
 export function generateSecurePassword(length = 12): string {
-    const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ!@#$%&*';
-    const bytes = crypto.randomBytes(length);
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        result += chars[bytes[i] % chars.length];
+    const letters = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
+    const numbers = '23456789';
+    const symbols = '!#$%&*';
+    const allChars = letters + numbers + symbols;
+
+    const uppers = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lowers = 'abcdefghjkmnpqrstuvwxyz';
+
+    // Guarantee first char is an alphabet letter
+    const firstChar = letters[crypto.randomInt(letters.length)];
+
+    // Pick at least 1 uppercase, 1 lowercase, 1 number, 1 symbol
+    const requiredChars = [
+        uppers[crypto.randomInt(uppers.length)],
+        lowers[crypto.randomInt(lowers.length)],
+        numbers[crypto.randomInt(numbers.length)],
+        symbols[crypto.randomInt(symbols.length)],
+    ];
+
+    const remainingLength = Math.max(0, length - 1 - requiredChars.length);
+    const middleChars: string[] = [];
+    for (let i = 0; i < remainingLength; i++) {
+        middleChars.push(allChars[crypto.randomInt(allChars.length)]);
     }
-    return result;
+
+    // Shuffle required and middle characters
+    const rest = [...requiredChars, ...middleChars];
+    for (let i = rest.length - 1; i > 0; i--) {
+        const j = crypto.randomInt(i + 1);
+        [rest[i], rest[j]] = [rest[j], rest[i]];
+    }
+
+    return firstChar + rest.join('');
 }
 

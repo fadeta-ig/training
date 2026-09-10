@@ -8,6 +8,7 @@ import { sendCredentialEmail } from '@/lib/email';
 import pool from '@/lib/db';
 import logger from '@/lib/logger';
 import crypto from 'crypto';
+import { generateSecurePassword, ensureInitialPasswordColumn } from '@/lib/participant-helpers';
 
 interface UserImportItem {
     name: string;
@@ -18,14 +19,7 @@ interface UserImportItem {
     institution?: string | null;
 }
 
-function generateRandomPassword(length = 14) {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < length; i++) {
-        password += chars.charAt(crypto.randomInt(chars.length));
-    }
-    return password;
-}
+
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -134,8 +128,10 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         try {
             await connection.beginTransaction();
 
+            await ensureInitialPasswordColumn();
+
             for (const item of readyToInsert) {
-                const finalPassword = item.password && item.password.length >= 8 ? item.password : generateRandomPassword();
+                const finalPassword = item.password && item.password.length >= 8 ? item.password : generateSecurePassword(12);
                 const passwordHash = await bcrypt.hash(finalPassword, 10);
                 const userId = uuidv4();
                 const profileId = uuidv4();
@@ -147,13 +143,14 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 );
 
                 await connection.execute(
-                    `INSERT INTO participant_profiles (id, user_id, phone_number, institution) 
-                     VALUES (?, ?, ?, ?)`,
+                    `INSERT INTO participant_profiles (id, user_id, phone_number, institution, initial_password) 
+                     VALUES (?, ?, ?, ?, ?)`,
                     [
                         profileId,
                         userId,
                         item.phone_number || null,
                         item.institution || null,
+                        finalPassword,
                     ]
                 );
 

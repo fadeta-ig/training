@@ -7,6 +7,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { validateMutationOrigin } from '@/lib/api-auth';
 import { logActivity } from '@/lib/audit';
 import { extractInstitutionCode } from '@/lib/nip';
+import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
 
 const REGISTER_RATE_LIMIT = {
     windowMs: 60_000,
@@ -91,11 +92,13 @@ export async function POST(request: NextRequest) {
                 [userId, data.full_name, normalizedUsername, passwordHash]
             );
 
+            await ensureInitialPasswordColumn();
+
             // Insert Participant Profile
             await connection.execute(
                 `INSERT INTO participant_profiles 
-                 (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, target_certification_id, target_certification_name, target_period, batch)
-                 VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+                 (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, target_certification_id, target_certification_name, target_period, batch, initial_password)
+                 VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
                 [
                     profileId,
                     userId,
@@ -108,6 +111,7 @@ export async function POST(request: NextRequest) {
                     data.target_certification_id || null,
                     data.target_certification_name || null,
                     targetPeriod,
+                    data.password,
                 ]
             );
 

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { executeQuery } from '@/lib/db';
 import { z } from 'zod';
 import { withAuth } from '@/lib/api-auth';
+import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
 
 const userUpdateSchema = z.object({
     username: z.string().min(3, 'Username minimal 3 karakter').max(255),
@@ -83,6 +84,19 @@ async function handlePut(
 
         if (result && 'affectedRows' in result && result.affectedRows === 0) {
             return NextResponse.json({ success: false, error: 'Pengguna tidak ditemukan' }, { status: 404 });
+        }
+
+        // If password was updated, keep participant_profiles.initial_password synchronized if profile exists
+        if (password && password.trim() !== '') {
+            try {
+                await ensureInitialPasswordColumn();
+                await executeQuery(
+                    `UPDATE participant_profiles SET initial_password = ? WHERE user_id = ?`,
+                    [password.trim(), resolvedParams.id]
+                );
+            } catch {
+                // Ignore if user has no participant profile (e.g. admin or trainer)
+            }
         }
 
         return NextResponse.json({ success: true, message: 'Data pengguna berhasil diperbarui' });

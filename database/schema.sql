@@ -64,6 +64,7 @@ CREATE TABLE participant_profiles (
   target_period             VARCHAR(50) NULL,
   batch                     VARCHAR(50) NOT NULL DEFAULT '1',
   registration_date         DATE NOT NULL DEFAULT (CURRENT_DATE),
+  initial_password          VARCHAR(255) NULL,
   created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_participant_nip (nip),

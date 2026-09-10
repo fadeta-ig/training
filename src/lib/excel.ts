@@ -574,18 +574,32 @@ export async function generateCredentialsReportXlsx(params: {
     sheet.getCell('A2').font = { name: FONT_FAMILY, size: 9.5, color: { argb: 'FF64748B' } };
     sheet.getRow(3).height = 10;
 
+    // Check if this is a user import report (has role property)
+    const isUserReport = rows.some((r) => Boolean(r.role));
+
     // Headers
-    const headers = [
-        'No',
-        'Nama Lengkap',
-        'NIP',
-        'Email / Username',
-        'Institusi',
-        'Batch',
-        'Tanggal Daftar',
-        'Password Awal',
-        'Status',
-    ];
+    const headers = isUserReport
+        ? [
+            'No',
+            'Nama Lengkap',
+            'Email / Username',
+            'Peran (Role)',
+            'Institusi',
+            'Password Baru',
+            'Status',
+        ]
+        : [
+            'No',
+            'Nama Lengkap',
+            'NIP',
+            'Email / Username',
+            'Institusi',
+            'Batch',
+            'Tanggal Daftar',
+            'Password Awal',
+            'Status',
+        ];
+
     const headerRow = sheet.getRow(4);
     headerRow.height = 26;
     headers.forEach((h, idx) => {
@@ -602,17 +616,27 @@ export async function generateCredentialsReportXlsx(params: {
         const dataRow = sheet.getRow(5 + idx);
         dataRow.height = 22;
 
-        const values = [
-            row.no,
-            row.fullName,
-            row.nip || '-',
-            row.email,
-            row.institution || '-',
-            row.batch || '1',
-            row.registrationDate || '-',
-            row.password || '******',
-            row.status,
-        ];
+        const values = isUserReport
+            ? [
+                row.no,
+                row.fullName,
+                row.email,
+                row.role || 'Trainer',
+                row.institution || '-',
+                row.password || '******',
+                row.status,
+            ]
+            : [
+                row.no,
+                row.fullName,
+                row.nip || '-',
+                row.email,
+                row.institution || '-',
+                row.batch || '1',
+                row.registrationDate || '-',
+                row.password || '******',
+                row.status,
+            ];
 
         values.forEach((val, colIdx) => {
             const cell = dataRow.getCell(colIdx + 1);
@@ -625,31 +649,66 @@ export async function generateCredentialsReportXlsx(params: {
                 fgColor: { argb: idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC' },
             };
 
-            if (colIdx === 0 || colIdx === 2 || colIdx === 5 || colIdx === 6 || colIdx === 8) {
-                cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                if (colIdx === 8) {
-                    cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF15803D' } };
+            if (isUserReport) {
+                // User Report Columns: 0:No, 1:Name, 2:Email, 3:Role, 4:Inst, 5:Pass, 6:Status
+                if (colIdx === 0 || colIdx === 3 || colIdx === 6) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    if (colIdx === 6) {
+                        cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF15803D' } };
+                    }
+                } else if (colIdx === 5) {
+                    // Password column - strictly format as plain text to prevent Excel auto-conversion
+                    cell.numFmt = '@';
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF0F172A' } };
+                } else {
+                    cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
                 }
-            } else if (colIdx === 7) {
-                cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF0F172A' } };
             } else {
-                cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                // Participant Report Columns: 0:No, 1:Name, 2:NIP, 3:Email, 4:Inst, 5:Batch, 6:RegDate, 7:Pass, 8:Status
+                if (colIdx === 2 || colIdx === 5) {
+                    // NIP and Batch as explicit text to preserve leading zeros
+                    cell.numFmt = '@';
+                }
+
+                if (colIdx === 0 || colIdx === 2 || colIdx === 5 || colIdx === 6 || colIdx === 8) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    if (colIdx === 8) {
+                        cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF15803D' } };
+                    }
+                } else if (colIdx === 7) {
+                    // Password column - strictly format as plain text to prevent Excel auto-conversion
+                    cell.numFmt = '@';
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF0F172A' } };
+                } else {
+                    cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                }
             }
         });
     });
 
-    sheet.columns = [
-        { width: 8 },  // No
-        { width: 28 }, // Nama Lengkap
-        { width: 24 }, // NIP
-        { width: 32 }, // Email
-        { width: 26 }, // Institusi
-        { width: 12 }, // Batch
-        { width: 18 }, // Tanggal Daftar
-        { width: 22 }, // Password
-        { width: 18 }, // Status
-    ];
+    sheet.columns = isUserReport
+        ? [
+            { width: 8 },  // No
+            { width: 28 }, // Nama Lengkap
+            { width: 32 }, // Email
+            { width: 20 }, // Peran
+            { width: 26 }, // Institusi
+            { width: 22 }, // Password
+            { width: 18 }, // Status
+        ]
+        : [
+            { width: 8 },  // No
+            { width: 28 }, // Nama Lengkap
+            { width: 24 }, // NIP
+            { width: 32 }, // Email
+            { width: 26 }, // Institusi
+            { width: 12 }, // Batch
+            { width: 18 }, // Tanggal Daftar
+            { width: 22 }, // Password
+            { width: 18 }, // Status
+        ];
 
     const buffer = await workbook.xlsx.writeBuffer();
     return new Uint8Array(buffer);
@@ -751,6 +810,12 @@ export async function generateParticipantsDetailExportXlsx(params: {
                     pattern: 'solid',
                     fgColor: { argb: idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC' },
                 };
+
+                // Explicit text format for NIP (2), Password (4), Phone (5), and Batch (10)
+                // Prevents Excel from trimming leading zeroes or converting to scientific notation
+                if ([2, 4, 5, 10].includes(colIdx)) {
+                    cell.numFmt = '@';
+                }
 
                 // Center align: No (0), NIP (2), Password (4), No HP (5), Gender (6), Tgl Lahir (7), Batch (10), Tgl Daftar (11)
                 if ([0, 2, 4, 5, 6, 7, 10, 11].includes(colIdx)) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
@@ -96,6 +97,11 @@ async function handlePut(request: NextRequest, user: AuthenticatedUser) {
                 `UPDATE users SET full_name = ?, password_hash = ? WHERE id = ?`,
                 [full_name, hashedNewPassword, user.id]
             );
+            await ensureInitialPasswordColumn();
+            await executeQuery(
+                `UPDATE participant_profiles SET initial_password = ? WHERE user_id = ?`,
+                [new_password, user.id]
+            );
         } else {
             // Update without password change
             await executeQuery(
@@ -106,8 +112,6 @@ async function handlePut(request: NextRequest, user: AuthenticatedUser) {
 
         // 2. Upsert Participant Profile Info
         const profile = await executeQuery<any[]>(`SELECT id FROM participant_profiles WHERE user_id = ?`, [user.id]);
-
-        // Handle potentially empty dates correctly or nulls
         const dobVal = date_of_birth ? date_of_birth : null;
 
         if (profile && profile.length > 0) {

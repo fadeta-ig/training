@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { logActivity } from '@/lib/audit';
-import { sendCredentialEmail } from '@/lib/email';
+import { sendBulkCredentialEmails } from '@/lib/email';
 import pool from '@/lib/db';
 import logger from '@/lib/logger';
 import crypto from 'crypto';
@@ -178,10 +178,18 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         });
 
         // 5. Send Emails if requested
-        if (sendEmail) {
-            Promise.allSettled(
-                credentials.map(c => sendCredentialEmail(c.email, c.name, c.password))
-            ).catch(err => logger.error('BULK_IMPORT_USERS', 'Gagal mengirim email kredensial pengguna secara asinkron', err, authUser.id));
+        if (sendEmail && credentials.length > 0) {
+            sendBulkCredentialEmails(
+                credentials.map(c => ({ email: c.email, name: c.name, password: c.password })),
+                { batchSize: 5, delayBetweenBatchesMs: 1000, maxRetries: 2 }
+            ).then(result => {
+                logger.info('BULK_IMPORT_USERS_EMAIL_COMPLETE', `Pengiriman email pengguna selesai: ${result.succeeded}/${result.total} berhasil, ${result.failed} gagal`, {
+                    succeededCount: result.succeeded,
+                    failedCount: result.failed,
+                });
+            }).catch(err => {
+                logger.error('BULK_IMPORT_USERS', 'Gagal memproses antrean email kredensial pengguna secara asinkron', err, authUser.id);
+            });
         }
 
         return NextResponse.json({

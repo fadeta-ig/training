@@ -139,6 +139,11 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                     }
                 })
             );
+
+            // Pacing delay between batches to protect SMTP server from rate limits
+            if (i + BATCH_SIZE < participants.length) {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
         }
 
         const message = participants.length === 1

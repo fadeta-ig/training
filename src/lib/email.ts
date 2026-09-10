@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { escapeHtml } from '@/lib/sanitize';
 import { getAppBaseUrl } from '@/lib/app-url';
+import logger from '@/lib/logger';
 
 export const SEB_DOWNLOAD_URL = 'https://drive.google.com/drive/folders/1b37BRs2aURCPe5rwEKxbzMC2ZMxStYa0?usp=sharing';
 
@@ -13,7 +14,16 @@ const isSecure = process.env.SMTP_SECURE !== undefined
     ? process.env.SMTP_SECURE === 'true'
     : smtpPort === 465;
 
+const maxConnections = parseInt(process.env.SMTP_MAX_CONNECTIONS || '5', 10);
+const maxMessages = parseInt(process.env.SMTP_MAX_MESSAGES || '100', 10);
+const rateLimit = parseInt(process.env.SMTP_RATE_LIMIT || '5', 10);
+
 const transporter = nodemailer.createTransport({
+    pool: true,
+    maxConnections,
+    maxMessages,
+    rateDelta: 1000,
+    rateLimit,
     host: process.env.SMTP_HOST || 'mail.nusamitraconsulting.com',
     port: smtpPort,
     secure: isSecure,
@@ -355,3 +365,123 @@ export async function sendSessionReminderEmail(bccEmails: string[], sessionDetai
 
     return transporter.sendMail(mailOptions);
 }
+
+export interface BulkEmailCredentialItem {
+    email: string;
+    name: string;
+    password: string;
+}
+
+export interface BulkEmailResult {
+    total: number;
+    succeeded: number;
+    failed: number;
+    details: {
+        email: string;
+        name: string;
+        success: boolean;
+        error?: string;
+    }[];
+}
+
+export interface BulkEmailOptions {
+    batchSize?: number;
+    delayBetweenBatchesMs?: number;
+    maxRetries?: number;
+}
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Sends credential emails to a list of recipients in controlled, paced batches.
+ * - Utilizes reusable pooled SMTP connections.
+ * - Respects cPanel/Exim rate limits via pacing delays.
+ * - Implements auto-retry with exponential backoff for transient network glitches.
+ * - Emits real-time progress logs.
+ */
+export async function sendBulkCredentialEmails(
+    items: BulkEmailCredentialItem[],
+    options?: BulkEmailOptions
+): Promise<BulkEmailResult> {
+    const batchSize = Math.max(1, options?.batchSize ?? 5);
+    const delayMs = Math.max(0, options?.delayBetweenBatchesMs ?? 1000);
+    const maxRetries = Math.max(0, options?.maxRetries ?? 2);
+
+    const total = items.length;
+    const details: BulkEmailResult['details'] = [];
+    let succeeded = 0;
+    let failed = 0;
+
+    logger.info('BULK_EMAIL_START', `Memulai pengiriman massal ${total} email kredensial`, {
+        total,
+        batchSize,
+        delayMs,
+        maxRetries,
+    });
+
+    const totalBatches = Math.ceil(total / batchSize);
+
+    for (let batchIdx = 0; batchIdx < totalBatches; batchIdx++) {
+        const start = batchIdx * batchSize;
+        const currentBatch = items.slice(start, start + batchSize);
+
+        logger.info(
+            'BULK_EMAIL_BATCH',
+            `Mengirim gelombang ${batchIdx + 1}/${totalBatches} (${currentBatch.length} email, akumulasi: ${start + currentBatch.length}/${total})...`
+        );
+
+        const batchPromises = currentBatch.map(async (item) => {
+            let attempt = 0;
+            let lastError: string | undefined;
+
+            while (attempt <= maxRetries) {
+                try {
+                    await sendCredentialEmail(item.email, item.name, item.password);
+                    return { email: item.email, name: item.name, success: true };
+                } catch (err: unknown) {
+                    attempt++;
+                    lastError = err instanceof Error ? err.message : String(err);
+                    if (attempt <= maxRetries) {
+                        const backoff = 1000 * attempt;
+                        logger.warn(
+                            'BULK_EMAIL_RETRY',
+                            `Gagal mengirim email ke ${item.email} (percobaan ${attempt}/${maxRetries}), mencoba lagi dalam ${backoff}ms...`,
+                            { error: lastError }
+                        );
+                        await delay(backoff);
+                    }
+                }
+            }
+
+            logger.error('BULK_EMAIL_ITEM_FAIL', `Gagal mengirim email ke ${item.email} setelah ${maxRetries + 1} percobaan`, {
+                error: lastError,
+            });
+            return { email: item.email, name: item.name, success: false, error: lastError };
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+
+        for (const res of batchResults) {
+            details.push(res);
+            if (res.success) {
+                succeeded++;
+            } else {
+                failed++;
+            }
+        }
+
+        // Pacing delay between batches (omit after last batch)
+        if (batchIdx < totalBatches - 1 && delayMs > 0) {
+            await delay(delayMs);
+        }
+    }
+
+    logger.info('BULK_EMAIL_FINISHED', `Pengiriman massal selesai: ${succeeded}/${total} berhasil, ${failed} gagal`, {
+        total,
+        succeeded,
+        failed,
+    });
+
+    return { total, succeeded, failed, details };
+}
+

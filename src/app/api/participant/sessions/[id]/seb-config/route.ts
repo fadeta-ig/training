@@ -47,7 +47,7 @@ export const GET = withAuth(async (
         const safeQuitUrl = escapeHtml(`${origin}/quit-seb`);
         const safeConfigKey = escapeHtml(session.seb_config_key || '');
         
-        // PList XML Generator as per SEB documentation
+        // PList XML Generator as per Safe Exam Browser specification for Windows & macOS
         const sebXML = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -60,16 +60,40 @@ export const GET = withAuth(async (
     <true/>
     <key>browserExamKey</key>
     <string>${safeConfigKey}</string>
-    <key>quitURL</key>
-    <string>${safeQuitUrl}</string>
-    <key>allowQuit</key>
+
+    <!-- Camera & Media Proctored Exam Permissions (macOS & Windows SEB 3.x) -->
+    <key>allowVideoCapture</key>
     <true/>
+    <key>allowAudioCapture</key>
+    <false/>
+    <key>mediaCaptureRequiresUserGesture</key>
+    <false/>
+
+    <!-- Navigation & Safe Recovery in Shared Lab / Wi-Fi -->
     <key>showTaskBar</key>
+    <true/>
+    <key>showReloadButton</key>
+    <true/>
+    <key>browserWindowAllowReload</key>
     <true/>
     <key>showQuitButton</key>
     <true/>
+    <key>quitURL</key>
+    <string>${safeQuitUrl}</string>
+    <key>quitURLConfirm</key>
+    <true/>
+    <key>allowQuit</key>
+    <true/>
+    <key>showTime</key>
+    <true/>
+    <key>showNetworkInfo</key>
+    <true/>
+    <key>showBatteryInfo</key>
+    <true/>
     <key>enableZoomPage</key>
     <true/>
+
+    <!-- Security & Anti-Cheating Lockdown (macOS & Windows) -->
     <key>allowPreferencesWindow</key>
     <false/>
     <key>insideSebEnableSwitchUser</key>
@@ -78,6 +102,30 @@ export const GET = withAuth(async (
     <false/>
     <key>allowDeveloperConsole</key>
     <false/>
+    <key>allowSpellCheck</key>
+    <false/>
+    <key>allowDictionaryLookup</key>
+    <false/>
+
+    <!-- Windows Specific Key Interceptions -->
+    <key>hookKeys</key>
+    <true/>
+    <key>enableAltTab</key>
+    <false/>
+    <key>enableCtrlEsc</key>
+    <false/>
+    <key>enableStartMenu</key>
+    <false/>
+    <key>enablePrintScreen</key>
+    <false/>
+    <key>enableF5</key>
+    <true/>
+
+    <!-- macOS Specific Screen Capture Protections -->
+    <key>prohibitWindowCapture</key>
+    <true/>
+    <key>prohibitScreenSharing</key>
+    <true/>
   </dict>
 </plist>`;
 

@@ -11,7 +11,7 @@ const poolConfig: PoolOptions = {
   password: process.env.DB_PASSWORD ?? '',
   database: process.env.DB_NAME || 'lms_antigravity',
   waitForConnections: true,
-  connectionLimit: 50,
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 30,
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,

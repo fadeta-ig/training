@@ -502,12 +502,16 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         let cancelled = false;
         fetch(`/api/participant/sessions/${sessionId}/exam/${examId}`)
             .then(async (response) => {
+                if (response.status === 401) {
+                    window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+                    return null;
+                }
                 const data = await response.json();
                 if (!response.ok || !data.success) throw new Error(data.error || 'Gagal memuat ujian');
                 return data.data as ExamData;
             })
             .then((data) => {
-                if (cancelled) return;
+                if (cancelled || !data) return;
                 const serverAnswers = Object.fromEntries(
                     data.existingAnswers.map((answer) => [answer.question_id, answer.selected_option]),
                 );

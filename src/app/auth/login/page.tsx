@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { User, Lock, Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
@@ -15,6 +16,11 @@ export default function LoginPage() {
         username: '',
         password: ''
     });
+
+    const redirectParam = searchParams.get('redirect');
+    const safeRedirect = redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')
+        ? redirectParam
+        : null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -31,8 +37,10 @@ export default function LoginPage() {
             const result = await res.json();
 
             if (res.ok && result.success) {
-                // Redirect based on role
-                if (result.user.role === 'admin' || result.user.role === 'trainer') {
+                // If a specific return URL was requested (e.g. from SEB opening a session)
+                if (safeRedirect) {
+                    router.replace(safeRedirect);
+                } else if (result.user.role === 'admin' || result.user.role === 'trainer') {
                     router.replace('/admin');
                 } else {
                     router.replace('/dashboard');
@@ -221,3 +229,16 @@ export default function LoginPage() {
         </div>
     );
 }
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+        }>
+            <LoginForm />
+        </Suspense>
+    );
+}
+

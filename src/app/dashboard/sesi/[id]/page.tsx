@@ -23,6 +23,7 @@ import {
     Printer,
     RotateCcw,
     ShieldCheck,
+    ExternalLink,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -109,8 +110,15 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
 
     useEffect(() => {
         fetch(`/api/participant/sessions/${id}`)
-            .then((response) => response.json())
+            .then((response) => {
+                if (response.status === 401) {
+                    window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+                    return null;
+                }
+                return response.json();
+            })
             .then((body) => {
+                if (!body) return;
                 if (body.success) setSession(body.data);
                 else setError(body.error || 'Gagal memuat sesi');
             })
@@ -317,22 +325,60 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
             )}
 
             {session.require_seb && !isSeb && !isTimeEnded && (
-                <section className="flex flex-col justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50/60 p-4 sm:flex-row sm:items-center">
-                    <div className="flex gap-3">
-                        <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-700" />
-                        <div>
-                            <h2 className="text-sm font-medium text-amber-950">Ujian memerlukan Safe Exam Browser</h2>
-                            <p className="mt-1 text-sm leading-5 text-amber-900/70">
-                                Materi tetap dapat dibuka di browser ini. Untuk mengerjakan ujian, unduh konfigurasi lalu buka sesi melalui aplikasi SEB.
-                            </p>
+                <section className="rounded-xl border border-amber-300/80 bg-amber-50/70 p-5 shadow-xs dark:border-amber-800/60 dark:bg-amber-950/20">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex items-start gap-3.5">
+                            <div className="rounded-lg bg-amber-100 p-2 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 shrink-0">
+                                <ShieldCheck className="size-6" />
+                            </div>
+                            <div className="space-y-1">
+                                <h2 className="text-base font-semibold text-amber-950 dark:text-amber-200">
+                                    Sesi Ini Mewajibkan Safe Exam Browser (SEB)
+                                </h2>
+                                <p className="text-xs sm:text-sm text-amber-900/80 dark:text-amber-300/80 leading-relaxed max-w-2xl">
+                                    Materi belajar dapat dibaca melalui browser biasa. Namun untuk memulai dan mengerjakan modul evaluasi/ujian, Anda wajib membukanya via aplikasi Safe Exam Browser (SEB).
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2.5 shrink-0 pt-1 lg:pt-0">
+                            <a
+                                href={typeof window !== 'undefined' && window.location.protocol === 'https:'
+                                    ? `sebs://${window.location.host}/api/participant/sessions/${session.id}/seb-config`
+                                    : typeof window !== 'undefined'
+                                        ? `seb://${window.location.host}/api/participant/sessions/${session.id}/seb-config`
+                                        : `/api/participant/sessions/${session.id}/seb-config`
+                                }
+                                className={cn(
+                                    buttonVariants({ size: 'default' }),
+                                    'gap-2 bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-xs'
+                                )}
+                            >
+                                <ExternalLink className="size-4" /> Buka Langsung di SEB
+                            </a>
+                            <a
+                                href={`/api/participant/sessions/${session.id}/seb-config`}
+                                download
+                                className={cn(
+                                    buttonVariants({ variant: 'outline', size: 'default' }),
+                                    'gap-2 border-amber-300 bg-white text-amber-950 hover:bg-amber-100 hover:text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                                )}
+                            >
+                                <Download className="size-4" /> Unduh File (.seb)
+                            </a>
                         </div>
                     </div>
-                    <a
-                        href={`/api/participant/sessions/${session.id}/seb-config`}
-                        className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'border-amber-300 bg-white text-amber-950 hover:bg-amber-100')}
-                    >
-                        <Download /> Unduh konfigurasi SEB
-                    </a>
+
+                    <div className="mt-4 pt-3 border-t border-amber-200/60 dark:border-amber-800/40 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-amber-900/75 dark:text-amber-300/75">
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-amber-950 dark:text-amber-200">🪟 Windows:</span>
+                            <span>Buka file konfigurasi .seb atau klik &apos;Buka Langsung&apos;. Keluar: <strong>Ctrl + Q</strong></span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-amber-950 dark:text-amber-200">🍎 macOS:</span>
+                            <span>Izinkan akses kamera di pop-up sistem macOS jika diminta. Keluar: <strong>Cmd + Q</strong></span>
+                        </div>
+                    </div>
                 </section>
             )}
 

@@ -14,12 +14,18 @@ export default function UserLayout({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         fetch('/api/auth/me')
-            .then((res) => res.json())
+            .then((res) => {
+                if (res.status === 401) {
+                    window.location.href = `/auth/login?redirect=${encodeURIComponent(pathname)}`;
+                    return null;
+                }
+                return res.json();
+            })
             .then((data) => {
-                if (data.success) setUser(data.data);
+                if (data && data.success) setUser(data.data);
             })
             .catch(() => { });
-    }, []);
+    }, [pathname]);
 
     const isExamFocusMode = /^\/dashboard\/sesi\/[^/]+\/ujian\/[^/]+\/?$/.test(pathname);
 

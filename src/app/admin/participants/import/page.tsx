@@ -474,8 +474,9 @@ export default function BulkImportParticipantsPage() {
                             </div>
                         </div>
 
-                        <div className="p-3 rounded-xl bg-black/[0.02] border border-black/5 text-[11px] text-muted-foreground">
-                            💡 <strong>Tip:</strong> Jangan mengubah susunan baris header agar data terbaca otomatis oleh sistem.
+                        <div className="flex items-start gap-2 p-3 rounded-xl bg-black/[0.02] border border-black/5 text-[11px] text-muted-foreground">
+                            <InformationCircleIcon size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                            <span><strong>Tip:</strong> Jangan mengubah susunan baris header agar data terbaca otomatis oleh sistem.</span>
                         </div>
                     </GlassCard>
                 </div>

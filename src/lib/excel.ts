@@ -106,7 +106,7 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     // 1. Instruction Title / Banner
     sheet.mergeCells('A1:J1');
     const bannerCell = sheet.getCell('A1');
-    bannerCell.value = '📋 PANDUAN PENGISIAN TEMPLATE IMPORT PESERTA LMS';
+    bannerCell.value = 'PANDUAN PENGISIAN TEMPLATE IMPORT PESERTA LMS';
     bannerCell.font = { name: FONT_FAMILY, size: 12, bold: true, color: { argb: 'FF0F172A' } };
     bannerCell.fill = BANNER_FILL;
     bannerCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -268,7 +268,7 @@ export async function generateUserTemplateXlsx(): Promise<Uint8Array> {
     // 1. Instruction Title / Banner
     sheet.mergeCells('A1:F1');
     const bannerCell = sheet.getCell('A1');
-    bannerCell.value = '👥 PANDUAN PENGISIAN TEMPLATE IMPORT PENGGUNA (ADMIN & TRAINER)';
+    bannerCell.value = 'PANDUAN PENGISIAN TEMPLATE IMPORT PENGGUNA (ADMIN & TRAINER)';
     bannerCell.font = { name: FONT_FAMILY, size: 12, bold: true, color: { argb: 'FF0F172A' } };
     bannerCell.fill = BANNER_FILL;
     bannerCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -413,7 +413,7 @@ export async function generateSessionReportXlsx(params: {
     // 1. Title Row
     sheet.mergeCells('A1:J1');
     const titleCell = sheet.getCell('A1');
-    titleCell.value = `📊 LAPORAN HASIL SESI: ${sessionTitle.toUpperCase()}`;
+    titleCell.value = `LAPORAN HASIL SESI: ${sessionTitle.toUpperCase()}`;
     titleCell.font = { name: FONT_FAMILY, size: 14, bold: true, color: { argb: 'FF0F172A' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     sheet.getRow(1).height = 32;
@@ -431,7 +431,7 @@ export async function generateSessionReportXlsx(params: {
 
     sheet.mergeCells('A4:J4');
     const kpiCell = sheet.getCell('A4');
-    kpiCell.value = `📈 Ringkasan: Selesai: ${completedCount}/${rows.length} (${rows.length > 0 ? Math.round((completedCount / rows.length) * 100) : 0}%) | Rata-rata Skor: ${avgScore}`;
+    kpiCell.value = `Ringkasan: Selesai: ${completedCount}/${rows.length} (${rows.length > 0 ? Math.round((completedCount / rows.length) * 100) : 0}%) | Rata-rata Skor: ${avgScore}`;
     kpiCell.font = { name: FONT_FAMILY, size: 10.5, bold: true, color: { argb: 'FF1E3A8A' } };
     kpiCell.fill = {
         type: 'pattern',
@@ -565,7 +565,7 @@ export async function generateCredentialsReportXlsx(params: {
     // Title
     sheet.mergeCells('A1:H1');
     const titleCell = sheet.getCell('A1');
-    titleCell.value = `🔐 ${title.toUpperCase()}`;
+    titleCell.value = title.toUpperCase();
     titleCell.font = { name: FONT_FAMILY, size: 13, bold: true, color: { argb: 'FF0F172A' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     sheet.getRow(1).height = 30;
@@ -677,7 +677,7 @@ export async function generateParticipantsDetailExportXlsx(params: {
     // 1. Header Banner
     sheet.mergeCells('A1:L1');
     const titleCell = sheet.getCell('A1');
-    titleCell.value = `👥 ${title.toUpperCase()}`;
+    titleCell.value = title.toUpperCase();
     titleCell.font = { name: FONT_FAMILY, size: 13, bold: true, color: { argb: 'FF0F172A' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     sheet.getRow(1).height = 30;

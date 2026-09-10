@@ -14,7 +14,7 @@ import {
     Copy01Icon,
     Tick01Icon,
 } from 'hugeicons-react';
-import { RotateCcw, FileSpreadsheet } from 'lucide-react';
+import { RotateCcw, FileSpreadsheet, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { ActionButton } from '@/components/ui/ActionButton';
@@ -641,8 +641,8 @@ export default function ParticipantsManagerPage() {
                                         <span className="font-bold text-foreground block">
                                             Pertahankan 3 Digit Nomor Urut Asli (Rekomendasi)
                                         </span>
-                                        <span className="text-muted-foreground text-[11px]">
-                                            Contoh: <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">UCS-B01-2608-017</code> ➔ <code className="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold">UCS-{bulkBatchInput || 'BATCH'}-017</code>
+                                        <span className="text-muted-foreground text-[11px] inline-flex items-center gap-1.5">
+                                            Contoh: <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">UCS-B01-2608-017</code> <ArrowRight className="size-3 inline text-muted-foreground" /> <code className="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold">UCS-{bulkBatchInput || 'BATCH'}-017</code>
                                         </span>
                                     </div>
                                 </label>

@@ -270,8 +270,8 @@ export default function RiwayatPage() {
                                                         {s.title}
                                                     </h3>
                                                     {isPassed && (
-                                                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                                            ✓ LULUS
+                                                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1">
+                                                            <CheckmarkCircle02Icon size={12} className="shrink-0" /> LULUS
                                                         </span>
                                                     )}
                                                     {isFailed && (

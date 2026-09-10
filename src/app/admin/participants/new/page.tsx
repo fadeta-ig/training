@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { UserAdd01Icon, FloppyDiskIcon, ArrowLeft01Icon, Copy01Icon, Tick01Icon, Key01Icon, MailSend01Icon, IdIcon, Building02Icon, Calendar01Icon } from 'hugeicons-react';
+import { UserAdd01Icon, FloppyDiskIcon, ArrowLeft01Icon, Copy01Icon, Tick01Icon, Key01Icon, MailSend01Icon, IdIcon, Building02Icon, Calendar01Icon, Alert02Icon } from 'hugeicons-react';
 import Link from 'next/link';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
@@ -236,8 +236,9 @@ export default function NewParticipantPage() {
                         </div>
                     </div>
 
-                    <p className="text-[11px] text-muted-foreground/70 bg-amber-50 text-amber-700 px-3 py-2 rounded-lg">
-                        ⚠️ Password ini hanya ditampilkan sekali. Pastikan Anda sudah menyalinnya sebelum meninggalkan halaman ini.
+                    <p className="text-[11px] bg-amber-50 text-amber-800 border border-amber-200/60 px-3 py-2 rounded-lg flex items-center gap-1.5">
+                        <Alert02Icon size={15} className="text-amber-600 shrink-0" />
+                        <span>Password ini hanya ditampilkan sekali. Pastikan Anda sudah menyalinnya sebelum meninggalkan halaman ini.</span>
                     </p>
                 </GlassCard>
             </div>

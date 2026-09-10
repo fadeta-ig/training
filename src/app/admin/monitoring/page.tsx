@@ -112,10 +112,11 @@ export default function MonitoringDashboard() {
                             const now = new Date();
                             const end = new Date(session.end_time);
                             const isActive = now <= end;
-                            const proctoringLabel = session.enable_proctoring ? '📹' : '';
+                            const statusLabel = isActive ? '[Aktif]' : '[Selesai]';
+                            const proctoringLabel = session.enable_proctoring ? ' [Proctoring]' : '';
                             return (
                                 <option key={session.id} value={session.id}>
-                                    {isActive ? '🟢 ' : '⚫ '}{proctoringLabel}{session.title} — {session.module_title}
+                                    {statusLabel}{proctoringLabel} {session.title} — {session.module_title}
                                 </option>
                             );
                         })}

@@ -12,6 +12,7 @@ import {
     HelpCircleIcon,
     StarIcon,
     Tick02Icon,
+    Alert02Icon,
 } from 'hugeicons-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -155,7 +156,7 @@ export default function EditQuestionPage({ params }: { params: Promise<{ id: str
                 </div>
             </div>
 
-            {error && <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-2.5 rounded-xl text-xs font-medium">⚠ {error}</div>}
+            {error && <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-2.5 rounded-xl text-xs font-medium flex items-center gap-2"><Alert02Icon size={16} /> {error}</div>}
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Type */}

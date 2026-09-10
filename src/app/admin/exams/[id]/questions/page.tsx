@@ -481,13 +481,13 @@ export default function QuestionBankPage({ params }: { params: Promise<{ id: str
                                     }`}
                                 >
                                     <span
-                                        className={`w-4 h-4 rounded border-2 flex items-center justify-center text-[8px] shrink-0 ${
+                                        className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
                                             ok
                                                 ? 'border-emerald-500 bg-emerald-500 text-white'
                                                 : 'border-black/15'
                                         }`}
                                     >
-                                        {ok && '✓'}
+                                        {ok && <Check className="size-3" />}
                                     </span>
                                     <span>{text}</span>
                                 </div>

@@ -435,8 +435,9 @@ export default function BulkImportUsersPage() {
                             </div>
                         </div>
 
-                        <div className="p-3 rounded-xl bg-black/[0.02] border border-black/5 text-[11px] text-muted-foreground">
-                            💡 <strong>Tip:</strong> Pilihlah role yang tepat agar hak akses pengguna langsung terkonfigurasi saat import.
+                        <div className="flex items-start gap-2 p-3 rounded-xl bg-black/[0.02] border border-black/5 text-[11px] text-muted-foreground">
+                            <InformationCircleIcon size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                            <span><strong>Tip:</strong> Pilihlah role yang tepat agar hak akses pengguna langsung terkonfigurasi saat import.</span>
                         </div>
                     </GlassCard>
                 </div>

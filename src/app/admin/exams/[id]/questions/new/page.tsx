@@ -12,6 +12,7 @@ import {
     CheckmarkCircle02Icon,
     StarIcon,
     Tick02Icon,
+    Alert02Icon,
 } from 'hugeicons-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -139,7 +140,7 @@ export default function NewQuestionPage({ params }: { params: Promise<{ id: stri
 
             {/* Toasts */}
             {successMsg && <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 rounded-xl text-xs font-medium flex items-center gap-2"><CheckmarkCircle02Icon size={16} /> {successMsg}</div>}
-            {error && <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-2.5 rounded-xl text-xs font-medium">⚠ {error}</div>}
+            {error && <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-2.5 rounded-xl text-xs font-medium flex items-center gap-2"><Alert02Icon size={16} /> {error}</div>}
 
             <form onSubmit={e => handleSubmit(e, false)} className="space-y-4">
                 {/* Step 1: Type */}

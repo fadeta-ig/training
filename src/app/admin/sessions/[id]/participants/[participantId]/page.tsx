@@ -14,7 +14,7 @@ import {
 import { GraduationVerdictModal } from '@/components/admin/GraduationVerdictModal';
 import { CertificateUploadModal } from '@/components/admin/CertificateUploadModal';
 import { ClientPortal } from '@/components/ui/ClientPortal';
-import { Award, FileBadge2, Printer, CheckCircle2, Sparkles, AlertCircle, FileText, Copy, ExternalLink } from 'lucide-react';
+import { Award, FileBadge2, Printer, CheckCircle2, Sparkles, AlertCircle, FileText, Copy, ExternalLink, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 type DetailData = {
@@ -505,8 +505,9 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                                     type="button"
                                     onClick={() => setOverrideTarget(null)}
                                     className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                                    aria-label="Tutup"
                                 >
-                                    ✕
+                                    <X className="size-4" />
                                 </button>
                             </div>
 

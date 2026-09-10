@@ -257,8 +257,9 @@ export default function EditParticipantPage() {
                                     onChange={e => setRegenerateNip(e.target.checked)}
                                     className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                                 />
-                                <span className="text-xs font-semibold text-emerald-700">
-                                    🔄 Perbarui NIP otomatis sesuai Batch baru saat disimpan
+                                <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
+                                    <RefreshIcon size={14} className="shrink-0" />
+                                    Perbarui NIP otomatis sesuai Batch baru saat disimpan
                                 </span>
                             </label>
                         </div>

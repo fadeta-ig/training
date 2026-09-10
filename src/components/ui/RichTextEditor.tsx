@@ -12,6 +12,7 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
+import { Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
 import { safeFetchJson } from '@/lib/api-client';
 import './rich-text-editor.css';
 
@@ -274,7 +275,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
                         onClick={setLink}
                         title="Sisipkan Link"
                     >
-                        🔗
+                        <LinkIcon className="size-3.5" />
                     </button>
                     <button
                         type="button"
@@ -282,7 +283,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
                         onClick={onImageButtonClick}
                         title="Unggah Gambar"
                     >
-                        🖼
+                        <ImageIcon className="size-3.5" />
                     </button>
                     <input
                         ref={fileInputRef}

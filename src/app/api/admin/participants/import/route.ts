@@ -160,6 +160,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         }
 
         // 3. Batch DB Transaction Execution with Auto-NIP Generation
+        await ensureParticipantSecurityColumns();
         const connection = await pool.getConnection();
         const credentials: {
             name: string;
@@ -187,8 +188,6 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 const institutionCode = institutionCodes[idx];
                 const batchVal = String(participant.batch) || '1';
                 const regDate = participant.registration_date || todayStr;
-
-                await ensureParticipantSecurityColumns();
 
                 await connection.execute(
                     `INSERT INTO users (id, username, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)`,

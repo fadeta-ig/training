@@ -204,6 +204,9 @@ export interface AuthPayload {
     role: 'admin' | 'trainer' | 'trainee';
     nip?: string | null;
     gender?: 'L' | 'P' | null;
+    phone_number?: string | null;
+    date_of_birth?: string | null;
+    address?: string | null;
     institution?: string | null;
     batch?: string | null;
     registration_date?: string | null;

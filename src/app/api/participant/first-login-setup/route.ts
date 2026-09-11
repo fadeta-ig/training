@@ -9,7 +9,7 @@ import logger from '@/lib/logger';
 const firstLoginSchema = z.object({
     full_name: z.string().trim().min(3, 'Nama lengkap minimal 3 karakter').max(100, 'Nama lengkap maksimal 100 karakter'),
     gender: z.enum(['L', 'P'], { message: 'Silakan pilih jenis kelamin Anda (Laki-laki atau Perempuan)' }),
-    phone_number: z.string().trim().min(8, 'Nomor telepon/WhatsApp minimal 8 digit').max(25, 'Nomor telepon maksimal 25 digit'),
+    phone_number: z.union([z.string().trim().min(8, 'Nomor telepon/WhatsApp minimal 8 digit').max(25, 'Nomor telepon maksimal 25 digit'), z.literal(''), z.null()]).optional(),
     date_of_birth: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD'), z.literal(''), z.null()]).optional(),
     address: z.string().trim().max(500, 'Alamat maksimal 500 karakter').optional().nullable(),
     new_password: z.string().min(8, 'Kata sandi baru minimal 8 karakter').max(128, 'Kata sandi baru maksimal 128 karakter'),

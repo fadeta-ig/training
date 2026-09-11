@@ -9,7 +9,7 @@ import pool from '@/lib/db';
 import crypto from 'crypto';
 import { parsePagination } from '@/lib/sanitize';
 import { generateSingleNip } from '@/lib/nip';
-import { ensureInitialPasswordColumn, generateSecurePassword } from '@/lib/participant-helpers';
+import { ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/participant-helpers';
 
 const participantSchema = z.object({
     name: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(100),
@@ -225,6 +225,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         const userId = uuidv4();
         const profileId = uuidv4();
 
+        await ensureParticipantSecurityColumns();
         const connection = await pool.getConnection();
         let generatedNip = '';
         let institutionCode = '';
@@ -241,16 +242,14 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             generatedNip = nipResult.nip;
             institutionCode = nipResult.institutionCode;
 
-            await ensureInitialPasswordColumn();
-
             await connection.execute(
                 `INSERT INTO users (id, username, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)`,
                 [userId, email, password_hash, name, 'trainee']
             );
 
             await connection.execute(
-                `INSERT INTO participant_profiles (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date, initial_password) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO participant_profiles (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date, initial_password, must_change_password) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     profileId,
                     userId,
@@ -264,6 +263,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                     batch,
                     registration_date,
                     rawPassword,
+                    1,
                 ]
             );
 

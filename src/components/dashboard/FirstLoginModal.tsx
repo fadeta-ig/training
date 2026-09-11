@@ -29,9 +29,9 @@ export function FirstLoginModal({ user }: FirstLoginModalProps) {
     const [formData, setFormData] = useState({
         full_name: user?.full_name || '',
         gender: (user?.gender || '') as 'L' | 'P' | '',
-        phone_number: '',
-        date_of_birth: '',
-        address: '',
+        phone_number: user?.phone_number || '',
+        date_of_birth: user?.date_of_birth || '',
+        address: user?.address || '',
         new_password: '',
         confirm_password: '',
     });
@@ -116,9 +116,9 @@ export function FirstLoginModal({ user }: FirstLoginModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] grid place-items-center p-4 sm:p-6 overflow-y-auto bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-300">
             <div 
-                className="relative w-full max-w-xl my-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
+                className="relative w-full max-w-xl my-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Top Ambient Highlight */}
@@ -221,13 +221,12 @@ export function FirstLoginModal({ user }: FirstLoginModalProps) {
                             {/* Nomor WhatsApp / HP */}
                             <div className="space-y-1.5">
                                 <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                    No. WhatsApp / HP <span className="text-rose-500">*</span>
+                                    No. WhatsApp / HP <span className="text-slate-400 font-normal">(Opsional)</span>
                                 </label>
                                 <div className="relative flex items-center">
                                     <Call02Icon size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
                                     <input
                                         type="tel"
-                                        required
                                         value={formData.phone_number}
                                         onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                                         placeholder="081234567890"

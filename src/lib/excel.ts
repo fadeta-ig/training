@@ -876,18 +876,67 @@ export async function parseSpreadsheetBuffer(buffer: ArrayBuffer | Uint8Array): 
         return [];
     }
 
-    // Find header row: scan first 10 rows for a row containing 'nama' or 'email' or multiple text cells
+    // Intelligent Header Row Detection:
+    // Scans first 15 rows to find the genuine column headers row by scoring against recognized keywords,
+    // explicitly ignoring merged title banners and multi-sentence instruction text.
+    const HEADER_KEYWORDS = [
+        'nama', 'name', 'email', 'username', 'gender', 'kelamin',
+        'lahir', 'birth', 'telepon', 'phone', 'hp', 'wa', 'alamat',
+        'address', 'institusi', 'instansi', 'lembaga', 'batch',
+        'gelombang', 'program', 'sertifikasi', 'role', 'nip', 'password'
+    ];
+
     let headerRowNumber = 1;
-    for (let r = 1; r <= Math.min(10, worksheet.rowCount); r++) {
+    let bestRowNumber = 1;
+    let highestScore = 0;
+
+    for (let r = 1; r <= Math.min(15, worksheet.rowCount); r++) {
         const row = worksheet.getRow(r);
-        const cellValues = row.values as Array<unknown>;
-        if (Array.isArray(cellValues)) {
-            const rowText = cellValues.map((v) => (v ? String(v).toLowerCase() : '')).join(' ');
-            if (rowText.includes('nama') || rowText.includes('email')) {
-                headerRowNumber = r;
-                break;
+        const cellTexts: string[] = [];
+        const rawTexts: string[] = [];
+
+        row.eachCell({ includeEmpty: false }, (cell) => {
+            let text = '';
+            if (cell.value !== null && cell.value !== undefined) {
+                if (typeof cell.value === 'object' && 'richText' in (cell.value as object)) {
+                    text = ((cell.value as { richText: Array<{ text: string }> }).richText || []).map((t) => t.text).join('');
+                } else if (typeof cell.value === 'object' && 'text' in (cell.value as object)) {
+                    text = String((cell.value as { text: unknown }).text || '');
+                } else {
+                    text = String(cell.value);
+                }
             }
+            text = text.trim();
+            if (text) {
+                rawTexts.push(text);
+                cellTexts.push(text.toLowerCase());
+            }
+        });
+
+        const uniqueTexts = new Set(cellTexts);
+        // Merged title/banner row typically has only 1 unique text across all columns -> ignore
+        if (uniqueTexts.size < 2) continue;
+
+        // Banner instructions have very long paragraphs (> 100 chars) -> ignore
+        const hasLongParagraph = rawTexts.some((t) => t.length > 100);
+        if (hasLongParagraph) continue;
+
+        // Calculate score based on how many cells match known header keywords
+        let score = 0;
+        cellTexts.forEach((txt) => {
+            if (HEADER_KEYWORDS.some((kw) => txt.includes(kw))) {
+                score++;
+            }
+        });
+
+        if (score > highestScore) {
+            highestScore = score;
+            bestRowNumber = r;
         }
+    }
+
+    if (highestScore > 0) {
+        headerRowNumber = bestRowNumber;
     }
 
     const headerRow = worksheet.getRow(headerRowNumber);
@@ -897,6 +946,8 @@ export async function parseSpreadsheetBuffer(buffer: ArrayBuffer | Uint8Array): 
         if (cell.value !== null && cell.value !== undefined) {
             if (typeof cell.value === 'object' && 'richText' in (cell.value as object)) {
                 val = ((cell.value as { richText: Array<{ text: string }> }).richText || []).map((t) => t.text).join('');
+            } else if (typeof cell.value === 'object' && 'text' in (cell.value as object)) {
+                val = String((cell.value as { text: unknown }).text || '');
             } else {
                 val = String(cell.value);
             }

@@ -9,7 +9,7 @@ import pool from '@/lib/db';
 import logger from '@/lib/logger';
 import crypto from 'crypto';
 import { generateBulkNips } from '@/lib/nip';
-import { ensureInitialPasswordColumn, generateSecurePassword } from '@/lib/participant-helpers';
+import { ensureInitialPasswordColumn, ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/participant-helpers';
 
 interface ImportItem {
     name: string;
@@ -99,12 +99,8 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 regDate = String(item.registration_date).trim();
             }
 
-            // Normalize and validate gender — MANDATORY
-            const normalizedGender = normalizeGender(item.gender as string);
-            if (!normalizedGender) {
-                failed.push({ name: cleanName, email: cleanEmail, reason: 'Jenis kelamin wajib diisi (L untuk Laki-laki atau P untuk Perempuan)' });
-                continue;
-            }
+            // Normalize gender input if provided — OPTIONAL (can be completed by participant on profile)
+            const normalizedGender = item.gender ? normalizeGender(item.gender as string) : null;
 
             validQueue.push({
                 ...item,
@@ -192,7 +188,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 const batchVal = String(participant.batch) || '1';
                 const regDate = participant.registration_date || todayStr;
 
-                await ensureInitialPasswordColumn();
+                await ensureParticipantSecurityColumns();
 
                 await connection.execute(
                     `INSERT INTO users (id, username, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)`,
@@ -200,8 +196,8 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 );
 
                 await connection.execute(
-                    `INSERT INTO participant_profiles (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date, initial_password) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    `INSERT INTO participant_profiles (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date, initial_password, must_change_password) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         profileId,
                         userId,
@@ -209,12 +205,13 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                         participant.phone_number || null,
                         participant.address || null,
                         participant.date_of_birth || null,
-                        participant.gender || 'L',
+                        participant.gender || null,
                         participant.institution || null,
                         institutionCode || null,
                         batchVal,
                         regDate,
                         rawPassword,
+                        1,
                     ]
                 );
 

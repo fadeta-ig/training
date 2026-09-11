@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { executeQuery } from '@/lib/db';
 
+import { ensureParticipantSecurityColumns } from '@/lib/participant-helpers';
+
 export async function GET(request: NextRequest) {
     try {
+        await ensureParticipantSecurityColumns();
+
         const token = request.cookies.get('training_session')?.value;
         if (!token) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
@@ -17,7 +21,10 @@ export async function GET(request: NextRequest) {
         const users = await executeQuery<any[]>(
             `SELECT 
                 u.id, u.username, u.full_name, u.role, u.created_at,
-                p.nip, p.institution, p.institution_code, p.batch,
+                p.nip, p.gender, p.phone_number, p.address,
+                DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth,
+                p.institution, p.institution_code, p.batch,
+                COALESCE(p.must_change_password, 0) as must_change_password,
                 DATE_FORMAT(COALESCE(p.registration_date, p.created_at), '%Y-%m-%d') as registration_date
              FROM users u
              LEFT JOIN participant_profiles p ON u.id = p.user_id

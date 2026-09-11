@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
-import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
+import { ensureParticipantSecurityColumns } from '@/lib/participant-helpers';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
@@ -24,7 +24,7 @@ const profileUpdateSchema = z.object({
         z.null(),
         dateOnlySchema,
     ]).optional(),
-    gender: z.enum(['L', 'P'], { message: 'Jenis kelamin wajib dipilih' }),
+    gender: z.union([z.enum(['L', 'P']), z.literal(''), z.null()]).optional(),
     institution: optionalText(150),
     current_password: z.string().max(128).optional(),
     new_password: z.string().min(8).max(128).optional(),
@@ -97,9 +97,9 @@ async function handlePut(request: NextRequest, user: AuthenticatedUser) {
                 `UPDATE users SET full_name = ?, password_hash = ? WHERE id = ?`,
                 [full_name, hashedNewPassword, user.id]
             );
-            await ensureInitialPasswordColumn();
+            await ensureParticipantSecurityColumns();
             await executeQuery(
-                `UPDATE participant_profiles SET initial_password = ? WHERE user_id = ?`,
+                `UPDATE participant_profiles SET initial_password = ?, must_change_password = 0 WHERE user_id = ?`,
                 [new_password, user.id]
             );
         } else {

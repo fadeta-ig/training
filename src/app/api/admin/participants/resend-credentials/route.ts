@@ -7,7 +7,7 @@ import logger from '@/lib/logger';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { ensureInitialPasswordColumn, generateSecurePassword } from '@/lib/participant-helpers';
+import { ensureInitialPasswordColumn, ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/participant-helpers';
 
 const RATE_LIMIT_CONFIG = { windowMs: 60_000, maxRequests: 20 };
 
@@ -49,7 +49,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         const { participant_ids } = parsed.data;
 
         // Ensure database column exists
-        await ensureInitialPasswordColumn();
+        await ensureParticipantSecurityColumns();
 
         // Fetch participants in scope
         const placeholders = participant_ids.map(() => '?').join(',');
@@ -90,9 +90,9 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                             [passwordHash, participant.id]
                         );
 
-                        // 2. Update initial_password in participant_profiles table
+                        // 2. Update initial_password in participant_profiles table & require password change
                         await executeQuery(
-                            `UPDATE participant_profiles SET initial_password = ? WHERE user_id = ?`,
+                            `UPDATE participant_profiles SET initial_password = ?, must_change_password = 1 WHERE user_id = ?`,
                             [newPassword, participant.id]
                         );
 

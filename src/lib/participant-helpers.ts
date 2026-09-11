@@ -277,6 +277,7 @@ export class ParticipantError extends Error {
 }
 
 let checkedInitialPasswordColumn = false;
+let checkedParticipantSecurityColumns = false;
 
 /**
  * Ensures that the initial_password column exists in participant_profiles table.
@@ -300,6 +301,46 @@ export async function ensureInitialPasswordColumn(): Promise<void> {
             error: err instanceof Error ? err.message : String(err),
         });
         checkedInitialPasswordColumn = true;
+    }
+}
+
+/**
+ * Ensures participant_profiles has nullable gender and must_change_password column.
+ * Guarantees zero-risk migration without requiring manual DB commands.
+ */
+export async function ensureParticipantSecurityColumns(): Promise<void> {
+    if (checkedParticipantSecurityColumns) return;
+    await ensureInitialPasswordColumn();
+
+    try {
+        // 1. Ensure gender is nullable
+        const genderCols = await executeQuery<{ COLUMN_NAME: string; IS_NULLABLE: string }[]>(
+            `SELECT COLUMN_NAME, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS 
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME = 'gender'`
+        );
+        if (genderCols && genderCols.length > 0 && genderCols[0].IS_NULLABLE === 'NO') {
+            await executeQuery(
+                `ALTER TABLE participant_profiles MODIFY COLUMN gender ENUM('L', 'P') NULL DEFAULT NULL`
+            );
+        }
+
+        // 2. Ensure must_change_password column exists
+        const mustChangeCols = await executeQuery<{ COLUMN_NAME: string }[]>(
+            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME = 'must_change_password'`
+        );
+        if (!mustChangeCols || mustChangeCols.length === 0) {
+            await executeQuery(
+                `ALTER TABLE participant_profiles ADD COLUMN must_change_password BOOLEAN NOT NULL DEFAULT FALSE AFTER initial_password`
+            );
+        }
+
+        checkedParticipantSecurityColumns = true;
+    } catch (err) {
+        logger.warn('SCHEMA_MIGRATION', 'Could not ensure participant security columns', {
+            error: err instanceof Error ? err.message : String(err),
+        });
+        checkedParticipantSecurityColumns = true;
     }
 }
 

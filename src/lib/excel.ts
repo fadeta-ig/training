@@ -115,7 +115,7 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     // 2. Guidelines Notes
     sheet.mergeCells('A2:J2');
     const noteCell = sheet.getCell('A2');
-    noteCell.value = '• Kolom bertanda (*) WAJIB diisi. NIP digenerate OTOMATIS oleh sistem. Jenis Kelamin WAJIB: L (Laki-laki) atau P (Perempuan). Batch contoh: CSBA-SEP26. Format Tanggal: YYYY-MM-DD.';
+    noteCell.value = '• Kolom bertanda (*) WAJIB diisi (Hanya Nama Lengkap & Email Aktif). Kolom lain opsional dan dapat dilengkapi mandiri oleh peserta saat pertama kali login. NIP digenerate OTOMATIS oleh sistem. Jenis Kelamin: L (Laki-laki) atau P (Perempuan). Format Tanggal: YYYY-MM-DD.';
     noteCell.font = { name: FONT_FAMILY, size: 9.5, italic: true, color: { argb: 'FF475569' } };
     noteCell.fill = BANNER_FILL;
     noteCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -124,15 +124,15 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     // Empty separator row
     sheet.getRow(3).height = 10;
 
-    // 3. Table Headers — 10 columns, identity left → program right
+    // 3. Table Headers — 10 columns, only Name and Email are mandatory (*)
     const headers = [
         'Nama Lengkap *',
         'Email Aktif (Username Login) *',
-        'Jenis Kelamin (L/P) *',
-        'Tanggal Lahir (YYYY-MM-DD) *',
-        'No HP / WhatsApp *',
+        'Jenis Kelamin (L/P)',
+        'Tanggal Lahir (YYYY-MM-DD)',
+        'No HP / WhatsApp',
         'Alamat Domisili',
-        'Institusi / Unit Kerja *',
+        'Institusi / Unit Kerja',
         'Program Sertifikasi',
         'Batch Pelatihan',
         'Tanggal Pendaftaran (YYYY-MM-DD)',
@@ -166,10 +166,10 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
         {
             fullName: 'Siti Nurhaliza',
             email: 'siti.nurhaliza@example.com',
-            gender: 'P',
-            dateOfBirth: '1998-11-12',
-            phoneNumber: '089876543210',
-            address: 'Jl. Mawar No. 12, Surabaya',
+            gender: '' as any,
+            dateOfBirth: '',
+            phoneNumber: '',
+            address: '',
             institution: 'RSUD Dr Soetomo',
             targetCertificationName: 'Pelatihan Transformasi Digital & Tata Kelola IT',
             batch: 'TDIT-OKT26',
@@ -184,11 +184,11 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
         const values = [
             sample.fullName,
             sample.email,
-            sample.gender,
-            sample.dateOfBirth,
-            sample.phoneNumber,
-            sample.address,
-            sample.institution,
+            sample.gender || '',
+            sample.dateOfBirth || '',
+            sample.phoneNumber || '',
+            sample.address || '',
+            sample.institution || '',
             sample.targetCertificationName || '',
             sample.batch || '1',
             sample.registrationDate || '',
@@ -233,16 +233,16 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
         { width: 32 }, // J: Tanggal Pendaftaran
     ];
 
-    // 6. Data Validation for Gender (Column C, rows 5 to 500) — MANDATORY
+    // 6. Data Validation for Gender (Column C, rows 5 to 500) — OPTIONAL (allowBlank: true)
     for (let r = 5; r <= 500; r++) {
         const genderCell = sheet.getCell(`C${r}`);
         genderCell.dataValidation = {
             type: 'list',
-            allowBlank: false,
+            allowBlank: true,
             formulae: ['"L,P"'],
             showErrorMessage: true,
-            errorTitle: 'Jenis Kelamin Wajib Diisi',
-            error: 'Pilih "L" untuk Laki-laki atau "P" untuk Perempuan. Kolom ini WAJIB diisi.',
+            errorTitle: 'Pilihan Jenis Kelamin',
+            error: 'Pilih "L" untuk Laki-laki atau "P" untuk Perempuan, atau biarkan kosong.',
         };
         // Phone number formatting for empty rows (Column E)
         sheet.getCell(`E${r}`).numFmt = '@';

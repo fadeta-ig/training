@@ -170,9 +170,6 @@ export default function BulkImportParticipantsPage() {
                 } else if (seenEmails.has(email)) {
                     isValid = false;
                     errorReason = 'Duplikasi email dalam file';
-                } else if (!gender) {
-                    isValid = false;
-                    errorReason = 'Jenis kelamin wajib diisi (L untuk Laki-laki atau P untuk Perempuan)';
                 } else {
                     seenEmails.add(email);
                 }
@@ -416,7 +413,7 @@ export default function BulkImportParticipantsPage() {
                         <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600">
                             <InformationCircleIcon size={18} className="shrink-0 text-slate-500 mt-0.5" />
                             <span>
-                                Pastikan data nomor HP dan format tanggal lahir (<strong>YYYY-MM-DD</strong>) terisi rapi sesuai kolom template yang disediakan.
+                                <strong>Ketentuan:</strong> Hanya <strong>Nama Lengkap</strong> dan <strong>Email Aktif</strong> yang wajib diisi. Jenis kelamin dan data lainnya bersifat opsional dan dapat dilengkapi mandiri oleh peserta saat pertama kali masuk ke sistem.
                             </span>
                         </div>
                     </GlassCard>
@@ -622,7 +619,7 @@ export default function BulkImportParticipantsPage() {
                                                         {r.gender}
                                                     </span>
                                                 ) : (
-                                                    <span className="text-rose-600 font-bold text-xs">-</span>
+                                                    <span className="text-slate-400 text-xs font-mono">-</span>
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.date_of_birth || '-'}</td>

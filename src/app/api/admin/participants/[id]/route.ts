@@ -5,7 +5,8 @@ import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { logActivity } from '@/lib/audit';
 import pool from '@/lib/db';
 
-import { extractInstitutionCode, formatNip, formatYearMonth, generateSingleNip } from '@/lib/nip';
+import { extractInstitutionCode, formatNip, formatYearMonth } from '@/lib/nip';
+import { ensureParticipantSecurityColumns } from '@/lib/participant-helpers';
 
 const participantUpdateSchema = z.object({
     name: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(100),
@@ -15,7 +16,7 @@ const participantUpdateSchema = z.object({
     phone_number: z.string().optional().nullable(),
     address: z.string().optional().nullable(),
     date_of_birth: z.string().optional().nullable(),
-    gender: z.enum(['L', 'P'], { message: 'Jenis kelamin wajib diisi' }),
+    gender: z.union([z.enum(['L', 'P']), z.literal(''), z.null()]).optional(),
     institution: z.string().optional().nullable(),
     batch: z.preprocess((val) => (val === '' || val == null ? null : String(val).trim()), z.string().max(50).optional().nullable()),
     registration_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal pendaftaran harus YYYY-MM-DD').optional().nullable(),
@@ -135,6 +136,8 @@ async function handlePut(
                 [email, name, resolvedParams.id]
             );
 
+            await ensureParticipantSecurityColumns();
+
             // Upsert profile pattern
             const [updatedProfile] = await connection.execute<import('mysql2').ResultSetHeader>(
                 `UPDATE participant_profiles SET 
@@ -148,7 +151,7 @@ async function handlePut(
                     phone_number || null,
                     address || null,
                     date_of_birth || null,
-                    gender || 'L',
+                    gender || null,
                     institution || null,
                     finalInstCode || null,
                     safeBatch || null,
@@ -170,7 +173,7 @@ async function handlePut(
                         phone_number || null,
                         address || null,
                         date_of_birth || null,
-                        gender || 'L',
+                        gender || null,
                         institution || null,
                         finalInstCode || null,
                         safeBatch || '1',

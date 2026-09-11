@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { FirstLoginModal } from '@/components/dashboard/FirstLoginModal';
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 import type { AuthPayload } from '@/types';
 
@@ -28,6 +29,11 @@ export default function UserLayout({ children }: { children: ReactNode }) {
     }, [pathname]);
 
     const isExamFocusMode = /^\/dashboard\/sesi\/[^/]+\/ujian\/[^/]+\/?$/.test(pathname);
+    const shouldShowFirstLoginModal = Boolean(
+        user &&
+        user.role === 'trainee' &&
+        Boolean(user.must_change_password)
+    );
 
     if (isExamFocusMode) {
         return <div className="min-h-dvh bg-muted/30 font-sans text-foreground">{children}</div>;
@@ -35,6 +41,8 @@ export default function UserLayout({ children }: { children: ReactNode }) {
 
     return (
         <div className="flex h-dvh bg-background text-foreground font-sans overflow-hidden">
+            {shouldShowFirstLoginModal && <FirstLoginModal user={user} />}
+
             <DashboardSidebar 
                 isOpen={isSidebarOpen} 
                 onClose={closeSidebar}

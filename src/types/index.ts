@@ -34,7 +34,7 @@ export interface ParticipantProfile {
     phone_number: string | null;
     address: string | null;
     date_of_birth: string | null;
-    gender: 'L' | 'P';
+    gender: 'L' | 'P' | null;
     institution: string | null;
     institution_code: string | null;
     target_certification_id?: string | null;
@@ -42,6 +42,7 @@ export interface ParticipantProfile {
     target_period?: string | null;
     batch: string;
     registration_date: string;
+    must_change_password?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -202,9 +203,11 @@ export interface AuthPayload {
     full_name: string;
     role: 'admin' | 'trainer' | 'trainee';
     nip?: string | null;
+    gender?: 'L' | 'P' | null;
     institution?: string | null;
     batch?: string | null;
     registration_date?: string | null;
+    must_change_password?: boolean;
 }
 
 export interface AuditLog {

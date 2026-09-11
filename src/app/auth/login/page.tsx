@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { User, Lock, Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, AlertCircle, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
 
 function LoginForm() {
     const router = useRouter();
@@ -108,6 +108,22 @@ function LoginForm() {
                             Silakan masukkan kredensial akun Anda untuk melanjutkan ke portal pelatihan dan ujian.
                         </p>
                     </div>
+
+                    {/* Password Changed Security Banner */}
+                    {searchParams.get('reason') === 'password_changed' && !error && (
+                        <div
+                            role="status"
+                            className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs sm:text-sm flex items-start gap-3 shadow-xs animate-in fade-in slide-in-from-top-1 duration-200"
+                        >
+                            <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5 text-emerald-600" />
+                            <div className="space-y-1">
+                                <p className="font-bold text-emerald-900 text-sm">Kata Sandi &amp; Profil Berhasil Diperbarui!</p>
+                                <p className="text-emerald-800 text-xs leading-relaxed">
+                                    Demi alasan keamanan akun, sesi sebelumnya telah diakhiri. Silakan masuk kembali menggunakan kata sandi baru Anda.
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Error Banner */}
                     {error && (

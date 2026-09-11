@@ -35,6 +35,8 @@ async function handleGet(
         p.nip, p.phone_number, p.address, 
         DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, 
         p.gender, p.institution, p.institution_code, p.batch,
+        p.initial_password,
+        COALESCE(p.must_change_password, 0) as must_change_password,
         DATE_FORMAT(COALESCE(p.registration_date, p.created_at), '%Y-%m-%d') as registration_date
       FROM users u
       LEFT JOIN participant_profiles p ON u.id = p.user_id

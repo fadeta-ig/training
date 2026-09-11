@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { logActivity } from '@/lib/audit';
 import pool from '@/lib/db';
-import crypto from 'crypto';
 import { parsePagination } from '@/lib/sanitize';
 import { generateSingleNip } from '@/lib/nip';
 import { ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/participant-helpers';
@@ -25,7 +24,7 @@ const participantSchema = z.object({
 
 
 
-async function handleGet(request: NextRequest) {
+async function handleGet(request: NextRequest, authUser: AuthenticatedUser) {
     try {
         const { searchParams } = new URL(request.url);
         const { page, limit, offset } = parsePagination(searchParams, 10, 10000);
@@ -45,12 +44,18 @@ async function handleGet(request: NextRequest) {
     `;
         const countParams: (string | number)[] = [];
 
+        const isAdmin = authUser?.role === 'admin';
+        const passwordSelect = isAdmin 
+            ? 'p.initial_password, COALESCE(p.must_change_password, 0) as must_change_password,' 
+            : 'NULL as initial_password, 0 as must_change_password,';
+
         let query = `
       SELECT 
         u.id, u.username as email, u.full_name as name, u.created_at,
         p.nip, p.phone_number, p.address, 
         DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, 
         p.gender, p.institution, p.institution_code, p.batch,
+        ${passwordSelect}
         DATE_FORMAT(COALESCE(p.registration_date, p.created_at), '%Y-%m-%d') as registration_date
       FROM users u
       LEFT JOIN participant_profiles p ON u.id = p.user_id

@@ -2,7 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { PencilEdit01Icon, FloppyDiskIcon, ArrowLeft01Icon, RefreshIcon, Copy01Icon, Tick01Icon, Calendar01Icon, Building02Icon, MailSend01Icon } from 'hugeicons-react';
+import { 
+    PencilEdit01Icon, 
+    FloppyDiskIcon, 
+    ArrowLeft01Icon, 
+    RefreshIcon, 
+    Copy01Icon, 
+    Tick01Icon, 
+    Calendar01Icon, 
+    Building02Icon, 
+    MailSend01Icon,
+    Key01Icon,
+    ViewIcon,
+    ViewOffIcon,
+    CheckmarkCircle02Icon,
+    Alert02Icon
+} from 'hugeicons-react';
 import Link from 'next/link';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
@@ -17,6 +32,10 @@ export default function EditParticipantPage() {
     const [isResending, setIsResending] = useState(false);
     const [nip, setNip] = useState<string | null>(null);
     const [copiedNip, setCopiedNip] = useState(false);
+    const [initialPassword, setInitialPassword] = useState<string | null>(null);
+    const [mustChangePassword, setMustChangePassword] = useState<number>(0);
+    const [showPassword, setShowPassword] = useState(false);
+    const [copiedPassword, setCopiedPassword] = useState(false);
     const [regenerateNip, setRegenerateNip] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
@@ -39,6 +58,8 @@ export default function EditParticipantPage() {
                 if (res.ok && result.success) {
                     const data = result.data;
                     setNip(data.nip || null);
+                    setInitialPassword(data.initial_password || null);
+                    setMustChangePassword(data.must_change_password !== undefined ? Number(data.must_change_password) : 0);
                     setFormData({
                         name: data.name || '',
                         email: data.email || '',
@@ -83,6 +104,10 @@ export default function EditParticipantPage() {
             const result = await res.json();
             if (res.ok && result.success && result.results?.length > 0) {
                 const item = result.results[0];
+                if (item.newPassword) {
+                    setInitialPassword(item.newPassword);
+                    setMustChangePassword(1);
+                }
                 if (item.emailSent) {
                     toast.success('Kredensial berhasil dikirim!', {
                         description: `Password baru dibuat dan dikirim ke ${formData.email}. Password: ${item.newPassword}`,
@@ -193,6 +218,100 @@ export default function EditParticipantPage() {
                     </button>
                 </div>
             )}
+
+            {/* Kredensial & Password Card */}
+            <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-5 dark:bg-slate-900/60 dark:border-slate-800 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <Key01Icon size={20} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Kredensial & Kata Sandi Akun</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Kata sandi akun peserta untuk login ke LMS</p>
+                        </div>
+                    </div>
+                    {mustChangePassword === 1 ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+                            <Alert02Icon size={14} />
+                            Wajib Ubah Sandi (Default)
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
+                            <CheckmarkCircle02Icon size={14} />
+                            Sandi Mandiri / Aktif
+                        </span>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-white dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-200/70 dark:border-slate-700 flex flex-col justify-between">
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Username / Email Login</span>
+                        <div className="flex items-center justify-between gap-2 mt-1">
+                            <span className="font-mono text-sm font-semibold text-slate-900 dark:text-white truncate">{formData.email || '-'}</span>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (formData.email) {
+                                        await navigator.clipboard.writeText(formData.email);
+                                        toast.success('Email disalin ke clipboard!');
+                                    }
+                                }}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                title="Salin Email"
+                            >
+                                <Copy01Icon size={15} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-200/70 dark:border-slate-700 flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Kata Sandi (Initial Password)</span>
+                            {initialPassword && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="text-xs text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center gap-1 cursor-pointer"
+                                >
+                                    {showPassword ? <ViewOffIcon size={14} /> : <ViewIcon size={14} />}
+                                    <span>{showPassword ? 'Sembunyikan' : 'Tampilkan'}</span>
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mt-1">
+                            {initialPassword ? (
+                                <span className="font-mono text-sm font-bold tracking-wider text-slate-900 dark:text-white select-all">
+                                    {showPassword ? initialPassword : '••••••••••••'}
+                                </span>
+                            ) : (
+                                <span className="text-xs text-slate-400 italic">Tidak tercatat di database (Akun lama)</span>
+                            )}
+                            {initialPassword && (
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        await navigator.clipboard.writeText(initialPassword);
+                                        setCopiedPassword(true);
+                                        toast.success('Password disalin ke clipboard!');
+                                        setTimeout(() => setCopiedPassword(false), 2000);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                                >
+                                    {copiedPassword ? <Tick01Icon size={14} className="text-emerald-600" /> : <Copy01Icon size={14} />}
+                                    <span>{copiedPassword ? 'Tersalin' : 'Salin Sandi'}</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {mustChangePassword === 0 && initialPassword && (
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                        * Catatan: Peserta telah mengubah sandi akun. Sandi yang tercatat di atas adalah kata sandi awal saat registrasi/reset terakhir.
+                    </p>
+                )}
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <GlassCard className="p-4 sm:p-6 md:p-8 space-y-6">

@@ -354,7 +354,8 @@ export async function ensureParticipantSecurityColumns(): Promise<void> {
 export function generateSecurePassword(length = 12): string {
     const letters = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
     const numbers = '23456789';
-    const symbols = '!#$%&*';
+    // Safe symbols that never conflict with HTML entities (&amp;), formula prefixes, or URL delimiters
+    const symbols = '!@*#';
     const allChars = letters + numbers + symbols;
 
     const uppers = 'ABCDEFGHJKLMNPQRSTUVWXYZ';

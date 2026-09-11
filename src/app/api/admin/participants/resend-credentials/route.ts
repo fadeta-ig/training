@@ -7,7 +7,7 @@ import logger from '@/lib/logger';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { ensureInitialPasswordColumn, ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/participant-helpers';
+import { ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/participant-helpers';
 
 const RATE_LIMIT_CONFIG = { windowMs: 60_000, maxRequests: 20 };
 

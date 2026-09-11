@@ -13,7 +13,9 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : '';
-        const password = typeof body.password === 'string' ? body.password : '';
+        const rawPassword = typeof body.password === 'string' ? body.password : '';
+        // Sanitize password: strip newlines, carriage returns, tabs, and outer whitespace commonly introduced by Excel cell copying
+        const password = rawPassword.replace(/[\r\n\t]/g, '').trim();
 
         if (!username || username.length > 255 || !password || password.length > 128) {
             return NextResponse.json(
@@ -47,8 +49,11 @@ export async function POST(request: NextRequest) {
 
         const user = users[0];
 
-        // Verifikasi password
-        const passwordMatch = await bcrypt.compare(password, user.password_hash);
+        // Verifikasi password (uji sanitized password terlebih dahulu, fallback ke rawPassword jika ada perbedaan)
+        let passwordMatch = await bcrypt.compare(password, user.password_hash);
+        if (!passwordMatch && password !== rawPassword) {
+            passwordMatch = await bcrypt.compare(rawPassword, user.password_hash);
+        }
         if (!passwordMatch) {
             recordLoginFailure(request, username);
             logger.warn('AUTH_LOGIN', `Percobaan login gagal: Password salah untuk user "${username}"`, undefined, user.id);

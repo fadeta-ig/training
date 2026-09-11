@@ -7,9 +7,8 @@ import { logActivity } from '@/lib/audit';
 import { sendBulkCredentialEmails } from '@/lib/email';
 import pool from '@/lib/db';
 import logger from '@/lib/logger';
-import crypto from 'crypto';
 import { generateBulkNips } from '@/lib/nip';
-import { ensureInitialPasswordColumn, ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/participant-helpers';
+import { ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/participant-helpers';
 
 interface ImportItem {
     name: string;

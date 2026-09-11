@@ -197,7 +197,9 @@ Website: https://nusamitraconsulting.com
                             </tr>
                             <tr>
                                 <td style="padding: 6px 0; font-size: 13px; color: #64748b;">Password</td>
-                                <td style="padding: 6px 0; font-size: 14px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; color: #0f172a; font-weight: 600; letter-spacing: 1px;">${safePass}</td>
+                                <td style="padding: 6px 0;">
+                                    <code style="display: inline-block; padding: 4px 10px; background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 14px; font-weight: 700; color: #0f172a; letter-spacing: 1.5px;">${safePass}</code>
+                                </td>
                             </tr>
                         </table>
                         <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid #f1f5f9;">

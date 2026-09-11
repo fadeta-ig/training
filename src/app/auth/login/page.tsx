@@ -31,7 +31,10 @@ function LoginForm() {
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    username: formData.username.trim(),
+                    password: formData.password.replace(/[\r\n\t]/g, '').trim(),
+                })
             });
 
             const result = await res.json();
@@ -184,6 +187,14 @@ function LoginForm() {
                                     placeholder="••••••••"
                                     value={formData.password}
                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    onPaste={(e) => {
+                                        const pasted = e.clipboardData.getData('text');
+                                        if (pasted && /[\r\n\t]/.test(pasted)) {
+                                            e.preventDefault();
+                                            const clean = pasted.replace(/[\r\n\t]/g, '').trim();
+                                            setFormData((prev) => ({ ...prev, password: clean }));
+                                        }
+                                    }}
                                 />
                                 <button
                                     type="button"

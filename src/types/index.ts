@@ -42,6 +42,7 @@ export interface ParticipantProfile {
     target_period?: string | null;
     batch: string;
     registration_date: string;
+    initial_password?: string | null;
     must_change_password?: boolean;
     created_at: string;
     updated_at: string;

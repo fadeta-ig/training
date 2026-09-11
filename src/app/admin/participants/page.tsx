@@ -13,6 +13,8 @@ import {
     Key01Icon,
     Copy01Icon,
     Tick01Icon,
+    ViewIcon,
+    ViewOffIcon,
 } from 'hugeicons-react';
 import { RotateCcw, FileSpreadsheet, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -37,6 +39,8 @@ type Participant = {
     registration_date: string | null;
     phone_number: string | null;
     created_at: string;
+    initial_password?: string | null;
+    must_change_password?: number | null;
 };
 
 const DEFAULT_FILTERS: ParticipantFilters = {
@@ -85,6 +89,11 @@ export default function ParticipantsManagerPage() {
     const [copiedModalPassword, setCopiedModalPassword] = useState(false);
     const [isBulkResendModalOpen, setIsBulkResendModalOpen] = useState(false);
     const [isBulkResending, setIsBulkResending] = useState(false);
+
+    // View Credential Modal states
+    const [viewCredentialParticipant, setViewCredentialParticipant] = useState<Participant | null>(null);
+    const [showViewPassword, setShowViewPassword] = useState(false);
+    const [copiedCredentialField, setCopiedCredentialField] = useState<'email' | 'password' | 'nip' | null>(null);
 
     const fetchParticipants = useCallback(async (
         targetPage: number,
@@ -530,8 +539,17 @@ export default function ParticipantsManagerPage() {
                                                     ? new Date(p.registration_date).toLocaleDateString('id-ID', { dateStyle: 'medium' })
                                                     : new Date(p.created_at).toLocaleDateString('id-ID', { dateStyle: 'medium' })}
                                             </td>
-                                            {userRole === 'admin' && (
+                                             {userRole === 'admin' && (
                                                 <td className="px-6 py-4 text-right space-x-1.5 flex justify-end gap-1.5">
+                                                    <ActionButton
+                                                        onClick={() => {
+                                                            setViewCredentialParticipant(p);
+                                                            setShowViewPassword(false);
+                                                            setCopiedCredentialField(null);
+                                                        }}
+                                                        icon={<Key01Icon size={16} className="text-amber-600" />}
+                                                        title="Lihat Kredensial & Kata Sandi"
+                                                    />
                                                     <ActionButton
                                                         onClick={() => handleResendSingle(p)}
                                                         disabled={isResendingSingleId === p.id}
@@ -853,6 +871,176 @@ export default function ParticipantsManagerPage() {
                                                 <span>Kirim Kredensial Sekarang</span>
                                             </>
                                         )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </ClientPortal>
+            )}
+            {/* Modal Dialog: Lihat Kredensial & Password Peserta */}
+            {viewCredentialParticipant && (
+                <ClientPortal>
+                    <div 
+                        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => setViewCredentialParticipant(null)}
+                    >
+                        <div 
+                            className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                                    <Key01Icon size={20} className="text-amber-500" />
+                                    <span>Kredensial Akun Peserta</span>
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewCredentialParticipant(null)}
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded-lg cursor-pointer"
+                                >
+                                    <Cancel01Icon size={18} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                {/* Status Keamanan */}
+                                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                                    <span className="text-xs font-semibold text-muted-foreground">Status Sandi Akun:</span>
+                                    {Number(viewCredentialParticipant.must_change_password) === 1 ? (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                                            <Alert02Icon size={13} />
+                                            Sandi Default (Belum Diubah)
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                            <CheckmarkCircle02Icon size={13} />
+                                            Sandi Telah Diperbarui Peserta
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+                                    <div>
+                                        <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Nama Peserta</span>
+                                        <span className="font-bold text-foreground text-sm">{viewCredentialParticipant.name}</span>
+                                    </div>
+
+                                    {viewCredentialParticipant.nip && (
+                                        <div>
+                                            <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">NIP Resmi</span>
+                                            <div className="flex items-center justify-between mt-0.5 bg-white px-3 py-2 rounded-lg border border-slate-200">
+                                                <span className="font-mono font-bold text-slate-800">{viewCredentialParticipant.nip}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        if (viewCredentialParticipant.nip) {
+                                                            await navigator.clipboard.writeText(viewCredentialParticipant.nip);
+                                                            setCopiedCredentialField('nip');
+                                                            toast.success('NIP disalin ke clipboard!');
+                                                            setTimeout(() => setCopiedCredentialField(null), 2000);
+                                                        }
+                                                    }}
+                                                    className="p-1 text-slate-500 hover:text-slate-900 cursor-pointer"
+                                                    title="Salin NIP"
+                                                >
+                                                    {copiedCredentialField === 'nip' ? <Tick01Icon size={14} className="text-emerald-600" /> : <Copy01Icon size={14} />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Username / Email Login</span>
+                                        <div className="flex items-center justify-between mt-0.5 bg-white px-3 py-2 rounded-lg border border-slate-200">
+                                            <span className="font-mono font-bold text-foreground truncate mr-2">{viewCredentialParticipant.email}</span>
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    await navigator.clipboard.writeText(viewCredentialParticipant.email);
+                                                    setCopiedCredentialField('email');
+                                                    toast.success('Email disalin ke clipboard!');
+                                                    setTimeout(() => setCopiedCredentialField(null), 2000);
+                                                }}
+                                                className="p-1 text-slate-500 hover:text-slate-900 cursor-pointer"
+                                                title="Salin Email"
+                                            >
+                                                {copiedCredentialField === 'email' ? <Tick01Icon size={14} className="text-emerald-600" /> : <Copy01Icon size={14} />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Kata Sandi (Initial Password)</span>
+                                            {viewCredentialParticipant.initial_password && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowViewPassword(!showViewPassword)}
+                                                    className="text-xs text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center gap-1 cursor-pointer"
+                                                >
+                                                    {showViewPassword ? <ViewOffIcon size={13} /> : <ViewIcon size={13} />}
+                                                    <span>{showViewPassword ? 'Sembunyikan' : 'Tampilkan'}</span>
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center justify-between mt-1 bg-white p-2.5 rounded-lg border border-slate-200">
+                                            {viewCredentialParticipant.initial_password ? (
+                                                <>
+                                                    <span className="font-mono font-bold text-base tracking-wider text-slate-900 select-all">
+                                                        {showViewPassword ? viewCredentialParticipant.initial_password : '••••••••••••'}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            if (viewCredentialParticipant.initial_password) {
+                                                                await navigator.clipboard.writeText(viewCredentialParticipant.initial_password);
+                                                                setCopiedCredentialField('password');
+                                                                toast.success('Password disalin ke clipboard!');
+                                                                setTimeout(() => setCopiedCredentialField(null), 2000);
+                                                            }
+                                                        }}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 transition-colors cursor-pointer"
+                                                    >
+                                                        {copiedCredentialField === 'password' ? <Tick01Icon size={14} className="text-emerald-600" /> : <Copy01Icon size={14} />}
+                                                        <span>{copiedCredentialField === 'password' ? 'Tersalin' : 'Salin Sandi'}</span>
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <span className="text-xs text-slate-400 italic py-1">
+                                                    Kata sandi awal tidak tercatat (Akun lama).
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {Number(viewCredentialParticipant.must_change_password) === 0 && viewCredentialParticipant.initial_password && (
+                                    <p className="text-[11px] text-slate-600 bg-slate-100 p-2.5 rounded-lg border border-slate-200">
+                                        * Catatan: Peserta telah memperbarui kata sandi akunnya. Sandi di atas adalah initial password saat didaftarkan.
+                                    </p>
+                                )}
+
+                                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const target = viewCredentialParticipant;
+                                            setViewCredentialParticipant(null);
+                                            handleResendSingle(target);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 p-1 cursor-pointer"
+                                    >
+                                        <MailSend01Icon size={14} />
+                                        <span>Reset & Kirim Password Baru</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setViewCredentialParticipant(null)}
+                                        className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                                    >
+                                        Tutup
                                     </button>
                                 </div>
                             </div>

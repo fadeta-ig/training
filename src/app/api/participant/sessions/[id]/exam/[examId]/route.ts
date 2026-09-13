@@ -123,11 +123,13 @@ async function handleGet(
                 attempts_count: number;
                 attempt_version: number;
                 attempt_start_utc: string;
+                individual_extension_until_utc: string | null;
                 server_time_utc: string;
             }>>(
                 `SELECT up.attempts_count,
                         up.attempt_version,
                         DATE_FORMAT(up.last_attempt_start, '%Y-%m-%dT%H:%i:%sZ') AS attempt_start_utc,
+                        DATE_FORMAT(up.individual_extension_until, '%Y-%m-%dT%H:%i:%sZ') AS individual_extension_until_utc,
                         DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-%dT%H:%i:%sZ') AS server_time_utc
                  FROM user_progress up
                  WHERE up.user_id = ? AND up.session_id = ? AND up.module_item_id = ?
@@ -244,6 +246,7 @@ async function handleGet(
                 existingAnswers,
                 serverTime: serverTimeUtc,
                 sessionEnd: session.end_time,
+                individualExtensionUntil: currentProgressRow?.individual_extension_until_utc || null,
                 enableProctoring: !!session.enable_proctoring,
                 attemptStart: attemptStartUtc,
                 attemptNumber: attemptNumber,

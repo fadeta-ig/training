@@ -25,6 +25,7 @@ interface ModuleItemRow extends RowDataPacket {
     id: string;
     item_id: string;
     title: string;
+    duration_minutes: number;
 }
 
 async function handlePost(
@@ -67,7 +68,7 @@ async function handlePost(
 
         const moduleId = sessionRows[0].module_id;
         const [examItems] = await pool.query<ModuleItemRow[]>(
-            `SELECT mi.id, mi.item_id, e.title 
+            `SELECT mi.id, mi.item_id, e.title, e.duration_minutes 
              FROM module_items mi
              JOIN exams e ON mi.item_id = e.id
              WHERE mi.module_id = ? AND mi.item_type = 'exam' ${
@@ -102,6 +103,7 @@ async function handlePost(
                 const progress = progressRows[0];
                 const newAttemptVersion = (Number(progress?.attempt_version) || 1) + 1;
                 const currentAttemptNumber = Math.max(1, Number(progress?.attempts_count || 1));
+                const itemDurationMinutes = Number(item.duration_minutes || 60);
 
                 if (!progress) {
                     const newProgressId = uuidv4();
@@ -117,9 +119,15 @@ async function handlePost(
                          SET status = 'open',
                              attempt_version = ?,
                              last_attempt_start = IF(last_attempt_start IS NULL, UTC_TIMESTAMP(), last_attempt_start),
-                             individual_extension_until = DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE)
+                             individual_extension_until = DATE_ADD(
+                                 GREATEST(
+                                     UTC_TIMESTAMP(),
+                                     COALESCE(individual_extension_until, DATE_ADD(COALESCE(last_attempt_start, UTC_TIMESTAMP()), INTERVAL ? MINUTE))
+                                 ),
+                                 INTERVAL ? MINUTE
+                             )
                          WHERE user_id = ? AND session_id = ? AND module_item_id = ?`,
-                        [newAttemptVersion, extraMinutes, participantId, sessionId, item.id]
+                        [newAttemptVersion, itemDurationMinutes, extraMinutes, participantId, sessionId, item.id]
                     );
 
                     // Revert graded submission to open draft state

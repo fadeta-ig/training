@@ -33,6 +33,7 @@ export interface SessionTimingResult {
     isUpcoming: boolean;
     isActive: boolean;
     isEnded: boolean;
+    effectiveEndTime: Date;
 }
 
 /** Validate that a session exists and return its timing status. Optionally takes userId to check individual extension. */
@@ -76,6 +77,7 @@ export async function validateSessionTiming(
         isUpcoming: now < start,
         isActive: now >= start && now <= end,
         isEnded: now > end,
+        effectiveEndTime: end,
     };
 }
 

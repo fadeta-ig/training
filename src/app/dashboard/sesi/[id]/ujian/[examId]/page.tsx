@@ -84,6 +84,7 @@ type ExamData = {
     existingAnswers: { question_id: string; selected_option: string; client_version?: number }[];
     serverTime: string;
     sessionEnd: string;
+    individualExtensionUntil?: string | null;
     enableProctoring: boolean;
     attemptStart: string;
     attemptNumber: number;
@@ -329,26 +330,27 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const warned5MinRef = useRef(false);
     const warned1MinRef = useRef(false);
 
+    const examDataRef = useRef<ExamData | null>(examData);
+
     useAntiCheat(!!examData && !result && !error);
 
     useEffect(() => {
         answersRef.current = answers;
     }, [answers]);
 
-    // Initialize online state & restore local flags and draft fallback
+    useEffect(() => {
+        examDataRef.current = examData;
+    }, [examData]);
+
+    const getStorageKey = useCallback((prefix: string) => {
+        const version = examDataRef.current?.attemptVersion || 1;
+        return `${prefix}_${sessionId}_${examId}_v${version}`;
+    }, [examId, sessionId]);
+
+    // Initialize online state
     useEffect(() => {
         setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
-
-        try {
-            const savedFlags = localStorage.getItem(`exam_flags_${sessionId}_${examId}`);
-            if (savedFlags) {
-                const parsed = JSON.parse(savedFlags);
-                if (Array.isArray(parsed)) {
-                    setFlaggedIds(new Set(parsed));
-                }
-            }
-        } catch {}
-    }, [examId, sessionId]);
+    }, []);
 
     const toggleFlag = useCallback((questionId: string) => {
         setFlaggedIds((prev) => {
@@ -359,11 +361,11 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 next.add(questionId);
             }
             try {
-                localStorage.setItem(`exam_flags_${sessionId}_${examId}`, JSON.stringify(Array.from(next)));
+                localStorage.setItem(getStorageKey('exam_flags'), JSON.stringify(Array.from(next)));
             } catch {}
             return next;
         });
-    }, [examId, sessionId]);
+    }, [getStorageKey]);
 
     const handleAnswerChange = useCallback((questionId: string, value: string) => {
         if (answersRef.current[questionId] === value) return;
@@ -374,12 +376,12 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         setAnswers((previous) => {
             const next = { ...previous, [questionId]: value };
             try {
-                localStorage.setItem(`exam_draft_${sessionId}_${examId}`, JSON.stringify(next));
-                localStorage.setItem(`exam_versions_${sessionId}_${examId}`, JSON.stringify(questionVersionsRef.current));
+                localStorage.setItem(getStorageKey('exam_draft'), JSON.stringify(next));
+                localStorage.setItem(getStorageKey('exam_versions'), JSON.stringify(questionVersionsRef.current));
             } catch {}
             return next;
         });
-    }, [examId, sessionId]);
+    }, [getStorageKey]);
 
     const saveDraft = useCallback(async () => {
         if (!examData || submitting || result) return;
@@ -540,6 +542,9 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             if (!response.ok || !data.success) throw new Error(data.error || 'Gagal mengirim jawaban ujian');
             dirtyQuestionIdsRef.current.clear();
             try {
+                localStorage.removeItem(getStorageKey('exam_draft'));
+                localStorage.removeItem(getStorageKey('exam_versions'));
+                localStorage.removeItem(getStorageKey('exam_flags'));
                 localStorage.removeItem(`exam_draft_${sessionId}_${examId}`);
                 localStorage.removeItem(`exam_versions_${sessionId}_${examId}`);
                 localStorage.removeItem(`exam_flags_${sessionId}_${examId}`);
@@ -553,7 +558,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         } finally {
             setSubmitting(false);
         }
-    }, [examData, examId, sessionId, submitting]);
+    }, [examData, examId, getStorageKey, sessionId, submitting]);
 
     // Initial Exam Fetch with Server NTP Offset
     useEffect(() => {
@@ -579,10 +584,28 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     initialVersions[answer.question_id] = Number(answer.client_version || 1);
                 });
 
-                // Check if there is local draft and versions fallback
+                const currentVersion = data.attemptVersion || 1;
+                const draftKey = `exam_draft_${sessionId}_${examId}_v${currentVersion}`;
+                const versionsKey = `exam_versions_${sessionId}_${examId}_v${currentVersion}`;
+                const flagsKey = `exam_flags_${sessionId}_${examId}_v${currentVersion}`;
+
+                // Restore flags for this specific attempt version
+                try {
+                    const savedFlags = localStorage.getItem(flagsKey);
+                    if (savedFlags) {
+                        const parsed = JSON.parse(savedFlags);
+                        if (Array.isArray(parsed)) {
+                            setFlaggedIds(new Set(parsed));
+                        }
+                    } else {
+                        setFlaggedIds(new Set());
+                    }
+                } catch {}
+
+                // Check if there is local draft and versions fallback for this specific attempt version
                 let finalAnswers = serverAnswers;
                 try {
-                    const localDraftStr = localStorage.getItem(`exam_draft_${sessionId}_${examId}`);
+                    const localDraftStr = localStorage.getItem(draftKey);
                     if (localDraftStr) {
                         const localDraft = JSON.parse(localDraftStr);
                         if (localDraft && typeof localDraft === 'object') {
@@ -590,7 +613,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                         }
                     }
 
-                    const localVersionsStr = localStorage.getItem(`exam_versions_${sessionId}_${examId}`);
+                    const localVersionsStr = localStorage.getItem(versionsKey);
                     if (localVersionsStr) {
                         const localVersions = JSON.parse(localVersionsStr);
                         if (localVersions && typeof localVersions === 'object') {
@@ -610,7 +633,15 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 const attemptStart = Number.isFinite(new Date(data.attemptStart).getTime())
                     ? new Date(data.attemptStart).getTime()
                     : serverNow;
-                const deadline = attemptStart + durationMs;
+                let deadline = attemptStart + durationMs;
+
+                // Sync deadline with individual extension granted by admin
+                if (data.individualExtensionUntil) {
+                    const extensionTime = new Date(data.individualExtensionUntil).getTime();
+                    if (Number.isFinite(extensionTime) && extensionTime > deadline) {
+                        deadline = extensionTime;
+                    }
+                }
 
                 deadlineRef.current = deadline;
                 serverClockOffsetRef.current = serverNow - Date.now();

@@ -67,7 +67,7 @@ async function handlePost(
         }
 
         await verifyEnrollment(sessionId, user.id);
-        const { session, isUpcoming, isEnded } = await validateSessionTiming(sessionId, user.id);
+        const { session, isUpcoming, isEnded, effectiveEndTime } = await validateSessionTiming(sessionId, user.id);
 
         // Enforce session timing — block if session hasn't started
         if (isUpcoming) {
@@ -79,7 +79,7 @@ async function handlePost(
 
         // Allow a grace period after session ends for late submission
         if (isEnded) {
-            const endTime = new Date(session.end_time).getTime();
+            const endTime = (effectiveEndTime || new Date(session.end_time)).getTime();
             const now = Date.now();
             if (now - endTime > LATE_GRACE_MS) {
                 return NextResponse.json(
@@ -87,7 +87,9 @@ async function handlePost(
                     { status: 400 }
                 );
             }
-        }        // Enforce SEB if required
+        }
+
+        // Enforce SEB if required
         validateSebAccess(request, session);
         const sessionModuleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
 
@@ -105,6 +107,7 @@ async function handlePost(
             last_attempt_start: string | Date | null;
             status: 'locked' | 'open' | 'completed';
             score: number | string | null;
+            individual_extension_until: string | Date | null;
             attempt_elapsed_seconds: number | null;
         }
 
@@ -129,6 +132,7 @@ async function handlePost(
                         last_attempt_start,
                         status,
                         score,
+                        individual_extension_until,
                         TIMESTAMPDIFF(SECOND, last_attempt_start, UTC_TIMESTAMP()) AS attempt_elapsed_seconds
                  FROM user_progress
                  WHERE user_id = ? AND session_id = ? AND module_item_id = ?
@@ -177,7 +181,15 @@ async function handlePost(
 
             const durationMs = Number(exam?.[0]?.duration_minutes || 0) * 60 * 1000;
             const elapsedMs = Math.max(0, Number(progressRow.attempt_elapsed_seconds || 0)) * 1000;
-            if (durationMs > 0 && elapsedMs > durationMs + EXAM_DURATION_GRACE_MS) {
+            const extensionDate = progressRow.individual_extension_until
+                ? new Date(progressRow.individual_extension_until)
+                : null;
+            const isWithinStandardDuration = durationMs > 0 ? (elapsedMs <= durationMs + EXAM_DURATION_GRACE_MS) : true;
+            const isWithinIndividualExtension = extensionDate
+                ? (Date.now() <= extensionDate.getTime() + EXAM_DURATION_GRACE_MS)
+                : false;
+
+            if (!isWithinStandardDuration && !isWithinIndividualExtension) {
                 await connection.rollback();
                 return NextResponse.json(
                     { success: false, error: 'Durasi ujian telah habis.' },

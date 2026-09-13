@@ -96,16 +96,31 @@ async function handlePost(
             );
         }
 
+        const [examRows] = await connection.execute<RowDataPacket[]>(
+            `SELECT duration_minutes FROM exams WHERE id = ? LIMIT 1`,
+            [examId]
+        );
+        const examDurationMinutes = Number(examRows?.[0]?.duration_minutes || 60);
+
         if (action === 'resume') {
-            // Action Resume: Re-open progress, increment attempt_version, adjust time / extension
+            // Action Resume: Re-open progress, increment attempt_version, adjust time / extension fairly
             await connection.execute(
                 `UPDATE user_progress
                  SET status = 'open',
                      attempt_version = ?,
                      last_attempt_start = IF(last_attempt_start IS NULL, UTC_TIMESTAMP(), last_attempt_start),
-                     individual_extension_until = IF(? > 0, DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE), individual_extension_until)
+                     individual_extension_until = IF(? > 0,
+                         DATE_ADD(
+                             GREATEST(
+                                 UTC_TIMESTAMP(),
+                                 COALESCE(individual_extension_until, DATE_ADD(COALESCE(last_attempt_start, UTC_TIMESTAMP()), INTERVAL ? MINUTE))
+                             ),
+                             INTERVAL ? MINUTE
+                         ),
+                         individual_extension_until
+                     )
                  WHERE user_id = ? AND session_id = ? AND module_item_id = ?`,
-                [newAttemptVersion, extraMinutes, extraMinutes, participantId, sessionId, moduleItem.id]
+                [newAttemptVersion, extraMinutes, examDurationMinutes, extraMinutes, participantId, sessionId, moduleItem.id]
             );
 
             // Remove any graded answers for this attempt so status reverts to draft pengerjaan
@@ -115,11 +130,12 @@ async function handlePost(
                 [participantId, sessionId, examId, currentAttemptNumber]
             );
         } else {
-            // Action Reset: Clean drafts & answers, reset last_attempt_start, score = NULL, status = 'open'
+            // Action Reset: Clean drafts & answers, reset attempts_count to 0, last_attempt_start = UTC_TIMESTAMP(), score = NULL, status = 'open'
             await connection.execute(
                 `UPDATE user_progress
                  SET status = 'open',
                      score = NULL,
+                     attempts_count = 0,
                      attempt_version = ?,
                      last_attempt_start = UTC_TIMESTAMP(),
                      individual_extension_until = IF(? > 0, DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE), NULL)
@@ -127,16 +143,17 @@ async function handlePost(
                 [newAttemptVersion, extraMinutes, extraMinutes, participantId, sessionId, moduleItem.id]
             );
 
+            // Completely purge drafts and graded answers across all attempts for a clean slate
             await connection.execute(
                 `DELETE FROM exam_answer_drafts
-                 WHERE user_id = ? AND session_id = ? AND exam_id = ? AND attempt_number = ?`,
-                [participantId, sessionId, examId, currentAttemptNumber]
+                 WHERE user_id = ? AND session_id = ? AND exam_id = ?`,
+                [participantId, sessionId, examId]
             );
 
             await connection.execute(
                 `DELETE FROM exam_answers
-                 WHERE user_id = ? AND session_id = ? AND exam_id = ? AND attempt_number = ?`,
-                [participantId, sessionId, examId, currentAttemptNumber]
+                 WHERE user_id = ? AND session_id = ? AND exam_id = ?`,
+                [participantId, sessionId, examId]
             );
         }
 

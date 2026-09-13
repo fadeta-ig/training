@@ -602,13 +602,15 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 questionVersionsRef.current = initialVersions;
                 setAnswers(finalAnswers);
 
-                const durationMs = Number(data.exam.duration_minutes) * 60 * 1000;
-                const serverNow = new Date(data.serverTime).getTime();
-                const attemptStart = new Date(data.attemptStart).getTime();
+                const parsedDuration = Number(data.exam?.duration_minutes) || 60;
+                const durationMs = Math.max(1, parsedDuration) * 60 * 1000;
+                const serverNow = Number.isFinite(new Date(data.serverTime).getTime())
+                    ? new Date(data.serverTime).getTime()
+                    : Date.now();
+                const attemptStart = Number.isFinite(new Date(data.attemptStart).getTime())
+                    ? new Date(data.attemptStart).getTime()
+                    : serverNow;
                 const deadline = attemptStart + durationMs;
-                if (![durationMs, serverNow, attemptStart, deadline].every(Number.isFinite) || durationMs <= 0) {
-                    throw new Error('Konfigurasi waktu ujian tidak valid. Hubungi administrator.');
-                }
 
                 deadlineRef.current = deadline;
                 serverClockOffsetRef.current = serverNow - Date.now();

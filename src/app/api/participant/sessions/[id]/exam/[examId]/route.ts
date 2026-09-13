@@ -148,11 +148,28 @@ async function handleGet(
             ),
         ]);
 
-        if (!progress[0]?.attempt_start_utc || !progress[0]?.server_time_utc) {
-            throw new Error('Waktu mulai attempt ujian gagal diinisialisasi');
+        const currentProgressRow = progress[0];
+        const isParticipant = user.role === 'trainee';
+
+        let attemptStartUtc = currentProgressRow?.attempt_start_utc;
+        let serverTimeUtc = currentProgressRow?.server_time_utc;
+
+        if (!serverTimeUtc) {
+            serverTimeUtc = new Date().toISOString();
         }
 
-        const attemptNumber = Number(progress[0].attempts_count || 0) + 1;
+        if (!attemptStartUtc) {
+            attemptStartUtc = serverTimeUtc;
+            if (isParticipant) {
+                await executeQuery(
+                    `UPDATE user_progress SET last_attempt_start = UTC_TIMESTAMP() WHERE user_id = ? AND session_id = ? AND module_item_id = ? AND last_attempt_start IS NULL`,
+                    [user.id, sessionId, moduleItem.id]
+                ).catch(() => undefined);
+            }
+        }
+
+        const attemptNumber = isParticipant ? (Number(currentProgressRow?.attempts_count || 0) + 1) : 1;
+        const attemptVersion = isParticipant ? (Number(currentProgressRow?.attempt_version || 1)) : 1;
 
         // Return only participant-safe fields. Answer keys must never leave the server.
         const sanitized = questions.map((question) => {
@@ -225,12 +242,12 @@ async function handleGet(
                 },
                 questions: sanitized,
                 existingAnswers,
-                serverTime: progress?.[0]?.server_time_utc || new Date().toISOString(),
+                serverTime: serverTimeUtc,
                 sessionEnd: session.end_time,
                 enableProctoring: !!session.enable_proctoring,
-                attemptStart: progress?.[0]?.attempt_start_utc || new Date().toISOString(),
+                attemptStart: attemptStartUtc,
                 attemptNumber: attemptNumber,
-                attemptVersion: progress?.[0]?.attempt_version || 1,
+                attemptVersion: attemptVersion,
             },
         });
     } catch (error) {

@@ -35,11 +35,14 @@ export async function GET(
         }
 
         const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL;
-        if (!configuredAppUrl && process.env.NODE_ENV === 'production') {
-            throw new Error('NEXT_PUBLIC_APP_URL wajib diatur di production');
+        let origin: string;
+        if (configuredAppUrl) {
+            origin = new URL(configuredAppUrl).origin;
+        } else {
+            const proto = request.headers.get('x-forwarded-proto') || 'https';
+            const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
+            origin = `${proto}://${host}`;
         }
-
-        const origin = new URL(configuredAppUrl || request.nextUrl.origin).origin;
         const startUrl = `${origin}/dashboard/sesi/${encodeURIComponent(session.id)}`;
         const safeStartUrl = escapeHtml(startUrl);
         const safeQuitUrl = escapeHtml(`${origin}/quit-seb`);

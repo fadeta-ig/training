@@ -117,4 +117,4 @@ async function handlePost(
     }
 }
 
-export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });
+export const POST = withAuth(handlePost, { allowedRoles: ['admin', 'trainer'] });

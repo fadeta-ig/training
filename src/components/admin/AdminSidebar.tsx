@@ -31,7 +31,10 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
     const pathname = usePathname();
-    const [pendingRegistrationsCount, setPendingRegistrationsCount] = useState<number>(0);
+    const [pendingCount, setPendingCount] = useState<number>(0);
+
+    // Derived state: Non-admin users never have pending registrations to review
+    const pendingRegistrationsCount = user?.role === 'admin' ? pendingCount : 0;
 
     useEffect(() => {
         if (window.matchMedia('(max-width: 767px)').matches) {
@@ -41,22 +44,24 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
 
     // Fetch pending registration count periodically or on route change (Admin only)
     useEffect(() => {
-        let isMounted = true;
         if (user?.role !== 'admin') {
-            setPendingRegistrationsCount(0);
             return;
         }
+
+        let isMounted = true;
         const fetchPendingCount = async () => {
             try {
                 const res = await fetch('/api/admin/registrations?status=pending&limit=1');
                 const data = await res.json();
                 if (isMounted && data.success && typeof data.pendingCount === 'number') {
-                    setPendingRegistrationsCount(data.pendingCount);
+                    setPendingCount(data.pendingCount);
                 }
             } catch { }
         };
         fetchPendingCount();
-        return () => { isMounted = false; };
+        return () => {
+            isMounted = false;
+        };
     }, [pathname, user?.role]);
 
     const isLearningActive =

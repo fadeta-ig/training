@@ -14,8 +14,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         const fetchUser = async () => {
             try {
                 const res = await fetch('/api/auth/me');
+                if (res.status === 401) {
+                    window.location.replace('/auth/login?redirect=' + encodeURIComponent(window.location.pathname));
+                    return;
+                }
                 const data = await res.json();
                 if (data.success) {
+                    if (data.data.role !== 'admin' && data.data.role !== 'trainer') {
+                        window.location.replace('/dashboard');
+                        return;
+                    }
                     setUser(data.data);
                 }
             } catch { }

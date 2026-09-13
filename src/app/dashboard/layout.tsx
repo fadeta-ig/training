@@ -23,7 +23,13 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                 return res.json();
             })
             .then((data) => {
-                if (data && data.success) setUser(data.data);
+                if (data && data.success) {
+                    if (data.data.role === 'admin' || data.data.role === 'trainer') {
+                        window.location.replace('/admin');
+                        return;
+                    }
+                    setUser(data.data);
+                }
             })
             .catch(() => { });
     }, [pathname]);

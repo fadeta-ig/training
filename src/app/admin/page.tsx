@@ -13,6 +13,7 @@ import { executeQuery } from '@/lib/db';
 import Link from 'next/link';
 import { AnalyticsCharts } from './_components/AnalyticsCharts';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { verifyToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -61,15 +62,33 @@ export default async function AdminOverviewPage() {
     ]);
 
     let userRole = 'admin';
+    let shouldRedirectToLogin = false;
+    let shouldRedirectToDashboard = false;
+
     try {
         const cookieStore = await cookies();
         const token = cookieStore.get('training_session')?.value;
-        if (token) {
+        if (!token) {
+            shouldRedirectToLogin = true;
+        } else {
             const payload = await verifyToken(token);
-            if (payload) userRole = payload.role;
+            if (!payload) {
+                shouldRedirectToLogin = true;
+            } else if (payload.role !== 'admin' && payload.role !== 'trainer') {
+                shouldRedirectToDashboard = true;
+            } else {
+                userRole = payload.role;
+            }
         }
-    } catch (error) {
-        console.error('Error fetching role in overview', error);
+    } catch {
+        shouldRedirectToLogin = true;
+    }
+
+    if (shouldRedirectToLogin) {
+        redirect('/auth/login?redirect=/admin');
+    }
+    if (shouldRedirectToDashboard) {
+        redirect('/dashboard');
     }
 
     const stats = {

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { executeQuery } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import {
@@ -69,6 +70,21 @@ async function getDashboardData() {
 }
 
 export default async function DashboardOverviewPage() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('training_session')?.value;
+    let shouldRedirectToAdmin = false;
+    if (token) {
+        try {
+            const payload = await verifyToken(token);
+            if (payload && (payload.role === 'admin' || payload.role === 'trainer')) {
+                shouldRedirectToAdmin = true;
+            }
+        } catch { }
+    }
+    if (shouldRedirectToAdmin) {
+        redirect('/admin');
+    }
+
     const { sessions, userProfile } = await getDashboardData();
     const now = new Date();
 

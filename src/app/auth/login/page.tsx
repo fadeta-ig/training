@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -22,6 +22,23 @@ function LoginForm() {
         ? redirectParam
         : null;
 
+    // Auto-redirect if user already has an active authenticated session
+    useEffect(() => {
+        fetch('/api/auth/me')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.success && data.data) {
+                    const role = data.data.role;
+                    if (role === 'admin' || role === 'trainer') {
+                        window.location.replace('/admin');
+                    } else {
+                        window.location.replace('/dashboard');
+                    }
+                }
+            })
+            .catch(() => {});
+    }, []);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -40,15 +57,21 @@ function LoginForm() {
             const result = await res.json();
 
             if (res.ok && result.success) {
-                // If a specific return URL was requested (e.g. from SEB opening a session)
-                if (safeRedirect) {
-                    router.replace(safeRedirect);
-                } else if (result.user.role === 'admin' || result.user.role === 'trainer') {
-                    router.replace('/admin');
-                } else {
-                    router.replace('/dashboard');
+                const userRole = result.user?.role;
+                if (userRole === 'admin' || userRole === 'trainer') {
+                    // Admins & trainers must never be redirected to the participant portal (/dashboard)
+                    const targetAdminUrl = (safeRedirect && safeRedirect.startsWith('/admin'))
+                        ? safeRedirect
+                        : '/admin';
+                    window.location.replace(targetAdminUrl);
+                    return;
                 }
-                router.refresh();
+
+                // Trainee redirect
+                const targetTraineeUrl = (safeRedirect && !safeRedirect.startsWith('/admin'))
+                    ? safeRedirect
+                    : '/dashboard';
+                window.location.replace(targetTraineeUrl);
             } else {
                 setError(result.error || 'Username atau password yang Anda masukkan tidak valid.');
             }

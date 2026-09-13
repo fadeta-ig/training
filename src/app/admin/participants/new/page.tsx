@@ -286,16 +286,19 @@ export default function NewParticipantPage() {
                     </h2>
 
                     <div className="space-y-4">
-                        {/* Nama Lengkap */}
+                        {/* Nama Lengkap Tanpa Gelar */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-foreground">
-                                Nama Lengkap <span className="text-destructive">*</span>
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold text-foreground">
+                                    Nama Lengkap Tanpa Gelar <span className="text-destructive">*</span>
+                                </label>
+                                <span className="text-[10px] text-muted-foreground font-medium">Tuliskan nama lengkap tanpa gelar</span>
+                            </div>
                             <input
                                 type="text"
                                 required
                                 className="w-full glass-input px-3.5 py-2.5 rounded-xl text-sm focus:outline-none font-semibold"
-                                placeholder="Masukkan nama lengkap peserta"
+                                placeholder="Nama lengkap tanpa gelar (sesuai identitas KTP/Paspor)"
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                             />

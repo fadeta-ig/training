@@ -290,18 +290,21 @@ export default function ProfilePage() {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                            {/* Nama Lengkap */}
+                            {/* Nama Lengkap Tanpa Gelar */}
                             <div className="sm:col-span-2 space-y-1.5">
-                                <label className="text-xs font-semibold text-slate-700">
-                                    Nama Lengkap <span className="text-red-500">*</span>
-                                </label>
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs font-semibold text-slate-700">
+                                        Nama Lengkap Tanpa Gelar <span className="text-red-500">*</span>
+                                    </label>
+                                    <span className="text-[10px] text-slate-400 font-medium">Tuliskan nama lengkap tanpa gelar</span>
+                                </div>
                                 <input
                                     type="text"
                                     name="full_name"
                                     value={formData.full_name}
                                     onChange={handleChange}
                                     required
-                                    placeholder="Masukkan nama lengkap Anda"
+                                    placeholder="Nama lengkap tanpa gelar (sesuai identitas KTP/Paspor)"
                                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors font-semibold"
                                 />
                             </div>

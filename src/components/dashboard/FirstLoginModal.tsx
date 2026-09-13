@@ -179,17 +179,20 @@ export function FirstLoginModal({ user }: FirstLoginModalProps) {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {/* Nama Lengkap */}
+                            {/* Nama Lengkap Tanpa Gelar */}
                             <div className="space-y-1.5 sm:col-span-2">
-                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                    Nama Lengkap <span className="text-rose-500">*</span>
-                                </label>
+                                <div className="flex items-center justify-between">
+                                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                        Nama Lengkap Tanpa Gelar <span className="text-rose-500">*</span>
+                                    </label>
+                                    <span className="text-[10px] text-slate-400 font-medium">Tuliskan nama lengkap tanpa gelar</span>
+                                </div>
                                 <input
                                     type="text"
                                     required
                                     value={formData.full_name}
                                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                                    placeholder="Masukkan nama lengkap Anda"
+                                    placeholder="Nama lengkap tanpa gelar (sesuai identitas KTP/Paspor)"
                                     className="w-full h-10 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:border-slate-400 dark:focus:border-slate-600 transition-all font-semibold"
                                 />
                             </div>

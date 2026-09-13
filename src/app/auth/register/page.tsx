@@ -430,9 +430,12 @@ export default function RegisterPage() {
                                         <div className="space-y-3">
                                             {/* Nama Lengkap */}
                                             <div className="space-y-1">
-                                                <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider">
-                                                    Nama Lengkap <span className="text-destructive">*</span>
-                                                </label>
+                                                <div className="flex items-center justify-between">
+                                                    <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider">
+                                                        Nama Lengkap Tanpa Gelar <span className="text-destructive">*</span>
+                                                    </label>
+                                                    <span className="text-[10px] text-muted-foreground font-medium">Tuliskan nama lengkap tanpa gelar</span>
+                                                </div>
                                                 <div className="relative flex items-center">
                                                     <span className="absolute left-3.5 text-muted-foreground pointer-events-none">
                                                         <User className="w-4 h-4" />
@@ -442,7 +445,7 @@ export default function RegisterPage() {
                                                         required
                                                         autoFocus
                                                         className="w-full h-10 pl-10 pr-3.5 rounded-xl bg-slate-50/70 border border-slate-200 text-sm text-foreground placeholder:text-muted-foreground/50 focus:bg-white focus:outline-none focus:border-foreground focus:ring-3 focus:ring-foreground/5 transition-all"
-                                                        placeholder="Contoh: Ahmad Fauzi"
+                                                        placeholder="Nama lengkap tanpa gelar (sesuai identitas KTP/Paspor)"
                                                         value={formData.full_name}
                                                         onChange={(e) => {
                                                             setFormData({ ...formData, full_name: e.target.value });

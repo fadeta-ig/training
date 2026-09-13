@@ -4,6 +4,7 @@ import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
 import { sessionSchema } from '@/lib/validations/sessionSchema';
 import { withAuth } from '@/lib/api-auth';
+import logger from '@/lib/logger';
 
 // GET Detail Sesi & Peserta + Progress Monitoring
 async function handleGet(
@@ -32,10 +33,30 @@ async function handleGet(
         );
         const totalItems = countResult?.[0]?.total || 0;
 
-        // Fetch module items
+        // Fetch module items with titles & metadata from trainings and exams
         const moduleItems = await executeQuery<any[]>(
-            `SELECT id, title, item_type, sequence_order, duration, passing_score 
-             FROM module_items WHERE module_id = ? ORDER BY sequence_order ASC`,
+            `SELECT 
+                mi.id, 
+                mi.item_type, 
+                mi.item_id, 
+                mi.sequence_order,
+                CASE mi.item_type
+                    WHEN 'training' THEN t.title
+                    WHEN 'exam' THEN e.title
+                END AS title,
+                CASE mi.item_type
+                    WHEN 'exam' THEN e.duration_minutes
+                    ELSE NULL
+                END AS duration,
+                CASE mi.item_type
+                    WHEN 'exam' THEN e.passing_grade
+                    ELSE NULL
+                END AS passing_score
+             FROM module_items mi
+             LEFT JOIN trainings t ON mi.item_type = 'training' AND mi.item_id = t.id
+             LEFT JOIN exams e ON mi.item_type = 'exam' AND mi.item_id = e.id
+             WHERE mi.module_id = ? 
+             ORDER BY mi.sequence_order ASC`,
             [session.module_id]
         );
 
@@ -101,6 +122,7 @@ async function handleGet(
             }
         });
     } catch (error) {
+        logger.error('GET_SESSION_DETAIL', 'Gagal memuat detail sesi', error);
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
@@ -149,17 +171,32 @@ async function handlePut(
             ]
         );
 
-        // Replace participants (Delete then Insert)
-        await connection.execute(`DELETE FROM session_participants WHERE session_id = ?`, [resolvedParams.id]);
+        // Diff-based synchronization: Preserves graduation_status, SKL, & certificate records
+        const [existingRows] = await connection.execute<any[]>(
+            `SELECT user_id FROM session_participants WHERE session_id = ?`,
+            [resolvedParams.id]
+        );
+        const existingUserIds = new Set<string>((existingRows || []).map((r: any) => String(r.user_id)));
+        const targetUserIds = new Set<string>((participant_ids || []).map((id: string) => String(id)));
 
-        if (participant_ids && participant_ids.length > 0) {
-            for (const userId of participant_ids) {
-                const participantId = uuidv4();
-                await connection.execute(
-                    `INSERT INTO session_participants (id, session_id, user_id) VALUES (?, ?, ?)`,
-                    [participantId, resolvedParams.id, userId]
-                );
-            }
+        // Remove participants that were unselected
+        const userIdsToRemove = Array.from(existingUserIds).filter(id => !targetUserIds.has(id));
+        if (userIdsToRemove.length > 0) {
+            const placeholders = userIdsToRemove.map(() => '?').join(',');
+            await connection.execute(
+                `DELETE FROM session_participants WHERE session_id = ? AND user_id IN (${placeholders})`,
+                [resolvedParams.id, ...userIdsToRemove]
+            );
+        }
+
+        // Add newly selected participants
+        const userIdsToAdd = Array.from(targetUserIds).filter(id => !existingUserIds.has(id));
+        for (const userId of userIdsToAdd) {
+            const participantId = uuidv4();
+            await connection.execute(
+                `INSERT INTO session_participants (id, session_id, user_id) VALUES (?, ?, ?)`,
+                [participantId, resolvedParams.id, userId]
+            );
         }
 
         await connection.commit();
@@ -171,6 +208,7 @@ async function handlePut(
             await connection.rollback();
             connection.release();
         }
+        logger.error('UPDATE_SESSION', 'Gagal memperbarui sesi', error);
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
@@ -197,6 +235,7 @@ async function handleDelete(
 
         return NextResponse.json({ success: true, message: 'Session deleted' });
     } catch (error) {
+        logger.error('DELETE_SESSION', 'Gagal menghapus sesi', error);
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }

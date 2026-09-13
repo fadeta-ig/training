@@ -95,13 +95,15 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [isSubmittingBulkVerdict, setIsSubmittingBulkVerdict] = useState(false);
 
     const fetchSession = async () => {
+        setLoading(true);
+        setError(null);
         try {
             const res = await fetch(`/api/sessions/${resolvedParams.id}`);
             const data = await res.json();
             if (data.success) {
                 setSession(data.data);
             } else {
-                setError('Terjadi kesalahan saat memuat data sesi.');
+                setError(data.error || 'Terjadi kesalahan saat memuat data sesi.');
             }
         } catch {
             setError('Masalah koneksi jaringan.');
@@ -194,8 +196,33 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
 
     if (error || !session) {
         return (
-            <div className="bg-red-50 text-red-700 p-4 rounded-xl flex items-center justify-center border border-red-200/60 max-w-2xl mx-auto mt-12 text-sm font-medium">
-                {error || 'Sesi tidak ditemukan'}
+            <div className="bg-red-50 text-red-700 p-6 rounded-xl border border-red-200/60 max-w-2xl mx-auto mt-12 flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                    <AlertCircle size={20} />
+                </div>
+                <div className="space-y-1">
+                    <h3 className="font-semibold text-foreground text-sm">Gagal Memuat Detail Sesi</h3>
+                    <p className="text-xs text-red-600 max-w-md">{error || 'Sesi tidak ditemukan atau terjadi kesalahan pada server.'}</p>
+                </div>
+                <div className="flex items-center gap-3 pt-2">
+                    <Link
+                        href="/admin/sessions"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium rounded-lg border border-slate-200 shadow-2xs transition-all"
+                    >
+                        <ArrowLeft01Icon size={14} />
+                        Daftar Sesi
+                    </Link>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            fetchSession();
+                            fetchRole();
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg shadow-2xs transition-all cursor-pointer"
+                    >
+                        Coba Lagi
+                    </button>
+                </div>
             </div>
         );
     }

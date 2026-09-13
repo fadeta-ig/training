@@ -67,8 +67,11 @@ async function handlePost(
 
         const moduleId = sessionRows[0].module_id;
         const [examItems] = await pool.query<ModuleItemRow[]>(
-            `SELECT id, item_id, title FROM module_items WHERE module_id = ? AND item_type = 'exam' ${
-                specificExamId ? 'AND item_id = ?' : ''
+            `SELECT mi.id, mi.item_id, e.title 
+             FROM module_items mi
+             JOIN exams e ON mi.item_id = e.id
+             WHERE mi.module_id = ? AND mi.item_type = 'exam' ${
+                specificExamId ? 'AND mi.item_id = ?' : ''
             }`,
             specificExamId ? [moduleId, specificExamId] : [moduleId]
         );

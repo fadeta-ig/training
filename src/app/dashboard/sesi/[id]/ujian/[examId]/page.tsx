@@ -81,7 +81,7 @@ type ExamData = {
         remedial_exam_title?: string | null;
     };
     questions: Question[];
-    existingAnswers: { question_id: string; selected_option: string }[];
+    existingAnswers: { question_id: string; selected_option: string; client_version?: number }[];
     serverTime: string;
     sessionEnd: string;
     enableProctoring: boolean;
@@ -317,7 +317,11 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
     const answersRef = useRef(answers);
     const dirtyQuestionIdsRef = useRef(new Set<string>());
+    const questionVersionsRef = useRef<Record<string, number>>({});
+    const isSavingRef = useRef(false);
+    const pendingSyncRef = useRef(false);
     const autosaveTimerRef = useRef<number | null>(null);
+    const periodicSyncTimerRef = useRef<number | null>(null);
     const deadlineRef = useRef<number | null>(null);
     const serverClockOffsetRef = useRef(0);
 
@@ -364,18 +368,29 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const handleAnswerChange = useCallback((questionId: string, value: string) => {
         if (answersRef.current[questionId] === value) return;
         dirtyQuestionIdsRef.current.add(questionId);
+        // Monotonically increment client version for OCC to prevent out-of-order race conditions
+        questionVersionsRef.current[questionId] = (questionVersionsRef.current[questionId] || 0) + 1;
         setSaveState('idle');
         setAnswers((previous) => {
             const next = { ...previous, [questionId]: value };
             try {
                 localStorage.setItem(`exam_draft_${sessionId}_${examId}`, JSON.stringify(next));
+                localStorage.setItem(`exam_versions_${sessionId}_${examId}`, JSON.stringify(questionVersionsRef.current));
             } catch {}
             return next;
         });
     }, [examId, sessionId]);
 
     const saveDraft = useCallback(async () => {
-        if (!examData || dirtyQuestionIdsRef.current.size === 0 || submitting || result) return;
+        if (!examData || submitting || result) return;
+
+        // In-flight mutex: if a request is currently in transit across the network, queue a follow-up
+        if (isSavingRef.current) {
+            pendingSyncRef.current = true;
+            return;
+        }
+
+        if (dirtyQuestionIdsRef.current.size === 0) return;
 
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
             setSaveState('offline');
@@ -383,12 +398,16 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         }
 
         const questionIds = [...dirtyQuestionIdsRef.current];
-        const payload = questionIds.map((questionId) => ({
+        const snapshot = questionIds.map((questionId) => ({
             question_id: questionId,
             selected_option: answersRef.current[questionId] || '',
+            client_version: questionVersionsRef.current[questionId] || 1,
         }));
 
+        isSavingRef.current = true;
+        pendingSyncRef.current = false;
         setSaveState('saving');
+
         try {
             const response = await fetch(`/api/participant/sessions/${sessionId}/exam/${examId}/answers`, {
                 method: 'PUT',
@@ -396,7 +415,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 body: JSON.stringify({
                     attempt_number: examData.attemptNumber,
                     attempt_version: examData.attemptVersion || 1,
-                    answers: payload,
+                    answers: snapshot,
                 }),
             });
             const data = await response.json();
@@ -411,14 +430,26 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
             if (!response.ok || !data.success) throw new Error(data.error || 'Draft gagal disimpan');
 
-            for (const item of payload) {
-                if ((answersRef.current[item.question_id] || '') === item.selected_option) {
+            // Clean only items whose answer and client_version have NOT changed while this request was in flight
+            for (const item of snapshot) {
+                const currentAnswer = answersRef.current[item.question_id] || '';
+                const currentVersion = questionVersionsRef.current[item.question_id] || 1;
+                if (currentAnswer === item.selected_option && currentVersion === item.client_version) {
                     dirtyQuestionIdsRef.current.delete(item.question_id);
                 }
             }
             setSaveState(dirtyQuestionIdsRef.current.size === 0 ? 'saved' : 'idle');
         } catch {
             setSaveState(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'error');
+        } finally {
+            isSavingRef.current = false;
+            // If new dirty answers were marked during in-flight request, schedule immediate follow-up sync with minor jitter
+            if (pendingSyncRef.current || dirtyQuestionIdsRef.current.size > 0) {
+                pendingSyncRef.current = false;
+                if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
+                const followUpJitter = Math.floor(Math.random() * 200) + 100;
+                autosaveTimerRef.current = window.setTimeout(saveDraft, followUpJitter);
+            }
         }
     }, [examData, examId, result, sessionId, submitting]);
 
@@ -447,15 +478,41 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         };
     }, [saveDraft]);
 
-    // Debounced autosave
+    // Jittered debounced autosave: base 800ms + random(0-400ms) to eliminate thundering herd spikes
     useEffect(() => {
         if (!examData || dirtyQuestionIdsRef.current.size === 0) return;
         if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
-        autosaveTimerRef.current = window.setTimeout(saveDraft, 800);
+        const jitter = Math.floor(Math.random() * 400); // 0 to 400ms
+        const delay = 800 + jitter; // 800ms - 1200ms
+        autosaveTimerRef.current = window.setTimeout(saveDraft, delay);
         return () => {
             if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
         };
     }, [answers, examData, saveDraft]);
+
+    // Jittered periodic fallback sync (every 15s ± 3s) for resilience
+    useEffect(() => {
+        if (!examData || submitting || result) return;
+
+        let active = true;
+        const schedulePeriodicSync = () => {
+            if (!active) return;
+            const jitter = Math.floor(Math.random() * 6000) - 3000; // -3000ms to +3000ms
+            const interval = 15000 + jitter; // 12s - 18s
+            periodicSyncTimerRef.current = window.setTimeout(() => {
+                if (dirtyQuestionIdsRef.current.size > 0 && !isSavingRef.current) {
+                    saveDraft();
+                }
+                schedulePeriodicSync();
+            }, interval);
+        };
+
+        schedulePeriodicSync();
+        return () => {
+            active = false;
+            if (periodicSyncTimerRef.current !== null) window.clearTimeout(periodicSyncTimerRef.current);
+        };
+    }, [examData, result, saveDraft, submitting]);
 
     const handleProctorError = useCallback((message: string) => {
         toast.error('Kamera proctoring tidak aktif', { description: message });
@@ -464,6 +521,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const submitExam = useCallback(async () => {
         if (!examData || submitting) return;
         if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
+        if (periodicSyncTimerRef.current !== null) window.clearTimeout(periodicSyncTimerRef.current);
         setConfirmOpen(false);
         setSubmitting(true);
 
@@ -483,6 +541,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             dirtyQuestionIdsRef.current.clear();
             try {
                 localStorage.removeItem(`exam_draft_${sessionId}_${examId}`);
+                localStorage.removeItem(`exam_versions_${sessionId}_${examId}`);
                 localStorage.removeItem(`exam_flags_${sessionId}_${examId}`);
             } catch {}
             setResult(data.data);
@@ -515,7 +574,12 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     data.existingAnswers.map((answer) => [answer.question_id, answer.selected_option]),
                 );
 
-                // Check if there is local draft fallback
+                const initialVersions: Record<string, number> = {};
+                data.existingAnswers.forEach((answer) => {
+                    initialVersions[answer.question_id] = Number(answer.client_version || 1);
+                });
+
+                // Check if there is local draft and versions fallback
                 let finalAnswers = serverAnswers;
                 try {
                     const localDraftStr = localStorage.getItem(`exam_draft_${sessionId}_${examId}`);
@@ -525,8 +589,17 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                             finalAnswers = { ...serverAnswers, ...localDraft };
                         }
                     }
+
+                    const localVersionsStr = localStorage.getItem(`exam_versions_${sessionId}_${examId}`);
+                    if (localVersionsStr) {
+                        const localVersions = JSON.parse(localVersionsStr);
+                        if (localVersions && typeof localVersions === 'object') {
+                            Object.assign(initialVersions, localVersions);
+                        }
+                    }
                 } catch {}
 
+                questionVersionsRef.current = initialVersions;
                 setAnswers(finalAnswers);
 
                 const durationMs = Number(data.exam.duration_minutes) * 60 * 1000;

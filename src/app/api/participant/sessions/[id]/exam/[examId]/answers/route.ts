@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { RowDataPacket } from 'mysql2';
 import { v4 as uuidv4 } from 'uuid';
 import pool, { executeQuery } from '@/lib/db';
+import { executeWithRetry } from '@/lib/db-retry';
 import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
 import {
     getSessionModuleItem,
     ParticipantError,
     validateSessionTiming,
     verifyEnrollment,
+    ensureExamDraftVersionColumn,
 } from '@/lib/participant-helpers';
 import {
     toParticipantQuestionShape,
@@ -21,6 +23,7 @@ const MAX_ANSWER_LENGTH = 20_000;
 interface DraftAnswerInput {
     question_id: string;
     selected_option: string;
+    client_version?: number;
 }
 
 interface QuestionRow {
@@ -41,8 +44,6 @@ async function handlePut(
     user: AuthenticatedUser,
     context: { params: Promise<{ id: string; examId: string }> },
 ) {
-    let connection;
-
     try {
         const { id: sessionId, examId } = await context.params;
         const body = await request.json() as { attempt_number?: unknown; attempt_version?: unknown; answers?: unknown };
@@ -101,67 +102,87 @@ async function handlePut(
             }
         }
 
-        connection = await pool.getConnection();
-        await connection.beginTransaction();
+        await ensureExamDraftVersionColumn();
 
-        // Serialize autosave with submit so a late draft cannot be written
-        // after the same attempt has already been completed or overridden.
-        const [progress] = await connection.execute<ProgressRow[]>(
-            `SELECT status, attempts_count, attempt_version, last_attempt_start
-             FROM user_progress
-             WHERE user_id = ? AND session_id = ? AND module_item_id = ?
-             LIMIT 1
-             FOR UPDATE`,
-            [user.id, sessionId, moduleItem.id],
-        );
+        // Sort answers deterministically by question_id ASC to prevent InnoDB gap lock deadlocks
+        const sortedAnswers = [...answers].sort((a, b) => a.question_id.localeCompare(b.question_id));
 
-        const progressRow = progress[0];
-        const expectedAttempt = Number(progressRow?.attempts_count || 0) + 1;
-        const isVersionStale = requestAttemptVersion !== null && Number(progressRow?.attempt_version || 1) !== requestAttemptVersion;
+        // Execute transactional bulk upsert with bounded retry on transient deadlocks
+        await executeWithRetry(async () => {
+            let connection;
+            try {
+                connection = await pool.getConnection();
+                await connection.beginTransaction();
 
-        if (!progressRow || progressRow.status === 'completed' || !progressRow.last_attempt_start || attemptNumber !== expectedAttempt || isVersionStale) {
-            await connection.rollback();
-            connection.release();
-            connection = undefined;
-            return NextResponse.json({ success: false, error: 'Attempt ujian telah diperbarui atau tidak aktif. Silakan muat ulang.' }, { status: 409 });
-        }
-
-        if (answers.length > 0) {
-            const values: (string | number)[] = [];
-            const placeholders: string[] = [];
-
-            for (const answer of answers) {
-                placeholders.push('(?, ?, ?, ?, ?, ?, ?)');
-                values.push(
-                    uuidv4(),
-                    user.id,
-                    sessionId,
-                    examId,
-                    answer.question_id,
-                    attemptNumber,
-                    answer.selected_option
+                // Serialize autosave with submit so a late draft cannot be written
+                // after the same attempt has already been completed or overridden.
+                const [progress] = await connection.execute<ProgressRow[]>(
+                    `SELECT status, attempts_count, attempt_version, last_attempt_start
+                     FROM user_progress
+                     WHERE user_id = ? AND session_id = ? AND module_item_id = ?
+                     LIMIT 1
+                     FOR UPDATE`,
+                    [user.id, sessionId, moduleItem.id],
                 );
+
+                const progressRow = progress[0];
+                const expectedAttempt = Number(progressRow?.attempts_count || 0) + 1;
+                const isVersionStale = requestAttemptVersion !== null && Number(progressRow?.attempt_version || 1) !== requestAttemptVersion;
+
+                if (!progressRow || progressRow.status === 'completed' || !progressRow.last_attempt_start || attemptNumber !== expectedAttempt || isVersionStale) {
+                    await connection.rollback();
+                    throw new ParticipantError('Attempt ujian telah diperbarui atau tidak aktif. Silakan muat ulang.', 409);
+                }
+
+                if (sortedAnswers.length > 0) {
+                    const values: (string | number)[] = [];
+                    const placeholders: string[] = [];
+
+                    for (const answer of sortedAnswers) {
+                        const ver = typeof answer.client_version === 'number' && Number.isInteger(answer.client_version) && answer.client_version >= 1
+                            ? answer.client_version
+                            : 1;
+
+                        placeholders.push('(?, ?, ?, ?, ?, ?, ?, ?)');
+                        values.push(
+                            uuidv4(),
+                            user.id,
+                            sessionId,
+                            examId,
+                            answer.question_id,
+                            attemptNumber,
+                            answer.selected_option,
+                            ver
+                        );
+                    }
+
+                    await connection.execute(
+                        `INSERT INTO exam_answer_drafts
+                            (id, user_id, session_id, exam_id, question_id, attempt_number, selected_option, client_version)
+                         VALUES ${placeholders.join(', ')}
+                         ON DUPLICATE KEY UPDATE 
+                            selected_option = IF(VALUES(client_version) >= client_version, VALUES(selected_option), selected_option),
+                            client_version = GREATEST(VALUES(client_version), client_version),
+                            updated_at = CURRENT_TIMESTAMP`,
+                        values,
+                    );
+                }
+
+                await connection.commit();
+            } catch (err) {
+                if (connection) {
+                    await connection.rollback().catch(() => undefined);
+                }
+                throw err;
+            } finally {
+                if (connection) {
+                    connection.release();
+                }
             }
+        }, { maxRetries: 3, initialBackoffMs: 50, maxBackoffMs: 400 });
 
-            await connection.execute(
-                `INSERT INTO exam_answer_drafts
-                    (id, user_id, session_id, exam_id, question_id, attempt_number, selected_option)
-                 VALUES ${placeholders.join(', ')}
-                 ON DUPLICATE KEY UPDATE selected_option = VALUES(selected_option), updated_at = CURRENT_TIMESTAMP`,
-                values,
-            );
-        }
-
-        await connection.commit();
-        connection.release();
-        connection = undefined;
-
-        return NextResponse.json({ success: true, saved: answers.length });
+        return NextResponse.json({ success: true, saved: sortedAnswers.length });
     } catch (error) {
-        if (connection) {
-            await connection.rollback();
-            connection.release();
-        }
         if (error instanceof ParticipantError) {
             return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode });
         }
@@ -171,3 +192,4 @@ async function handlePut(
 }
 
 export const PUT = withAuth(handlePut, { allowedRoles: ['trainee'] });
+

@@ -370,6 +370,32 @@ export async function ensureParticipantSecurityColumns(): Promise<void> {
     }
 }
 
+let checkedExamDraftVersionColumn = false;
+
+/**
+ * Ensures exam_answer_drafts has client_version column for revision-based optimistic concurrency control.
+ */
+export async function ensureExamDraftVersionColumn(): Promise<void> {
+    if (checkedExamDraftVersionColumn) return;
+    try {
+        const cols = await executeQuery<{ COLUMN_NAME: string }[]>(
+            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'exam_answer_drafts' AND COLUMN_NAME = 'client_version'`
+        );
+        if (!cols || cols.length === 0) {
+            await executeQuery(
+                `ALTER TABLE exam_answer_drafts ADD COLUMN client_version INT NOT NULL DEFAULT 1 AFTER selected_option`
+            );
+        }
+        checkedExamDraftVersionColumn = true;
+    } catch (err) {
+        logger.warn('SCHEMA_MIGRATION', 'Could not ensure exam_answer_drafts client_version column', {
+            error: err instanceof Error ? err.message : String(err),
+        });
+        checkedExamDraftVersionColumn = true;
+    }
+}
+
 /**
  * Formats full official participant name including front title and back title.
  * Examples:

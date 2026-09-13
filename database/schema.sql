@@ -351,6 +351,7 @@ CREATE TABLE exam_answer_drafts (
   question_id     VARCHAR(36) NOT NULL,
   attempt_number  INT NOT NULL,
   selected_option TEXT NOT NULL,
+  client_version  INT NOT NULL DEFAULT 1,
   updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_exam_answer_draft (user_id, session_id, exam_id, question_id, attempt_number),
   INDEX idx_exam_answer_drafts_attempt (user_id, session_id, exam_id, attempt_number),

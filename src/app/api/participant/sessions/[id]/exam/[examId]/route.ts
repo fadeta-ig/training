@@ -17,6 +17,7 @@ import {
     validateSessionTiming,
     validateSebAccess,
     ParticipantError,
+    ensureExamDraftVersionColumn,
 } from '@/lib/participant-helpers';
 
 function shuffleValues<T>(values: T[], seed: string): T[] {
@@ -193,8 +194,9 @@ async function handleGet(
             return { ...question, options_json: null };
         });
 
-        const existingAnswers = await executeQuery<Array<{ question_id: string; selected_option: string }>>(
-            `SELECT question_id, selected_option
+        await ensureExamDraftVersionColumn();
+        const existingAnswers = await executeQuery<Array<{ question_id: string; selected_option: string; client_version?: number }>>(
+            `SELECT question_id, selected_option, COALESCE(client_version, 1) AS client_version
              FROM exam_answer_drafts
              WHERE user_id = ?
                AND session_id = ?

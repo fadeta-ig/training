@@ -11,7 +11,7 @@ import {
     BookOpen01Icon,
 } from 'hugeicons-react';
 import DashboardCalendar from './_components/DashboardCalendar';
-import { formatFullNameWithTitles } from '@/lib/participant-helpers';
+import { formatFullNameWithTitles } from '@/lib/participant-formatters';
 
 type Session = {
     id: string;

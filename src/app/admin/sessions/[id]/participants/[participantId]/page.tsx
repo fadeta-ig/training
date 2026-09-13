@@ -16,7 +16,7 @@ import { CertificateUploadModal } from '@/components/admin/CertificateUploadModa
 import { ClientPortal } from '@/components/ui/ClientPortal';
 import { Award, FileBadge2, Printer, CheckCircle2, Sparkles, AlertCircle, FileText, Copy, ExternalLink, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatFullNameWithTitles } from '@/lib/participant-helpers';
+import { formatFullNameWithTitles } from '@/lib/participant-formatters';
 
 type DetailData = {
     session: { id: string; title: string };

@@ -1,9 +1,9 @@
 import { executeQuery } from '@/lib/db';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ShieldCheck, CheckCircle2, AlertTriangle, Building, Calendar, Award, User, Hash } from 'lucide-react';
 import type { Metadata } from 'next';
-import { formatFullNameWithTitles } from '@/lib/participant-helpers';
+import { ShieldCheck, CheckCircle2, AlertTriangle, Building, Calendar, Award, User, Hash } from 'lucide-react';
+import { formatFullNameWithTitles } from '@/lib/participant-formatters';
 
 export const metadata: Metadata = {
     title: 'Verifikasi Keaslian Dokumen SKL - Nusamitra Consulting',

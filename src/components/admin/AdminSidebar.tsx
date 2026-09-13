@@ -39,9 +39,13 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
         }
     }, [pathname, onClose]);
 
-    // Fetch pending registration count periodically or on route change
+    // Fetch pending registration count periodically or on route change (Admin only)
     useEffect(() => {
         let isMounted = true;
+        if (user?.role !== 'admin') {
+            setPendingRegistrationsCount(0);
+            return;
+        }
         const fetchPendingCount = async () => {
             try {
                 const res = await fetch('/api/admin/registrations?status=pending&limit=1');
@@ -53,7 +57,7 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
         };
         fetchPendingCount();
         return () => { isMounted = false; };
-    }, [pathname]);
+    }, [pathname, user?.role]);
 
     const isLearningActive =
         pathname.startsWith('/admin/content') ||
@@ -207,7 +211,7 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                             </div>
                             {isOpen ? (
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                    {pendingRegistrationsCount > 0 && (
+                                    {user?.role === 'admin' && pendingRegistrationsCount > 0 && (
                                         <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white font-bold text-[10px]">
                                             {pendingRegistrationsCount}
                                         </span>
@@ -217,7 +221,7 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                                     </span>
                                 </div>
                             ) : (
-                                pendingRegistrationsCount > 0 && (
+                                user?.role === 'admin' && pendingRegistrationsCount > 0 && (
                                     <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                                 )
                             )}
@@ -226,20 +230,22 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                         {/* Submenu Items */}
                         {(showParticipantsGroupItems || !isOpen) && (
                             <div className={`space-y-1 transition-all ${isOpen ? 'pl-4 border-l-2 border-slate-200 dark:border-slate-800 ml-4 mt-1' : ''}`}>
-                                <NavLink
-                                    href="/admin/registrations"
-                                    label="Persetujuan Pendaftaran"
-                                    icon={<UserCheck01Icon size={18} />}
-                                    isOpen={isOpen}
-                                    active={pathname.startsWith('/admin/registrations')}
-                                    badge={
-                                        pendingRegistrationsCount > 0 ? (
-                                            <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[10px]">
-                                                {pendingRegistrationsCount}
-                                            </span>
-                                        ) : undefined
-                                    }
-                                />
+                                {user?.role === 'admin' && (
+                                    <NavLink
+                                        href="/admin/registrations"
+                                        label="Persetujuan Pendaftaran"
+                                        icon={<UserCheck01Icon size={18} />}
+                                        isOpen={isOpen}
+                                        active={pathname.startsWith('/admin/registrations')}
+                                        badge={
+                                            pendingRegistrationsCount > 0 ? (
+                                                <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[10px]">
+                                                    {pendingRegistrationsCount}
+                                                </span>
+                                            ) : undefined
+                                        }
+                                    />
+                                )}
                                 <NavLink
                                     href="/admin/certifications"
                                     label="Program Sertifikasi"

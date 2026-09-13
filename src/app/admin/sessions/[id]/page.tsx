@@ -544,28 +544,32 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                             </span>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setBulkVerdictStatus('passed');
-                                    setShowBulkVerdictModal(true);
-                                }}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-emerald-700/30 active:scale-95 cursor-pointer"
-                            >
-                                <CheckCircle2 className="size-3.5" />
-                                <span>Luluskan Massal</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setBulkVerdictStatus('failed');
-                                    setShowBulkVerdictModal(true);
-                                }}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-rose-700/30 active:scale-95 cursor-pointer"
-                            >
-                                <AlertCircle className="size-3.5" />
-                                <span>Tidak Luluskan Massal</span>
-                            </button>
+                            {userRole === 'admin' && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setBulkVerdictStatus('passed');
+                                            setShowBulkVerdictModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-emerald-700/30 active:scale-95 cursor-pointer"
+                                    >
+                                        <CheckCircle2 className="size-3.5" />
+                                        <span>Luluskan Massal</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setBulkVerdictStatus('failed');
+                                            setShowBulkVerdictModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-rose-700/30 active:scale-95 cursor-pointer"
+                                    >
+                                        <AlertCircle className="size-3.5" />
+                                        <span>Tidak Luluskan Massal</span>
+                                    </button>
+                                </>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => setShowBulkTimeModal(true)}
@@ -765,16 +769,18 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                                 >
                                                                     <FileBadge2 className="size-3.5 text-emerald-600" /> Sertifikat Terbit
                                                                 </a>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setSelectedParticipantForCert(p)}
-                                                                    className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 underline pl-1 border-l border-emerald-300"
-                                                                    title="Ganti / Perbarui Berkas Sertifikat"
-                                                                >
-                                                                    Edit
-                                                                </button>
+                                                                {userRole === 'admin' && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setSelectedParticipantForCert(p)}
+                                                                        className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 underline pl-1 border-l border-emerald-300"
+                                                                        title="Ganti / Perbarui Berkas Sertifikat"
+                                                                    >
+                                                                        Edit
+                                                                    </button>
+                                                                )}
                                                             </div>
-                                                        ) : (
+                                                        ) : userRole === 'admin' ? (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setSelectedParticipantForCert(p)}
@@ -783,6 +789,8 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                             >
                                                                 <UploadCloud className="size-3.5 text-amber-700" /> + Upload Sertifikat
                                                             </button>
+                                                        ) : (
+                                                            <span className="text-[11px] text-slate-400 italic">Belum Diterbitkan</span>
                                                         )}
                                                     </div>
                                                 ) : (
@@ -793,14 +801,16 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                             </td>
                                             <td className="px-4 py-3.5 text-center align-middle">
                                                 <div className="flex items-center justify-center gap-1.5">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setSelectedParticipantForVerdict(p)}
-                                                        className="inline-flex items-center justify-center p-1.5 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors border border-black/5"
-                                                        title="Tetapkan / Ubah Keputusan Kelulusan"
-                                                    >
-                                                        <Award className="size-4 text-slate-700" />
-                                                    </button>
+                                                    {userRole === 'admin' && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedParticipantForVerdict(p)}
+                                                            className="inline-flex items-center justify-center p-1.5 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors border border-black/5"
+                                                            title="Tetapkan / Ubah Keputusan Kelulusan"
+                                                        >
+                                                            <Award className="size-4 text-slate-700" />
+                                                        </button>
+                                                    )}
                                                     <Link
                                                         href={`/admin/sessions/${session.id}/participants/${p.id}`}
                                                         className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors border border-black/5"

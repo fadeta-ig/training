@@ -58,6 +58,7 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
     const [error, setError] = useState('');
     const [showVerdictModal, setShowVerdictModal] = useState(false);
     const [showCertModal, setShowCertModal] = useState(false);
+    const [userRole, setUserRole] = useState('');
 
     // Modal state for Admin Exam Override
     const [overrideTarget, setOverrideTarget] = useState<{ examId: string; title: string; status: string } | null>(null);
@@ -81,6 +82,10 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
 
     useEffect(() => {
         loadData();
+        fetch('/api/auth/me')
+            .then((res) => res.json())
+            .then((d) => { if (d.success) setUserRole(d.data.role); })
+            .catch(() => {});
     }, [sessionId, participantId]);
 
     const handleExecuteOverride = async () => {
@@ -263,16 +268,18 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                         </div>
 
                         {/* Top Action Button: Tetapkan Kelulusan */}
-                        <div className="flex items-center gap-2 shrink-0">
-                            <button
-                                type="button"
-                                onClick={() => setShowVerdictModal(true)}
-                                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-xs active:scale-95 cursor-pointer"
-                            >
-                                <Award className="size-4" />
-                                <span>Tetapkan / Ubah Kelulusan</span>
-                            </button>
-                        </div>
+                        {userRole === 'admin' && (
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowVerdictModal(true)}
+                                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-xs active:scale-95 cursor-pointer"
+                                >
+                                    <Award className="size-4" />
+                                    <span>Tetapkan / Ubah Kelulusan</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Sub-cards for SKL and Official Certificate when Passed */}
@@ -356,15 +363,17 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                                                 <ExternalLink className="size-3.5 text-emerald-700" />
                                                 <span>Lihat</span>
                                             </a>
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowCertModal(true)}
-                                                className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors border border-black/5"
-                                            >
-                                                Ganti
-                                            </button>
+                                            {userRole === 'admin' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCertModal(true)}
+                                                    className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors border border-black/5"
+                                                >
+                                                    Ganti
+                                                </button>
+                                            )}
                                         </>
-                                    ) : (
+                                    ) : userRole === 'admin' ? (
                                         <button
                                             type="button"
                                             onClick={() => setShowCertModal(true)}
@@ -373,7 +382,7 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                                             <FileBadge2 className="size-3.5" />
                                             <span>+ Upload Sertifikat</span>
                                         </button>
-                                    )}
+                                    ) : null}
                                 </div>
                             </div>
                         </div>

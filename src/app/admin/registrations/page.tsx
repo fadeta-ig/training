@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { ActionButton } from '@/components/ui/ActionButton';
@@ -137,8 +138,25 @@ export default function RegistrationsAdminPage() {
     const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
     const [batchInput, setBatchInput] = useState<string>('1');
+    const router = useRouter();
     const [rejectionReason, setRejectionReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [userRole, setUserRole] = useState<string>('');
+
+    useEffect(() => {
+        fetch('/api/auth/me')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) {
+                    setUserRole(data.data.role);
+                    if (data.data.role !== 'admin') {
+                        toast.error('Hanya Administrator yang berwenang mengakses antrean pendaftaran');
+                        router.replace('/admin');
+                    }
+                }
+            })
+            .catch(() => {});
+    }, [router]);
 
     const fetchRegistrations = useCallback(async () => {
         setIsLoading(true);
@@ -447,24 +465,28 @@ export default function RegistrationsAdminPage() {
                                         {/* Action Buttons */}
                                         <td className="py-3.5 px-4 text-right">
                                             {item.approval_status === 'pending' ? (
-                                                <div className="flex items-center justify-end gap-1.5">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleOpenApprove(item)}
-                                                        className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-all shadow-xs inline-flex items-center gap-1"
-                                                    >
-                                                        <CheckmarkCircle02Icon size={14} />
-                                                        <span>Setujui</span>
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleOpenReject(item)}
-                                                        className="h-8 px-2.5 rounded-lg border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-muted-foreground font-semibold text-xs transition-all"
-                                                        title="Tolak Pendaftaran"
-                                                    >
-                                                        Tolak
-                                                    </button>
-                                                </div>
+                                                userRole === 'admin' ? (
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleOpenApprove(item)}
+                                                            className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-all shadow-xs inline-flex items-center gap-1"
+                                                        >
+                                                            <CheckmarkCircle02Icon size={14} />
+                                                            <span>Setujui</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleOpenReject(item)}
+                                                            className="h-8 px-2.5 rounded-lg border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-muted-foreground font-semibold text-xs transition-all"
+                                                            title="Tolak Pendaftaran"
+                                                        >
+                                                            Tolak
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground italic">Menunggu ACC Admin</span>
+                                                )
                                             ) : (
                                                 <span className="text-xs text-muted-foreground">
                                                     {item.approval_status === 'approved' ? 'Akun Aktif' : 'Ditolak'}

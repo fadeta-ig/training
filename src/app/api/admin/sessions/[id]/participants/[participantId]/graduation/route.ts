@@ -130,4 +130,4 @@ async function handlePost(
     }
 }
 
-export const POST = withAuth(handlePost, { allowedRoles: ['admin', 'trainer'] });
+export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });

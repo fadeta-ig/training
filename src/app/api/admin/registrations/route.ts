@@ -93,4 +93,4 @@ async function handleGet(request: NextRequest, _user: AuthenticatedUser) {
     }
 }
 
-export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer'] });
+export const GET = withAuth(handleGet, { allowedRoles: ['admin'] });

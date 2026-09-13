@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ShieldCheck, CheckCircle2, AlertTriangle, Building, Calendar, Award, User, Hash } from 'lucide-react';
 import type { Metadata } from 'next';
+import { formatFullNameWithTitles } from '@/lib/participant-helpers';
 
 export const metadata: Metadata = {
     title: 'Verifikasi Keaslian Dokumen SKL - Nusamitra Consulting',
@@ -32,6 +33,9 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
                 u.full_name,
                 u.username,
                 pp.nip,
+                pp.front_title,
+                pp.back_title,
+                pp.id_card_number,
                 pp.institution,
                 s.title AS session_title,
                 s.start_time,
@@ -113,16 +117,29 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
                                         <span>Nama Lengkap:</span>
                                     </div>
                                     <span className="font-bold text-slate-900 text-right uppercase text-sm">
-                                        {verificationData.full_name || verificationData.username}
+                                        {formatFullNameWithTitles(verificationData.full_name, verificationData.front_title, verificationData.back_title) || verificationData.full_name || verificationData.username}
                                     </span>
                                 </div>
+
+                                {/* NIK / No. Paspor */}
+                                {verificationData.id_card_number && (
+                                    <div className="flex items-center justify-between gap-4 py-3">
+                                        <div className="flex items-center gap-2 text-slate-500 font-medium">
+                                            <Hash className="w-4 h-4 text-slate-400" />
+                                            <span>NIK / No. Paspor:</span>
+                                        </div>
+                                        <span className="font-mono font-bold text-slate-900 bg-slate-200/70 px-2 py-0.5 rounded text-xs uppercase tracking-wider">
+                                            {verificationData.id_card_number}
+                                        </span>
+                                    </div>
+                                )}
 
                                 {/* NIP */}
                                 {verificationData.nip && (
                                     <div className="flex items-center justify-between gap-4 py-3">
                                         <div className="flex items-center gap-2 text-slate-500 font-medium">
                                             <Hash className="w-4 h-4 text-slate-400" />
-                                            <span>Nomor Induk Pegawai (NIP):</span>
+                                            <span>Nomor Induk Peserta (NIP):</span>
                                         </div>
                                         <span className="font-mono font-bold text-slate-900 bg-slate-200/70 px-2 py-0.5 rounded text-xs">
                                             {verificationData.nip}

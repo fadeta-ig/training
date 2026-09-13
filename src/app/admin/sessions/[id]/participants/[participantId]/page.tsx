@@ -16,6 +16,7 @@ import { CertificateUploadModal } from '@/components/admin/CertificateUploadModa
 import { ClientPortal } from '@/components/ui/ClientPortal';
 import { Award, FileBadge2, Printer, CheckCircle2, Sparkles, AlertCircle, FileText, Copy, ExternalLink, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatFullNameWithTitles } from '@/lib/participant-helpers';
 
 type DetailData = {
     session: { id: string; title: string };
@@ -23,6 +24,9 @@ type DetailData = {
         id: string;
         username: string;
         full_name: string;
+        front_title?: string | null;
+        back_title?: string | null;
+        id_card_number?: string | null;
         nip?: string | null;
         institution?: string | null;
         batch?: number | null;
@@ -170,9 +174,19 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap mb-1">
                                     <h1 className="text-base sm:text-lg font-semibold text-foreground tracking-tight break-words">
-                                        {participant.full_name}
+                                        {formatFullNameWithTitles(participant.full_name, participant.front_title, participant.back_title) || participant.full_name}
                                     </h1>
                                     <span className="text-xs text-muted-foreground font-mono break-all">({participant.username})</span>
+                                    {participant.id_card_number && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-700 border border-slate-200">
+                                            NIK: {participant.id_card_number}
+                                        </span>
+                                    )}
+                                    {participant.nip && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                                            NIP: {participant.nip}
+                                        </span>
+                                    )}
                                     {isCompleted ? (
                                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60 shrink-0">
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />

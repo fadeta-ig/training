@@ -7,7 +7,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { validateMutationOrigin } from '@/lib/api-auth';
 import { logActivity } from '@/lib/audit';
 import { extractInstitutionCode } from '@/lib/nip';
-import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
+import { ensureParticipantSecurityColumns } from '@/lib/participant-helpers';
 
 const REGISTER_RATE_LIMIT = {
     windowMs: 60_000,
@@ -17,6 +17,9 @@ const REGISTER_RATE_LIMIT = {
 
 const registerSchema = z.object({
     full_name: z.string().trim().min(2, 'Nama lengkap minimal 2 karakter').max(100, 'Nama terlalu panjang'),
+    front_title: z.string().trim().max(50).optional().nullable(),
+    back_title: z.string().trim().max(50).optional().nullable(),
+    id_card_number: z.string().trim().max(50).optional().nullable(),
     username: z.string().trim().email('Format email tidak valid').max(255),
     password: z.string().min(8, 'Password minimal 8 karakter').max(128, 'Password maksimal 128 karakter'),
     phone_number: z.string().trim().min(6, 'Nomor telepon/WhatsApp minimal 6 digit').max(20, 'Nomor telepon maksimal 20 digit').optional().nullable(),
@@ -92,16 +95,19 @@ export async function POST(request: NextRequest) {
                 [userId, data.full_name, normalizedUsername, passwordHash]
             );
 
-            await ensureInitialPasswordColumn();
+            await ensureParticipantSecurityColumns();
 
             // Insert Participant Profile
             await connection.execute(
                 `INSERT INTO participant_profiles 
-                 (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, target_certification_id, target_certification_name, target_period, batch, initial_password)
-                 VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+                 (id, user_id, nip, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution, institution_code, target_certification_id, target_certification_name, target_period, batch, initial_password)
+                 VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
                 [
                     profileId,
                     userId,
+                    data.front_title || null,
+                    data.back_title || null,
+                    data.id_card_number || null,
                     data.phone_number || null,
                     data.address || null,
                     data.date_of_birth || null,

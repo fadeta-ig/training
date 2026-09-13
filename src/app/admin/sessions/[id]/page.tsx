@@ -34,6 +34,9 @@ type User = {
     session_participant_id?: string;
     username: string;
     full_name: string;
+    front_title?: string | null;
+    back_title?: string | null;
+    id_card_number?: string | null;
     nip?: string | null;
     institution?: string | null;
     batch?: number | null;
@@ -615,14 +618,22 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                             <td className="px-4 py-3.5">
                                                 <div className="flex flex-col">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="font-medium text-foreground">{p.full_name || p.username}</span>
+                                                        <span className="font-semibold text-foreground">{p.full_name || p.username}</span>
                                                         {p.nip && (
                                                             <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
                                                                 {p.nip}
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <span className="text-[11px] text-muted-foreground font-mono">{p.username}</span>
+                                                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono">
+                                                        <span>{p.username}</span>
+                                                        {p.id_card_number && (
+                                                            <>
+                                                                <span className="text-slate-300 dark:text-slate-600">•</span>
+                                                                <span className="text-slate-600 dark:text-slate-300 font-medium">NIK: {p.id_card_number}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5 text-muted-foreground">

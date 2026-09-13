@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { generateParticipantsDetailExportXlsx, ParticipantDetailExportRow } from '@/lib/excel';
-import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
+import { ensureInitialPasswordColumn, formatFullNameWithTitles } from '@/lib/participant-helpers';
 import logger from '@/lib/logger';
 
 interface RawParticipantRow {
     id: string;
     email: string;
     name: string;
+    front_title: string | null;
+    back_title: string | null;
+    id_card_number: string | null;
     nip: string | null;
     initial_password: string | null;
     phone_number: string | null;
@@ -42,6 +45,9 @@ async function handleGet(request: NextRequest, _authUser: AuthenticatedUser) {
                 u.full_name as name, 
                 u.created_at,
                 p.nip,
+                p.front_title,
+                p.back_title,
+                p.id_card_number,
                 p.initial_password,
                 p.phone_number,
                 p.address,
@@ -67,10 +73,10 @@ async function handleGet(request: NextRequest, _authUser: AuthenticatedUser) {
         }
 
         if (search) {
-            const searchClause = ` AND (u.username LIKE ? OR u.full_name LIKE ? OR p.institution LIKE ? OR p.nip LIKE ? OR p.phone_number LIKE ?)`;
+            const searchClause = ` AND (u.username LIKE ? OR u.full_name LIKE ? OR p.institution LIKE ? OR p.nip LIKE ? OR p.id_card_number LIKE ? OR p.phone_number LIKE ?)`;
             query += searchClause;
             const s = `%${search}%`;
-            params.push(s, s, s, s, s);
+            params.push(s, s, s, s, s, s);
         }
 
         if (institution && institution !== 'all') {
@@ -136,7 +142,10 @@ async function handleGet(request: NextRequest, _authUser: AuthenticatedUser) {
 
         const exportRows: ParticipantDetailExportRow[] = (rows || []).map((row, idx) => ({
             no: idx + 1,
-            fullName: row.name || '-',
+            fullName: formatFullNameWithTitles(row.name, row.front_title, row.back_title) || row.name || '-',
+            frontTitle: row.front_title || '-',
+            backTitle: row.back_title || '-',
+            idCardNumber: row.id_card_number || '-',
             nip: row.nip || '-',
             email: row.email || '-',
             password: row.initial_password || '******',

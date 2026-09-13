@@ -4,6 +4,7 @@ import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
 import { sessionSchema } from '@/lib/validations/sessionSchema';
 import { withAuth } from '@/lib/api-auth';
+import { formatFullNameWithTitles } from '@/lib/participant-helpers';
 
 // GET Detail Sesi & Peserta + Progress Monitoring
 async function handleGet(
@@ -25,28 +26,25 @@ async function handleGet(
 
         const session = result[0];
 
-        // Fetch module items count
-        const moduleItems = await executeQuery<any[]>(
-            `SELECT mi.id, mi.item_type, mi.item_id, mi.sequence_order,
-                    CASE mi.item_type
-                        WHEN 'training' THEN t.title
-                        WHEN 'exam' THEN e.title
-                    END AS item_title
-             FROM module_items mi
-             LEFT JOIN trainings t ON mi.item_type = 'training' AND mi.item_id = t.id
-             LEFT JOIN exams e ON mi.item_type = 'exam' AND mi.item_id = e.id
-             WHERE mi.module_id = ?
-             ORDER BY mi.sequence_order ASC`,
+        // Total module items
+        const countResult = await executeQuery<any[]>(
+            `SELECT COUNT(*) as total FROM module_items WHERE module_id = ?`,
             [session.module_id]
         );
+        const totalItems = countResult?.[0]?.total || 0;
 
-        const totalItems = moduleItems.length;
+        // Fetch module items
+        const moduleItems = await executeQuery<any[]>(
+            `SELECT id, title, item_type, sequence_order, duration, passing_score 
+             FROM module_items WHERE module_id = ? ORDER BY sequence_order ASC`,
+            [session.module_id]
+        );
 
         // Fetch participants with progress, NIP, graduation verdict, SKL & certificates
         const participants = await executeQuery<any[]>(
             `SELECT sp.id AS session_participant_id,
                     sp.user_id, u.username, u.full_name,
-                    p.nip, p.institution, p.batch,
+                    p.nip, p.front_title, p.back_title, p.id_card_number, p.institution, p.batch,
                     sp.graduation_status,
                     sp.graduation_decided_at,
                     sp.graduation_notes,
@@ -64,7 +62,7 @@ async function handleGet(
              LEFT JOIN user_progress up ON up.user_id = sp.user_id AND up.session_id = sp.session_id
              LEFT JOIN module_items mi ON mi.id = up.module_item_id
              WHERE sp.session_id = ?
-             GROUP BY sp.id, sp.user_id, u.username, u.full_name, p.nip, p.institution, p.batch,
+             GROUP BY sp.id, sp.user_id, u.username, u.full_name, p.nip, p.front_title, p.back_title, p.id_card_number, p.institution, p.batch,
                       sp.graduation_status, sp.graduation_decided_at, sp.graduation_notes,
                       sp.skl_number, sp.skl_generated_at, sp.certificate_file_url,
                       sp.certificate_number, sp.certificate_uploaded_at
@@ -82,7 +80,11 @@ async function handleGet(
                     id: p.user_id,
                     session_participant_id: p.session_participant_id,
                     username: p.username,
-                    full_name: p.full_name,
+                    full_name: formatFullNameWithTitles(p.full_name, p.front_title, p.back_title) || p.username,
+                    raw_full_name: p.full_name,
+                    front_title: p.front_title || null,
+                    back_title: p.back_title || null,
+                    id_card_number: p.id_card_number || null,
                     nip: p.nip || null,
                     institution: p.institution || null,
                     batch: p.batch || '1',

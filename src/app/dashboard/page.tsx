@@ -11,6 +11,7 @@ import {
     BookOpen01Icon,
 } from 'hugeicons-react';
 import DashboardCalendar from './_components/DashboardCalendar';
+import { formatFullNameWithTitles } from '@/lib/participant-helpers';
 
 type Session = {
     id: string;
@@ -48,7 +49,7 @@ async function getDashboardData() {
         `;
 
         const userProfileQuery = `
-            SELECT u.full_name, pp.nip, pp.institution, pp.batch
+            SELECT u.full_name, pp.front_title, pp.back_title, pp.nip, pp.id_card_number, pp.institution, pp.batch
             FROM users u
             LEFT JOIN participant_profiles pp ON u.id = pp.user_id
             WHERE u.id = ?
@@ -85,6 +86,8 @@ export default async function DashboardOverviewPage() {
     const completedCount = sessions.filter(s => getStatus(s) === 'completed').length;
     const upcomingCount = sessions.filter(s => getStatus(s) === 'upcoming').length;
 
+    const displayFullName = formatFullNameWithTitles(userProfile?.full_name, userProfile?.front_title, userProfile?.back_title);
+
     return (
         <div className="max-w-5xl mx-auto space-y-8">
             {/* Header */}
@@ -92,17 +95,27 @@ export default async function DashboardOverviewPage() {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
                     <p className="text-muted-foreground text-sm mt-1">
-                        Selamat datang kembali{userProfile?.full_name ? `, ${userProfile.full_name}` : ''}! Ringkasan progres pelatihan dan jadwal terdekat Anda.
+                        Selamat datang kembali{displayFullName ? `, ${displayFullName}` : ''}! Ringkasan progres pelatihan dan jadwal terdekat Anda.
                     </p>
                 </div>
-                {userProfile?.nip && (
-                    <div className="flex items-center gap-2 self-start sm:self-auto bg-white border border-black/10 rounded-xl px-3.5 py-2 shadow-2xs">
-                        <span className="text-[11px] font-medium text-muted-foreground">NIP:</span>
-                        <span className="font-mono text-xs font-bold text-primary">{userProfile.nip}</span>
-                        {userProfile.batch && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                Batch {userProfile.batch}
-                            </span>
+                {(userProfile?.nip || userProfile?.id_card_number) && (
+                    <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                        {userProfile?.nip && (
+                            <div className="flex items-center gap-2 bg-white border border-black/10 rounded-xl px-3 py-1.5 shadow-2xs">
+                                <span className="text-[11px] font-medium text-muted-foreground">NIP:</span>
+                                <span className="font-mono text-xs font-bold text-primary">{userProfile.nip}</span>
+                                {userProfile.batch && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        Batch {userProfile.batch}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                        {userProfile?.id_card_number && (
+                            <div className="flex items-center gap-1.5 bg-white border border-black/10 rounded-xl px-3 py-1.5 shadow-2xs">
+                                <span className="text-[11px] font-medium text-muted-foreground">NIK:</span>
+                                <span className="font-mono text-xs font-bold text-slate-800">{userProfile.id_card_number}</span>
+                            </div>
                         )}
                     </div>
                 )}

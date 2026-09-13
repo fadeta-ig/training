@@ -3,6 +3,7 @@ import { executeQuery } from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
 import logger from '@/lib/logger';
 import { generateSessionReportXlsx, SessionExportRow } from '@/lib/excel';
+import { formatFullNameWithTitles } from '@/lib/participant-helpers';
 
 export const GET = withAuth(async (
     request: NextRequest,
@@ -22,6 +23,8 @@ export const GET = withAuth(async (
                 u.full_name,
                 u.username,
                 p.nip,
+                p.front_title,
+                p.back_title,
                 p.institution,
                 p.batch,
                 up.status,
@@ -35,7 +38,7 @@ export const GET = withAuth(async (
             LEFT JOIN participant_profiles p ON sp.user_id = p.user_id
             LEFT JOIN user_progress up ON up.session_id = sp.session_id AND up.user_id = u.id
             WHERE sp.session_id = ?
-            GROUP BY u.id, u.full_name, u.username, p.nip, p.institution, p.batch, up.status, up.score, up.attempts_count, up.updated_at, s.title
+            GROUP BY u.id, u.full_name, u.username, p.nip, p.front_title, p.back_title, p.institution, p.batch, up.status, up.score, up.attempts_count, up.updated_at, s.title
             ORDER BY u.full_name ASC
         `;
 
@@ -43,6 +46,8 @@ export const GET = withAuth(async (
             full_name: string | null;
             username: string | null;
             nip: string | null;
+            front_title: string | null;
+            back_title: string | null;
             institution: string | null;
             batch: string | null;
             status: string | null;
@@ -73,7 +78,7 @@ export const GET = withAuth(async (
 
             return {
                 no: index + 1,
-                fullName: row.full_name || '-',
+                fullName: formatFullNameWithTitles(row.full_name, row.front_title, row.back_title) || row.full_name || '-',
                 nip: row.nip || '-',
                 institution: row.institution || '-',
                 batch: row.batch || '1',

@@ -8,7 +8,7 @@ import { sendBulkCredentialEmails } from '@/lib/email';
 import pool from '@/lib/db';
 import logger from '@/lib/logger';
 import crypto from 'crypto';
-import { generateSecurePassword, ensureInitialPasswordColumn } from '@/lib/participant-helpers';
+import { generateSecurePassword, ensureParticipantSecurityColumns } from '@/lib/participant-helpers';
 
 interface UserImportItem {
     name: string;
@@ -128,7 +128,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         try {
             await connection.beginTransaction();
 
-            await ensureInitialPasswordColumn();
+            await ensureParticipantSecurityColumns();
 
             for (const item of readyToInsert) {
                 const finalPassword = item.password && item.password.length >= 8 ? item.password : generateSecurePassword(12);
@@ -143,8 +143,8 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 );
 
                 await connection.execute(
-                    `INSERT INTO participant_profiles (id, user_id, phone_number, institution, initial_password) 
-                     VALUES (?, ?, ?, ?, ?)`,
+                    `INSERT INTO participant_profiles (id, user_id, phone_number, institution, initial_password, must_change_password) 
+                     VALUES (?, ?, ?, ?, ?, 1)`,
                     [
                         profileId,
                         userId,

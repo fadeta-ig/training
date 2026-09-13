@@ -524,6 +524,8 @@ async function handleGet(
             <div class="recipient-title">Kepada Yth :</div>
             <div class="recipient-name">${participantName}</div>
             <div class="recipient-inst">${institutionName}</div>
+            ${data.id_card_number ? `<div style="font-size: 11px; color: #475569; margin-top: 2px;">NIK / No. Identitas: ${data.id_card_number}</div>` : ''}
+            ${data.nip ? `<div style="font-size: 11px; color: #475569;">NIP: ${data.nip}</div>` : ''}
         </div>
 
         <!-- Salutation -->
@@ -546,7 +548,11 @@ async function handleGet(
                 </thead>
                 <tbody>
                     <tr>
-                        <td class="col-nama">${participantName}</td>
+                        <td class="col-nama">
+                            <div style="font-weight: 700;">${participantName}</div>
+                            ${data.nip ? `<div style="font-size: 11px; color: #475569; font-weight: normal; margin-top: 1px;">NIP: ${data.nip}</div>` : ''}
+                            ${data.id_card_number ? `<div style="font-size: 11px; color: #475569; font-weight: normal; margin-top: 1px;">NIK: ${data.id_card_number}</div>` : ''}
+                        </td>
                         <td class="col-sertifikasi">${certificationName}</td>
                         <td class="col-keterangan">LULUS</td>
                     </tr>

@@ -13,6 +13,9 @@ async function handleGet(request: NextRequest) {
             const sampleData = [
                 {
                     'Nama Lengkap': 'Ahmad Dahlan',
+                    'Gelar Depan': 'Dr.',
+                    'Gelar Belakang': 'M.M., M.Kom.',
+                    'NIK / Paspor': '3201123456780001',
                     'Email Aktif (Username Login)': 'ahmad.dahlan@example.com',
                     'Jenis Kelamin (L/P)': 'L',
                     'Tanggal Lahir (YYYY-MM-DD)': '1995-05-20',
@@ -25,12 +28,15 @@ async function handleGet(request: NextRequest) {
                 },
                 {
                     'Nama Lengkap': 'Siti Nurhaliza',
+                    'Gelar Depan': '',
+                    'Gelar Belakang': 'S.T.',
+                    'NIK / Paspor': '3578123456780002',
                     'Email Aktif (Username Login)': 'siti.nurhaliza@example.com',
                     'Jenis Kelamin (L/P)': '',
                     'Tanggal Lahir (YYYY-MM-DD)': '',
                     'No HP / WhatsApp': '',
                     'Alamat Domisili': '',
-                    'Institusi / Unit Kerja': 'Universitas Mandiri',
+                    'Institusi / Unit Kerja': 'RSUD Dr Soetomo',
                     'Program Sertifikasi': 'Pelatihan Transformasi Digital & Tata Kelola IT',
                     'Batch Pelatihan': 'TDIT-OKT26',
                     'Tanggal Pendaftaran (YYYY-MM-DD)': new Date().toISOString().slice(0, 10),
@@ -39,6 +45,9 @@ async function handleGet(request: NextRequest) {
 
             const csv = objectsToCsv(sampleData, [
                 'Nama Lengkap',
+                'Gelar Depan',
+                'Gelar Belakang',
+                'NIK / Paspor',
                 'Email Aktif (Username Login)',
                 'Jenis Kelamin (L/P)',
                 'Tanggal Lahir (YYYY-MM-DD)',

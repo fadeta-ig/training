@@ -335,6 +335,32 @@ export async function ensureParticipantSecurityColumns(): Promise<void> {
             );
         }
 
+        // 3. Ensure front_title, back_title, id_card_number exist
+        const titleCols = await executeQuery<{ COLUMN_NAME: string }[]>(
+            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME IN ('front_title', 'back_title', 'id_card_number')`
+        );
+        const existingTitleCols = new Set((titleCols || []).map((c) => c.COLUMN_NAME));
+
+        if (!existingTitleCols.has('front_title')) {
+            await executeQuery(
+                `ALTER TABLE participant_profiles ADD COLUMN front_title VARCHAR(50) NULL AFTER nip`
+            );
+        }
+        if (!existingTitleCols.has('back_title')) {
+            await executeQuery(
+                `ALTER TABLE participant_profiles ADD COLUMN back_title VARCHAR(50) NULL AFTER front_title`
+            );
+        }
+        if (!existingTitleCols.has('id_card_number')) {
+            await executeQuery(
+                `ALTER TABLE participant_profiles ADD COLUMN id_card_number VARCHAR(50) NULL AFTER back_title`
+            );
+            await executeQuery(
+                `ALTER TABLE participant_profiles ADD INDEX idx_participant_id_card (id_card_number)`
+            ).catch(() => undefined);
+        }
+
         checkedParticipantSecurityColumns = true;
     } catch (err) {
         logger.warn('SCHEMA_MIGRATION', 'Could not ensure participant security columns', {
@@ -342,6 +368,34 @@ export async function ensureParticipantSecurityColumns(): Promise<void> {
         });
         checkedParticipantSecurityColumns = true;
     }
+}
+
+/**
+ * Formats full official participant name including front title and back title.
+ * Examples:
+ * - ("Budi Santoso", "Dr.", "S.Kom., M.M.") -> "Dr. Budi Santoso, S.Kom., M.M."
+ * - ("Budi Santoso", null, "S.Kom.") -> "Budi Santoso, S.Kom."
+ * - ("Budi Santoso", "Ir.", null) -> "Ir. Budi Santoso"
+ * - ("Budi Santoso", null, null) -> "Budi Santoso"
+ */
+export function formatFullNameWithTitles(
+    fullName: string | null | undefined,
+    frontTitle?: string | null,
+    backTitle?: string | null
+): string {
+    const cleanName = (fullName || '').trim();
+    if (!cleanName) return '';
+    const cleanFront = (frontTitle || '').trim();
+    const cleanBack = (backTitle || '').trim();
+
+    let result = cleanName;
+    if (cleanFront) {
+        result = `${cleanFront} ${result}`;
+    }
+    if (cleanBack) {
+        result = cleanBack.startsWith(',') ? `${result}${cleanBack}` : `${result}, ${cleanBack}`;
+    }
+    return result;
 }
 
 /**

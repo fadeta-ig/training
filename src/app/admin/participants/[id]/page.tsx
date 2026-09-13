@@ -16,7 +16,8 @@ import {
     ViewIcon,
     ViewOffIcon,
     CheckmarkCircle02Icon,
-    Alert02Icon
+    Alert02Icon,
+    IdIcon
 } from 'hugeicons-react';
 import Link from 'next/link';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -39,6 +40,9 @@ export default function EditParticipantPage() {
     const [regenerateNip, setRegenerateNip] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
+        front_title: '',
+        back_title: '',
+        id_card_number: '',
         email: '',
         phone_number: '',
         address: '',
@@ -48,6 +52,11 @@ export default function EditParticipantPage() {
         batch: '1',
         registration_date: '',
     });
+
+    const previewFullName = [
+        formData.front_title?.trim(),
+        formData.name?.trim(),
+    ].filter(Boolean).join(' ') + (formData.back_title?.trim() ? `, ${formData.back_title.trim()}` : '');
 
     useEffect(() => {
         const fetchParticipant = async () => {
@@ -62,6 +71,9 @@ export default function EditParticipantPage() {
                     setMustChangePassword(data.must_change_password !== undefined ? Number(data.must_change_password) : 0);
                     setFormData({
                         name: data.name || '',
+                        front_title: data.front_title || '',
+                        back_title: data.back_title || '',
+                        id_card_number: data.id_card_number || '',
                         email: data.email || '',
                         phone_number: data.phone_number || '',
                         address: data.address || '',
@@ -219,22 +231,17 @@ export default function EditParticipantPage() {
                 </div>
             )}
 
-            {/* Kredensial & Password Card */}
-            <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-5 dark:bg-slate-900/60 dark:border-slate-800 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
-                    <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                            <Key01Icon size={20} />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Kredensial & Kata Sandi Akun</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Kata sandi akun peserta untuk login ke LMS</p>
-                        </div>
+            {/* Account Credentials Summary Card */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 dark:bg-slate-900/50 dark:border-slate-800 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                        <Key01Icon size={18} className="text-blue-600" />
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Kredensial Akun Peserta</h3>
                     </div>
                     {mustChangePassword === 1 ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                             <Alert02Icon size={14} />
-                            Wajib Ubah Sandi (Default)
+                            Kata Sandi Awal (Belum Diubah)
                         </span>
                     ) : (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
@@ -317,22 +324,94 @@ export default function EditParticipantPage() {
                 <GlassCard className="p-4 sm:p-6 md:p-8 space-y-6">
                     <h2 className="text-lg font-bold border-b border-black/5 pb-3 flex items-center gap-2">
                         <Building02Icon size={20} className="text-muted-foreground" />
-                        Informasi Akun & Instansi
+                        Informasi Akun &amp; Instansi
                     </h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-foreground">Nama Lengkap <span className="text-destructive">*</span></label>
-                            <input
-                                type="text"
-                                required
-                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
-                                placeholder="Sesuai kartu identitas"
-                                value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                            />
+                    <div className="space-y-4">
+                        {/* Gelar Depan, Nama, Gelar Belakang */}
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                            <div className="sm:col-span-3 space-y-1.5">
+                                <label className="text-xs font-bold text-foreground">
+                                    Gelar Depan <span className="text-muted-foreground font-normal">(Opsional)</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    maxLength={50}
+                                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-sm focus:outline-none"
+                                    placeholder="Dr. / Ir. / Prof."
+                                    value={formData.front_title}
+                                    onChange={e => setFormData({ ...formData, front_title: e.target.value })}
+                                />
+                            </div>
+                            <div className="sm:col-span-6 space-y-1.5">
+                                <label className="text-xs font-bold text-foreground">
+                                    Nama Lengkap <span className="text-destructive">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-sm focus:outline-none font-semibold"
+                                    placeholder="Nama tanpa gelar"
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="sm:col-span-3 space-y-1.5">
+                                <label className="text-xs font-bold text-foreground">
+                                    Gelar Belakang <span className="text-muted-foreground font-normal">(Opsional)</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    maxLength={50}
+                                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-sm focus:outline-none"
+                                    placeholder="S.Kom. / M.M."
+                                    value={formData.back_title}
+                                    onChange={e => setFormData({ ...formData, back_title: e.target.value })}
+                                />
+                            </div>
                         </div>
 
+                        {/* Live Preview Nama di Sertifikat */}
+                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider flex items-center gap-1">
+                                    <Tick01Icon size={12} />
+                                    Format Nama di Sertifikat &amp; SKL:
+                                </span>
+                                <p className="text-xs font-bold text-foreground mt-0.5 truncate">
+                                    {previewFullName || <span className="text-muted-foreground italic">Nama belum diisi</span>}
+                                </p>
+                            </div>
+                            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-medium">
+                                Preview
+                            </span>
+                        </div>
+
+                        {/* NIK KTP / Paspor */}
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold text-foreground">
+                                    NIK KTP / No. Paspor <span className="text-destructive">* (Wajib)</span>
+                                </label>
+                                <span className="text-[10px] text-muted-foreground font-mono">16 digit NIK atau kode Paspor</span>
+                            </div>
+                            <div className="relative">
+                                <IdIcon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                <input
+                                    type="text"
+                                    required
+                                    minLength={6}
+                                    maxLength={30}
+                                    className="w-full glass-input pl-10 pr-3.5 py-2.5 rounded-xl text-sm focus:outline-none font-mono uppercase tracking-wider"
+                                    placeholder="Contoh: 3201234567890001 atau A12345678"
+                                    value={formData.id_card_number}
+                                    onChange={e => setFormData({ ...formData, id_card_number: e.target.value.replace(/\s+/g, '') })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-foreground">Email Aktif <span className="text-destructive">*</span></label>
                             <input

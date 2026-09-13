@@ -12,6 +12,9 @@ import { ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/
 
 interface ImportItem {
     name: string;
+    front_title?: string | null;
+    back_title?: string | null;
+    id_card_number?: string | null;
     email: string;
     phone_number?: string | null;
     institution?: string | null;
@@ -194,12 +197,15 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 );
 
                 await connection.execute(
-                    `INSERT INTO participant_profiles (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date, initial_password, must_change_password) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    `INSERT INTO participant_profiles (id, user_id, nip, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date, initial_password, must_change_password) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         profileId,
                         userId,
                         nip,
+                        participant.front_title?.trim() || null,
+                        participant.back_title?.trim() || null,
+                        participant.id_card_number?.trim() || null,
                         participant.phone_number || null,
                         participant.address || null,
                         participant.date_of_birth || null,

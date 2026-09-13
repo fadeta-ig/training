@@ -13,6 +13,9 @@ const participantUpdateSchema = z.object({
     email: z.string().email('Format email tidak valid'),
     nip: z.string().optional().nullable(),
     regenerate_nip: z.boolean().optional().default(false),
+    front_title: z.string().trim().max(50).optional().nullable(),
+    back_title: z.string().trim().max(50).optional().nullable(),
+    id_card_number: z.string().trim().max(50).optional().nullable(),
     phone_number: z.string().optional().nullable(),
     address: z.string().optional().nullable(),
     date_of_birth: z.string().optional().nullable(),
@@ -28,11 +31,13 @@ async function handleGet(
     context: { params: Promise<{ id: string }> }
 ) {
     try {
+        await ensureParticipantSecurityColumns();
         const resolvedParams = await context.params;
         const participants = await executeQuery(
             `SELECT 
         u.id, u.username as email, u.full_name as name, u.created_at,
-        p.nip, p.phone_number, p.address, 
+        p.nip, p.front_title, p.back_title, p.id_card_number,
+        p.phone_number, p.address, 
         DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, 
         p.gender, p.institution, p.institution_code, p.batch,
         p.initial_password,
@@ -74,7 +79,7 @@ async function handlePut(
             );
         }
 
-        const { name, email, nip, regenerate_nip, phone_number, address, date_of_birth, gender, institution, batch, registration_date } = parsed.data;
+        const { name, email, nip, regenerate_nip, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution, batch, registration_date } = parsed.data;
 
         const existing = await executeQuery<{ id: string }[]>(
             `SELECT id FROM users WHERE username = ? AND id != ?`,
@@ -143,6 +148,7 @@ async function handlePut(
             // Upsert profile pattern
             const [updatedProfile] = await connection.execute<import('mysql2').ResultSetHeader>(
                 `UPDATE participant_profiles SET 
+                 front_title = ?, back_title = ?, id_card_number = COALESCE(?, id_card_number),
                  phone_number = ?, address = ?, date_of_birth = ?, gender = ?, institution = ?,
                  institution_code = COALESCE(?, institution_code),
                  batch = COALESCE(?, batch),
@@ -150,6 +156,9 @@ async function handlePut(
                  registration_date = COALESCE(?, registration_date)
                  WHERE user_id = ?`,
                 [
+                    front_title !== undefined ? (front_title?.trim() || null) : null,
+                    back_title !== undefined ? (back_title?.trim() || null) : null,
+                    id_card_number ? id_card_number.trim().toUpperCase() : null,
                     phone_number || null,
                     address || null,
                     date_of_birth || null,
@@ -166,12 +175,15 @@ async function handlePut(
             if (updatedProfile && updatedProfile.affectedRows === 0) {
                 const { v4: uuidv4 } = await import('uuid');
                 await connection.execute(
-                    `INSERT INTO participant_profiles (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    `INSERT INTO participant_profiles (id, user_id, nip, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         uuidv4(),
                         resolvedParams.id,
                         finalNip || null,
+                        front_title?.trim() || null,
+                        back_title?.trim() || null,
+                        id_card_number ? id_card_number.trim().toUpperCase() : null,
                         phone_number || null,
                         address || null,
                         date_of_birth || null,

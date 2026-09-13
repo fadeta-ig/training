@@ -53,6 +53,9 @@ CREATE TABLE participant_profiles (
   id                        VARCHAR(36) PRIMARY KEY,
   user_id                   VARCHAR(36) NOT NULL UNIQUE,
   nip                       VARCHAR(50) UNIQUE NULL,
+  front_title               VARCHAR(50) NULL,
+  back_title                VARCHAR(50) NULL,
+  id_card_number            VARCHAR(50) NULL,
   phone_number              VARCHAR(20) NULL,
   address                   TEXT NULL,
   date_of_birth             DATE NULL,
@@ -69,6 +72,7 @@ CREATE TABLE participant_profiles (
   created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_participant_nip (nip),
+  INDEX idx_participant_id_card (id_card_number),
   INDEX idx_participant_inst_batch (institution, batch),
   INDEX idx_participant_reg_date (registration_date),
   CONSTRAINT fk_participant_user

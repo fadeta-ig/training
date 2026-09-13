@@ -58,6 +58,38 @@ export function validateMutationOrigin(request: NextRequest): NextResponse | nul
     return null;
 }
 
+interface CachedAuthUser {
+    user: { id: string; username: string; role: AuthRole };
+    expiresAt: number;
+}
+
+const userAuthCache = new Map<string, CachedAuthUser>();
+const USER_AUTH_CACHE_TTL_MS = 30_000;
+
+function getCachedUser(userId: string): { id: string; username: string; role: AuthRole } | null {
+    const cached = userAuthCache.get(userId);
+    if (!cached) return null;
+    if (Date.now() > cached.expiresAt) {
+        userAuthCache.delete(userId);
+        return null;
+    }
+    return cached.user;
+}
+
+function setCachedUser(user: { id: string; username: string; role: AuthRole }) {
+    if (userAuthCache.size > 2000) {
+        // Prevent unbounded memory growth
+        const now = Date.now();
+        for (const [key, entry] of userAuthCache.entries()) {
+            if (now > entry.expiresAt) userAuthCache.delete(key);
+        }
+    }
+    userAuthCache.set(user.id, {
+        user,
+        expiresAt: Date.now() + USER_AUTH_CACHE_TTL_MS,
+    });
+}
+
 /**
  * Higher-order function to protect API routes with JWT authentication.
  * Extracts user from JWT cookie and passes it to the handler.
@@ -104,20 +136,28 @@ export function withAuth(
             );
         }
 
-        let currentUsers: Array<{ id: string; username: string; role: AuthRole }>;
-        try {
-            currentUsers = await executeQuery(
-                `SELECT id, username, role FROM users WHERE id = ? LIMIT 1`,
-                [payload.sub],
-            );
-        } catch {
-            return NextResponse.json(
-                { success: false, error: 'Layanan autentikasi sementara tidak tersedia' },
-                { status: 503 }
-            );
+        let user: { id: string; username: string; role: AuthRole } | null = getCachedUser(payload.sub);
+
+        if (!user) {
+            let currentUsers: Array<{ id: string; username: string; role: AuthRole }>;
+            try {
+                currentUsers = await executeQuery(
+                    `SELECT id, username, role FROM users WHERE id = ? LIMIT 1`,
+                    [payload.sub],
+                );
+            } catch {
+                return NextResponse.json(
+                    { success: false, error: 'Layanan autentikasi sementara tidak tersedia' },
+                    { status: 503 }
+                );
+            }
+
+            user = currentUsers[0] || null;
+            if (user && ['admin', 'trainer', 'trainee'].includes(user.role)) {
+                setCachedUser(user);
+            }
         }
 
-        const user = currentUsers[0];
         if (!user || !['admin', 'trainer', 'trainee'].includes(user.role)) {
             return NextResponse.json(
                 { success: false, error: 'Akun tidak aktif atau tidak ditemukan' },

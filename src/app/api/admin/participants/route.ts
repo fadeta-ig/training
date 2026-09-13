@@ -13,6 +13,9 @@ import { ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/
 const participantSchema = z.object({
     name: z.string().min(3, 'Nama lengkap minimal 3 karakter').max(100),
     email: z.string().email('Format email tidak valid'),
+    front_title: z.string().trim().max(50).optional().nullable(),
+    back_title: z.string().trim().max(50).optional().nullable(),
+    id_card_number: z.string().trim().max(50).optional().nullable(),
     phone_number: z.string().optional().nullable(),
     address: z.string().optional().nullable(),
     date_of_birth: z.string().optional().nullable(),
@@ -26,6 +29,7 @@ const participantSchema = z.object({
 
 async function handleGet(request: NextRequest, authUser: AuthenticatedUser) {
     try {
+        await ensureParticipantSecurityColumns();
         const { searchParams } = new URL(request.url);
         const { page, limit, offset } = parsePagination(searchParams, 10, 10000);
         const search = (searchParams.get('search') || '').trim();
@@ -52,7 +56,8 @@ async function handleGet(request: NextRequest, authUser: AuthenticatedUser) {
         let query = `
       SELECT 
         u.id, u.username as email, u.full_name as name, u.created_at,
-        p.nip, p.phone_number, p.address, 
+        p.nip, p.front_title, p.back_title, p.id_card_number,
+        p.phone_number, p.address, 
         DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, 
         p.gender, p.institution, p.institution_code, p.batch,
         ${passwordSelect}
@@ -64,12 +69,12 @@ async function handleGet(request: NextRequest, authUser: AuthenticatedUser) {
         const params: (string | number)[] = [];
 
         if (search) {
-            const searchClause = ` AND (u.username LIKE ? OR u.full_name LIKE ? OR p.institution LIKE ? OR p.nip LIKE ? OR p.phone_number LIKE ?)`;
+            const searchClause = ` AND (u.username LIKE ? OR u.full_name LIKE ? OR p.institution LIKE ? OR p.nip LIKE ? OR p.phone_number LIKE ? OR p.id_card_number LIKE ?)`;
             countQuery += searchClause;
             query += searchClause;
             const s = `%${search}%`;
-            countParams.push(s, s, s, s, s);
-            params.push(s, s, s, s, s);
+            countParams.push(s, s, s, s, s, s);
+            params.push(s, s, s, s, s, s);
         }
 
         if (institution && institution !== 'all') {
@@ -215,7 +220,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             );
         }
 
-        const { name, email, phone_number, address, date_of_birth, gender, institution, batch, registration_date } = parsed.data;
+        const { name, email, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution, batch, registration_date } = parsed.data;
 
         const existing = await executeQuery<{ id: string }[]>(`SELECT id FROM users WHERE username = ?`, [email]);
         if (Array.isArray(existing) && existing.length > 0) {
@@ -253,12 +258,15 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             );
 
             await connection.execute(
-                `INSERT INTO participant_profiles (id, user_id, nip, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date, initial_password, must_change_password) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO participant_profiles (id, user_id, nip, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date, initial_password, must_change_password) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     profileId,
                     userId,
                     generatedNip,
+                    front_title || null,
+                    back_title || null,
+                    id_card_number ? id_card_number.trim().toUpperCase() : null,
                     phone_number || null,
                     address || null,
                     date_of_birth || null,

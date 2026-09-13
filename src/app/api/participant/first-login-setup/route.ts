@@ -8,6 +8,9 @@ import logger from '@/lib/logger';
 
 const firstLoginSchema = z.object({
     full_name: z.string().trim().min(3, 'Nama lengkap minimal 3 karakter').max(100, 'Nama lengkap maksimal 100 karakter'),
+    front_title: z.string().trim().max(50, 'Gelar depan maksimal 50 karakter').optional().nullable(),
+    back_title: z.string().trim().max(50, 'Gelar belakang maksimal 50 karakter').optional().nullable(),
+    id_card_number: z.string().trim().min(6, 'NIK / Nomor Paspor minimal 6 karakter').max(50, 'NIK / Nomor Paspor maksimal 50 karakter'),
     gender: z.enum(['L', 'P'], { message: 'Silakan pilih jenis kelamin Anda (Laki-laki atau Perempuan)' }),
     phone_number: z.union([z.string().trim().min(8, 'Nomor telepon/WhatsApp minimal 8 digit').max(25, 'Nomor telepon maksimal 25 digit'), z.literal(''), z.null()]).optional(),
     date_of_birth: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD'), z.literal(''), z.null()]).optional(),
@@ -34,11 +37,14 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
             );
         }
 
-        const { full_name, gender, phone_number, date_of_birth, address, new_password } = parsed.data;
+        const { full_name, front_title, back_title, id_card_number, gender, phone_number, date_of_birth, address, new_password } = parsed.data;
 
         // Hash new secure password
         const passwordHash = await bcrypt.hash(new_password, 10);
         const dobVal = date_of_birth && date_of_birth.trim() ? date_of_birth.trim() : null;
+        const cleanFrontTitle = front_title && front_title.trim() ? front_title.trim() : null;
+        const cleanBackTitle = back_title && back_title.trim() ? back_title.trim() : null;
+        const cleanIdCard = id_card_number.trim().toUpperCase();
 
         const connection = await pool.getConnection();
         try {
@@ -50,12 +56,15 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
                 [full_name, passwordHash, user.id]
             );
 
-            // 2. Update participant profile record (gender, contact, clear must_change_password)
+            // 2. Update participant profile record (titles, id_card, gender, contact, clear must_change_password)
             await connection.execute(
                 `UPDATE participant_profiles 
-                 SET gender = ?, phone_number = ?, date_of_birth = ?, address = ?, initial_password = ?, must_change_password = 0 
+                 SET front_title = ?, back_title = ?, id_card_number = ?, gender = ?, phone_number = ?, date_of_birth = ?, address = ?, initial_password = ?, must_change_password = 0 
                  WHERE user_id = ?`,
                 [
+                    cleanFrontTitle,
+                    cleanBackTitle,
+                    cleanIdCard,
                     gender,
                     phone_number || null,
                     dobVal,
@@ -79,7 +88,7 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
             'FIRST_LOGIN_ACCOUNT_SECURED',
             'users',
             user.id,
-            { full_name, gender, has_phone: Boolean(phone_number) },
+            { full_name, front_title: cleanFrontTitle, back_title: cleanBackTitle, has_id_card: true, gender },
             'SECURITY'
         );
 

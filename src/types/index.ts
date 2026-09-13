@@ -31,6 +31,9 @@ export interface ParticipantProfile {
     id: string;
     user_id: string;
     nip: string | null;
+    front_title?: string | null;
+    back_title?: string | null;
+    id_card_number?: string | null;
     phone_number: string | null;
     address: string | null;
     date_of_birth: string | null;
@@ -204,6 +207,9 @@ export interface AuthPayload {
     full_name: string;
     role: 'admin' | 'trainer' | 'trainee';
     nip?: string | null;
+    front_title?: string | null;
+    back_title?: string | null;
+    id_card_number?: string | null;
     gender?: 'L' | 'P' | null;
     phone_number?: string | null;
     date_of_birth?: string | null;

@@ -31,6 +31,9 @@ type Participant = {
     id: string;
     email: string;
     name: string;
+    front_title?: string | null;
+    back_title?: string | null;
+    id_card_number?: string | null;
     nip: string | null;
     institution: string | null;
     institution_code: string | null;
@@ -512,7 +515,19 @@ export default function ParticipantsManagerPage() {
                                                     />
                                                 </td>
                                             )}
-                                            <td className="px-6 py-4 font-semibold text-foreground">{p.name}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-semibold text-foreground">
+                                                        {[p.front_title?.trim(), p.name?.trim()].filter(Boolean).join(' ') + (p.back_title?.trim() ? `, ${p.back_title.trim()}` : '')}
+                                                    </span>
+                                                    {p.id_card_number && (
+                                                        <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
+                                                            <span className="font-sans text-[10px] uppercase font-bold text-slate-400">NIK:</span>
+                                                            {p.id_card_number}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4">
                                                 {p.nip ? (
                                                     <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">

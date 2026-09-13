@@ -32,7 +32,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
     const shouldShowFirstLoginModal = Boolean(
         user &&
         user.role === 'trainee' &&
-        Boolean(user.must_change_password)
+        (Boolean(user.must_change_password) || !user.id_card_number)
     );
 
     if (isExamFocusMode) {

@@ -177,7 +177,10 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
             throw error;
         }
 
-        await cleanupExpiredSnapshots(uploadDir);
+        // Non-blocking cleanup in background so participant HTTP response is never stalled
+        cleanupExpiredSnapshots(uploadDir).catch((err) => {
+            logger.warn('PROCTOR_CLEANUP_BG', 'Pembersihan snapshot gagal', { error: String(err) });
+        });
 
         return NextResponse.json({ success: true, id: snapshotId }, { status: 201 });
     } catch (error) {

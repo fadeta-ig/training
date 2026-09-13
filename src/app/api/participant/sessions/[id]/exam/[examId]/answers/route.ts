@@ -126,13 +126,29 @@ async function handlePut(
             return NextResponse.json({ success: false, error: 'Attempt ujian telah diperbarui atau tidak aktif. Silakan muat ulang.' }, { status: 409 });
         }
 
-        for (const answer of answers) {
+        if (answers.length > 0) {
+            const values: (string | number)[] = [];
+            const placeholders: string[] = [];
+
+            for (const answer of answers) {
+                placeholders.push('(?, ?, ?, ?, ?, ?, ?)');
+                values.push(
+                    uuidv4(),
+                    user.id,
+                    sessionId,
+                    examId,
+                    answer.question_id,
+                    attemptNumber,
+                    answer.selected_option
+                );
+            }
+
             await connection.execute(
                 `INSERT INTO exam_answer_drafts
                     (id, user_id, session_id, exam_id, question_id, attempt_number, selected_option)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                 VALUES ${placeholders.join(', ')}
                  ON DUPLICATE KEY UPDATE selected_option = VALUES(selected_option), updated_at = CURRENT_TIMESTAMP`,
-                [uuidv4(), user.id, sessionId, examId, answer.question_id, attemptNumber, answer.selected_option],
+                values,
             );
         }
 

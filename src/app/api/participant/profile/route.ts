@@ -17,6 +17,9 @@ const dateOnlySchema = z.string()
     }, 'Tanggal lahir tidak valid');
 const profileUpdateSchema = z.object({
     full_name: z.string().trim().min(3).max(100),
+    front_title: optionalText(50),
+    back_title: optionalText(50),
+    id_card_number: optionalText(50),
     phone_number: optionalText(30),
     address: optionalText(500),
     date_of_birth: z.union([
@@ -35,10 +38,12 @@ const profileUpdateSchema = z.object({
  */
 async function handleGet(request: NextRequest, user: AuthenticatedUser) {
     try {
+        await ensureParticipantSecurityColumns();
         const query = `
             SELECT 
                 u.id, u.full_name, u.username, u.role, u.created_at,
-                p.nip, p.phone_number, p.address, 
+                p.nip, p.front_title, p.back_title, p.id_card_number,
+                p.phone_number, p.address, 
                 DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, 
                 p.gender, p.institution, p.institution_code, p.batch,
                 DATE_FORMAT(COALESCE(p.registration_date, p.created_at), '%Y-%m-%d') as registration_date
@@ -73,7 +78,10 @@ async function handlePut(request: NextRequest, user: AuthenticatedUser) {
             );
         }
 
-        const { full_name, phone_number, address, date_of_birth, gender, institution, current_password, new_password } = parsed.data;
+        const { full_name, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution, current_password, new_password } = parsed.data;
+        const cleanFrontTitle = front_title && front_title.trim() ? front_title.trim() : null;
+        const cleanBackTitle = back_title && back_title.trim() ? back_title.trim() : null;
+        const cleanIdCard = id_card_number && id_card_number.trim() ? id_card_number.trim().toUpperCase() : null;
 
         // 1. Update User Table (full_name) and handle Password Change
         if (new_password) {
@@ -111,21 +119,23 @@ async function handlePut(request: NextRequest, user: AuthenticatedUser) {
         }
 
         // 2. Upsert Participant Profile Info
+        await ensureParticipantSecurityColumns();
         const profile = await executeQuery<any[]>(`SELECT id FROM participant_profiles WHERE user_id = ?`, [user.id]);
         const dobVal = date_of_birth ? date_of_birth : null;
 
         if (profile && profile.length > 0) {
             await executeQuery(
                 `UPDATE participant_profiles 
-                 SET phone_number = ?, address = ?, date_of_birth = ?, gender = ?, institution = ? 
+                 SET front_title = ?, back_title = ?, id_card_number = COALESCE(?, id_card_number),
+                     phone_number = ?, address = ?, date_of_birth = ?, gender = ?, institution = ? 
                  WHERE user_id = ?`,
-                [phone_number || null, address || null, dobVal, gender || null, institution || null, user.id]
+                [cleanFrontTitle, cleanBackTitle, cleanIdCard, phone_number || null, address || null, dobVal, gender || null, institution || null, user.id]
             );
         } else {
             await executeQuery(
-                `INSERT INTO participant_profiles (id, user_id, phone_number, address, date_of_birth, gender, institution)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [uuidv4(), user.id, phone_number || null, address || null, dobVal, gender || null, institution || null]
+                `INSERT INTO participant_profiles (id, user_id, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [uuidv4(), user.id, cleanFrontTitle, cleanBackTitle, cleanIdCard, phone_number || null, address || null, dobVal, gender || null, institution || null]
             );
         }
 

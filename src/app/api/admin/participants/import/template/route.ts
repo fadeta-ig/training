@@ -13,8 +13,6 @@ async function handleGet(request: NextRequest) {
             const sampleData = [
                 {
                     'Nama Lengkap': 'Ahmad Dahlan',
-                    'Gelar Depan': 'Dr.',
-                    'Gelar Belakang': 'M.M., M.Kom.',
                     'NIK / Paspor': '3201123456780001',
                     'Email Aktif (Username Login)': 'ahmad.dahlan@example.com',
                     'Jenis Kelamin (L/P)': 'L',
@@ -28,8 +26,6 @@ async function handleGet(request: NextRequest) {
                 },
                 {
                     'Nama Lengkap': 'Siti Nurhaliza',
-                    'Gelar Depan': '',
-                    'Gelar Belakang': 'S.T.',
                     'NIK / Paspor': '3578123456780002',
                     'Email Aktif (Username Login)': 'siti.nurhaliza@example.com',
                     'Jenis Kelamin (L/P)': '',
@@ -45,8 +41,6 @@ async function handleGet(request: NextRequest) {
 
             const csv = objectsToCsv(sampleData, [
                 'Nama Lengkap',
-                'Gelar Depan',
-                'Gelar Belakang',
                 'NIK / Paspor',
                 'Email Aktif (Username Login)',
                 'Jenis Kelamin (L/P)',

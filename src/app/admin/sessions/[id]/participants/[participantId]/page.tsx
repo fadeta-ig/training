@@ -16,7 +16,6 @@ import { CertificateUploadModal } from '@/components/admin/CertificateUploadModa
 import { ClientPortal } from '@/components/ui/ClientPortal';
 import { Award, FileBadge2, Printer, CheckCircle2, Sparkles, AlertCircle, FileText, Copy, ExternalLink, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatFullNameWithTitles } from '@/lib/participant-formatters';
 
 type DetailData = {
     session: { id: string; title: string };
@@ -24,8 +23,6 @@ type DetailData = {
         id: string;
         username: string;
         full_name: string;
-        front_title?: string | null;
-        back_title?: string | null;
         id_card_number?: string | null;
         nip?: string | null;
         institution?: string | null;
@@ -174,7 +171,7 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap mb-1">
                                     <h1 className="text-base sm:text-lg font-semibold text-foreground tracking-tight break-words">
-                                        {formatFullNameWithTitles(participant.full_name, participant.front_title, participant.back_title) || participant.full_name}
+                                        {participant.full_name}
                                     </h1>
                                     <span className="text-xs text-muted-foreground font-mono break-all">({participant.username})</span>
                                     {participant.id_card_number && (

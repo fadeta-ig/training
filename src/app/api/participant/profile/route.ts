@@ -17,8 +17,6 @@ const dateOnlySchema = z.string()
     }, 'Tanggal lahir tidak valid');
 const profileUpdateSchema = z.object({
     full_name: z.string().trim().min(3).max(100),
-    front_title: optionalText(50),
-    back_title: optionalText(50),
     id_card_number: optionalText(50),
     phone_number: optionalText(30),
     address: optionalText(500),
@@ -42,7 +40,7 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
         const query = `
             SELECT 
                 u.id, u.full_name, u.username, u.role, u.created_at,
-                p.nip, p.front_title, p.back_title, p.id_card_number,
+                p.nip, p.id_card_number,
                 p.phone_number, p.address, 
                 DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth, 
                 p.gender, p.institution, p.institution_code, p.batch,
@@ -78,9 +76,7 @@ async function handlePut(request: NextRequest, user: AuthenticatedUser) {
             );
         }
 
-        const { full_name, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution, current_password, new_password } = parsed.data;
-        const cleanFrontTitle = front_title && front_title.trim() ? front_title.trim() : null;
-        const cleanBackTitle = back_title && back_title.trim() ? back_title.trim() : null;
+        const { full_name, id_card_number, phone_number, address, date_of_birth, gender, institution, current_password, new_password } = parsed.data;
         const cleanIdCard = id_card_number && id_card_number.trim() ? id_card_number.trim().toUpperCase() : null;
 
         // 1. Update User Table (full_name) and handle Password Change
@@ -126,16 +122,16 @@ async function handlePut(request: NextRequest, user: AuthenticatedUser) {
         if (profile && profile.length > 0) {
             await executeQuery(
                 `UPDATE participant_profiles 
-                 SET front_title = ?, back_title = ?, id_card_number = COALESCE(?, id_card_number),
+                 SET id_card_number = COALESCE(?, id_card_number),
                      phone_number = ?, address = ?, date_of_birth = ?, gender = ?, institution = ? 
                  WHERE user_id = ?`,
-                [cleanFrontTitle, cleanBackTitle, cleanIdCard, phone_number || null, address || null, dobVal, gender || null, institution || null, user.id]
+                [cleanIdCard, phone_number || null, address || null, dobVal, gender || null, institution || null, user.id]
             );
         } else {
             await executeQuery(
-                `INSERT INTO participant_profiles (id, user_id, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [uuidv4(), user.id, cleanFrontTitle, cleanBackTitle, cleanIdCard, phone_number || null, address || null, dobVal, gender || null, institution || null]
+                `INSERT INTO participant_profiles (id, user_id, id_card_number, phone_number, address, date_of_birth, gender, institution)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [uuidv4(), user.id, cleanIdCard, phone_number || null, address || null, dobVal, gender || null, institution || null]
             );
         }
 

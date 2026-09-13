@@ -17,8 +17,6 @@ const REGISTER_RATE_LIMIT = {
 
 const registerSchema = z.object({
     full_name: z.string().trim().min(2, 'Nama lengkap minimal 2 karakter').max(100, 'Nama terlalu panjang'),
-    front_title: z.string().trim().max(50).optional().nullable(),
-    back_title: z.string().trim().max(50).optional().nullable(),
     id_card_number: z.string().trim().max(50).optional().nullable(),
     username: z.string().trim().email('Format email tidak valid').max(255),
     password: z.string().min(8, 'Password minimal 8 karakter').max(128, 'Password maksimal 128 karakter'),
@@ -100,13 +98,11 @@ export async function POST(request: NextRequest) {
             // Insert Participant Profile
             await connection.execute(
                 `INSERT INTO participant_profiles 
-                 (id, user_id, nip, front_title, back_title, id_card_number, phone_number, address, date_of_birth, gender, institution, institution_code, target_certification_id, target_certification_name, target_period, batch, initial_password)
-                 VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+                 (id, user_id, nip, id_card_number, phone_number, address, date_of_birth, gender, institution, institution_code, target_certification_id, target_certification_name, target_period, batch, initial_password)
+                 VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
                 [
                     profileId,
                     userId,
-                    data.front_title || null,
-                    data.back_title || null,
                     data.id_card_number || null,
                     data.phone_number || null,
                     data.address || null,

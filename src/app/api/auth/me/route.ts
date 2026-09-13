@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
             users = await executeQuery<any[]>(
                 `SELECT 
                     u.id, u.username, u.full_name, u.role, u.created_at,
-                    p.nip, p.front_title, p.back_title, p.id_card_number,
+                    p.nip, p.id_card_number,
                     p.gender, p.phone_number, p.address,
                     DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth,
                     p.institution, p.institution_code, p.batch,
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
             users = await executeQuery<any[]>(
                 `SELECT 
                     u.id, u.username, u.full_name, u.role, u.created_at,
-                    p.nip, NULL as front_title, NULL as back_title, NULL as id_card_number,
+                    p.nip, NULL as id_card_number,
                     p.gender, p.phone_number, p.address,
                     DATE_FORMAT(p.date_of_birth, '%Y-%m-%d') as date_of_birth,
                     p.institution, p.institution_code, p.batch,

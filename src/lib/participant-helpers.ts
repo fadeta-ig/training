@@ -335,26 +335,15 @@ export async function ensureParticipantSecurityColumns(): Promise<void> {
             );
         }
 
-        // 3. Ensure front_title, back_title, id_card_number exist
-        const titleCols = await executeQuery<{ COLUMN_NAME: string }[]>(
+        // 3. Ensure id_card_number exists
+        const idCardCols = await executeQuery<{ COLUMN_NAME: string }[]>(
             `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME IN ('front_title', 'back_title', 'id_card_number')`
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME = 'id_card_number'`
         );
-        const existingTitleCols = new Set((titleCols || []).map((c) => c.COLUMN_NAME));
 
-        if (!existingTitleCols.has('front_title')) {
+        if (!idCardCols || idCardCols.length === 0) {
             await executeQuery(
-                `ALTER TABLE participant_profiles ADD COLUMN front_title VARCHAR(50) NULL AFTER nip`
-            );
-        }
-        if (!existingTitleCols.has('back_title')) {
-            await executeQuery(
-                `ALTER TABLE participant_profiles ADD COLUMN back_title VARCHAR(50) NULL AFTER front_title`
-            );
-        }
-        if (!existingTitleCols.has('id_card_number')) {
-            await executeQuery(
-                `ALTER TABLE participant_profiles ADD COLUMN id_card_number VARCHAR(50) NULL AFTER back_title`
+                `ALTER TABLE participant_profiles ADD COLUMN id_card_number VARCHAR(50) NULL AFTER nip`
             );
             await executeQuery(
                 `ALTER TABLE participant_profiles ADD INDEX idx_participant_id_card (id_card_number)`
@@ -395,8 +384,6 @@ export async function ensureExamDraftVersionColumn(): Promise<void> {
         checkedExamDraftVersionColumn = true;
     }
 }
-
-export { formatFullNameWithTitles } from '@/lib/participant-formatters';
 
 /**
  * Generates a clean, highly secure, readable random password.

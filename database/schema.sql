@@ -53,8 +53,6 @@ CREATE TABLE participant_profiles (
   id                        VARCHAR(36) PRIMARY KEY,
   user_id                   VARCHAR(36) NOT NULL UNIQUE,
   nip                       VARCHAR(50) UNIQUE NULL,
-  front_title               VARCHAR(50) NULL,
-  back_title                VARCHAR(50) NULL,
   id_card_number            VARCHAR(50) NULL,
   phone_number              VARCHAR(20) NULL,
   address                   TEXT NULL,

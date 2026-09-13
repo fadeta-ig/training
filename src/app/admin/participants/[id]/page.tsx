@@ -40,8 +40,6 @@ export default function EditParticipantPage() {
     const [regenerateNip, setRegenerateNip] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
-        front_title: '',
-        back_title: '',
         id_card_number: '',
         email: '',
         phone_number: '',
@@ -52,11 +50,6 @@ export default function EditParticipantPage() {
         batch: '1',
         registration_date: '',
     });
-
-    const previewFullName = [
-        formData.front_title?.trim(),
-        formData.name?.trim(),
-    ].filter(Boolean).join(' ') + (formData.back_title?.trim() ? `, ${formData.back_title.trim()}` : '');
 
     useEffect(() => {
         const fetchParticipant = async () => {
@@ -71,8 +64,6 @@ export default function EditParticipantPage() {
                     setMustChangePassword(data.must_change_password !== undefined ? Number(data.must_change_password) : 0);
                     setFormData({
                         name: data.name || '',
-                        front_title: data.front_title || '',
-                        back_title: data.back_title || '',
                         id_card_number: data.id_card_number || '',
                         email: data.email || '',
                         phone_number: data.phone_number || '',
@@ -328,63 +319,19 @@ export default function EditParticipantPage() {
                     </h2>
 
                     <div className="space-y-4">
-                        {/* Gelar Depan, Nama, Gelar Belakang */}
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                            <div className="sm:col-span-3 space-y-1.5">
-                                <label className="text-xs font-bold text-foreground">
-                                    Gelar Depan <span className="text-muted-foreground font-normal">(Opsional)</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    maxLength={50}
-                                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-sm focus:outline-none"
-                                    placeholder="Dr. / Ir. / Prof."
-                                    value={formData.front_title}
-                                    onChange={e => setFormData({ ...formData, front_title: e.target.value })}
-                                />
-                            </div>
-                            <div className="sm:col-span-6 space-y-1.5">
-                                <label className="text-xs font-bold text-foreground">
-                                    Nama Lengkap <span className="text-destructive">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-sm focus:outline-none font-semibold"
-                                    placeholder="Nama tanpa gelar"
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                />
-                            </div>
-                            <div className="sm:col-span-3 space-y-1.5">
-                                <label className="text-xs font-bold text-foreground">
-                                    Gelar Belakang <span className="text-muted-foreground font-normal">(Opsional)</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    maxLength={50}
-                                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-sm focus:outline-none"
-                                    placeholder="S.Kom. / M.M."
-                                    value={formData.back_title}
-                                    onChange={e => setFormData({ ...formData, back_title: e.target.value })}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Live Preview Nama di Sertifikat */}
-                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                                <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider flex items-center gap-1">
-                                    <Tick01Icon size={12} />
-                                    Format Nama di Sertifikat &amp; SKL:
-                                </span>
-                                <p className="text-xs font-bold text-foreground mt-0.5 truncate">
-                                    {previewFullName || <span className="text-muted-foreground italic">Nama belum diisi</span>}
-                                </p>
-                            </div>
-                            <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-medium">
-                                Preview
-                            </span>
+                        {/* Nama Lengkap */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-foreground">
+                                Nama Lengkap <span className="text-destructive">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                className="w-full glass-input px-3.5 py-2.5 rounded-xl text-sm focus:outline-none font-semibold"
+                                placeholder="Masukkan nama lengkap peserta"
+                                value={formData.name}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                            />
                         </div>
 
                         {/* NIK KTP / Paspor */}

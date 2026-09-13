@@ -23,8 +23,6 @@ import { parseSpreadsheetBuffer, generateCredentialsReportXlsx } from '@/lib/exc
 interface ParsedRow {
     index: number;
     name: string;
-    front_title?: string;
-    back_title?: string;
     id_card_number?: string;
     email: string;
     phone_number: string;
@@ -125,8 +123,6 @@ export default function BulkImportParticipantsPage() {
                 });
 
                 const name = normalized['nama lengkap'] || normalized['nama'] || normalized['name'] || '';
-                const front_title = normalized['gelar depan'] || normalized['gelar_depan'] || normalized['front_title'] || '';
-                const back_title = normalized['gelar belakang'] || normalized['gelar_belakang'] || normalized['back_title'] || '';
                 const id_card_number = normalized['nik / paspor'] || normalized['nik/paspor'] || normalized['nik'] || normalized['no. ktp'] || normalized['nomor ktp'] || normalized['paspor'] || normalized['id_card_number'] || '';
                 const email = (normalized['email aktif (username login)'] || normalized['email aktif'] || normalized['email'] || '').toLowerCase();
                 const phone_number = normalized['no hp / whatsapp'] || normalized['no hp'] || normalized['no. hp'] || normalized['telepon'] || normalized['phone'] || '';
@@ -183,8 +179,6 @@ export default function BulkImportParticipantsPage() {
                 return {
                     index: idx + 1,
                     name,
-                    front_title,
-                    back_title,
                     id_card_number,
                     email,
                     phone_number,
@@ -225,8 +219,6 @@ export default function BulkImportParticipantsPage() {
                 body: JSON.stringify({
                     participants: validRows.map(r => ({
                         name: r.name,
-                        front_title: r.front_title,
-                        back_title: r.back_title,
                         id_card_number: r.id_card_number,
                         email: r.email,
                         phone_number: r.phone_number,
@@ -597,6 +589,7 @@ export default function BulkImportParticipantsPage() {
                                         <th className="px-4 py-3.5 text-center">No</th>
                                         <th className="px-4 py-3.5 text-center">Status</th>
                                         <th className="px-4 py-3.5">Nama Lengkap</th>
+                                        <th className="px-4 py-3.5">NIK / Paspor</th>
                                         <th className="px-4 py-3.5">Email</th>
                                         <th className="px-4 py-3.5 text-center">L/P</th>
                                         <th className="px-4 py-3.5">Tanggal Lahir</th>
@@ -624,6 +617,7 @@ export default function BulkImportParticipantsPage() {
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 font-semibold text-foreground">{r.name || '-'}</td>
+                                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{r.id_card_number || '-'}</td>
                                             <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.email || '-'}</td>
                                             <td className="px-4 py-3 text-center font-bold text-xs">
                                                 {r.gender ? (

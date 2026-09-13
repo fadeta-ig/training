@@ -52,8 +52,6 @@ async function handleGet(request: NextRequest, _user: AuthenticatedUser) {
                 u.approved_at,
                 u.created_at,
                 pp.nip,
-                pp.front_title,
-                pp.back_title,
                 pp.id_card_number,
                 pp.phone_number,
                 pp.address,

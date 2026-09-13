@@ -43,30 +43,10 @@ async function runMigration() {
 
     const existingCols = new Set(columns.map((c) => c.COLUMN_NAME));
 
-    if (!existingCols.has('front_title')) {
-      console.log('➕ Adding column front_title (VARCHAR(50) NULL)...');
-      await connection.execute(
-        `ALTER TABLE participant_profiles ADD COLUMN front_title VARCHAR(50) NULL AFTER nip`
-      );
-      console.log('✅ Column front_title added successfully.');
-    } else {
-      console.log('ℹ️ Column front_title already exists.');
-    }
-
-    if (!existingCols.has('back_title')) {
-      console.log('➕ Adding column back_title (VARCHAR(50) NULL)...');
-      await connection.execute(
-        `ALTER TABLE participant_profiles ADD COLUMN back_title VARCHAR(50) NULL AFTER front_title`
-      );
-      console.log('✅ Column back_title added successfully.');
-    } else {
-      console.log('ℹ️ Column back_title already exists.');
-    }
-
     if (!existingCols.has('id_card_number')) {
       console.log('➕ Adding column id_card_number (VARCHAR(50) NULL)...');
       await connection.execute(
-        `ALTER TABLE participant_profiles ADD COLUMN id_card_number VARCHAR(50) NULL AFTER back_title`
+        `ALTER TABLE participant_profiles ADD COLUMN id_card_number VARCHAR(50) NULL AFTER nip`
       );
       console.log('✅ Column id_card_number added successfully.');
     } else {
@@ -89,7 +69,7 @@ async function runMigration() {
       console.log('ℹ️ Index idx_participant_id_card already exists.');
     }
 
-    console.log('\n🎉 Participant titles & NIK migration completed successfully!');
+    console.log('\n🎉 Participant NIK migration completed successfully!');
   } catch (err) {
     console.error('❌ Migration failed:', err);
     process.exit(1);

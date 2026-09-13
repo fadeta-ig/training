@@ -29,8 +29,6 @@ export function FirstLoginModal({ user }: FirstLoginModalProps) {
 
     const [formData, setFormData] = useState({
         full_name: user?.full_name || '',
-        front_title: user?.front_title || '',
-        back_title: user?.back_title || '',
         id_card_number: user?.id_card_number || '',
         gender: (user?.gender || '') as 'L' | 'P' | '',
         phone_number: user?.phone_number || '',
@@ -39,11 +37,6 @@ export function FirstLoginModal({ user }: FirstLoginModalProps) {
         new_password: '',
         confirm_password: '',
     });
-
-    const previewFullName = [
-        formData.front_title?.trim(),
-        formData.full_name?.trim(),
-    ].filter(Boolean).join(' ') + (formData.back_title?.trim() ? `, ${formData.back_title.trim()}` : '');
 
     // Password strength evaluator
     const getPasswordStrength = (pass: string): { score: number; label: string; color: string } => {
@@ -186,65 +179,19 @@ export function FirstLoginModal({ user }: FirstLoginModalProps) {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {/* Gelar Depan, Nama Lengkap, Gelar Belakang */}
+                            {/* Nama Lengkap */}
                             <div className="space-y-1.5 sm:col-span-2">
-                                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                                    <div className="sm:col-span-3 space-y-1">
-                                        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                            Gelar Depan <span className="text-slate-400 font-normal">(Opsional)</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            maxLength={50}
-                                            value={formData.front_title}
-                                            onChange={(e) => setFormData({ ...formData, front_title: e.target.value })}
-                                            placeholder="Dr. / Ir. / Prof."
-                                            className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:border-slate-400 dark:focus:border-slate-600 transition-all font-medium"
-                                        />
-                                    </div>
-                                    <div className="sm:col-span-6 space-y-1">
-                                        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                            Nama Lengkap Resmi <span className="text-rose-500">*</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={formData.full_name}
-                                            onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                                            placeholder="Nama lengkap tanpa gelar"
-                                            className="w-full h-10 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:border-slate-400 dark:focus:border-slate-600 transition-all font-semibold"
-                                        />
-                                    </div>
-                                    <div className="sm:col-span-3 space-y-1">
-                                        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                            Gelar Belakang <span className="text-slate-400 font-normal">(Opsional)</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            maxLength={50}
-                                            value={formData.back_title}
-                                            onChange={(e) => setFormData({ ...formData, back_title: e.target.value })}
-                                            placeholder="S.Kom. / M.M."
-                                            className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:border-slate-400 dark:focus:border-slate-600 transition-all font-medium"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Preview Nama Resmi di Sertifikat */}
-                                <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/50 flex items-center justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1">
-                                            <Tick01Icon size={12} />
-                                            Preview Nama di Sertifikat &amp; Dokumen SKL:
-                                        </span>
-                                        <p className="text-xs font-bold text-slate-900 dark:text-white mt-0.5 truncate">
-                                            {previewFullName || <span className="text-slate-400 italic">Nama belum diisi</span>}
-                                        </p>
-                                    </div>
-                                    <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 font-medium">
-                                        Format Resmi
-                                    </span>
-                                </div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                    Nama Lengkap <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={formData.full_name}
+                                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                                    placeholder="Masukkan nama lengkap Anda"
+                                    className="w-full h-10 px-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:border-slate-400 dark:focus:border-slate-600 transition-all font-semibold"
+                                />
                             </div>
 
                             {/* NIK KTP / Paspor (Wajib) */}

@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { generateParticipantsDetailExportXlsx, ParticipantDetailExportRow } from '@/lib/excel';
-import { ensureInitialPasswordColumn, formatFullNameWithTitles } from '@/lib/participant-helpers';
+import { ensureInitialPasswordColumn } from '@/lib/participant-helpers';
 import logger from '@/lib/logger';
 
 interface RawParticipantRow {
     id: string;
     email: string;
     name: string;
-    front_title: string | null;
-    back_title: string | null;
     id_card_number: string | null;
     nip: string | null;
     initial_password: string | null;
@@ -45,8 +43,6 @@ async function handleGet(request: NextRequest, _authUser: AuthenticatedUser) {
                 u.full_name as name, 
                 u.created_at,
                 p.nip,
-                p.front_title,
-                p.back_title,
                 p.id_card_number,
                 p.initial_password,
                 p.phone_number,
@@ -142,9 +138,7 @@ async function handleGet(request: NextRequest, _authUser: AuthenticatedUser) {
 
         const exportRows: ParticipantDetailExportRow[] = (rows || []).map((row, idx) => ({
             no: idx + 1,
-            fullName: formatFullNameWithTitles(row.name, row.front_title, row.back_title) || row.name || '-',
-            frontTitle: row.front_title || '-',
-            backTitle: row.back_title || '-',
+            fullName: row.name || '-',
             idCardNumber: row.id_card_number || '-',
             nip: row.nip || '-',
             email: row.email || '-',

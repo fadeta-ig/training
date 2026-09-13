@@ -11,7 +11,6 @@ import {
     BookOpen01Icon,
 } from 'hugeicons-react';
 import DashboardCalendar from './_components/DashboardCalendar';
-import { formatFullNameWithTitles } from '@/lib/participant-formatters';
 
 type Session = {
     id: string;
@@ -49,7 +48,7 @@ async function getDashboardData() {
         `;
 
         const userProfileQuery = `
-            SELECT u.full_name, pp.front_title, pp.back_title, pp.nip, pp.id_card_number, pp.institution, pp.batch
+            SELECT u.full_name, pp.nip, pp.id_card_number, pp.institution, pp.batch
             FROM users u
             LEFT JOIN participant_profiles pp ON u.id = pp.user_id
             WHERE u.id = ?
@@ -86,7 +85,7 @@ export default async function DashboardOverviewPage() {
     const completedCount = sessions.filter(s => getStatus(s) === 'completed').length;
     const upcomingCount = sessions.filter(s => getStatus(s) === 'upcoming').length;
 
-    const displayFullName = formatFullNameWithTitles(userProfile?.full_name, userProfile?.front_title, userProfile?.back_title);
+    const displayFullName = userProfile?.full_name || '';
 
     return (
         <div className="max-w-5xl mx-auto space-y-8">

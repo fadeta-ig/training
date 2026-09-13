@@ -34,8 +34,6 @@ type User = {
     session_participant_id?: string;
     username: string;
     full_name: string;
-    front_title?: string | null;
-    back_title?: string | null;
     id_card_number?: string | null;
     nip?: string | null;
     institution?: string | null;

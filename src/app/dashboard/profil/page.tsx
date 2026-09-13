@@ -41,8 +41,6 @@ export default function ProfilePage() {
 
     const [formData, setFormData] = useState({
         full_name: '',
-        front_title: '',
-        back_title: '',
         id_card_number: '',
         username: '',
         phone_number: '',
@@ -72,8 +70,6 @@ export default function ProfilePage() {
                     setFormData((prev) => ({
                         ...prev,
                         full_name: d.full_name || '',
-                        front_title: d.front_title || '',
-                        back_title: d.back_title || '',
                         id_card_number: d.id_card_number || '',
                         username: d.username || '',
                         phone_number: d.phone_number || '',
@@ -165,10 +161,6 @@ export default function ProfilePage() {
         ? new Date(participantInfo.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
         : '-';
 
-    const displayFullName = [
-        formData.front_title?.trim(),
-        formData.full_name?.trim(),
-    ].filter(Boolean).join(' ') + (formData.back_title?.trim() ? `, ${formData.back_title.trim()}` : '');
 
     const getInitials = (name: string) => {
         if (!name) return 'PS';
@@ -208,7 +200,7 @@ export default function ProfilePage() {
                         <div className="min-w-0 space-y-1">
                             <div className="flex items-center gap-2.5 flex-wrap">
                                 <h2 className="text-lg sm:text-xl font-bold text-slate-900 truncate">
-                                    {displayFullName || 'Peserta Pelatihan'}
+                                    {formData.full_name || 'Peserta Pelatihan'}
                                 </h2>
                                 <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
                                     <CheckmarkCircle02Icon size={13} />
@@ -298,68 +290,20 @@ export default function ProfilePage() {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                            {/* Gelar Depan, Nama Lengkap, Gelar Belakang */}
-                            <div className="sm:col-span-2 space-y-2">
-                                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                                    <div className="sm:col-span-3 space-y-1.5">
-                                        <label className="text-xs font-semibold text-slate-700">
-                                            Gelar Depan <span className="text-slate-400 font-normal">(Opsional)</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="front_title"
-                                            maxLength={50}
-                                            value={formData.front_title}
-                                            onChange={handleChange}
-                                            placeholder="Dr., Ir., Prof."
-                                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors font-medium"
-                                        />
-                                    </div>
-                                    <div className="sm:col-span-6 space-y-1.5">
-                                        <label className="text-xs font-semibold text-slate-700">
-                                            Nama Lengkap Resmi <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="full_name"
-                                            value={formData.full_name}
-                                            onChange={handleChange}
-                                            required
-                                            placeholder="Nama lengkap tanpa gelar"
-                                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors font-semibold"
-                                        />
-                                    </div>
-                                    <div className="sm:col-span-3 space-y-1.5">
-                                        <label className="text-xs font-semibold text-slate-700">
-                                            Gelar Belakang <span className="text-slate-400 font-normal">(Opsional)</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="back_title"
-                                            maxLength={50}
-                                            value={formData.back_title}
-                                            onChange={handleChange}
-                                            placeholder="S.Kom., M.M., Ph.D."
-                                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors font-medium"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Preview Nama di Sertifikat */}
-                                <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200/80 flex items-center justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <span className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider flex items-center gap-1">
-                                            <Tick01Icon size={12} />
-                                            Format Nama pada Sertifikat &amp; Dokumen SKL:
-                                        </span>
-                                        <p className="text-xs font-bold text-slate-900 mt-0.5 truncate">
-                                            {displayFullName || <span className="text-slate-400 italic">Nama belum diisi</span>}
-                                        </p>
-                                    </div>
-                                    <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-medium">
-                                        Pratinjau Resmi
-                                    </span>
-                                </div>
+                            {/* Nama Lengkap */}
+                            <div className="sm:col-span-2 space-y-1.5">
+                                <label className="text-xs font-semibold text-slate-700">
+                                    Nama Lengkap <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    name="full_name"
+                                    value={formData.full_name}
+                                    onChange={handleChange}
+                                    required
+                                    placeholder="Masukkan nama lengkap Anda"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-slate-400 focus:outline-none transition-colors font-semibold"
+                                />
                             </div>
 
                             {/* NIK KTP / No. Paspor (Wajib) */}

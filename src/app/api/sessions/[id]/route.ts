@@ -4,7 +4,6 @@ import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
 import { sessionSchema } from '@/lib/validations/sessionSchema';
 import { withAuth } from '@/lib/api-auth';
-import { formatFullNameWithTitles } from '@/lib/participant-helpers';
 
 // GET Detail Sesi & Peserta + Progress Monitoring
 async function handleGet(
@@ -44,7 +43,7 @@ async function handleGet(
         const participants = await executeQuery<any[]>(
             `SELECT sp.id AS session_participant_id,
                     sp.user_id, u.username, u.full_name,
-                    p.nip, p.front_title, p.back_title, p.id_card_number, p.institution, p.batch,
+                    p.nip, p.id_card_number, p.institution, p.batch,
                     sp.graduation_status,
                     sp.graduation_decided_at,
                     sp.graduation_notes,
@@ -62,7 +61,7 @@ async function handleGet(
              LEFT JOIN user_progress up ON up.user_id = sp.user_id AND up.session_id = sp.session_id
              LEFT JOIN module_items mi ON mi.id = up.module_item_id
              WHERE sp.session_id = ?
-             GROUP BY sp.id, sp.user_id, u.username, u.full_name, p.nip, p.front_title, p.back_title, p.id_card_number, p.institution, p.batch,
+             GROUP BY sp.id, sp.user_id, u.username, u.full_name, p.nip, p.id_card_number, p.institution, p.batch,
                       sp.graduation_status, sp.graduation_decided_at, sp.graduation_notes,
                       sp.skl_number, sp.skl_generated_at, sp.certificate_file_url,
                       sp.certificate_number, sp.certificate_uploaded_at
@@ -80,10 +79,7 @@ async function handleGet(
                     id: p.user_id,
                     session_participant_id: p.session_participant_id,
                     username: p.username,
-                    full_name: formatFullNameWithTitles(p.full_name, p.front_title, p.back_title) || p.username,
-                    raw_full_name: p.full_name,
-                    front_title: p.front_title || null,
-                    back_title: p.back_title || null,
+                    full_name: p.full_name || p.username,
                     id_card_number: p.id_card_number || null,
                     nip: p.nip || null,
                     institution: p.institution || null,

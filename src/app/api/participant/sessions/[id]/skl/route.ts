@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
-import { formatFullNameWithTitles } from '@/lib/participant-helpers';
 import fs from 'fs';
 import path from 'path';
 import QRCode from 'qrcode';
@@ -34,8 +33,6 @@ async function handleGet(
                 u.full_name,
                 u.username,
                 pp.nip,
-                pp.front_title,
-                pp.back_title,
                 pp.id_card_number,
                 pp.institution,
                 pp.batch,
@@ -51,7 +48,7 @@ async function handleGet(
              WHERE sp.session_id = ? AND sp.user_id = ?
              GROUP BY sp.id, sp.graduation_status, sp.graduation_decided_at, sp.graduation_notes,
                       sp.skl_number, sp.skl_generated_at, u.full_name, u.username,
-                      pp.nip, pp.front_title, pp.back_title, pp.id_card_number, pp.institution, pp.batch, s.title, s.start_time, s.end_time, m.title
+                      pp.nip, pp.id_card_number, pp.institution, pp.batch, s.title, s.start_time, s.end_time, m.title
              LIMIT 1`,
             [sessionId, targetUserId]
         );
@@ -126,7 +123,7 @@ async function handleGet(
             },
         });
 
-        const participantName = formatFullNameWithTitles(data.full_name || data.username, data.front_title, data.back_title) || '-';
+        const participantName = data.full_name || data.username || '-';
         const institutionName = data.institution || 'Instansi Peserta Terdaftar';
         const certificationName = data.session_title || data.module_title || 'Pelatihan dan Sertifikasi Profesi International';
 

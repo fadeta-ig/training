@@ -26,7 +26,7 @@ async function handleGet(
         // Verify participant is enrolled
         const participantResult = await executeQuery<any[]>(
             `SELECT sp.user_id, u.username, u.full_name,
-                    pp.nip, pp.front_title, pp.back_title, pp.id_card_number, pp.institution, pp.batch,
+                    pp.nip, pp.id_card_number, pp.institution, pp.batch,
                     sp.graduation_status, sp.graduation_decided_at, sp.graduation_notes,
                     sp.skl_number, sp.certificate_file_url, sp.certificate_number
              FROM session_participants sp

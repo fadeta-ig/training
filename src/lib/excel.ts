@@ -54,8 +54,6 @@ export interface CredentialExportRow {
 export interface ParticipantDetailExportRow {
     no: number;
     fullName: string;
-    frontTitle?: string;
-    backTitle?: string;
     idCardNumber?: string;
     nip?: string;
     email: string;
@@ -110,7 +108,7 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     });
 
     // 1. Instruction Title / Banner
-    sheet.mergeCells('A1:M1');
+    sheet.mergeCells('A1:K1');
     const bannerCell = sheet.getCell('A1');
     bannerCell.value = 'PANDUAN PENGISIAN TEMPLATE IMPORT PESERTA LMS';
     bannerCell.font = { name: FONT_FAMILY, size: 12, bold: true, color: { argb: 'FF0F172A' } };
@@ -119,9 +117,9 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     sheet.getRow(1).height = 28;
 
     // 2. Guidelines Notes
-    sheet.mergeCells('A2:M2');
+    sheet.mergeCells('A2:K2');
     const noteCell = sheet.getCell('A2');
-    noteCell.value = '• Kolom bertanda (*) WAJIB diisi (Nama Lengkap & Email Aktif). Kolom Gelar Depan, Gelar Belakang, NIK/Paspor, dan data lainnya bersifat opsional saat import dan dapat dilengkapi peserta saat pertama kali login. NIP digenerate OTOMATIS oleh sistem. Jenis Kelamin: L atau P. Format Tanggal: YYYY-MM-DD.';
+    noteCell.value = '• Kolom bertanda (*) WAJIB diisi (Nama Lengkap & Email Aktif). Kolom NIK/Paspor dan data lainnya bersifat opsional saat import dan dapat dilengkapi peserta saat pertama kali login. NIP digenerate OTOMATIS oleh sistem. Jenis Kelamin: L atau P. Format Tanggal: YYYY-MM-DD.';
     noteCell.font = { name: FONT_FAMILY, size: 9.5, italic: true, color: { argb: 'FF475569' } };
     noteCell.fill = BANNER_FILL;
     noteCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -130,11 +128,9 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     // Empty separator row
     sheet.getRow(3).height = 10;
 
-    // 3. Table Headers — 13 columns
+    // 3. Table Headers — 11 columns
     const headers = [
         'Nama Lengkap *',
-        'Gelar Depan',
-        'Gelar Belakang',
         'NIK / Paspor',
         'Email Aktif (Username Login) *',
         'Jenis Kelamin (L/P)',
@@ -159,11 +155,9 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     });
 
     // 4. Sample Rows
-    const samples: ParticipantTemplateRow[] = [
+    const samples = [
         {
             fullName: 'Ahmad Dahlan',
-            frontTitle: 'Dr.',
-            backTitle: 'M.M., M.Kom.',
             idCardNumber: '3201123456780001',
             email: 'ahmad.dahlan@example.com',
             gender: 'L',
@@ -177,8 +171,6 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
         },
         {
             fullName: 'Siti Nurhaliza',
-            frontTitle: '',
-            backTitle: 'S.T.',
             idCardNumber: '3578123456780002',
             email: 'siti.nurhaliza@example.com',
             gender: '' as any,
@@ -198,8 +190,6 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
 
         const values = [
             sample.fullName,
-            sample.frontTitle || '',
-            sample.backTitle || '',
             sample.idCardNumber || '',
             sample.email,
             sample.gender || '',
@@ -224,11 +214,11 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
             };
 
             // Formatting specifics based on column position
-            if (colIdx === 1 || colIdx === 2 || colIdx === 5 || colIdx === 6 || colIdx === 11 || colIdx === 12) {
-                // Front Title, Back Title, Gender, DOB, Batch, Registration Date → centered
+            if (colIdx === 3 || colIdx === 4 || colIdx === 9 || colIdx === 10) {
+                // Gender, DOB, Batch, Registration Date → centered
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
-            } else if (colIdx === 3 || colIdx === 7) {
-                // NIK/Paspor (Col D) and Phone number (Col H) as text format to keep leading zeroes
+            } else if (colIdx === 1 || colIdx === 5) {
+                // NIK/Paspor (Col B) and Phone number (Col F) as text format to keep leading zeroes
                 cell.numFmt = '@';
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
             } else {
@@ -240,23 +230,21 @@ export async function generateParticipantTemplateXlsx(): Promise<Uint8Array> {
     // 5. Setup Column Widths
     sheet.columns = [
         { width: 28 }, // A: Nama Lengkap
-        { width: 16 }, // B: Gelar Depan
-        { width: 20 }, // C: Gelar Belakang
-        { width: 26 }, // D: NIK / Paspor
-        { width: 34 }, // E: Email Aktif
-        { width: 22 }, // F: Jenis Kelamin
-        { width: 28 }, // G: Tanggal Lahir
-        { width: 20 }, // H: No HP
-        { width: 40 }, // I: Alamat
-        { width: 28 }, // J: Institusi
-        { width: 34 }, // K: Program Sertifikasi
-        { width: 22 }, // L: Batch Pelatihan
-        { width: 32 }, // M: Tanggal Pendaftaran
+        { width: 26 }, // B: NIK / Paspor
+        { width: 34 }, // C: Email Aktif
+        { width: 22 }, // D: Jenis Kelamin
+        { width: 28 }, // E: Tanggal Lahir
+        { width: 20 }, // F: No HP
+        { width: 40 }, // G: Alamat
+        { width: 28 }, // H: Institusi
+        { width: 34 }, // I: Program Sertifikasi
+        { width: 22 }, // J: Batch Pelatihan
+        { width: 32 }, // K: Tanggal Pendaftaran
     ];
 
-    // 6. Data Validation for Gender (Column F, rows 5 to 500) — OPTIONAL (allowBlank: true)
+    // 6. Data Validation for Gender (Column D, rows 5 to 500) — OPTIONAL (allowBlank: true)
     for (let r = 5; r <= 500; r++) {
-        const genderCell = sheet.getCell(`F${r}`);
+        const genderCell = sheet.getCell(`D${r}`);
         genderCell.dataValidation = {
             type: 'list',
             allowBlank: true,
@@ -756,7 +744,7 @@ export async function generateParticipantsDetailExportXlsx(params: {
     });
 
     // 1. Header Banner
-    sheet.mergeCells('A1:O1');
+    sheet.mergeCells('A1:M1');
     const titleCell = sheet.getCell('A1');
     titleCell.value = title.toUpperCase();
     titleCell.font = { name: FONT_FAMILY, size: 13, bold: true, color: { argb: 'FF0F172A' } };
@@ -771,8 +759,6 @@ export async function generateParticipantsDetailExportXlsx(params: {
     const headers = [
         'No',
         'Nama Lengkap',
-        'Gelar Depan',
-        'Gelar Belakang',
         'NIK / Paspor',
         'NIP',
         'Email / Username',
@@ -799,7 +785,7 @@ export async function generateParticipantsDetailExportXlsx(params: {
 
     // 3. Table Rows
     if (rows.length === 0) {
-        sheet.mergeCells('A5:O5');
+        sheet.mergeCells('A5:M5');
         const emptyCell = sheet.getCell('A5');
         emptyCell.value = 'Belum ada data peserta yang tersedia.';
         emptyCell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -813,8 +799,6 @@ export async function generateParticipantsDetailExportXlsx(params: {
             const values = [
                 row.no,
                 row.fullName,
-                row.frontTitle || '-',
-                row.backTitle || '-',
                 row.idCardNumber || '-',
                 row.nip || '-',
                 row.email,
@@ -839,20 +823,20 @@ export async function generateParticipantsDetailExportXlsx(params: {
                     fgColor: { argb: idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC' },
                 };
 
-                // Explicit text format for NIK (4), NIP (5), Password (7), Phone (8), and Batch (13)
-                if ([4, 5, 7, 8, 13].includes(colIdx)) {
+                // Explicit text format for NIK (2), NIP (3), Password (5), Phone (6), and Batch (11)
+                if ([2, 3, 5, 6, 11].includes(colIdx)) {
                     cell.numFmt = '@';
                 }
 
-                // Center align: No (0), Gelar Depan (2), Gelar Belakang (3), NIK (4), NIP (5), Password (7), No HP (8), Gender (9), Tgl Lahir (10), Batch (13), Tgl Daftar (14)
-                if ([0, 2, 3, 4, 5, 7, 8, 9, 10, 13, 14].includes(colIdx)) {
+                // Center align: No (0), NIK (2), NIP (3), Password (5), No HP (6), Gender (7), Tgl Lahir (8), Batch (11), Tgl Daftar (12)
+                if ([0, 2, 3, 5, 6, 7, 8, 11, 12].includes(colIdx)) {
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 } else {
                     cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
                 }
 
                 // Special styling for password column
-                if (colIdx === 7) {
+                if (colIdx === 5) {
                     cell.font = { 
                         name: FONT_FAMILY, 
                         size: 9.5, 
@@ -862,12 +846,12 @@ export async function generateParticipantsDetailExportXlsx(params: {
                 }
 
                 // Special styling for NIP column
-                if (colIdx === 5 && row.nip) {
+                if (colIdx === 3 && row.nip) {
                     cell.font = { name: FONT_FAMILY, size: 9.5, bold: true, color: { argb: 'FF0284C7' } };
                 }
 
                 // Special styling for NIK column
-                if (colIdx === 4 && row.idCardNumber && row.idCardNumber !== '-') {
+                if (colIdx === 2 && row.idCardNumber && row.idCardNumber !== '-') {
                     cell.font = { name: FONT_FAMILY, size: 9.5, bold: true, color: { argb: 'FF0F172A' } };
                 }
             });
@@ -878,8 +862,6 @@ export async function generateParticipantsDetailExportXlsx(params: {
     sheet.columns = [
         { width: 6 },  // No
         { width: 28 }, // Nama Lengkap
-        { width: 14 }, // Gelar Depan
-        { width: 16 }, // Gelar Belakang
         { width: 22 }, // NIK / Paspor
         { width: 24 }, // NIP
         { width: 32 }, // Email / Username
@@ -888,9 +870,9 @@ export async function generateParticipantsDetailExportXlsx(params: {
         { width: 8 },  // L/P
         { width: 14 }, // Tgl Lahir
         { width: 30 }, // Alamat
-        { width: 26 }, // Instansi
-        { width: 10 }, // Batch
-        { width: 16 }, // Tgl Daftar
+        { width: 28 }, // Instansi
+        { width: 12 }, // Batch
+        { width: 18 }, // Tgl Pendaftaran
     ];
 
     const buffer = await workbook.xlsx.writeBuffer();

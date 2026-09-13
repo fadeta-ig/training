@@ -109,7 +109,7 @@ export default function RegisterPage() {
 
         if (step === 1) {
             if (!formData.full_name.trim()) {
-                setStepError('Nama Lengkap & Gelar wajib diisi.');
+                setStepError('Nama Lengkap wajib diisi.');
                 return false;
             }
             if (formData.full_name.trim().length < 2) {
@@ -431,7 +431,7 @@ export default function RegisterPage() {
                                             {/* Nama Lengkap */}
                                             <div className="space-y-1">
                                                 <label className="block text-xs font-semibold text-foreground/80 uppercase tracking-wider">
-                                                    Nama Lengkap & Gelar <span className="text-destructive">*</span>
+                                                    Nama Lengkap <span className="text-destructive">*</span>
                                                 </label>
                                                 <div className="relative flex items-center">
                                                     <span className="absolute left-3.5 text-muted-foreground pointer-events-none">
@@ -442,7 +442,7 @@ export default function RegisterPage() {
                                                         required
                                                         autoFocus
                                                         className="w-full h-10 pl-10 pr-3.5 rounded-xl bg-slate-50/70 border border-slate-200 text-sm text-foreground placeholder:text-muted-foreground/50 focus:bg-white focus:outline-none focus:border-foreground focus:ring-3 focus:ring-foreground/5 transition-all"
-                                                        placeholder="Contoh: Ahmad Fauzi, S.Kom"
+                                                        placeholder="Contoh: Ahmad Fauzi"
                                                         value={formData.full_name}
                                                         onChange={(e) => {
                                                             setFormData({ ...formData, full_name: e.target.value });

@@ -3,7 +3,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { ShieldCheck, CheckCircle2, AlertTriangle, Building, Calendar, Award, User, Hash } from 'lucide-react';
-import { formatFullNameWithTitles } from '@/lib/participant-formatters';
 
 export const metadata: Metadata = {
     title: 'Verifikasi Keaslian Dokumen SKL - Nusamitra Consulting',
@@ -33,8 +32,6 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
                 u.full_name,
                 u.username,
                 pp.nip,
-                pp.front_title,
-                pp.back_title,
                 pp.id_card_number,
                 pp.institution,
                 s.title AS session_title,
@@ -117,7 +114,7 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
                                         <span>Nama Lengkap:</span>
                                     </div>
                                     <span className="font-bold text-slate-900 text-right uppercase text-sm">
-                                        {formatFullNameWithTitles(verificationData.full_name, verificationData.front_title, verificationData.back_title) || verificationData.full_name || verificationData.username}
+                                        {verificationData.full_name || verificationData.username}
                                     </span>
                                 </div>
 

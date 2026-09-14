@@ -105,6 +105,8 @@ export async function GET(
     <true/>
 
     <!-- Security & Anti-Cheating Lockdown (macOS & Windows) -->
+    <key>monitorProcesses</key>
+    <false/>
     <key>allowPreferencesWindow</key>
     <false/>
     <key>insideSebEnableSwitchUser</key>

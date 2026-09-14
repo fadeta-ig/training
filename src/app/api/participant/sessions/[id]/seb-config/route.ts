@@ -62,6 +62,12 @@ export async function GET(
     <key>browserExamKey</key>
     <string>${safeConfigKey}</string>
 
+    <!-- Browser Engine Policy: Modern WebView (WKWebView) for macOS & Windows -->
+    <key>browserWindowWebView</key>
+    <integer>3</integer>
+    <key>browserWindowWebViewClassicHideDeprecationNote</key>
+    <true/>
+
     <!-- Camera & Media Proctored Exam Permissions (macOS & Windows SEB 3.x) -->
     <key>allowVideoCapture</key>
     <true/>

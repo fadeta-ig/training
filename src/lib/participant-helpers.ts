@@ -144,6 +144,13 @@ export function validateSebAccess(
             for (const expectedKey of keysToCheck) {
                 if (clientHash === expectedKey) return;
 
+                const directKeyHash = crypto
+                    .createHash('sha256')
+                    .update(expectedKey)
+                    .digest('hex')
+                    .toLowerCase();
+                if (clientHash === directKeyHash) return;
+
                 const rawUrl = request.url;
                 const urlObj = new URL(rawUrl);
                 const proto = request.headers.get('x-forwarded-proto') || urlObj.protocol.replace(':', '');
@@ -151,12 +158,31 @@ export function validateSebAccess(
                 const pathname = urlObj.pathname;
                 const search = urlObj.search;
 
+                // Support Modern WKWebView where SEB JavaScript API hashes against document URL (referer)
+                const referer = request.headers.get('referer');
+                let refererCandidates: string[] = [];
+                if (referer) {
+                    try {
+                        const refObj = new URL(referer);
+                        refererCandidates = [
+                            referer,
+                            `${refObj.origin}${refObj.pathname}${refObj.search}`,
+                            `${refObj.origin}${refObj.pathname}`,
+                            `${proto}://${host}${refObj.pathname}${refObj.search}`,
+                            `${proto}://${host}${refObj.pathname}`,
+                        ];
+                    } catch {
+                        refererCandidates = [referer];
+                    }
+                }
+
                 const candidates = [
                     rawUrl,
                     `${proto}://${host}${pathname}${search}`,
                     `${proto}://${host}${pathname}`,
                     `https://${host}${pathname}`,
                     `http://${host}${pathname}`,
+                    ...refererCandidates,
                 ];
 
                 for (const targetUrl of candidates) {
@@ -173,6 +199,16 @@ export function validateSebAccess(
 
         // If it's a genuine SEB client with SEB headers, grant access
         if (hasSebHeader && isSebUserAgent) {
+            return;
+        }
+
+        // In Modern WKWebView (macOS/Windows): WebKit engine isolates network requests
+        // and does not inject custom HTTP headers into background fetch/XHR calls.
+        // If genuine SEB User-Agent is confirmed:
+        if (isSebUserAgent && !hasSebHeader) {
+            logger.info('SEB_SECURITY', 'Akses diterima via Modern WebView SEB User-Agent', {
+                userAgent,
+            });
             return;
         }
 

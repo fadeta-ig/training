@@ -22,7 +22,7 @@ import {
 import WebcamProctor from '@/components/proctor/WebcamProctor';
 import { ClientPortal } from '@/components/ui/ClientPortal';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
-import { useIsSeb } from '@/hooks/useSeb';
+import { useIsSeb, getSebHeaders, updateSebSecurityKeys } from '@/hooks/useSeb';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -411,9 +411,10 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         setSaveState('saving');
 
         try {
+            const sebHeaders = getSebHeaders();
             const response = await fetch(`/api/participant/sessions/${sessionId}/exam/${examId}/answers`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...sebHeaders },
                 body: JSON.stringify({
                     attempt_number: examData.attemptNumber,
                     attempt_version: examData.attemptVersion || 1,
@@ -533,9 +534,10 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         }));
 
         try {
+            const sebHeaders = await updateSebSecurityKeys();
             const response = await fetch(`/api/participant/sessions/${sessionId}/exam/${examId}/submit`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...sebHeaders },
                 body: JSON.stringify({ answers: payload }),
             });
             const data = await response.json();
@@ -560,11 +562,18 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         }
     }, [examData, examId, getStorageKey, sessionId, submitting]);
 
-    // Initial Exam Fetch with Server NTP Offset
+    // Initial Exam Fetch with Server NTP Offset & Modern SEB Security Keys
     useEffect(() => {
         let cancelled = false;
-        fetch(`/api/participant/sessions/${sessionId}/exam/${examId}`)
+        updateSebSecurityKeys()
+            .then((sebHeaders) => {
+                if (cancelled) return null;
+                return fetch(`/api/participant/sessions/${sessionId}/exam/${examId}`, {
+                    headers: sebHeaders,
+                });
+            })
             .then(async (response) => {
+                if (!response) return null;
                 if (response.status === 401) {
                     window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`;
                     return null;

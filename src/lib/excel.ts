@@ -29,12 +29,17 @@ export interface SessionExportRow {
     no: number;
     fullName: string;
     nip?: string;
+    nik?: string;
     institution?: string;
     batch?: string;
     username: string;
+    progress?: string;
     status: string;
+    graduationStatus?: string;
     score: string | number;
     attempts: string | number;
+    sklNumber?: string;
+    certificateNumber?: string;
     lastAccess: string;
 }
 
@@ -406,10 +411,11 @@ export async function generateUserTemplateXlsx(): Promise<Uint8Array> {
 export async function generateSessionReportXlsx(params: {
     sessionId: string;
     sessionTitle: string;
+    moduleTitle?: string;
     exportedAt: string;
     rows: SessionExportRow[];
 }): Promise<Uint8Array> {
-    const { sessionId, sessionTitle, exportedAt, rows } = params;
+    const { sessionId, sessionTitle, moduleTitle, exportedAt, rows } = params;
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'LMS Platform';
@@ -420,8 +426,8 @@ export async function generateSessionReportXlsx(params: {
         pageSetup: { orientation: 'landscape', fitToPage: true },
     });
 
-    // 1. Title Row
-    sheet.mergeCells('A1:J1');
+    // 1. Title Row (Spans A1 to N1 for 14 columns)
+    sheet.mergeCells('A1:N1');
     const titleCell = sheet.getCell('A1');
     titleCell.value = `LAPORAN HASIL SESI: ${sessionTitle.toUpperCase()}`;
     titleCell.font = { name: FONT_FAMILY, size: 14, bold: true, color: { argb: 'FF0F172A' } };
@@ -429,19 +435,21 @@ export async function generateSessionReportXlsx(params: {
     sheet.getRow(1).height = 32;
 
     // 2. Metadata Rows
-    sheet.getCell('A2').value = `ID Sesi: ${sessionId}`;
+    sheet.getCell('A2').value = `ID Sesi: ${sessionId}${moduleTitle ? ` | Modul: ${moduleTitle}` : ''}`;
     sheet.getCell('A2').font = { name: FONT_FAMILY, size: 10, color: { argb: 'FF64748B' } };
     sheet.getCell('A3').value = `Diunduh pada: ${exportedAt} | Total Peserta: ${rows.length} orang`;
     sheet.getCell('A3').font = { name: FONT_FAMILY, size: 10, color: { argb: 'FF64748B' } };
 
     // KPI Summary
-    const completedCount = rows.filter((r) => r.status.toUpperCase().includes('SELESAI') || r.status.toUpperCase().includes('LULUS')).length;
+    const passedCount = rows.filter((r) => (r.graduationStatus && r.graduationStatus.toUpperCase() === 'LULUS') || r.status.toUpperCase().includes('LULUS')).length;
+    const failedCount = rows.filter((r) => (r.graduationStatus && r.graduationStatus.toUpperCase() === 'TIDAK LULUS') || r.status.toUpperCase().includes('TIDAK LULUS')).length;
+    const completedCount = rows.filter((r) => (r.progress && r.progress.startsWith('100%')) || r.status.toUpperCase().includes('SELESAI')).length;
     const scores = rows.map((r) => typeof r.score === 'number' ? r.score : parseFloat(String(r.score))).filter((s) => !isNaN(s));
     const avgScore = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '-';
 
-    sheet.mergeCells('A4:J4');
+    sheet.mergeCells('A4:N4');
     const kpiCell = sheet.getCell('A4');
-    kpiCell.value = `Ringkasan: Selesai: ${completedCount}/${rows.length} (${rows.length > 0 ? Math.round((completedCount / rows.length) * 100) : 0}%) | Rata-rata Skor: ${avgScore}`;
+    kpiCell.value = `Ringkasan: Lulus: ${passedCount} | Tidak Lulus: ${failedCount} | Selesai (100%): ${completedCount}/${rows.length} (${rows.length > 0 ? Math.round((completedCount / rows.length) * 100) : 0}%) | Rata-rata Skor: ${avgScore}`;
     kpiCell.font = { name: FONT_FAMILY, size: 10.5, bold: true, color: { argb: 'FF1E3A8A' } };
     kpiCell.fill = {
         type: 'pattern',
@@ -453,16 +461,20 @@ export async function generateSessionReportXlsx(params: {
 
     sheet.getRow(5).height = 10; // spacer
 
-    // 3. Table Headers
+    // 3. Table Headers (14 Columns)
     const headers = [
         'No',
         'Nama Lengkap',
         'NIP',
+        'NIK / No. KTP',
         'Institusi',
         'Batch',
         'Username / Email',
-        'Status Ujian',
+        'Progres Belajar',
         'Skor Akhir',
+        'Status Kelulusan',
+        'No. SKL',
+        'No. Sertifikat',
         'Jumlah Percobaan',
         'Akses Terakhir',
     ];
@@ -480,7 +492,7 @@ export async function generateSessionReportXlsx(params: {
 
     // 4. Data Rows
     if (rows.length === 0) {
-        sheet.mergeCells('A7:J7');
+        sheet.mergeCells('A7:N7');
         const emptyCell = sheet.getCell('A7');
         emptyCell.value = 'Belum ada peserta terdaftar pada sesi ini.';
         emptyCell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -491,18 +503,23 @@ export async function generateSessionReportXlsx(params: {
             const dataRow = sheet.getRow(7 + idx);
             dataRow.height = 22;
 
-            const isCompleted = row.status.toUpperCase().includes('SELESAI') || row.status.toUpperCase().includes('LULUS');
-            const isInProgress = row.status.toUpperCase().includes('MENGERJAKAN') || row.status.toUpperCase().includes('OPEN');
+            const gradStatus = (row.graduationStatus || (row.status.toUpperCase().includes('LULUS') ? 'LULUS' : row.status.toUpperCase().includes('TIDAK LULUS') ? 'TIDAK LULUS' : 'BELUM DITETAPKAN')).toUpperCase();
+            const isPassed = gradStatus === 'LULUS';
+            const isFailed = gradStatus === 'TIDAK LULUS';
 
             const values = [
                 row.no,
                 row.fullName,
                 row.nip || '-',
+                row.nik || '-',
                 row.institution || '-',
                 row.batch || '1',
                 row.username,
-                row.status,
+                row.progress || '-',
                 row.score,
+                gradStatus,
+                row.sklNumber || '-',
+                row.certificateNumber || '-',
                 row.attempts,
                 row.lastAccess,
             ];
@@ -518,18 +535,55 @@ export async function generateSessionReportXlsx(params: {
                     fgColor: { argb: idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC' },
                 };
 
-                if (colIdx === 0 || colIdx === 2 || colIdx === 4 || colIdx === 7 || colIdx === 8) {
-                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                } else {
+                // Alignment:
+                // 1: Nama Lengkap (left)
+                // 4: Institusi (left)
+                // 6: Username / Email (left)
+                // Others: Center
+                if (colIdx === 1 || colIdx === 4 || colIdx === 6) {
                     cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                } else {
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 }
 
-                if (colIdx === 6) {
-                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-                    if (isCompleted) {
+                // Explicit text format for ID-like columns to prevent Excel auto conversion
+                if (colIdx === 2 || colIdx === 3 || colIdx === 10 || colIdx === 11) {
+                    cell.numFmt = '@';
+                }
+
+                // Progres Belajar highlight
+                if (colIdx === 7 && typeof val === 'string' && val.startsWith('100%')) {
+                    cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF15803D' } };
+                }
+
+                // Skor Akhir
+                if (colIdx === 8) {
+                    cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF0F172A' } };
+                }
+
+                // Status Kelulusan styling
+                if (colIdx === 9) {
+                    if (isPassed) {
                         cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FF15803D' } };
-                    } else if (isInProgress) {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFDCFCE7' },
+                        };
+                    } else if (isFailed) {
+                        cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FFDC2626' } };
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFFEE2E2' },
+                        };
+                    } else {
                         cell.font = { name: FONT_FAMILY, size: 10, bold: true, color: { argb: 'FFD97706' } };
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFFEF3C7' },
+                        };
                     }
                 }
             });
@@ -540,13 +594,17 @@ export async function generateSessionReportXlsx(params: {
     sheet.columns = [
         { width: 8 },  // No
         { width: 28 }, // Nama Lengkap
-        { width: 24 }, // NIP
+        { width: 22 }, // NIP
+        { width: 22 }, // NIK / No. KTP
         { width: 26 }, // Institusi
         { width: 12 }, // Batch
-        { width: 32 }, // Username / Email
-        { width: 22 }, // Status
+        { width: 30 }, // Username / Email
+        { width: 22 }, // Progres Belajar
         { width: 14 }, // Skor Akhir
-        { width: 18 }, // Percobaan
+        { width: 22 }, // Status Kelulusan
+        { width: 22 }, // No. SKL
+        { width: 22 }, // No. Sertifikat
+        { width: 18 }, // Jumlah Percobaan
         { width: 22 }, // Akses Terakhir
     ];
 

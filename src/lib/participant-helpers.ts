@@ -41,8 +41,10 @@ export async function validateSessionTiming(
     sessionId: string,
     userId?: string
 ): Promise<SessionTimingResult> {
-    const rows = await executeQuery<Session[]>(
-        `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, seb_config_key, created_at
+    const rows = await executeQuery<(Session & { is_upcoming_db?: number; is_ended_db?: number })[]>(
+        `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, seb_config_key, created_at,
+                (NOW() < start_time) AS is_upcoming_db,
+                (NOW() > end_time) AS is_ended_db
          FROM sessions WHERE id = ?`,
         [sessionId]
     );
@@ -56,27 +58,39 @@ export async function validateSessionTiming(
     const start = new Date(session.start_time);
     let end = new Date(session.end_time);
 
+    let hasActiveExtension = false;
+
     if (userId) {
-        const extRows = await executeQuery<{ individual_extension_until: Date | string | null }[]>(
-            `SELECT MAX(individual_extension_until) AS individual_extension_until
+        const extRows = await executeQuery<{ individual_extension_until: Date | string | null; has_active_extension: number }[]>(
+            `SELECT MAX(individual_extension_until) AS individual_extension_until,
+                    COALESCE(MAX(UTC_TIMESTAMP() <= individual_extension_until), 0) AS has_active_extension
              FROM user_progress
              WHERE user_id = ? AND session_id = ?`,
             [userId, sessionId]
         );
         const extTime = extRows?.[0]?.individual_extension_until;
+        hasActiveExtension = Boolean(extRows?.[0]?.has_active_extension);
+
         if (extTime) {
-            const extDate = new Date(extTime);
-            if (extDate > end) {
+            const rawStr = String(extTime);
+            const isoUtc = rawStr.endsWith('Z') ? rawStr : `${rawStr.replace(' ', 'T')}Z`;
+            const extDate = new Date(isoUtc);
+            if (!isNaN(extDate.getTime()) && (hasActiveExtension || extDate > end)) {
                 end = extDate;
             }
         }
     }
 
+    // Database-level evaluation eliminates OS-level timezone mismatches between Windows & macOS
+    const isUpcoming = session.is_upcoming_db !== undefined ? Boolean(session.is_upcoming_db) : now < start;
+    const isEnded = session.is_ended_db !== undefined ? (Boolean(session.is_ended_db) && !hasActiveExtension) : now > end;
+    const isActive = !isUpcoming && !isEnded;
+
     return {
         session,
-        isUpcoming: now < start,
-        isActive: now >= start && now <= end,
-        isEnded: now > end,
+        isUpcoming,
+        isActive,
+        isEnded,
         effectiveEndTime: end,
     };
 }

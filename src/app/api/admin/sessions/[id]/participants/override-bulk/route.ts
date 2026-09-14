@@ -19,6 +19,7 @@ interface ProgressRow extends RowDataPacket {
     module_item_id: string;
     attempts_count: number;
     attempt_version: number;
+    status: string;
 }
 
 interface ModuleItemRow extends RowDataPacket {
@@ -92,7 +93,7 @@ async function handlePost(
         for (const participantId of participantIds) {
             for (const item of examItems) {
                 const [progressRows] = await connection.execute<ProgressRow[]>(
-                    `SELECT id, user_id, module_item_id, attempts_count, attempt_version
+                    `SELECT id, user_id, module_item_id, status, attempts_count, attempt_version
                      FROM user_progress
                      WHERE user_id = ? AND session_id = ? AND module_item_id = ?
                      LIMIT 1
@@ -102,7 +103,6 @@ async function handlePost(
 
                 const progress = progressRows[0];
                 const newAttemptVersion = (Number(progress?.attempt_version) || 1) + 1;
-                const currentAttemptNumber = Math.max(1, Number(progress?.attempts_count || 1));
                 const itemDurationMinutes = Number(item.duration_minutes || 60);
 
                 if (!progress) {
@@ -113,7 +113,9 @@ async function handlePost(
                          VALUES (?, ?, ?, ?, 'open', 0, ?, UTC_TIMESTAMP(), DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE))`,
                         [newProgressId, participantId, sessionId, item.id, newAttemptVersion, extraMinutes]
                     );
-                } else {
+                    updatedCount++;
+                } else if (progress.status !== 'completed') {
+                    // Hanya perpanjang waktu untuk peserta yang BELUM selesai (mencegah penghapusan nilai peserta yang sudah lulus/selesai)
                     await connection.execute(
                         `UPDATE user_progress
                          SET status = 'open',
@@ -129,16 +131,8 @@ async function handlePost(
                          WHERE user_id = ? AND session_id = ? AND module_item_id = ?`,
                         [newAttemptVersion, itemDurationMinutes, extraMinutes, participantId, sessionId, item.id]
                     );
-
-                    // Revert graded submission to open draft state
-                    await connection.execute(
-                        `DELETE FROM exam_answers
-                         WHERE user_id = ? AND session_id = ? AND exam_id = ? AND attempt_number = ?`,
-                        [participantId, sessionId, item.item_id, currentAttemptNumber]
-                    );
+                    updatedCount++;
                 }
-
-                updatedCount++;
             }
         }
 

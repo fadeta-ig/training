@@ -109,6 +109,7 @@ async function handlePost(
             score: number | string | null;
             individual_extension_until: string | Date | null;
             attempt_elapsed_seconds: number | null;
+            extension_remaining_seconds: number | null;
         }
 
         // Fetch exam rules (passing grade, max attempts, remedial permission, remedial package)
@@ -133,7 +134,8 @@ async function handlePost(
                         status,
                         score,
                         individual_extension_until,
-                        TIMESTAMPDIFF(SECOND, last_attempt_start, UTC_TIMESTAMP()) AS attempt_elapsed_seconds
+                        TIMESTAMPDIFF(SECOND, last_attempt_start, UTC_TIMESTAMP()) AS attempt_elapsed_seconds,
+                        IF(individual_extension_until IS NOT NULL, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), individual_extension_until), NULL) AS extension_remaining_seconds
                  FROM user_progress
                  WHERE user_id = ? AND session_id = ? AND module_item_id = ?
                   FOR UPDATE`,
@@ -181,12 +183,9 @@ async function handlePost(
 
             const durationMs = Number(exam?.[0]?.duration_minutes || 0) * 60 * 1000;
             const elapsedMs = Math.max(0, Number(progressRow.attempt_elapsed_seconds || 0)) * 1000;
-            const extensionDate = progressRow.individual_extension_until
-                ? new Date(progressRow.individual_extension_until)
-                : null;
             const isWithinStandardDuration = durationMs > 0 ? (elapsedMs <= durationMs + EXAM_DURATION_GRACE_MS) : true;
-            const isWithinIndividualExtension = extensionDate
-                ? (Date.now() <= extensionDate.getTime() + EXAM_DURATION_GRACE_MS)
+            const isWithinIndividualExtension = progressRow.extension_remaining_seconds !== null && progressRow.extension_remaining_seconds !== undefined
+                ? (Number(progressRow.extension_remaining_seconds) >= -(EXAM_DURATION_GRACE_MS / 1000))
                 : false;
 
             if (!isWithinStandardDuration && !isWithinIndividualExtension) {

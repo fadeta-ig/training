@@ -163,16 +163,34 @@ async function handlePut(
                         );
                     }
 
-                    await connection.execute(
-                        `INSERT INTO exam_answer_drafts
-                            (id, user_id, session_id, exam_id, question_id, attempt_number, selected_option, client_version)
-                         VALUES ${placeholders.join(', ')}
-                         ON DUPLICATE KEY UPDATE 
-                            selected_option = IF(VALUES(client_version) >= client_version, VALUES(selected_option), selected_option),
-                            client_version = GREATEST(VALUES(client_version), client_version),
-                            updated_at = CURRENT_TIMESTAMP`,
-                        values,
-                    );
+                    try {
+                        await connection.execute(
+                            `INSERT INTO exam_answer_drafts
+                                (id, user_id, session_id, exam_id, question_id, attempt_number, selected_option, client_version)
+                             VALUES ${placeholders.join(', ')} AS new_draft
+                             ON DUPLICATE KEY UPDATE 
+                                selected_option = IF(new_draft.client_version >= exam_answer_drafts.client_version, new_draft.selected_option, exam_answer_drafts.selected_option),
+                                client_version = GREATEST(new_draft.client_version, exam_answer_drafts.client_version),
+                                updated_at = CURRENT_TIMESTAMP`,
+                            values,
+                        );
+                    } catch (sqlErr: any) {
+                        // Fallback for older engines that do not yet support row aliases (pre-MySQL 8.0.19 / legacy MariaDB)
+                        if (sqlErr?.code === 'ER_PARSE_ERROR' || sqlErr?.errno === 1064) {
+                            await connection.execute(
+                                `INSERT INTO exam_answer_drafts
+                                    (id, user_id, session_id, exam_id, question_id, attempt_number, selected_option, client_version)
+                                 VALUES ${placeholders.join(', ')}
+                                 ON DUPLICATE KEY UPDATE 
+                                    selected_option = IF(VALUES(client_version) >= client_version, VALUES(selected_option), selected_option),
+                                    client_version = GREATEST(VALUES(client_version), client_version),
+                                    updated_at = CURRENT_TIMESTAMP`,
+                                values,
+                            );
+                        } else {
+                            throw sqlErr;
+                        }
+                    }
                 }
 
                 await connection.commit();

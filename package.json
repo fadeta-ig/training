@@ -11,7 +11,8 @@
     "db:migrate-users": "node scripts/migrate-users.mjs",
     "db:migrate-question-import": "node scripts/migrate-question-import.mjs",
     "db:migrate-initial-password": "node scripts/migrate-add-initial-password.mjs",
-    "db:migrate-security-columns": "node scripts/migrate-security-columns.mjs"
+    "db:migrate-security-columns": "node scripts/migrate-security-columns.mjs",
+    "db:migrate-optimize-indexes": "node scripts/migrate-optimize-indexes.mjs"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^3.0.0",

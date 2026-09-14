@@ -203,6 +203,7 @@ CREATE TABLE module_items (
   sequence_order INT         NOT NULL,
   INDEX idx_module_items_module_order (module_id, sequence_order),
   INDEX idx_module_items_lookup (module_id, item_type, item_id),
+  INDEX idx_module_items_item_id (item_id),
   CONSTRAINT fk_module_items_module
     FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -316,6 +317,7 @@ CREATE TABLE proctor_snapshots (
   image_url   VARCHAR(500) NOT NULL,
   captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_proctor_session_user_time (session_id, user_id, captured_at),
+  INDEX idx_proctor_captured_at (captured_at),
   CONSTRAINT fk_proctor_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_proctor_session

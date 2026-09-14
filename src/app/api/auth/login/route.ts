@@ -28,12 +28,12 @@ export async function POST(request: NextRequest) {
         const lockoutResponse = checkLoginLockout(request, username);
         if (lockoutResponse) return lockoutResponse;
 
-        // Cari user di DB berdasarkan username (email), NIP resmi, atau NIK/No. Paspor
+        // Cari user di DB berdasarkan username (email), NIP resmi, atau NIK/No. Paspor (menggunakan B-tree index)
         const users = await executeQuery<any[]>(
             `SELECT u.id, u.username, u.password_hash, u.role, u.full_name, u.approval_status, u.rejection_reason 
              FROM users u 
              LEFT JOIN participant_profiles pp ON u.id = pp.user_id 
-             WHERE LOWER(u.username) = ? OR LOWER(COALESCE(pp.nip, '')) = ? OR LOWER(COALESCE(pp.id_card_number, '')) = ?
+             WHERE u.username = ? OR pp.nip = ? OR pp.id_card_number = ?
              LIMIT 1`,
             [username, username, username]
         );

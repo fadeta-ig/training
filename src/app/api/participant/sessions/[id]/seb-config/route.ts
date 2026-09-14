@@ -35,13 +35,17 @@ export async function GET(
         }
 
         const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+        const proto = request.headers.get('x-forwarded-proto') || (request.nextUrl.protocol ? request.nextUrl.protocol.replace(':', '') : 'http');
+        const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
+        const requestOrigin = `${proto}://${host}`;
+
         let origin: string;
-        if (configuredAppUrl) {
+        // Only prioritize configuredAppUrl if it is a production domain (not localhost/127.0.0.1)
+        // This ensures remote devices (like MacBooks on LAN) get the correct network IP/host instead of unreachable localhost.
+        if (configuredAppUrl && !configuredAppUrl.includes('localhost') && !configuredAppUrl.includes('127.0.0.1')) {
             origin = new URL(configuredAppUrl).origin;
         } else {
-            const proto = request.headers.get('x-forwarded-proto') || 'https';
-            const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
-            origin = `${proto}://${host}`;
+            origin = requestOrigin;
         }
         const startUrl = `${origin}/dashboard/sesi/${encodeURIComponent(session.id)}`;
         const safeStartUrl = escapeHtml(startUrl);
@@ -128,11 +132,15 @@ export async function GET(
     <key>enableF5</key>
     <true/>
 
-    <!-- macOS Specific Screen Capture Protections -->
+    <!-- macOS Specific Screen Capture Protections & Kiosk Stability -->
     <key>prohibitWindowCapture</key>
     <true/>
     <key>prohibitScreenSharing</key>
     <true/>
+    <key>enableAAC</key>
+    <false/>
+    <key>enableMacOSAAC</key>
+    <false/>
   </dict>
 </plist>`;
 

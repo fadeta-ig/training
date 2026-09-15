@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { NextRequest } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import logger from '@/lib/logger';
+import { normalizeDbDateToIso } from '@/lib/timezone';
 import type { ModuleItem, Session, SessionParticipant } from '@/types';
 
 /**
@@ -34,6 +35,7 @@ export interface SessionTimingResult {
     isActive: boolean;
     isEnded: boolean;
     effectiveEndTime: Date;
+    serverTime: string;
 }
 
 /** Validate that a session exists and return its timing status. Optionally takes userId to check individual extension. */
@@ -55,8 +57,10 @@ export async function validateSessionTiming(
 
     const session = rows[0];
     const now = new Date();
-    const start = new Date(session.start_time);
-    let end = new Date(session.end_time);
+    const startIso = normalizeDbDateToIso(session.start_time);
+    const endIso = normalizeDbDateToIso(session.end_time);
+    const start = new Date(startIso);
+    let end = new Date(endIso);
 
     let hasActiveExtension = false;
 
@@ -92,6 +96,7 @@ export async function validateSessionTiming(
         isActive,
         isEnded,
         effectiveEndTime: end,
+        serverTime: new Date().toISOString(),
     };
 }
 

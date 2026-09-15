@@ -12,6 +12,7 @@ import {
     BookOpen01Icon,
 } from 'hugeicons-react';
 import DashboardCalendar from './_components/DashboardCalendar';
+import { normalizeDbDateToIso } from '@/lib/timezone';
 
 type Session = {
     id: string;
@@ -90,8 +91,8 @@ export default async function DashboardOverviewPage() {
 
     function getStatus(s: Session) {
         if (s.total_items > 0 && s.completed_items >= s.total_items) return 'completed';
-        const start = new Date(s.start_time);
-        const end = new Date(s.end_time);
+        const start = new Date(normalizeDbDateToIso(s.start_time));
+        const end = new Date(normalizeDbDateToIso(s.end_time));
         if (now < start) return 'upcoming';
         if (now >= start && now <= end) return 'active';
         return 'ended';

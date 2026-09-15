@@ -16,6 +16,7 @@ const poolConfig: PoolOptions = {
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
   dateStrings: true,
+  timezone: '+07:00',
 };
 
 declare global {

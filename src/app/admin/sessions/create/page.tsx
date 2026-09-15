@@ -277,9 +277,14 @@ export default function CreateSessionPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">
-                                Waktu Mulai <span className="text-destructive">*</span>
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium text-foreground">
+                                    Waktu Mulai <span className="text-destructive">*</span>
+                                </label>
+                                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                                    WIB (UTC+7)
+                                </span>
+                            </div>
                             <input
                                 type="datetime-local"
                                 required
@@ -287,12 +292,20 @@ export default function CreateSessionPage() {
                                 onChange={(e) => setStartTime(e.target.value)}
                                 className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                             />
+                            <p className="text-[11px] text-muted-foreground">
+                                Mengacu pada WIB. Peserta di WITA (+1 jam) dan WIT (+2 jam) otomatis disinkronkan.
+                            </p>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">
-                                Waktu Selesai <span className="text-destructive">*</span>
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium text-foreground">
+                                    Waktu Selesai <span className="text-destructive">*</span>
+                                </label>
+                                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                                    WIB (UTC+7)
+                                </span>
+                            </div>
                             <input
                                 type="datetime-local"
                                 required

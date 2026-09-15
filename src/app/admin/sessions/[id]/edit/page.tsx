@@ -16,6 +16,7 @@ import {
     ParticipantEnrollmentPicker,
     ParticipantItem,
 } from '@/components/admin/ParticipantEnrollmentPicker';
+import { formatIsoToWibInput } from '@/lib/timezone';
 
 type Module = { id: string; title: string };
 
@@ -80,29 +81,16 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                     setTitle(session.title);
                     setModuleId(session.module_id);
 
-                    // Because dates from DB are sent as ISO but we want to show local time in the input
                     if (session.start_time) {
-                        const startObj = new Date(session.start_time);
-                        const localStart = new Date(
-                            startObj.getTime() - startObj.getTimezoneOffset() * 60000
-                        )
-                            .toISOString()
-                            .slice(0, 16);
-                        setStartTime(localStart);
+                        setStartTime(formatIsoToWibInput(session.start_time));
                     }
                     if (session.end_time) {
-                        const endObj = new Date(session.end_time);
-                        const localEnd = new Date(
-                            endObj.getTime() - endObj.getTimezoneOffset() * 60000
-                        )
-                            .toISOString()
-                            .slice(0, 16);
-                        setEndTime(localEnd);
+                        setEndTime(formatIsoToWibInput(session.end_time));
                     }
 
-                    setRequireSeb(!!session.require_seb);
-                    setShowScore(session.show_score !== false);
-                    setEnableProctoring(session.enable_proctoring !== false);
+                    setRequireSeb(Boolean(session.require_seb));
+                    setShowScore(session.show_score === 1 || session.show_score === true || session.show_score === '1');
+                    setEnableProctoring(session.enable_proctoring === 1 || session.enable_proctoring === true || session.enable_proctoring === '1');
 
                     if (session.participants && Array.isArray(session.participants)) {
                         setSelectedUserIds(session.participants.map((p: any) => p.id));
@@ -329,9 +317,14 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">
-                                Waktu Mulai <span className="text-destructive">*</span>
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium text-foreground">
+                                    Waktu Mulai <span className="text-destructive">*</span>
+                                </label>
+                                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                                    WIB (UTC+7)
+                                </span>
+                            </div>
                             <input
                                 type="datetime-local"
                                 required
@@ -339,12 +332,20 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                                 onChange={(e) => setStartTime(e.target.value)}
                                 className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                             />
+                            <p className="text-[11px] text-muted-foreground">
+                                Mengacu pada WIB. Peserta di WITA (+1 jam) dan WIT (+2 jam) otomatis disinkronkan.
+                            </p>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">
-                                Waktu Selesai <span className="text-destructive">*</span>
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium text-foreground">
+                                    Waktu Selesai <span className="text-destructive">*</span>
+                                </label>
+                                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                                    WIB (UTC+7)
+                                </span>
+                            </div>
                             <input
                                 type="datetime-local"
                                 required

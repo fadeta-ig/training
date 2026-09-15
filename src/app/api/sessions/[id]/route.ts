@@ -5,6 +5,7 @@ import pool from '@/lib/db';
 import { sessionSchema } from '@/lib/validations/sessionSchema';
 import { withAuth } from '@/lib/api-auth';
 import logger from '@/lib/logger';
+import { normalizeDbDateToIso, toMysqlDatetimeWib } from '@/lib/timezone';
 
 // GET Detail Sesi & Peserta + Progress Monitoring
 async function handleGet(
@@ -60,6 +61,37 @@ async function handleGet(
             [session.module_id]
         );
 
+        // Fetch all progress records for this session to determine real-time participant activity
+        const progressRows = await executeQuery<any[]>(
+            `SELECT 
+                up.user_id,
+                up.module_item_id,
+                up.status AS item_status,
+                up.updated_at,
+                up.last_attempt_start,
+                mi.item_type,
+                mi.sequence_order,
+                CASE mi.item_type
+                    WHEN 'training' THEN t.title
+                    WHEN 'exam' THEN e.title
+                END AS item_title
+             FROM user_progress up
+             JOIN module_items mi ON mi.id = up.module_item_id
+             LEFT JOIN trainings t ON mi.item_type = 'training' AND mi.item_id = t.id
+             LEFT JOIN exams e ON mi.item_type = 'exam' AND mi.item_id = e.id
+             WHERE up.session_id = ?
+             ORDER BY up.updated_at DESC`,
+            [resolvedParams.id]
+        );
+
+        const progressByUser = new Map<string, any[]>();
+        for (const pr of progressRows || []) {
+            if (!progressByUser.has(pr.user_id)) {
+                progressByUser.set(pr.user_id, []);
+            }
+            progressByUser.get(pr.user_id)!.push(pr);
+        }
+
         // Fetch participants with progress, NIP, graduation verdict, SKL & certificates
         const participants = await executeQuery<any[]>(
             `SELECT sp.id AS session_participant_id,
@@ -90,35 +122,85 @@ async function handleGet(
             [resolvedParams.id]
         );
 
+        const participantsWithDetail = participants.map(p => {
+            const userItems = progressByUser.get(p.user_id) || [];
+            const openItem = userItems.find(ui => ui.item_status === 'open');
+            const completedCount = Number(p.completed_items || 0);
+
+            let currentActivity = {
+                type: 'not_started' as 'exam' | 'training' | 'completed' | 'in_between' | 'not_started',
+                title: null as string | null,
+                item_type: null as 'exam' | 'training' | null,
+                label: 'Belum Memulai',
+                last_activity_at: null as string | null,
+            };
+
+            if (openItem) {
+                const isExam = openItem.item_type === 'exam';
+                currentActivity = {
+                    type: isExam ? 'exam' : 'training',
+                    title: openItem.item_title,
+                    item_type: openItem.item_type,
+                    label: isExam ? 'Sedang Mengerjakan Ujian' : 'Sedang Membuka Materi',
+                    last_activity_at: openItem.updated_at || openItem.last_attempt_start || null,
+                };
+            } else if (totalItems > 0 && completedCount >= totalItems) {
+                currentActivity = {
+                    type: 'completed',
+                    title: null,
+                    item_type: null,
+                    label: 'Selesai Semua Modul',
+                    last_activity_at: userItems[0]?.updated_at || null,
+                };
+            } else if (completedCount > 0) {
+                const nextItem = (moduleItems || []).find((mi: any) => !userItems.some((ui: any) => ui.module_item_id === mi.id && ui.item_status === 'completed'));
+                currentActivity = {
+                    type: 'in_between',
+                    title: nextItem?.title || null,
+                    item_type: nextItem?.item_type || null,
+                    label: nextItem ? `Menunggu Melanjutkan: ${nextItem.title}` : 'Selesai Sebagian',
+                    last_activity_at: userItems[0]?.updated_at || null,
+                };
+            }
+
+            return {
+                id: p.user_id,
+                session_participant_id: p.session_participant_id,
+                username: p.username,
+                full_name: p.full_name || p.username,
+                id_card_number: p.id_card_number || null,
+                nip: p.nip || null,
+                institution: p.institution || null,
+                batch: p.batch || '1',
+                completed_items: completedCount,
+                total_items: totalItems,
+                progress: totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0,
+                current_activity: currentActivity,
+                graduation_status: p.graduation_status || 'pending',
+                graduation_decided_at: p.graduation_decided_at || null,
+                graduation_notes: p.graduation_notes || null,
+                skl_number: p.skl_number || null,
+                skl_generated_at: p.skl_generated_at || null,
+                certificate_file_url: p.certificate_file_url || null,
+                certificate_number: p.certificate_number || null,
+                certificate_uploaded_at: p.certificate_uploaded_at || null,
+                final_score: p.exam_max_score !== null ? Number(p.exam_max_score) : null,
+                avg_score: p.exam_avg_score !== null ? Number(p.exam_avg_score) : null,
+            };
+        });
+
         return NextResponse.json({
             success: true,
             data: {
                 ...session,
+                start_time: normalizeDbDateToIso(session.start_time),
+                end_time: normalizeDbDateToIso(session.end_time),
+                require_seb: Boolean(session.require_seb),
+                show_score: session.show_score === 1 || session.show_score === true || session.show_score === '1',
+                enable_proctoring: session.enable_proctoring === 1 || session.enable_proctoring === true || session.enable_proctoring === '1',
                 total_items: totalItems,
                 module_items: moduleItems,
-                participants: participants.map(p => ({
-                    id: p.user_id,
-                    session_participant_id: p.session_participant_id,
-                    username: p.username,
-                    full_name: p.full_name || p.username,
-                    id_card_number: p.id_card_number || null,
-                    nip: p.nip || null,
-                    institution: p.institution || null,
-                    batch: p.batch || '1',
-                    completed_items: Number(p.completed_items || 0),
-                    total_items: totalItems,
-                    progress: totalItems > 0 ? Math.round((Number(p.completed_items || 0) / totalItems) * 100) : 0,
-                    graduation_status: p.graduation_status || 'pending',
-                    graduation_decided_at: p.graduation_decided_at || null,
-                    graduation_notes: p.graduation_notes || null,
-                    skl_number: p.skl_number || null,
-                    skl_generated_at: p.skl_generated_at || null,
-                    certificate_file_url: p.certificate_file_url || null,
-                    certificate_number: p.certificate_number || null,
-                    certificate_uploaded_at: p.certificate_uploaded_at || null,
-                    final_score: p.exam_max_score !== null ? Number(p.exam_max_score) : null,
-                    avg_score: p.exam_avg_score !== null ? Number(p.exam_avg_score) : null,
-                }))
+                participants: participantsWithDetail,
             }
         });
     } catch (error) {
@@ -153,7 +235,7 @@ async function handlePut(
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
-        // Update session
+        // Update session with normalized WIB timestamps and strict boolean flags
         await connection.execute(
             `UPDATE sessions 
              SET module_id = ?, title = ?, start_time = ?, end_time = ?, require_seb = ?, show_score = ?, enable_proctoring = ?, seb_config_key = ? 
@@ -161,11 +243,11 @@ async function handlePut(
             [
                 module_id,
                 title,
-                start_time.replace('T', ' ') + ':00',
-                end_time.replace('T', ' ') + ':00',
-                require_seb,
-                show_score,
-                enable_proctoring,
+                toMysqlDatetimeWib(start_time),
+                toMysqlDatetimeWib(end_time),
+                Boolean(require_seb),
+                Boolean(show_score),
+                Boolean(enable_proctoring),
                 sebConfigKey,
                 resolvedParams.id
             ]

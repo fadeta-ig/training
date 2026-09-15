@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { escapeHtml } from '@/lib/sanitize';
 import { getAppBaseUrl } from '@/lib/app-url';
 import logger from '@/lib/logger';
+import { normalizeDbDateToIso } from '@/lib/timezone';
 
 export const SEB_DOWNLOAD_URL = 'https://drive.google.com/drive/folders/1b37BRs2aURCPe5rwEKxbzMC2ZMxStYa0?usp=sharing';
 
@@ -308,10 +309,37 @@ Website: https://nusamitraconsulting.com
 export async function sendSessionReminderEmail(bccEmails: string[], sessionDetail: { title: string, startTime: string, endTime: string }) {
     const baseUrl = getAppBaseUrl();
     
-    // Formatting date neatly
-    const startDate = new Date(sessionDetail.startTime);
-    const dateStr = startDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const timeStr = startDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    // Formatting date neatly with WIB standardization
+    const isoStart = normalizeDbDateToIso(sessionDetail.startTime);
+    const startDate = new Date(isoStart);
+    const dateStr = startDate.toLocaleDateString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    });
+    const timeWib = startDate.toLocaleTimeString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+
+    // Generate WITA and WIT equivalent for participants outside WIB
+    const witaDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+    const timeWita = witaDate.toLocaleTimeString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+    const witDate = new Date(startDate.getTime() + 120 * 60 * 1000);
+    const timeWit = witDate.toLocaleTimeString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+
+    const timeStr = `${timeWib} WIB / ${timeWita} WITA / ${timeWit} WIT`;
     const safeTitle = escapeHtml(sessionDetail.title);
     const safeDate = escapeHtml(dateStr);
     const safeTime = escapeHtml(timeStr);

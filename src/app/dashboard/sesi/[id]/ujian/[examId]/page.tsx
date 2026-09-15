@@ -644,6 +644,14 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     : serverNow;
                 let deadline = attemptStart + durationMs;
 
+                // Bound by sessionEnd if configured
+                if (data.sessionEnd) {
+                    const sessionEndTime = new Date(data.sessionEnd).getTime();
+                    if (Number.isFinite(sessionEndTime) && sessionEndTime < deadline) {
+                        deadline = sessionEndTime;
+                    }
+                }
+
                 // Sync deadline with individual extension granted by admin
                 if (data.individualExtensionUntil) {
                     const extensionTime = new Date(data.individualExtensionUntil).getTime();

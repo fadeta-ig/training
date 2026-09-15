@@ -19,6 +19,7 @@ import {
     ParticipantError,
     ensureExamDraftVersionColumn,
 } from '@/lib/participant-helpers';
+import { normalizeDbDateToIso } from '@/lib/timezone';
 
 function shuffleValues<T>(values: T[], seed: string): T[] {
     const result = [...values];
@@ -245,7 +246,7 @@ async function handleGet(
                 questions: sanitized,
                 existingAnswers,
                 serverTime: serverTimeUtc,
-                sessionEnd: session.end_time,
+                sessionEnd: normalizeDbDateToIso(session.end_time),
                 individualExtensionUntil: currentProgressRow?.individual_extension_until_utc || null,
                 enableProctoring: !!session.enable_proctoring,
                 attemptStart: attemptStartUtc,

@@ -15,6 +15,7 @@ import {
 import { Printer, FileBadge2 } from 'lucide-react';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/ui/Pagination';
+import { normalizeDbDateToIso } from '@/lib/timezone';
 
 type HistoryItem = {
     id: string;
@@ -50,7 +51,7 @@ export default function RiwayatPage() {
                     // Show sessions that are either ended OR 100% completed
                     const finished = data.data.filter(
                         (s: HistoryItem) =>
-                            new Date(s.end_time) < now ||
+                            new Date(normalizeDbDateToIso(s.end_time)) < now ||
                             (s.total_items > 0 && s.completed_items >= s.total_items)
                     );
                     setSessions(finished);

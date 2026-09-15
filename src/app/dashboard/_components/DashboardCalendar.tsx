@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Calendar01Icon, ArrowLeft01Icon, ArrowRight01Icon } from 'hugeicons-react';
+import { normalizeDbDateToIso } from '@/lib/timezone';
 
 type Session = {
     id: string;
@@ -20,8 +21,8 @@ export default function DashboardCalendar({ sessions }: { sessions: Session[] })
 
     function getStatus(s: Session) {
         if (s.total_items > 0 && s.completed_items >= s.total_items) return 'completed';
-        const start = new Date(s.start_time);
-        const end = new Date(s.end_time);
+        const start = new Date(normalizeDbDateToIso(s.start_time));
+        const end = new Date(normalizeDbDateToIso(s.end_time));
         if (now < start) return 'upcoming';
         if (now >= start && now <= end) return 'active';
         return 'ended';
@@ -73,8 +74,8 @@ export default function DashboardCalendar({ sessions }: { sessions: Session[] })
 
                         // Find events for this day
                         const dayEvents = sessions.filter(s => {
-                            const st = new Date(s.start_time);
-                            const en = new Date(s.end_time);
+                            const st = new Date(normalizeDbDateToIso(s.start_time));
+                            const en = new Date(normalizeDbDateToIso(s.end_time));
                             const dStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
                             const dEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
                             return (st <= dEnd && en >= dStart);

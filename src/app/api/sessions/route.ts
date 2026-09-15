@@ -4,13 +4,22 @@ import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
 import { sessionSchema } from '@/lib/validations/sessionSchema';
+import { normalizeDbDateToIso, toMysqlDatetimeWib } from '@/lib/timezone';
 
 async function handleGet(_request: NextRequest) {
     try {
-        const sessions = await executeQuery(
+        const sessions = await executeQuery<any[]>(
             `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, created_at FROM sessions ORDER BY start_time DESC`
         );
-        return NextResponse.json({ success: true, data: sessions });
+        const normalized = (sessions || []).map((s) => ({
+            ...s,
+            start_time: normalizeDbDateToIso(s.start_time),
+            end_time: normalizeDbDateToIso(s.end_time),
+            require_seb: Boolean(s.require_seb),
+            show_score: s.show_score === 1 || s.show_score === true || s.show_score === '1',
+            enable_proctoring: s.enable_proctoring === 1 || s.enable_proctoring === true || s.enable_proctoring === '1',
+        }));
+        return NextResponse.json({ success: true, data: normalized });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });
@@ -45,12 +54,11 @@ async function handlePost(request: NextRequest) {
                 sessionId,
                 module_id,
                 title,
-                // start_time / end_time dari frontend berupa "YYYY-MM-DDTHH:mm"
-                start_time.replace('T', ' ') + ':00',
-                end_time.replace('T', ' ') + ':00',
-                require_seb,
-                show_score,
-                enable_proctoring,
+                toMysqlDatetimeWib(start_time),
+                toMysqlDatetimeWib(end_time),
+                Boolean(require_seb),
+                Boolean(show_score),
+                Boolean(enable_proctoring),
                 sebConfigKey
             ]
         );

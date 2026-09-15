@@ -437,6 +437,11 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                                                     {isExam ? <Edit01Icon size={11} /> : <Book01Icon size={11} />}
                                                     {isExam ? 'Ujian' : 'Materi'}
                                                 </span>
+                                                {item.status === 'open' && (
+                                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 animate-pulse border border-blue-300">
+                                                        Sedang Aktif Dibuka
+                                                    </span>
+                                                )}
                                                 {item.updated_at && (
                                                     <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-normal">
                                                         <Clock01Icon size={11} /> {new Date(item.updated_at).toLocaleString('id-ID')}

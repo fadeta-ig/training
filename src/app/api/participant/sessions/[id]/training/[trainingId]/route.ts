@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import logger from '@/lib/logger';
 import {
     assertCurrentItemAccessible,
     getItemProgress,
@@ -70,6 +72,20 @@ async function handleGet(
         // Check if progress is already completed
         const itemProgress = await getItemProgress(sessionId, user.id, moduleItem.id);
         const isCompleted = itemProgress?.status === 'completed';
+
+        // Record active reading status for live monitoring if not completed
+        if (user.role === 'trainee' && !isCompleted) {
+            await executeQuery(
+                `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status)
+                 VALUES (?, ?, ?, ?, 'open')
+                 ON DUPLICATE KEY UPDATE 
+                     status = IF(status = 'completed', 'completed', 'open'),
+                     updated_at = NOW()`,
+                [uuidv4(), user.id, sessionId, moduleItem.id]
+            ).catch((err) => {
+                logger.warn('TRAINING_PROGRESS_LOG', 'Failed to mark training as open', { error: err });
+            });
+        }
 
         return NextResponse.json({
             success: true,

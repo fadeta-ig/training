@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { verifyEnrollment, validateSessionTiming, ParticipantError } from '@/lib/participant-helpers';
+import { normalizeDbDateToIso } from '@/lib/timezone';
 
 /**
  * GET /api/participant/sessions/[id]
@@ -19,7 +20,7 @@ async function handleGet(
         if (user.role === 'trainee') {
             await verifyEnrollment(sessionId, user.id);
         }
-        const { session, isActive, isEnded } = await validateSessionTiming(sessionId, user.id);
+        const { session, isActive, isEnded, serverTime } = await validateSessionTiming(sessionId, user.id);
 
         const moduleRows = await executeQuery<{ title: string }[]>(
             `SELECT title FROM modules WHERE id = ? LIMIT 1`,
@@ -140,6 +141,9 @@ async function handleGet(
             success: true,
             data: {
                 ...session,
+                start_time: normalizeDbDateToIso(session.start_time),
+                end_time: normalizeDbDateToIso(session.end_time),
+                server_time: serverTime,
                 is_active: isActive,
                 is_ended: isEnded,
                 module_title: moduleTitle,

@@ -21,6 +21,7 @@ import { useConfirm } from '@/hooks/useConfirm';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/ui/Pagination';
 import { toast } from 'sonner';
+import { formatWibDateTime } from '@/lib/timezone';
 
 type Session = {
     id: string;
@@ -105,13 +106,7 @@ export default function SessionsPage() {
     };
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+        return formatWibDateTime(dateString);
     };
 
     // Calculate metrics

@@ -25,6 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/ui/Pagination';
+import { formatDualSchedule, normalizeDbDateToIso } from '@/lib/timezone';
 
 type Session = {
     id: string;
@@ -81,32 +82,15 @@ const STATUS_META: Record<
 
 function getStatus(session: Session, now: Date): SessionStatus {
     if (session.total_items > 0 && session.completed_items >= session.total_items) return 'completed';
-    const start = new Date(session.start_time);
-    const end = new Date(session.end_time);
+    const start = new Date(normalizeDbDateToIso(session.start_time));
+    const end = new Date(normalizeDbDateToIso(session.end_time));
     if (now < start) return 'upcoming';
     if (now <= end) return 'active';
     return 'ended';
 }
 
 function formatSchedule(startValue: string, endValue: string) {
-    const start = new Date(startValue);
-    const end = new Date(endValue);
-    const dateFormatter = new Intl.DateTimeFormat('id-ID', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-    });
-    const timeFormatter = new Intl.DateTimeFormat('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-    const sameDay = start.toDateString() === end.toDateString();
-
-    if (sameDay) {
-        return `${dateFormatter.format(start)} • ${timeFormatter.format(start)} - ${timeFormatter.format(end)}`;
-    }
-    return `${dateFormatter.format(start)} ${timeFormatter.format(start)} - ${dateFormatter.format(end)} ${timeFormatter.format(end)}`;
+    return formatDualSchedule(startValue, endValue).fullText;
 }
 
 export default function ParticipantSessionsPage() {

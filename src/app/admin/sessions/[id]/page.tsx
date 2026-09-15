@@ -27,7 +27,8 @@ import { useIsSeb } from '@/hooks/useSeb';
 import { Pagination } from '@/components/ui/Pagination';
 import { GraduationVerdictModal } from '@/components/admin/GraduationVerdictModal';
 import { CertificateUploadModal } from '@/components/admin/CertificateUploadModal';
-import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles, FileBadge2, Copy, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles, FileBadge2, Copy, ExternalLink, ShieldCheck, FilePenLine, BookOpen, Clock3 } from 'lucide-react';
+import { formatWibDateTime } from '@/lib/timezone';
 
 type User = {
     id: string;
@@ -41,6 +42,13 @@ type User = {
     completed_items: number;
     total_items: number;
     progress: number;
+    current_activity?: {
+        type: 'exam' | 'training' | 'completed' | 'in_between' | 'not_started';
+        title: string | null;
+        item_type: 'exam' | 'training' | null;
+        label: string;
+        last_activity_at: string | null;
+    };
     graduation_status?: 'pending' | 'passed' | 'failed';
     graduation_decided_at?: string | null;
     graduation_notes?: string | null;
@@ -128,14 +136,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     }, [resolvedParams.id]);
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('id-ID', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+        return formatWibDateTime(dateString, { withDayName: true });
     };
 
     const handleBlastEmail = async () => {
@@ -676,12 +677,64 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5 align-middle">
-                                                <div className="space-y-1">
+                                                <div className="space-y-1.5 min-w-[210px]">
+                                                    {/* Real-time Activity Indicator */}
+                                                    {p.current_activity?.type === 'exam' ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="relative flex h-2 w-2 flex-shrink-0">
+                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+                                                            </span>
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200/80 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                                                                <FilePenLine size={12} className="text-blue-600 flex-shrink-0" />
+                                                                <span className="max-w-[170px] truncate" title={p.current_activity.title || 'Ujian'}>
+                                                                    {p.current_activity.title || 'Ujian'}
+                                                                </span>
+                                                            </span>
+                                                        </div>
+                                                    ) : p.current_activity?.type === 'training' ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="relative flex h-2 w-2 flex-shrink-0">
+                                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-600"></span>
+                                                            </span>
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-teal-50 text-teal-800 border border-teal-200/80 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800">
+                                                                <BookOpen size={12} className="text-teal-600 flex-shrink-0" />
+                                                                <span className="max-w-[170px] truncate" title={p.current_activity.title || 'Materi'}>
+                                                                    {p.current_activity.title || 'Materi'}
+                                                                </span>
+                                                            </span>
+                                                        </div>
+                                                    ) : p.current_activity?.type === 'completed' || p.progress === 100 ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                                                                <CheckCircle2 size={12} className="text-emerald-600 flex-shrink-0" />
+                                                                <span>Semua Selesai</span>
+                                                            </span>
+                                                        </div>
+                                                    ) : p.current_activity?.type === 'in_between' ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                                                <Clock3 size={12} className="text-amber-600 flex-shrink-0" />
+                                                                <span className="max-w-[170px] truncate" title={p.current_activity.title || 'Langkah Berikutnya'}>
+                                                                    Next: {p.current_activity.title || 'Langkah Berikutnya'}
+                                                                </span>
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                                                                <span>Belum Memulai</span>
+                                                            </span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Progress Bar & Details */}
                                                     <div className="flex items-center gap-2">
-                                                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden dark:bg-slate-800">
                                                             <div
                                                                 className={`h-full rounded-full transition-all duration-500 ${
-                                                                    p.progress === 100 ? 'bg-emerald-500' : 'bg-slate-800'
+                                                                    p.progress === 100 ? 'bg-emerald-500' : 'bg-slate-800 dark:bg-slate-200'
                                                                 }`}
                                                                 style={{ width: `${p.progress}%` }}
                                                             />
@@ -690,17 +743,20 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                             {p.progress}%
                                                         </span>
                                                     </div>
-                                                    <div className="text-[11px] text-muted-foreground font-mono flex items-center gap-1">
-                                                        <span>Nilai:</span>
-                                                        <span className={`font-semibold ${
-                                                            p.final_score !== null && p.final_score !== undefined
-                                                                ? 'text-emerald-600 dark:text-emerald-400'
-                                                                : 'text-slate-400'
-                                                        }`}>
-                                                            {p.final_score !== null && p.final_score !== undefined
-                                                                ? Number(p.final_score).toFixed(1)
-                                                                : '-'}
-                                                        </span>
+                                                    <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
+                                                        <span>{p.completed_items}/{p.total_items} item</span>
+                                                        <div className="flex items-center gap-1">
+                                                            <span>Nilai:</span>
+                                                            <span className={`font-semibold ${
+                                                                p.final_score !== null && p.final_score !== undefined
+                                                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                                                    : 'text-slate-400'
+                                                            }`}>
+                                                                {p.final_score !== null && p.final_score !== undefined
+                                                                    ? Number(p.final_score).toFixed(1)
+                                                                    : '-'}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>

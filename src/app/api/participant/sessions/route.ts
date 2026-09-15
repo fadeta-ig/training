@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import { normalizeDbDateToIso } from '@/lib/timezone';
 
 /**
  * GET /api/participant/sessions
@@ -37,7 +38,16 @@ async function handleGet(_request: NextRequest, user: AuthenticatedUser) {
             [user.id, user.id]
         );
 
-        return NextResponse.json({ success: true, data: sessions });
+        const normalized = (sessions || []).map((s) => ({
+            ...s,
+            start_time: normalizeDbDateToIso(s.start_time),
+            end_time: normalizeDbDateToIso(s.end_time),
+            require_seb: Boolean(s.require_seb),
+            show_score: s.show_score === 1 || s.show_score === true || s.show_score === '1',
+            enable_proctoring: s.enable_proctoring === 1 || s.enable_proctoring === true || s.enable_proctoring === '1',
+        }));
+
+        return NextResponse.json({ success: true, data: normalized });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });

@@ -39,6 +39,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useIsSeb } from '@/hooks/useSeb';
 import { RequestMaterialModal } from '@/components/participant/RequestMaterialModal';
+import { formatDualSchedule, normalizeDbDateToIso } from '@/lib/timezone';
 
 type ModuleItem = {
     module_item_id: string;
@@ -59,6 +60,7 @@ type SessionDetail = {
     title: string;
     start_time: string;
     end_time: string;
+    server_time?: string;
     require_seb: boolean;
     module_title: string;
     module_id: string;
@@ -174,17 +176,23 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
         );
     }
 
-    const now = new Date();
-    const start = new Date(session.start_time);
-    const end = new Date(session.end_time);
+    const startIso = normalizeDbDateToIso(session.start_time);
+    const endIso = normalizeDbDateToIso(session.end_time);
+    const start = new Date(startIso);
+    const end = new Date(endIso);
+
+    // Calculate server clock offset if available to protect against device clock drift
+    const serverOffset = session.server_time ? new Date(session.server_time).getTime() - Date.now() : 0;
+    const currentAdjustedTime = new Date(Date.now() + serverOffset);
+
     const completedCount = session.items.filter((item) => item.progress_status === 'completed').length;
     const totalItems = session.items.length;
     const progress = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
     const isFullyCompleted = progress === 100 && totalItems > 0;
     
     // Strict time validation: Once time has passed, session is ended and locked
-    const isTimeEnded = now > end;
-    const isActive = !isTimeEnded && now >= start;
+    const isTimeEnded = currentAdjustedTime > end;
+    const isActive = !isTimeEnded && currentAdjustedTime >= start;
     const sessionState: SessionState = isTimeEnded
         ? 'ended'
         : isFullyCompleted
@@ -193,7 +201,8 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                 ? 'active'
                 : 'upcoming';
     const status = SESSION_STATUS[sessionState];
-    const formattedScheduleString = formatSchedule(start, end);
+    const dualSchedule = formatDualSchedule(session.start_time, session.end_time);
+    const formattedScheduleString = dualSchedule.fullText;
 
     return (
         <div className="mx-auto max-w-5xl space-y-8 pb-12">

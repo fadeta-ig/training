@@ -73,55 +73,96 @@ async function handleGet(
 
         const moduleItems = Array.isArray(rawItems) ? rawItems : [];
 
-        // Build full item metadata
-        const fullItems: ModuleItemFull[] = [];
+        // Batch-fetch all training materials, media attachments, exams, and questions
+        const trainingItemIds = moduleItems
+            .filter((item) => item.item_type === 'training')
+            .map((item) => item.item_id);
 
-        for (const item of moduleItems) {
-            if (item.item_type === 'training') {
-                const trainings = await executeQuery<TrainingMaterialInfo[]>(
-                    `SELECT id, title, content_html, created_at FROM trainings WHERE id = ? LIMIT 1`,
-                    [item.item_id]
-                );
-                const t = Array.isArray(trainings) && trainings[0] ? trainings[0] : null;
-                const mediaList = await executeQuery<TrainingMediaInfo[]>(
+        const examItemIds = moduleItems
+            .filter((item) => item.item_type === 'exam')
+            .map((item) => item.item_id);
+
+        const [trainingsList, mediaList, examsList, questionsList] = await Promise.all([
+            trainingItemIds.length > 0
+                ? executeQuery<TrainingMaterialInfo[]>(
+                    `SELECT id, title, content_html, created_at 
+                     FROM trainings 
+                     WHERE id IN (${trainingItemIds.map(() => '?').join(', ')})`,
+                    trainingItemIds
+                )
+                : Promise.resolve([]),
+            trainingItemIds.length > 0
+                ? executeQuery<TrainingMediaInfo[]>(
                     `SELECT id, training_id, media_type, media_url, original_filename, sequence_order 
                      FROM training_media 
-                     WHERE training_id = ? 
+                     WHERE training_id IN (${trainingItemIds.map(() => '?').join(', ')}) 
                      ORDER BY sequence_order ASC`,
-                    [item.item_id]
-                );
-
-                fullItems.push({
-                    ...item,
-                    title: t ? t.title : 'Materi Tanpa Judul',
-                    trainingData: t || undefined,
-                    mediaData: Array.isArray(mediaList) ? mediaList : [],
-                });
-            } else if (item.item_type === 'exam') {
-                const exams = await executeQuery<ExamInfo[]>(
+                    trainingItemIds
+                )
+                : Promise.resolve([]),
+            examItemIds.length > 0
+                ? executeQuery<ExamInfo[]>(
                     `SELECT e.id, e.title, e.duration_minutes, e.passing_grade, e.allow_remedial, e.max_attempts, e.remedial_exam_id, re.title AS remedial_exam_title 
                      FROM exams e 
                      LEFT JOIN exams re ON e.remedial_exam_id = re.id 
-                     WHERE e.id = ? LIMIT 1`,
-                    [item.item_id]
-                );
-                const e = Array.isArray(exams) && exams[0] ? exams[0] : null;
-                const questions = await executeQuery<QuestionInfo[]>(
+                     WHERE e.id IN (${examItemIds.map(() => '?').join(', ')})`,
+                    examItemIds
+                )
+                : Promise.resolve([]),
+            examItemIds.length > 0
+                ? executeQuery<QuestionInfo[]>(
                     `SELECT id, exam_id, question_type, question_text, question_image, options_json, correct_option_index, correct_answer, points, sequence_order 
                      FROM questions 
-                     WHERE exam_id = ? 
+                     WHERE exam_id IN (${examItemIds.map(() => '?').join(', ')}) 
                      ORDER BY sequence_order ASC, id ASC`,
-                    [item.item_id]
-                );
+                    examItemIds
+                )
+                : Promise.resolve([]),
+        ]);
 
-                fullItems.push({
+        const trainingMap = new Map<string, TrainingMaterialInfo>();
+        for (const t of (Array.isArray(trainingsList) ? trainingsList : [])) {
+            trainingMap.set(t.id, t);
+        }
+
+        const mediaMap = new Map<string, TrainingMediaInfo[]>();
+        for (const m of (Array.isArray(mediaList) ? mediaList : [])) {
+            const list = mediaMap.get(m.training_id) || [];
+            list.push(m);
+            mediaMap.set(m.training_id, list);
+        }
+
+        const examMap = new Map<string, ExamInfo>();
+        for (const e of (Array.isArray(examsList) ? examsList : [])) {
+            examMap.set(e.id, e);
+        }
+
+        const questionsMap = new Map<string, QuestionInfo[]>();
+        for (const q of (Array.isArray(questionsList) ? questionsList : [])) {
+            const list = questionsMap.get(q.exam_id) || [];
+            list.push(q);
+            questionsMap.set(q.exam_id, list);
+        }
+
+        const fullItems: ModuleItemFull[] = moduleItems.map((item) => {
+            if (item.item_type === 'training') {
+                const t = trainingMap.get(item.item_id);
+                return {
+                    ...item,
+                    title: t ? t.title : 'Materi Tanpa Judul',
+                    trainingData: t || undefined,
+                    mediaData: mediaMap.get(item.item_id) || [],
+                };
+            } else {
+                const e = examMap.get(item.item_id);
+                return {
                     ...item,
                     title: e ? e.title : 'Ujian Evaluasi',
                     examData: e || undefined,
-                    questionsData: Array.isArray(questions) ? questions : [],
-                });
+                    questionsData: questionsMap.get(item.item_id) || [],
+                };
             }
-        }
+        });
 
         const uploadsBaseDir = path.join(process.cwd(), 'public', 'uploads');
 

@@ -8,12 +8,11 @@ export interface AuthenticatedUser {
     id: string;
     username: string;
     role: AuthRole;
+    approval_status?: 'pending' | 'approved' | 'rejected';
 }
 
-interface AuthOptions {
-    /** Roles allowed to access this route. Empty = any authenticated user. */
+export interface AuthOptions {
     allowedRoles?: AuthRole[];
-    /** If true, skip CSRF origin check (e.g., for GET-only routes). Default: false */
     skipCsrf?: boolean;
 }
 
@@ -59,14 +58,14 @@ export function validateMutationOrigin(request: NextRequest): NextResponse | nul
 }
 
 interface CachedAuthUser {
-    user: { id: string; username: string; role: AuthRole };
+    user: { id: string; username: string; role: AuthRole; approval_status?: 'pending' | 'approved' | 'rejected' };
     expiresAt: number;
 }
 
 const userAuthCache = new Map<string, CachedAuthUser>();
 const USER_AUTH_CACHE_TTL_MS = 30_000;
 
-function getCachedUser(userId: string): { id: string; username: string; role: AuthRole } | null {
+function getCachedUser(userId: string): { id: string; username: string; role: AuthRole; approval_status?: 'pending' | 'approved' | 'rejected' } | null {
     const cached = userAuthCache.get(userId);
     if (!cached) return null;
     if (Date.now() > cached.expiresAt) {
@@ -76,7 +75,7 @@ function getCachedUser(userId: string): { id: string; username: string; role: Au
     return cached.user;
 }
 
-function setCachedUser(user: { id: string; username: string; role: AuthRole }) {
+function setCachedUser(user: { id: string; username: string; role: AuthRole; approval_status?: 'pending' | 'approved' | 'rejected' }) {
     if (userAuthCache.size > 2000) {
         // Prevent unbounded memory growth
         const now = Date.now();
@@ -136,13 +135,13 @@ export function withAuth(
             );
         }
 
-        let user: { id: string; username: string; role: AuthRole } | null = getCachedUser(payload.sub);
+        let user: { id: string; username: string; role: AuthRole; approval_status?: 'pending' | 'approved' | 'rejected' } | null = getCachedUser(payload.sub);
 
         if (!user) {
-            let currentUsers: Array<{ id: string; username: string; role: AuthRole }>;
+            let currentUsers: Array<{ id: string; username: string; role: AuthRole; approval_status?: 'pending' | 'approved' | 'rejected' }>;
             try {
                 currentUsers = await executeQuery(
-                    `SELECT id, username, role FROM users WHERE id = ? LIMIT 1`,
+                    `SELECT id, username, role, approval_status FROM users WHERE id = ? LIMIT 1`,
                     [payload.sub],
                 );
             } catch {
@@ -162,6 +161,13 @@ export function withAuth(
             return NextResponse.json(
                 { success: false, error: 'Akun tidak aktif atau tidak ditemukan' },
                 { status: 401 }
+            );
+        }
+
+        if (user.role === 'trainee' && user.approval_status && user.approval_status !== 'approved') {
+            return NextResponse.json(
+                { success: false, error: 'Pendaftaran akun Anda belum disetujui atau telah dinonaktifkan oleh Administrator.' },
+                { status: 403 }
             );
         }
 

@@ -11,7 +11,10 @@ const gradeSchema = z.object({
     exam_id: z.string().uuid(),
     question_id: z.string().uuid(),
     attempt_number: z.number().int().positive(),
-    is_correct: z.boolean(),
+    is_correct: z.boolean().optional(),
+    awarded_points: z.number().min(0).max(1000).optional(),
+}).refine(data => data.is_correct !== undefined || data.awarded_points !== undefined, {
+    message: 'Harus menyertakan is_correct atau awarded_points',
 });
 
 interface Snapshot {
@@ -64,7 +67,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             );
         }
 
-        const { session_id, user_id, exam_id, question_id, attempt_number, is_correct } = parsed.data;
+        const { session_id, user_id, exam_id, question_id, attempt_number, is_correct, awarded_points } = parsed.data;
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
@@ -98,7 +101,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
 
         const snapshot = parseSnapshot(answer.question_snapshot);
         const questionType = snapshot?.question_type || answer.current_question_type;
-        const points = Number(snapshot?.points ?? answer.current_points ?? 1) || 1;
+        const maxPoints = Number(snapshot?.points ?? answer.current_points ?? 1) || 1;
         if (questionType !== 'essay') {
             await connection.rollback();
             connection.release();
@@ -112,12 +115,17 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             return NextResponse.json({ success: false, error: 'Jawaban kosong tidak dapat diberi nilai' }, { status: 400 });
         }
 
+        const finalAwardedPoints = awarded_points !== undefined
+            ? Math.min(Math.max(0, Number(awarded_points)), maxPoints)
+            : (is_correct ? maxPoints : 0);
+        const finalIsCorrect = finalAwardedPoints > 0;
+
         await connection.execute(
             `UPDATE exam_answers
              SET is_correct = ?, grading_status = 'graded', awarded_points = ?,
                  graded_by = ?, graded_at = UTC_TIMESTAMP()
              WHERE id = ?`,
-            [is_correct ? 1 : 0, is_correct ? points : 0, authUser.id, answer.id],
+            [finalIsCorrect ? 1 : 0, finalAwardedPoints, authUser.id, answer.id],
         );
 
         const [scoreRows] = await connection.execute<ScoreRow[]>(
@@ -157,7 +165,8 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             exam_id,
             question_id,
             attempt_number,
-            is_correct,
+            is_correct: finalIsCorrect,
+            awarded_points: finalAwardedPoints,
             score: newScore,
             progress_updated: isLatestAttempt,
         }, 'ADMIN_GRADING');
@@ -165,7 +174,7 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         return NextResponse.json({
             success: true,
             message: 'Nilai jawaban berhasil diperbarui',
-            data: { newScore, progress_updated: isLatestAttempt },
+            data: { newScore, awarded_points: finalAwardedPoints, is_correct: finalIsCorrect, progress_updated: isLatestAttempt },
         });
     } catch (error) {
         if (connection) {

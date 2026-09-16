@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
+import pool from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import logger from '@/lib/logger';
 import { z } from 'zod';
+import { ROMAN_MONTHS, formatSklNumber, getLatestSklSequence } from '@/lib/skl';
 
 const graduationSchema = z.object({
     graduation_status: z.enum(['pending', 'passed', 'failed']),
@@ -11,21 +12,12 @@ const graduationSchema = z.object({
     certificate_number: z.string().max(100).optional().nullable(),
 });
 
-const ROMAN_MONTHS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-
-function generateSklNumber(batch: string = '1'): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const romanMonth = ROMAN_MONTHS[now.getMonth()] || 'I';
-    const randomSuffix = Math.floor(100 + Math.random() * 900);
-    return `${randomSuffix}/E/SK/${romanMonth}/${year}`;
-}
-
 async function handlePost(
     request: NextRequest,
     user: AuthenticatedUser,
     context: { params: Promise<{ id: string; participantId: string }> }
 ) {
+    let connection;
     try {
         const { id: sessionId, participantId } = await context.params;
         const body = await request.json();
@@ -40,18 +32,24 @@ async function handlePost(
 
         const { graduation_status, graduation_notes, certificate_file_url, certificate_number } = parsed.data;
 
-        // Check if participant is enrolled
-        const participantRows = await executeQuery<any[]>(
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // Check if participant is enrolled with row lock
+        const [participantRows] = await connection.execute<any[]>(
             `SELECT sp.id, sp.graduation_status, sp.skl_number, p.batch, u.full_name
              FROM session_participants sp
              JOIN users u ON sp.user_id = u.id
              LEFT JOIN participant_profiles p ON sp.user_id = p.user_id
              WHERE sp.session_id = ? AND sp.user_id = ?
-             LIMIT 1`,
+             LIMIT 1
+             FOR UPDATE`,
             [sessionId, participantId]
         );
 
         if (!participantRows || participantRows.length === 0) {
+            await connection.rollback();
+            connection.release();
             return NextResponse.json(
                 { success: false, error: 'Peserta tidak terdaftar pada sesi ini' },
                 { status: 404 }
@@ -62,10 +60,14 @@ async function handlePost(
         let sklNumberToSet: string | null = current.skl_number || null;
 
         if (graduation_status === 'passed' && !sklNumberToSet) {
-            sklNumberToSet = generateSklNumber(current.batch || '1');
+            const now = new Date();
+            const year = now.getFullYear();
+            const romanMonth = ROMAN_MONTHS[now.getMonth()] || 'I';
+            const latestSeq = await getLatestSklSequence(connection, romanMonth, year);
+            sklNumberToSet = formatSklNumber(latestSeq + 1, romanMonth, year);
         }
 
-        await executeQuery(
+        await connection.execute(
             `UPDATE session_participants
              SET graduation_status = ?,
                  graduation_decided_at = CURRENT_TIMESTAMP,
@@ -97,6 +99,10 @@ async function handlePost(
             ]
         );
 
+        await connection.commit();
+        connection.release();
+        connection = undefined;
+
         await logger.audit(
             user.id,
             'GRADUATION_VERDICT_UPDATED',
@@ -125,6 +131,10 @@ async function handlePost(
             },
         });
     } catch (error) {
+        if (connection) {
+            await connection.rollback().catch(() => {});
+            connection.release();
+        }
         const message = error instanceof Error ? error.message : 'Internal Server Error';
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
+import pool, { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import fs from 'fs';
 import path from 'path';
 import QRCode from 'qrcode';
+import { ROMAN_MONTHS, formatSklNumber, getLatestSklSequence } from '@/lib/skl';
 
 /**
  * GET /api/participant/sessions/[id]/skl
@@ -46,9 +47,6 @@ async function handleGet(
              LEFT JOIN modules m ON s.module_id = m.id
              LEFT JOIN participant_profiles pp ON u.id = pp.user_id
              WHERE sp.session_id = ? AND sp.user_id = ?
-             GROUP BY sp.id, sp.graduation_status, sp.graduation_decided_at, sp.graduation_notes,
-                      sp.skl_number, sp.skl_generated_at, u.full_name, u.username,
-                      pp.nip, pp.id_card_number, pp.institution, pp.batch, s.title, s.start_time, s.end_time, m.title
              LIMIT 1`,
             [sessionId, targetUserId]
         );
@@ -65,7 +63,6 @@ async function handleGet(
 
         // Format date and Roman month
         const decidedDateObj = data.graduation_decided_at ? new Date(data.graduation_decided_at) : new Date();
-        const ROMAN_MONTHS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
         const romanMonth = ROMAN_MONTHS[decidedDateObj.getMonth()] || 'I';
         const currentYear = decidedDateObj.getFullYear();
 
@@ -78,8 +75,25 @@ async function handleGet(
         // Format SKL Number according to official pattern (<<No. SKL>>/E/SK/<<Bln Romawi>>/<<Tahun>>)
         let sklNumber = data.skl_number || '';
         if (!sklNumber) {
-            const shortId = (data.enrollment_id || '001').slice(0, 3).toUpperCase();
-            sklNumber = `${shortId}/E/SK/${romanMonth}/${currentYear}`;
+            let connection;
+            try {
+                connection = await pool.getConnection();
+                await connection.beginTransaction();
+                const latestSeq = await getLatestSklSequence(connection, romanMonth, currentYear);
+                sklNumber = formatSklNumber(latestSeq + 1, romanMonth, currentYear);
+                await connection.execute(
+                    `UPDATE session_participants SET skl_number = ?, skl_generated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                    [sklNumber, data.enrollment_id]
+                );
+                await connection.commit();
+            } catch (seqErr) {
+                if (connection) await connection.rollback().catch(() => {});
+                console.error('Failed to assign sequential SKL number:', seqErr);
+                const shortId = (data.enrollment_id || '001').slice(0, 3).toUpperCase();
+                sklNumber = `${shortId}/E/SK/${romanMonth}/${currentYear}`;
+            } finally {
+                if (connection) connection.release();
+            }
         } else if (!sklNumber.includes('/E/SK/')) {
             const parts = sklNumber.split('/');
             const seq = parts[parts.length - 1] || '001';

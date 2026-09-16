@@ -56,8 +56,10 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
     }
 
 
-    const isPassed = verificationData && verificationData.graduation_status === 'passed';
-    const sklNumber = verificationData?.skl_number || sklNumberParam || 'SKL-REGISTERED';
+    const dbSklNumber = verificationData?.skl_number?.trim() || null;
+    const isNumberTampered = Boolean(sklNumberParam && dbSklNumber && sklNumberParam.trim() !== dbSklNumber);
+    const isPassed = Boolean(verificationData && verificationData.graduation_status === 'passed' && !isNumberTampered);
+    const sklNumber = dbSklNumber || (isPassed ? 'Nomor Dokumen Sedang Diproses' : 'DOKUMEN TIDAK VALID');
     const decidedDate = verificationData?.graduation_decided_at
         ? new Date(verificationData.graduation_decided_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
         : 'Terdaftar Resmi';

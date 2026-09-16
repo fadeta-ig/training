@@ -55,7 +55,7 @@ async function cleanupExpiredSnapshots(uploadDir: string): Promise<void> {
 
         const resolvedUploadDir = path.resolve(uploadDir);
         await Promise.all(expired.map(async (snapshot) => {
-            if (!snapshot.image_url?.startsWith('/uploads/proctor/')) return;
+            if (!snapshot.image_url?.startsWith('/uploads/proctor/') && !snapshot.image_url?.startsWith('/api/proctor/image/')) return;
 
             const filePath = path.resolve(resolvedUploadDir, path.basename(snapshot.image_url));
             if (path.dirname(filePath) !== resolvedUploadDir) return;
@@ -157,7 +157,7 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
             return NextResponse.json({ success: false, error: 'Isi gambar snapshot tidak valid.' }, { status: 400 });
         }
 
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'proctor');
+        const uploadDir = path.join(process.cwd(), 'storage', 'proctor');
         await fs.mkdir(uploadDir, { recursive: true });
 
         const filename = `${snapshotId}-${user.id}.${extension}`;
@@ -165,7 +165,7 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
 
         await fs.writeFile(filePath, imageBuffer);
 
-        const fileUrl = `/uploads/proctor/${filename}`;
+        const fileUrl = `/api/proctor/image/${filename}`;
 
         try {
             await executeQuery(

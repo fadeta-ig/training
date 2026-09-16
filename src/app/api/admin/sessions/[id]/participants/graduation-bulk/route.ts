@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import logger from '@/lib/logger';
@@ -11,15 +10,7 @@ const bulkGraduationSchema = z.object({
     graduation_notes: z.string().max(1000).optional().nullable(),
 });
 
-const ROMAN_MONTHS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-
-function generateSklNumber(batch: string = '1'): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const romanMonth = ROMAN_MONTHS[now.getMonth()] || 'I';
-    const randomSuffix = Math.floor(100 + Math.random() * 900);
-    return `${randomSuffix}/E/SK/${romanMonth}/${year}`;
-}
+import { ROMAN_MONTHS, formatSklNumber, getLatestSklSequence } from '@/lib/skl';
 
 async function handlePost(
     request: NextRequest,
@@ -41,33 +32,42 @@ async function handlePost(
 
         const { participant_ids, graduation_status, graduation_notes } = parsed.data;
 
-        // Fetch enrolled participants
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // Fetch enrolled participants with row lock
         const placeholders = participant_ids.map(() => '?').join(',');
-        const participants = await executeQuery<any[]>(
+        const [participants] = await connection.execute<any[]>(
             `SELECT sp.id, sp.user_id, sp.graduation_status, sp.skl_number, p.batch, u.full_name
              FROM session_participants sp
              JOIN users u ON sp.user_id = u.id
              LEFT JOIN participant_profiles p ON sp.user_id = p.user_id
-             WHERE sp.session_id = ? AND sp.user_id IN (${placeholders})`,
+             WHERE sp.session_id = ? AND sp.user_id IN (${placeholders})
+             FOR UPDATE`,
             [sessionId, ...participant_ids]
         );
 
         if (!participants || participants.length === 0) {
+            await connection.rollback();
+            connection.release();
             return NextResponse.json(
                 { success: false, error: 'Tidak ada peserta valid yang ditemukan pada sesi ini' },
                 { status: 404 }
             );
         }
 
-        connection = await pool.getConnection();
-        await connection.beginTransaction();
+        const now = new Date();
+        const year = now.getFullYear();
+        const romanMonth = ROMAN_MONTHS[now.getMonth()] || 'I';
+        let currentSeq = await getLatestSklSequence(connection, romanMonth, year);
 
         let updatedCount = 0;
 
         for (const p of participants) {
             let sklNumberToSet = p.skl_number || null;
             if (graduation_status === 'passed' && !sklNumberToSet) {
-                sklNumberToSet = generateSklNumber(p.batch || '1');
+                currentSeq++;
+                sklNumberToSet = formatSklNumber(currentSeq, romanMonth, year);
             }
 
             await connection.execute(

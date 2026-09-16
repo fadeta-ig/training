@@ -9,7 +9,6 @@ import {
     ParticipantError,
     validateSessionTiming,
     verifyEnrollment,
-    ensureExamDraftVersionColumn,
 } from '@/lib/participant-helpers';
 import {
     toParticipantQuestionShape,
@@ -108,8 +107,6 @@ async function handlePut(
                 }
             }
         }
-
-        await ensureExamDraftVersionColumn();
 
         // Sort answers deterministically by question_id ASC to prevent InnoDB gap lock deadlocks
         const sortedAnswers = [...answers].sort((a, b) => a.question_id.localeCompare(b.question_id));

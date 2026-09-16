@@ -42,7 +42,12 @@ export default function UserLayout({ children }: { children: ReactNode }) {
     );
 
     if (isExamFocusMode) {
-        return <div className="min-h-dvh bg-muted/30 font-sans text-foreground">{children}</div>;
+        return (
+            <div className="min-h-dvh bg-muted/30 font-sans text-foreground">
+                {shouldShowFirstLoginModal && <FirstLoginModal user={user} />}
+                {children}
+            </div>
+        );
     }
 
     return (

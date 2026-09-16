@@ -34,29 +34,13 @@ async function handlePost(
         await assertCurrentItemAccessible(sessionId, user.id, session, moduleItem, true);
         const moduleItemId = moduleItem.id;
 
-        // Check if already completed
-        const existing = await executeQuery<any[]>(
-            `SELECT id, status FROM user_progress
-             WHERE user_id = ? AND session_id = ? AND module_item_id = ?`,
-            [user.id, sessionId, moduleItemId]
+        // Atomic upsert: Handles double-click race conditions and guarantees idempotency
+        await executeQuery(
+            `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status, updated_at)
+             VALUES (?, ?, ?, ?, 'completed', NOW())
+             ON DUPLICATE KEY UPDATE status = 'completed', updated_at = NOW()`,
+            [uuidv4(), user.id, sessionId, moduleItemId]
         );
-        if (existing && existing.length > 0 && existing[0].status === 'completed') {
-            return NextResponse.json({ success: true, message: 'Materi sudah diselesaikan sebelumnya' });
-        }
-
-        // Insert or update user_progress
-        if (existing && existing.length > 0) {
-            await executeQuery(
-                `UPDATE user_progress SET status = 'completed', updated_at = NOW() WHERE id = ?`,
-                [existing[0].id]
-            );
-        } else {
-            await executeQuery(
-                `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status)
-                 VALUES (?, ?, ?, ?, 'completed')`,
-                [uuidv4(), user.id, sessionId, moduleItemId]
-            );
-        }
 
         return NextResponse.json({ success: true, message: 'Materi berhasil diselesaikan' });
     } catch (error) {

@@ -17,6 +17,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -166,6 +167,7 @@ export default function ParticipantAnswersPage({
     const [selectedAttemptNumber, setSelectedAttemptNumber] = useState<number | null>(null);
     const [gradingAnswerId, setGradingAnswerId] = useState<string | null>(null);
     const [userRole, setUserRole] = useState<'admin' | 'trainer' | null>(null);
+    const [customPointsMap, setCustomPointsMap] = useState<Record<string, string>>({});
 
     useEffect(() => {
         fetch('/api/auth/me')
@@ -228,21 +230,27 @@ export default function ParticipantAnswersPage({
         (attempt) => attempt.attempt_number === selectedAttemptNumber,
     ) || null;
 
-    const gradeEssay = async (answer: AnswerReview, isCorrect: boolean) => {
+    const gradeEssay = async (answer: AnswerReview, isCorrect?: boolean, customPoints?: number) => {
         if (!selectedExam || !selectedAttempt || gradingAnswerId) return;
         setGradingAnswerId(answer.id);
         try {
+            const bodyPayload: Record<string, unknown> = {
+                session_id: sessionId,
+                user_id: participantId,
+                exam_id: selectedExam.exam_id,
+                question_id: answer.question_id,
+                attempt_number: selectedAttempt.attempt_number,
+            };
+            if (customPoints !== undefined) {
+                bodyPayload.awarded_points = customPoints;
+            } else {
+                bodyPayload.is_correct = isCorrect;
+            }
+
             const response = await fetch('/api/admin/grading', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    session_id: sessionId,
-                    user_id: participantId,
-                    exam_id: selectedExam.exam_id,
-                    question_id: answer.question_id,
-                    attempt_number: selectedAttempt.attempt_number,
-                    is_correct: isCorrect,
-                }),
+                body: JSON.stringify(bodyPayload),
             });
             const body = await response.json();
             if (!response.ok || !body.success) throw new Error(body.error || 'Gagal menyimpan nilai');
@@ -412,25 +420,58 @@ export default function ParticipantAnswersPage({
                                                     <span>Mode Peninjauan: Penilaian manual esai hanya dapat dilakukan oleh Administrator.</span>
                                                 </div>
                                             ) : (
-                                                <div className="flex gap-2">
+                                                <div className="flex flex-wrap items-center gap-2">
                                                     <Button
                                                         type="button"
+                                                        size="sm"
                                                         variant={answer.grading_status === 'graded' && !answer.is_correct ? 'destructive' : 'outline'}
                                                         disabled={gradingAnswerId !== null}
                                                         onClick={() => gradeEssay(answer, false)}
                                                     >
                                                         {gradingAnswerId === answer.id ? <Loader2 className="animate-spin" /> : <X />}
-                                                        Salah
+                                                        Salah (0)
                                                     </Button>
                                                     <Button
                                                         type="button"
+                                                        size="sm"
                                                         className="bg-emerald-700 text-white hover:bg-emerald-800"
                                                         disabled={gradingAnswerId !== null}
                                                         onClick={() => gradeEssay(answer, true)}
                                                     >
                                                         {gradingAnswerId === answer.id ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-                                                        Benar
+                                                        Benar ({answer.points})
                                                     </Button>
+                                                    <div className="flex items-center gap-1.5 pl-2 border-l">
+                                                        <Input
+                                                            type="number"
+                                                            min={0}
+                                                            max={answer.points}
+                                                            step="0.5"
+                                                            className="h-8 w-20 text-xs"
+                                                            placeholder={`${answer.points}`}
+                                                            value={customPointsMap[answer.id] ?? (answer.grading_status === 'graded' ? String(answer.awarded_points) : '')}
+                                                            onChange={(e) => setCustomPointsMap(prev => ({ ...prev, [answer.id]: e.target.value }))}
+                                                        />
+                                                        <span className="text-xs text-muted-foreground">/{answer.points}</span>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            className="h-8 text-xs"
+                                                            disabled={gradingAnswerId !== null}
+                                                            onClick={() => {
+                                                                const raw = customPointsMap[answer.id] ?? (answer.grading_status === 'graded' ? String(answer.awarded_points) : '0');
+                                                                const pts = parseFloat(raw);
+                                                                if (isNaN(pts) || pts < 0) {
+                                                                    toast.error('Masukkan nilai poin yang valid');
+                                                                    return;
+                                                                }
+                                                                gradeEssay(answer, undefined, Math.min(pts, answer.points));
+                                                            }}
+                                                        >
+                                                            Set Poin
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

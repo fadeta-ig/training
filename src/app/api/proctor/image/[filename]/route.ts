@@ -22,7 +22,8 @@ async function handleGet(
 
         // Sanitize filename to avoid path traversal
         const safeFilename = path.basename(filename);
-        const proctorDir = path.resolve(process.cwd(), 'public', 'uploads', 'proctor');
+        const proctorDir = path.resolve(process.cwd(), 'storage', 'proctor');
+        const legacyDir = path.resolve(process.cwd(), 'public', 'uploads', 'proctor');
         const filePath = path.resolve(proctorDir, safeFilename);
 
         if (!filePath.startsWith(proctorDir + path.sep) && filePath !== proctorDir) {
@@ -30,11 +31,22 @@ async function handleGet(
         }
 
         try {
-            const fileBuffer = await fs.readFile(filePath);
+            let fileBuffer: Buffer;
+            try {
+                fileBuffer = await fs.readFile(filePath);
+            } catch {
+                // Fallback to legacy path if not yet moved
+                const legacyPath = path.resolve(legacyDir, safeFilename);
+                if (legacyPath.startsWith(legacyDir + path.sep)) {
+                    fileBuffer = await fs.readFile(legacyPath);
+                } else {
+                    return new NextResponse('Snapshot Not Found', { status: 404 });
+                }
+            }
             const ext = path.extname(safeFilename).toLowerCase();
             const contentType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
 
-            return new NextResponse(fileBuffer, {
+            return new NextResponse(new Uint8Array(fileBuffer), {
                 status: 200,
                 headers: {
                     'Content-Type': contentType,

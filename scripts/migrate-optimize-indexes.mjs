@@ -77,6 +77,30 @@ async function runMigration() {
       console.log('ℹ️ Index `idx_proctor_captured_at` already exists on `proctor_snapshots`.');
     }
 
+    // 3. Check idx_user_progress_status_updated on user_progress
+    const hasUserProgressIdx = await indexExists(connection, 'user_progress', 'idx_user_progress_status_updated');
+    if (!hasUserProgressIdx) {
+      console.log('➕ Adding INDEX `idx_user_progress_status_updated` to table `user_progress`...');
+      await connection.execute(
+        `ALTER TABLE user_progress ADD INDEX idx_user_progress_status_updated (status, updated_at)`
+      );
+      console.log('✅ Index `idx_user_progress_status_updated` created successfully.');
+    } else {
+      console.log('ℹ️ Index `idx_user_progress_status_updated` already exists on `user_progress`.');
+    }
+
+    // 4. Check idx_sp_session_status on session_participants
+    const hasSpSessionStatusIdx = await indexExists(connection, 'session_participants', 'idx_sp_session_status');
+    if (!hasSpSessionStatusIdx) {
+      console.log('➕ Adding INDEX `idx_sp_session_status` to table `session_participants`...');
+      await connection.execute(
+        `ALTER TABLE session_participants ADD INDEX idx_sp_session_status (session_id, graduation_status)`
+      );
+      console.log('✅ Index `idx_sp_session_status` created successfully.');
+    } else {
+      console.log('ℹ️ Index `idx_sp_session_status` already exists on `session_participants`.');
+    }
+
     console.log('\n🎉 Database index optimization completed successfully!');
   } catch (error) {
     console.error('❌ Migration failed:', error);

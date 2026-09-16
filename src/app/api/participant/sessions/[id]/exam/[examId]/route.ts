@@ -17,7 +17,6 @@ import {
     validateSessionTiming,
     validateSebAccess,
     ParticipantError,
-    ensureExamDraftVersionColumn,
 } from '@/lib/participant-helpers';
 import { normalizeDbDateToIso } from '@/lib/timezone';
 
@@ -53,11 +52,28 @@ async function handleGet(
             validateSessionTiming(sessionId, user.id),
         ]);
 
-        if (user.role === 'trainee' && isUpcoming) {
-            return NextResponse.json({ success: false, error: 'Sesi belum dimulai' }, { status: 400 });
-        }
-        if (user.role === 'trainee' && isEnded) {
-            return NextResponse.json({ success: false, error: 'Sesi sudah berakhir' }, { status: 400 });
+        if (user.role === 'trainee') {
+            if (isUpcoming) {
+                return NextResponse.json({ success: false, error: 'Sesi belum dimulai' }, { status: 400 });
+            }
+            if (isEnded) {
+                return NextResponse.json({ success: false, error: 'Sesi sudah berakhir' }, { status: 400 });
+            }
+
+            // Profile & Password check: Must change default password and provide id_card_number
+            const profileCheck = await executeQuery<{ id_card_number: string | null; must_change_password: number | boolean }[]>(
+                `SELECT id_card_number, COALESCE(must_change_password, 0) as must_change_password 
+                 FROM participant_profiles 
+                 WHERE user_id = ? LIMIT 1`,
+                [user.id]
+            );
+            const profile = profileCheck?.[0];
+            if (profile && (Boolean(profile.must_change_password) || !profile.id_card_number || !profile.id_card_number.trim())) {
+                return NextResponse.json(
+                    { success: false, error: 'Silakan lengkapi profil (NIK/No. Identitas) dan perbarui kata sandi Anda terlebih dahulu sebelum memulai ujian.' },
+                    { status: 403 }
+                );
+            }
         }
 
         validateSebAccess(_request, session, user.role);
@@ -214,7 +230,6 @@ async function handleGet(
             return { ...question, options_json: null };
         });
 
-        await ensureExamDraftVersionColumn();
         const existingAnswers = await executeQuery<Array<{ question_id: string; selected_option: string; client_version?: number }>>(
             `SELECT question_id, selected_option, COALESCE(client_version, 1) AS client_version
              FROM exam_answer_drafts

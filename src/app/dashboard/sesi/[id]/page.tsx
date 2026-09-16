@@ -124,7 +124,15 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedItemForRequest, setSelectedItemForRequest] = useState<string | null>(null);
+    const [currentTime, setCurrentTime] = useState<number>(() => Date.now());
     const isSeb = useIsSeb();
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(Date.now());
+        }, 10_000);
+        return () => clearInterval(timer);
+    }, []);
 
     useEffect(() => {
         fetch(`/api/participant/sessions/${id}`)
@@ -182,8 +190,8 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const end = new Date(endIso);
 
     // Calculate server clock offset if available to protect against device clock drift
-    const serverOffset = session.server_time ? new Date(session.server_time).getTime() - Date.now() : 0;
-    const currentAdjustedTime = new Date(Date.now() + serverOffset);
+    const serverOffset = session.server_time ? new Date(session.server_time).getTime() - currentTime : 0;
+    const currentAdjustedTime = new Date(currentTime + serverOffset);
 
     const completedCount = session.items.filter((item) => item.progress_status === 'completed').length;
     const totalItems = session.items.length;

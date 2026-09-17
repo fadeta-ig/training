@@ -621,11 +621,19 @@ function SessionItemCard({
                             </div>
                         </>
                     )}
-                    {isExam && isCompleted && item.score !== null && (
+                    {isExam && isCompleted && (
                         <div>
-                            <dt className="text-xs text-muted-foreground">Nilai terakhir</dt>
-                            <dd className="mt-1 font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                                {Number(item.score).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
+                            <dt className="text-xs text-muted-foreground">Nilai evaluasi</dt>
+                            <dd className="mt-1">
+                                {item.score !== null ? (
+                                    <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                        {Number(item.score).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800 px-2 py-0.5 rounded-md">
+                                        Tahap Evaluasi & Rekap
+                                    </span>
+                                )}
                             </dd>
                         </div>
                     )}

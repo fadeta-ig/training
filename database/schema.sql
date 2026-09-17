@@ -262,6 +262,11 @@ CREATE TABLE user_progress (
   module_item_id     VARCHAR(36)   NOT NULL,
   status             ENUM('locked', 'open', 'completed') DEFAULT 'locked',
   score              DECIMAL(5, 2) NULL,
+  original_score     DECIMAL(5, 2) NULL,
+  score_adjustment   DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
+  adjustment_reason  VARCHAR(255) NULL,
+  adjusted_by        VARCHAR(36) NULL,
+  adjusted_at        DATETIME NULL,
   attempts_count     INT           NOT NULL DEFAULT 0,
   attempt_version    INT           NOT NULL DEFAULT 1,
   last_attempt_start DATETIME      NULL,
@@ -275,7 +280,9 @@ CREATE TABLE user_progress (
   CONSTRAINT fk_progress_session
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
   CONSTRAINT fk_progress_item
-    FOREIGN KEY (module_item_id) REFERENCES module_items(id) ON DELETE CASCADE
+    FOREIGN KEY (module_item_id) REFERENCES module_items(id) ON DELETE CASCADE,
+  CONSTRAINT fk_progress_adjusted_by
+    FOREIGN KEY (adjusted_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────

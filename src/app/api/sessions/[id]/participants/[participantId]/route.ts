@@ -55,6 +55,10 @@ async function handleGet(
                 END AS item_title,
                 up.status AS progress_status,
                 up.score,
+                COALESCE(up.original_score, up.score) AS original_score,
+                up.score_adjustment,
+                up.adjustment_reason,
+                up.adjusted_at,
                 up.updated_at
              FROM module_items mi
              LEFT JOIN trainings t ON mi.item_type = 'training' AND mi.item_id = t.id
@@ -103,7 +107,11 @@ async function handleGet(
                         item_title: item.item_title,
                         sequence_order: item.sequence_order,
                         status: item.progress_status || 'locked',
-                        score: item.score,
+                        score: item.score !== null && item.score !== undefined ? Number(item.score) : null,
+                        original_score: item.original_score !== null && item.original_score !== undefined ? Number(item.original_score) : null,
+                        score_adjustment: item.score_adjustment !== null && item.score_adjustment !== undefined ? Number(item.score_adjustment) : 0,
+                        adjustment_reason: item.adjustment_reason || null,
+                        adjusted_at: item.adjusted_at || null,
                         updated_at: item.updated_at,
                     }))
                 }

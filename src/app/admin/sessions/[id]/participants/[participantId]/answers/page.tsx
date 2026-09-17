@@ -13,6 +13,7 @@ import {
     Loader2,
     MinusCircle,
     X,
+    Printer,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -309,38 +310,51 @@ export default function ParticipantAnswersPage({
                     <p className="text-sm text-muted-foreground">{data.session.title}</p>
                 </div>
 
-                {data.exams.length > 0 && (
-                    <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2">
-                        <Select value={selectedExamId} onValueChange={(value) => setSelectedExamId(String(value))}>
-                            <SelectTrigger className="h-9 w-full sm:w-52" aria-label="Pilih ujian">
-                                <SelectValue>{selectedExam?.title || 'Pilih ujian'}</SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {data.exams.map((exam) => (
-                                    <SelectItem key={exam.exam_id} value={exam.exam_id}>{exam.title}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select
-                            value={selectedAttemptNumber === null ? null : String(selectedAttemptNumber)}
-                            onValueChange={(value) => setSelectedAttemptNumber(Number(value))}
-                            disabled={!selectedExam}
-                        >
-                            <SelectTrigger className="h-9 w-full sm:w-36" aria-label="Pilih percobaan">
-                                <SelectValue>
-                                    {selectedAttemptNumber === null ? 'Percobaan' : `Percobaan ${selectedAttemptNumber}`}
-                                </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {selectedExam?.attempts.map((attempt) => (
-                                    <SelectItem key={attempt.attempt_number} value={String(attempt.attempt_number)}>
-                                        Attempt {attempt.attempt_number}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                )}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                    <a
+                        href={`/api/admin/sessions/${sessionId}/participants/${participantId}/answer-sheet`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-2xs h-9 shrink-0 cursor-pointer"
+                        title="Buka / Cetak Lembar Pengerjaan Resmi Peserta"
+                    >
+                        <Printer className="size-3.5" />
+                        <span>Cetak Lembar Jawaban</span>
+                    </a>
+
+                    {data.exams.length > 0 && (
+                        <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2">
+                            <Select value={selectedExamId} onValueChange={(value) => setSelectedExamId(String(value))}>
+                                <SelectTrigger className="h-9 w-full sm:w-52" aria-label="Pilih ujian">
+                                    <SelectValue>{selectedExam?.title || 'Pilih ujian'}</SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {data.exams.map((exam) => (
+                                        <SelectItem key={exam.exam_id} value={exam.exam_id}>{exam.title}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select
+                                value={selectedAttemptNumber === null ? null : String(selectedAttemptNumber)}
+                                onValueChange={(value) => setSelectedAttemptNumber(Number(value))}
+                                disabled={!selectedExam}
+                            >
+                                <SelectTrigger className="h-9 w-full sm:w-36" aria-label="Pilih percobaan">
+                                    <SelectValue>
+                                        {selectedAttemptNumber === null ? 'Percobaan' : `Percobaan ${selectedAttemptNumber}`}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {selectedExam?.attempts.map((attempt) => (
+                                        <SelectItem key={attempt.attempt_number} value={String(attempt.attempt_number)}>
+                                            Attempt {attempt.attempt_number}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {!selectedAttempt ? (

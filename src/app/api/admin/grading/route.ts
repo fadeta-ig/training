@@ -149,9 +149,11 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         const isLatestAttempt = Number(answer.attempts_count) === attempt_number;
         if (isLatestAttempt) {
             await connection.execute(
-                `UPDATE user_progress SET score = ?
+                `UPDATE user_progress 
+                 SET original_score = ?, 
+                     score = LEAST(100, GREATEST(0, ? + COALESCE(score_adjustment, 0)))
                  WHERE user_id = ? AND session_id = ? AND module_item_id = ?`,
-                [newScore, user_id, session_id, answer.module_item_id],
+                [newScore, newScore, user_id, session_id, answer.module_item_id],
             );
         }
 

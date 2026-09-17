@@ -27,7 +27,9 @@ import { useIsSeb } from '@/hooks/useSeb';
 import { Pagination } from '@/components/ui/Pagination';
 import { GraduationVerdictModal } from '@/components/admin/GraduationVerdictModal';
 import { CertificateUploadModal } from '@/components/admin/CertificateUploadModal';
-import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles, FileBadge2, Copy, ExternalLink, ShieldCheck, FilePenLine, BookOpen, Clock3 } from 'lucide-react';
+import { ScoreAdjustmentModal } from '@/components/admin/ScoreAdjustmentModal';
+import { BulkScoreAdjustmentModal } from '@/components/admin/BulkScoreAdjustmentModal';
+import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles, FileBadge2, Copy, ExternalLink, ShieldCheck, FilePenLine, BookOpen, Clock3, SlidersHorizontal, Archive } from 'lucide-react';
 import { formatWibDateTime } from '@/lib/timezone';
 
 type User = {
@@ -59,6 +61,11 @@ type User = {
     certificate_uploaded_at?: string | null;
     final_score?: number | null;
     avg_score?: number | null;
+    original_score?: number | null;
+    score_adjustment?: number | null;
+    adjustment_reason?: string | null;
+    adjusted_at?: string | null;
+    exam_module_item_id?: string | null;
 };
 
 type SessionDetail = {
@@ -89,6 +96,12 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     // Modal state for verdict & certificate
     const [selectedParticipantForVerdict, setSelectedParticipantForVerdict] = useState<User | null>(null);
     const [selectedParticipantForCert, setSelectedParticipantForCert] = useState<User | null>(null);
+
+    // Modal state for score adjustment
+    const [selectedParticipantForScoreAdjust, setSelectedParticipantForScoreAdjust] = useState<User | null>(null);
+    const [showBulkScoreModal, setShowBulkScoreModal] = useState(false);
+    const [isTogglingScoreVisibility, setIsTogglingScoreVisibility] = useState(false);
+    const [isDownloadingBulkSheets, setIsDownloadingBulkSheets] = useState(false);
 
     // Bulk Actions State
     const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
@@ -312,6 +325,74 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
         }
     };
 
+    const handleToggleScoreVisibility = async () => {
+        if (!session) return;
+        setIsTogglingScoreVisibility(true);
+        const newStatus = !session.show_score;
+        try {
+            const res = await fetch(`/api/admin/sessions/${session.id}/toggle-score-visibility`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ show_score: newStatus }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setSession((prev) => prev ? { ...prev, show_score: newStatus } : null);
+                toast.success(data.message || (newStatus ? 'Nilai dipublikasikan ke peserta' : 'Nilai disembunyikan dari peserta'));
+            } else {
+                toast.error('Gagal Mengubah Visibilitas Nilai', {
+                    description: data.error || 'Terjadi kesalahan sistem',
+                });
+            }
+        } catch (err: any) {
+            toast.error('Kesalahan Jaringan', { description: err.message });
+        } finally {
+            setIsTogglingScoreVisibility(false);
+        }
+    };
+
+    const handleDownloadBulkSheets = async (targetIds?: string[]) => {
+        const idsToDownload = targetIds || selectedParticipantIds;
+        if (idsToDownload.length === 0 || !session) {
+            toast.error('Pilih setidaknya satu peserta untuk mengunduh lembar jawaban.');
+            return;
+        }
+        setIsDownloadingBulkSheets(true);
+        const toastId = toast.loading('Mengemas lembar jawaban peserta ke berkas ZIP...');
+        try {
+            const res = await fetch(`/api/admin/sessions/${session.id}/bulk-answer-sheets`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ participant_ids: idsToDownload }),
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Gagal mengunduh berkas ZIP lembar jawaban.');
+            }
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const safeTitle = session.title.replace(/[^a-zA-Z0-9_-]/g, '_');
+            a.download = `Lembar_Jawaban_${safeTitle}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            toast.success('Unduh Berhasil!', {
+                id: toastId,
+                description: `${idsToDownload.length} lembar jawaban berhasil diunduh.`,
+            });
+        } catch (err: any) {
+            toast.error('Gagal Mengunduh ZIP', {
+                id: toastId,
+                description: err.message,
+            });
+        } finally {
+            setIsDownloadingBulkSheets(false);
+        }
+    };
+
     const isAllSelected =
         filteredParticipants.length > 0 &&
         filteredParticipants.every((p) => selectedParticipantIds.includes(p.id));
@@ -370,7 +451,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                         <p className="font-mono text-xs text-muted-foreground">ID Sesi: {session.id}</p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
                         {userRole === 'admin' && (
                             <Link
                                 href={`/admin/sessions/${session.id}/edit`}
@@ -380,6 +461,20 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                 <span>Edit Sesi</span>
                             </Link>
                         )}
+                        <button
+                            type="button"
+                            onClick={() => handleDownloadBulkSheets(session.participants.map((p) => p.id))}
+                            disabled={isDownloadingBulkSheets || session.participants.length === 0}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs hover:shadow-sm border border-blue-700/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                            title="Unduh seluruh lembar jawaban peserta sesi ini dalam format berkas arsip ZIP"
+                        >
+                            {isDownloadingBulkSheets ? (
+                                <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Archive size={16} />
+                            )}
+                            <span>Unduh ZIP Jawaban</span>
+                        </button>
                         <a
                             href={`/api/admin/sessions/${session.id}/export`}
                             target="_blank"
@@ -460,17 +555,30 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                         Modul & Fitur
                     </div>
                     <div className="space-y-2.5 text-xs">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                             <span className="text-muted-foreground text-[11px]">Visibilitas Nilai</span>
-                            {session.show_score ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                                    <ViewIcon size={11} /> Ditampilkan
-                                </span>
-                            ) : (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60">
-                                    <ViewOffIcon size={11} /> Disembunyikan
-                                </span>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                                {session.show_score ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                        <ViewIcon size={11} /> Ditampilkan
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60">
+                                        <ViewOffIcon size={11} /> Draft (Disembunyikan)
+                                    </span>
+                                )}
+                                {userRole === 'admin' && (
+                                    <button
+                                        type="button"
+                                        onClick={handleToggleScoreVisibility}
+                                        disabled={isTogglingScoreVisibility}
+                                        className="text-[10px] font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded transition-all border border-black/5 cursor-pointer disabled:opacity-50"
+                                        title={session.show_score ? 'Sembunyikan nilai dari peserta' : 'Publikasikan nilai ke peserta'}
+                                    >
+                                        {isTogglingScoreVisibility ? '...' : session.show_score ? 'Sembunyikan' : 'Publikasikan'}
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         <div>
@@ -490,6 +598,34 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                 </div>
             </div>
+
+            {/* Evaluation / Draft Score Banner */}
+            {!session.show_score && (
+                <div className="bg-amber-50/90 border border-amber-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-start sm:items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                            <SlidersHorizontal className="size-4" />
+                        </div>
+                        <div className="space-y-0.5">
+                            <p className="text-xs font-semibold text-amber-950">Mode Evaluasi & Penyesuaian Nilai (Draft)</p>
+                            <p className="text-[11px] text-amber-800 leading-snug">
+                                Nilai ujian saat ini disembunyikan dari peserta. Anda dapat menyesuaikan (adjust) nilai peserta sebelum mempublikasikannya.
+                            </p>
+                        </div>
+                    </div>
+                    {userRole === 'admin' && (
+                        <button
+                            type="button"
+                            onClick={handleToggleScoreVisibility}
+                            disabled={isTogglingScoreVisibility}
+                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-2xs transition-all active:scale-95 shrink-0 cursor-pointer disabled:opacity-50"
+                        >
+                            <ViewIcon size={13} />
+                            <span>{isTogglingScoreVisibility ? 'Memproses...' : 'Publikasikan Nilai ke Peserta'}</span>
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Participants Section */}
             <div className="bg-white rounded-xl border border-black/5 shadow-2xs overflow-hidden relative">
@@ -569,8 +705,31 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                         <AlertCircle className="size-3.5" />
                                         <span>Tidak Luluskan Massal</span>
                                     </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowBulkScoreModal(true)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-indigo-700/30 active:scale-95 cursor-pointer"
+                                        title="Sesuaikan nilai ujian seluruh peserta terpilih sekaligus"
+                                    >
+                                        <SlidersHorizontal className="size-3.5" />
+                                        <span>Adjust Nilai Massal</span>
+                                    </button>
                                 </>
                             )}
+                            <button
+                                type="button"
+                                onClick={() => handleDownloadBulkSheets()}
+                                disabled={isDownloadingBulkSheets}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-blue-700/30 active:scale-95 cursor-pointer disabled:opacity-50"
+                                title="Unduh lembar jawaban peserta terpilih dalam berkas ZIP"
+                            >
+                                {isDownloadingBulkSheets ? (
+                                    <div className="w-3.5 h-3.5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <Download01Icon size={14} />
+                                )}
+                                <span>Unduh Jawaban (ZIP)</span>
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => setShowBulkTimeModal(true)}
@@ -745,7 +904,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                     </div>
                                                     <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
                                                         <span>{p.completed_items}/{p.total_items} item</span>
-                                                        <div className="flex items-center gap-1">
+                                                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
                                                             <span>Nilai:</span>
                                                             <span className={`font-semibold ${
                                                                 p.final_score !== null && p.final_score !== undefined
@@ -756,6 +915,28 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                                     ? Number(p.final_score).toFixed(1)
                                                                     : '-'}
                                                             </span>
+                                                            {p.score_adjustment !== null && p.score_adjustment !== undefined && Number(p.score_adjustment) !== 0 && (
+                                                                <span
+                                                                    className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold border ${
+                                                                        Number(p.score_adjustment) > 0
+                                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                                            : 'bg-rose-50 text-rose-700 border-rose-200'
+                                                                    }`}
+                                                                    title={`Nilai Asli: ${p.original_score ?? '-'} | Penyesuaian: ${Number(p.score_adjustment) > 0 ? '+' : ''}${p.score_adjustment} | Alasan: ${p.adjustment_reason || '-'}`}
+                                                                >
+                                                                    {Number(p.score_adjustment) > 0 ? `+${Number(p.score_adjustment).toFixed(1)}` : Number(p.score_adjustment).toFixed(1)}
+                                                                </span>
+                                                            )}
+                                                            {userRole === 'admin' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setSelectedParticipantForScoreAdjust(p)}
+                                                                    className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-200/70 transition-colors cursor-pointer"
+                                                                    title="Sesuaikan (Adjust) Nilai Peserta Ini"
+                                                                >
+                                                                    <SlidersHorizontal className="size-3" />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -867,6 +1048,15 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                             <Award className="size-4 text-slate-700" />
                                                         </button>
                                                     )}
+                                                    <a
+                                                        href={`/api/admin/sessions/${session.id}/participants/${p.id}/answer-sheet`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="inline-flex items-center justify-center p-1.5 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors border border-black/5"
+                                                        title="Buka / Cetak Lembar Pengerjaan & Jawaban Resmi Peserta"
+                                                    >
+                                                        <FileText className="size-4 text-slate-700" />
+                                                    </a>
                                                     <Link
                                                         href={`/admin/sessions/${session.id}/participants/${p.id}`}
                                                         className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-800 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors border border-black/5"
@@ -911,6 +1101,28 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                 onSuccess={fetchSession}
                 sessionId={session.id}
                 participant={selectedParticipantForCert}
+            />
+
+            {/* Individual Score Adjustment Modal */}
+            <ScoreAdjustmentModal
+                isOpen={!!selectedParticipantForScoreAdjust}
+                onClose={() => setSelectedParticipantForScoreAdjust(null)}
+                onSuccess={fetchSession}
+                sessionId={session.id}
+                participant={selectedParticipantForScoreAdjust}
+            />
+
+            {/* Bulk Score Adjustment Modal */}
+            <BulkScoreAdjustmentModal
+                isOpen={showBulkScoreModal}
+                onClose={() => setShowBulkScoreModal(false)}
+                onSuccess={() => {
+                    fetchSession();
+                    setSelectedParticipantIds([]);
+                }}
+                sessionId={session.id}
+                participantIds={selectedParticipantIds}
+                participantCount={selectedParticipantIds.length}
             />
 
             {/* Bulk Verdict Confirmation Modal */}

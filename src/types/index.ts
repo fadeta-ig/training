@@ -161,6 +161,11 @@ export interface UserProgress {
     module_item_id: string;
     status: 'locked' | 'open' | 'completed';
     score: number | null;
+    original_score?: number | null;
+    score_adjustment?: number;
+    adjustment_reason?: string | null;
+    adjusted_by?: string | null;
+    adjusted_at?: string | null;
     attempts_count: number;
     attempt_version: number;
     last_attempt_start: string | null;

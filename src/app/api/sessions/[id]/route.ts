@@ -107,7 +107,12 @@ async function handleGet(
                     sp.certificate_uploaded_at,
                     COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN up.id END) AS completed_items,
                     AVG(CASE WHEN mi.item_type = 'exam' AND up.score IS NOT NULL THEN up.score END) AS exam_avg_score,
-                    MAX(CASE WHEN mi.item_type = 'exam' AND up.score IS NOT NULL THEN up.score END) AS exam_max_score
+                    MAX(CASE WHEN mi.item_type = 'exam' AND up.score IS NOT NULL THEN up.score END) AS exam_max_score,
+                    MAX(CASE WHEN mi.item_type = 'exam' AND up.score IS NOT NULL THEN COALESCE(up.original_score, up.score) END) AS exam_original_score,
+                    MAX(CASE WHEN mi.item_type = 'exam' AND up.score IS NOT NULL THEN up.score_adjustment END) AS exam_score_adjustment,
+                    MAX(CASE WHEN mi.item_type = 'exam' AND up.score IS NOT NULL THEN up.adjustment_reason END) AS exam_adjustment_reason,
+                    MAX(CASE WHEN mi.item_type = 'exam' AND up.score IS NOT NULL THEN up.adjusted_at END) AS exam_adjusted_at,
+                    MAX(CASE WHEN mi.item_type = 'exam' AND up.score IS NOT NULL THEN up.module_item_id END) AS exam_module_item_id
              FROM session_participants sp
              JOIN users u ON sp.user_id = u.id
              LEFT JOIN participant_profiles p ON sp.user_id = p.user_id
@@ -184,8 +189,17 @@ async function handleGet(
                 certificate_file_url: p.certificate_file_url || null,
                 certificate_number: p.certificate_number || null,
                 certificate_uploaded_at: p.certificate_uploaded_at || null,
-                final_score: p.exam_max_score !== null ? Number(p.exam_max_score) : null,
-                avg_score: p.exam_avg_score !== null ? Number(p.exam_avg_score) : null,
+                final_score: p.exam_max_score !== null && p.exam_max_score !== undefined ? Number(p.exam_max_score) : null,
+                original_score: p.exam_original_score !== null && p.exam_original_score !== undefined
+                    ? Number(p.exam_original_score)
+                    : (p.exam_max_score !== null && p.exam_max_score !== undefined ? Number(p.exam_max_score) : null),
+                score_adjustment: p.exam_score_adjustment !== null && p.exam_score_adjustment !== undefined
+                    ? Number(p.exam_score_adjustment)
+                    : 0,
+                adjustment_reason: p.exam_adjustment_reason || null,
+                adjusted_at: p.exam_adjusted_at || null,
+                exam_module_item_id: p.exam_module_item_id || null,
+                avg_score: p.exam_avg_score !== null && p.exam_avg_score !== undefined ? Number(p.exam_avg_score) : null,
             };
         });
 

@@ -308,9 +308,9 @@ async function handlePost(
 
             await connection.execute(
                 `UPDATE user_progress
-                 SET status = 'completed', score = ?, attempts_count = attempts_count + 1, last_attempt_start = NULL
+                 SET status = 'completed', score = ?, original_score = ?, score_adjustment = 0.00, attempts_count = attempts_count + 1, last_attempt_start = NULL
                  WHERE id = ?`,
-                [score, progressId]
+                [score, score, progressId]
             );
 
             await connection.commit();

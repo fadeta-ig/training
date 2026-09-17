@@ -157,13 +157,25 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
         <div className="space-y-4 max-w-7xl mx-auto pb-12">
             {/* Navigation & Header */}
             <div className="space-y-3">
-                <Link
-                    href={`/admin/sessions/${sessionId}`}
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
-                >
-                    <ArrowLeft01Icon size={15} />
-                    <span>Kembali ke Detail Sesi</span>
-                </Link>
+                <div className="flex items-center justify-between gap-4">
+                    <Link
+                        href={`/admin/sessions/${sessionId}`}
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+                    >
+                        <ArrowLeft01Icon size={15} />
+                        <span>Kembali ke Detail Sesi</span>
+                    </Link>
+                    <a
+                        href={`/api/admin/sessions/${sessionId}/participants/${participantId}/answer-sheet`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-all shadow-2xs cursor-pointer"
+                        title="Buka / Cetak Lembar Pengerjaan & Hasil Ujian Resmi Peserta"
+                    >
+                        <Printer className="size-3.5" />
+                        <span>Cetak Lembar Jawaban Resmi</span>
+                    </a>
+                </div>
 
                 {/* Integrated Banner & Profile Bar */}
                 <div className="bg-white rounded-xl border border-black/5 p-4 sm:p-5 shadow-2xs">
@@ -478,7 +490,17 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                                         )}
 
                                         {isExam && done ? (
-                                            <div className="flex items-center gap-2.5 ml-auto sm:ml-0">
+                                            <div className="flex items-center gap-2.5 ml-auto sm:ml-0 flex-wrap">
+                                                <a
+                                                    href={`/api/admin/sessions/${sessionId}/participants/${participantId}/answer-sheet`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg border border-black/5 transition-colors"
+                                                    title="Buka / Cetak Lembar Pengerjaan Resmi Peserta"
+                                                >
+                                                    <Printer className="size-3 text-slate-600" />
+                                                    <span>Lembar Jawaban</span>
+                                                </a>
                                                 <Link
                                                     href={`/admin/sessions/${sessionId}/participants/${participantId}/answers?exam=${item.item_id}`}
                                                     className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline px-1 py-0.5"

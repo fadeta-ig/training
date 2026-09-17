@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import logger from '@/lib/logger';
-import { escapeHtml } from '@/lib/sanitize';
+import {
+    buildSebConfig,
+    calculateSebConfigKey,
+    mergeStoredSebConfigKeys,
+    parseStoredSebConfigKeys,
+    serializeSebConfigPlist,
+} from '@/lib/seb-config';
 
 export async function GET(
     request: NextRequest,
@@ -17,7 +23,7 @@ export async function GET(
     try {
         // Cek sesi dan apakah mewajibkan SEB
         const queryStr = `
-             SELECT s.id, s.require_seb, s.seb_config_key, s.title
+             SELECT s.id, s.require_seb, s.seb_config_key, s.title, s.enable_proctoring
              FROM sessions s
              WHERE s.id = ?
              LIMIT 1
@@ -48,103 +54,31 @@ export async function GET(
             origin = requestOrigin;
         }
         const startUrl = `${origin}/dashboard/sesi/${encodeURIComponent(session.id)}`;
-        const safeStartUrl = escapeHtml(startUrl);
-        const safeQuitUrl = escapeHtml(`${origin}/quit-seb`);
-        const safeConfigKey = escapeHtml(session.seb_config_key || '');
-        
-        // PList XML Generator as per Safe Exam Browser specification for Windows & macOS
-        const sebXML = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>origin</key>
-    <string>LMS Nusamitra Consulting</string>
-    <key>startURL</key>
-    <string>${safeStartUrl}</string>
-    <key>sendBrowserExamKey</key>
-    <true/>
-    <key>browserExamKey</key>
-    <string>${safeConfigKey}</string>
+        const config = buildSebConfig({
+            sessionId: session.id,
+            startUrl,
+            quitUrl: `${origin}/quit-seb`,
+            enableProctoring: Boolean(session.enable_proctoring),
+        });
+        const configKey = calculateSebConfigKey(config);
+        // Discard the legacy static environment value. It was not calculated from
+        // this plist and must not remain an accepted key after the first v2 download.
+        const legacyStaticKey = process.env.SEB_CONFIG_KEY_HASH?.trim().toLowerCase();
+        const existingKeys = parseStoredSebConfigKeys(session.seb_config_key)
+            .filter((key) => key !== legacyStaticKey)
+            .join(',') || null;
+        const storedKeys = mergeStoredSebConfigKeys(existingKeys, configKey);
+        const sebXML = serializeSebConfigPlist(config);
 
-    <!-- Browser Engine Policy: Modern WebView (WKWebView) for macOS & Windows -->
-    <key>browserWindowWebView</key>
-    <integer>3</integer>
-    <key>browserWindowWebViewClassicHideDeprecationNote</key>
-    <true/>
-
-    <!-- Camera & Media Proctored Exam Permissions (macOS & Windows SEB 3.x) -->
-    <key>allowVideoCapture</key>
-    <true/>
-    <key>allowAudioCapture</key>
-    <false/>
-    <key>mediaCaptureRequiresUserGesture</key>
-    <false/>
-
-    <!-- Navigation & Safe Recovery in Shared Lab / Wi-Fi -->
-    <key>showTaskBar</key>
-    <true/>
-    <key>showReloadButton</key>
-    <true/>
-    <key>browserWindowAllowReload</key>
-    <true/>
-    <key>showQuitButton</key>
-    <true/>
-    <key>quitURL</key>
-    <string>${safeQuitUrl}</string>
-    <key>quitURLConfirm</key>
-    <true/>
-    <key>allowQuit</key>
-    <true/>
-    <key>showTime</key>
-    <true/>
-    <key>showNetworkInfo</key>
-    <true/>
-    <key>showBatteryInfo</key>
-    <true/>
-    <key>enableZoomPage</key>
-    <true/>
-
-    <!-- Security & Anti-Cheating Lockdown (macOS & Windows) -->
-    <key>monitorProcesses</key>
-    <false/>
-    <key>allowPreferencesWindow</key>
-    <false/>
-    <key>insideSebEnableSwitchUser</key>
-    <false/>
-    <key>allowSwitchToThirdPartyApps</key>
-    <false/>
-    <key>allowDeveloperConsole</key>
-    <false/>
-    <key>allowSpellCheck</key>
-    <false/>
-    <key>allowDictionaryLookup</key>
-    <false/>
-
-    <!-- Windows Specific Key Interceptions -->
-    <key>hookKeys</key>
-    <true/>
-    <key>enableAltTab</key>
-    <false/>
-    <key>enableCtrlEsc</key>
-    <false/>
-    <key>enableStartMenu</key>
-    <false/>
-    <key>enablePrintScreen</key>
-    <false/>
-    <key>enableF5</key>
-    <true/>
-
-    <!-- macOS Specific Screen Capture Protections & Kiosk Stability -->
-    <key>prohibitWindowCapture</key>
-    <true/>
-    <key>prohibitScreenSharing</key>
-    <true/>
-    <key>enableAAC</key>
-    <false/>
-    <key>enableMacOSAAC</key>
-    <false/>
-  </dict>
-</plist>`;
+        // Store the calculated Config Key generated from the exact downloaded plist.
+        // Keep the latest three to support a controlled hostname/IP transition without
+        // invalidating participants who already opened an earlier copy.
+        if (storedKeys !== session.seb_config_key) {
+            await executeQuery(
+                `UPDATE sessions SET seb_config_key = ? WHERE id = ?`,
+                [storedKeys, session.id],
+            );
+        }
 
         const safeFilename = String(session.title || 'Ujian')
             .normalize('NFKD')
@@ -160,6 +94,7 @@ export async function GET(
                 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
                 'Pragma': 'no-cache',
                 'Expires': '0',
+                'X-SEB-Config-Version': '2',
             },
         });
     } catch (error) {

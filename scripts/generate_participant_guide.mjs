@@ -323,12 +323,12 @@ function generateParticipantDocx() {
                     createBulletItem('Akun Peserta', 'Siapkan Email dan Password atau NIP Anda yang telah terdaftar di sistem LMS.'),
 
                     createSectionHeading('2. Panduan Ujian via Laptop / PC (Safe Exam Browser - SEB)'),
-                    createParagraph('Bagi peserta yang menggunakan Laptop atau Komputer, wajib menggunakan aplikasi Safe Exam Browser (SEB v3.7+):'),
+                    createParagraph('Peserta yang menggunakan laptop atau komputer wajib memakai versi Safe Exam Browser (SEB) yang sesuai dengan sistem operasi:'),
 
                     createNumberedStep(
                         '1',
                         'Instal Safe Exam Browser (SEB)',
-                        'Unduh dan instal SEB versi 3.7 (atau terbaru) melalui link resmi yang dibagikan oleh Admin/Pengawas, atau buka website safeexambrowser.org. Lakukan instalasi hingga selesai.'
+                        'Unduh hanya dari safeexambrowser.org. Gunakan SEB 3.10.2 atau lebih baru pada Windows 10 versi 1803+/Windows 11, dan SEB 3.7.1 atau lebih baru pada macOS 12+. Lakukan pemeriksaan SEB dan kamera sebelum jadwal ujian.'
                     ),
                     createNumberedStep(
                         '2',

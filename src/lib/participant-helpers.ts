@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { NextRequest } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import logger from '@/lib/logger';
+import { looksLikeSebUserAgent, verifySebAccessToken, verifySebHashes } from '@/lib/seb-access';
 import { normalizeDbDateToIso } from '@/lib/timezone';
 import type { ModuleItem, Session, SessionParticipant } from '@/types';
 
@@ -106,138 +107,44 @@ export async function validateSessionTiming(
     };
 }
 
-/** Validate Safe Exam Browser headers. Throws 403 on invalid access. */
-export function validateSebAccess(
+/**
+ * Validate a short-lived SEB preflight token or a request-bound Config Key hash.
+ * User-Agent is diagnostic only and can never grant exam access.
+ */
+export async function validateSebAccess(
     request: NextRequest,
     session: Session,
-    userRole?: string
-): void {
-    if (!session.require_seb || (userRole && userRole !== 'trainee')) return;
+    context: { userId: string; userRole?: string },
+): Promise<void> {
+    if (!session.require_seb || (context.userRole && context.userRole !== 'trainee')) return;
 
     const userAgent = request.headers.get('user-agent') || '';
-    const configKeyHash = request.headers.get('x-safeexambrowser-configkeyhash');
-    const requestHash = request.headers.get('x-safeexambrowser-requesthash');
-
-    const hasSebHeader = Boolean(configKeyHash || requestHash);
-
-    const lowerUA = userAgent.toLowerCase();
-    const isSebUserAgent =
-        lowerUA.includes('safeexambrowser') ||
-        lowerUA.includes('seb/') ||
-        /\bseb\b/i.test(userAgent);
-
-    const isSebBrowser = hasSebHeader || isSebUserAgent;
-
-    if (!isSebBrowser) {
-        logger.warn('SEB_SECURITY', 'Akses ditolak: Browser bukan Safe Exam Browser', {
-            userAgent,
-            ip: request.headers.get('x-forwarded-for') || 'unknown'
-        });
-        throw new ParticipantError(
-            'Ujian ini hanya dapat diakses melalui Safe Exam Browser (SEB)',
-            403
-        );
-    }
-
-    const keysToCheck = Array.from(
-        new Set(
-            [session.seb_config_key, process.env.SEB_CONFIG_KEY_HASH]
-                .filter(Boolean)
-                .map((k) => (k as string).toLowerCase().trim())
-        )
-    );
-
-    // If request comes from genuine Safe Exam Browser (with SEB headers & User-Agent)
-    if (hasSebHeader || isSebUserAgent) {
-        // Option 1: Direct key match if hashes configured
-        const clientHash = (configKeyHash || requestHash || '').toLowerCase().trim();
-        if (keysToCheck.length > 0 && clientHash) {
-            for (const expectedKey of keysToCheck) {
-                if (clientHash === expectedKey) return;
-
-                const directKeyHash = crypto
-                    .createHash('sha256')
-                    .update(expectedKey)
-                    .digest('hex')
-                    .toLowerCase();
-                if (clientHash === directKeyHash) return;
-
-                const rawUrl = request.url;
-                const urlObj = new URL(rawUrl);
-                const proto = request.headers.get('x-forwarded-proto') || urlObj.protocol.replace(':', '');
-                const host = request.headers.get('x-forwarded-host') || urlObj.host;
-                const pathname = urlObj.pathname;
-                const search = urlObj.search;
-
-                // Support Modern WKWebView where SEB JavaScript API hashes against document URL (referer)
-                const referer = request.headers.get('referer');
-                let refererCandidates: string[] = [];
-                if (referer) {
-                    try {
-                        const refObj = new URL(referer);
-                        refererCandidates = [
-                            referer,
-                            `${refObj.origin}${refObj.pathname}${refObj.search}`,
-                            `${refObj.origin}${refObj.pathname}`,
-                            `${proto}://${host}${refObj.pathname}${refObj.search}`,
-                            `${proto}://${host}${refObj.pathname}`,
-                        ];
-                    } catch {
-                        refererCandidates = [referer];
-                    }
-                }
-
-                const candidates = [
-                    rawUrl,
-                    `${proto}://${host}${pathname}${search}`,
-                    `${proto}://${host}${pathname}`,
-                    `https://${host}${pathname}`,
-                    `http://${host}${pathname}`,
-                    ...refererCandidates,
-                ];
-
-                for (const targetUrl of candidates) {
-                    const computed = crypto
-                        .createHash('sha256')
-                        .update(targetUrl + expectedKey)
-                        .digest('hex')
-                        .toLowerCase();
-
-                    if (clientHash === computed) return;
-                }
-            }
-        }
-
-        // If it's a genuine SEB client with SEB headers, grant access
-        if (hasSebHeader && isSebUserAgent) {
-            return;
-        }
-
-        // In Modern WKWebView (macOS/Windows): WebKit engine isolates network requests
-        // and does not inject custom HTTP headers into background fetch/XHR calls.
-        // If genuine SEB User-Agent is confirmed:
-        if (isSebUserAgent && !hasSebHeader) {
-            logger.info('SEB_SECURITY', 'Akses diterima via Modern WebView SEB User-Agent', {
-                userAgent,
-            });
-            return;
-        }
-
-        // If direct key matched, return
-        if (!keysToCheck.length) {
-            return;
-        }
-    }
-
-    logger.warn('SEB_SECURITY', 'Akses ditolak: Hash konfigurasi SEB tidak cocok', {
-        hasSebHeader,
-        isSebUserAgent,
-        userAgent
+    const accessToken = request.headers.get('x-lms-seb-token');
+    const tokenResult = await verifySebAccessToken(accessToken, {
+        userId: context.userId,
+        sessionId: session.id,
     });
+    if (tokenResult.valid) return;
+
+    // Backwards-compatible request-bound validation for SEB versions which inject
+    // Config Key headers into fetch/XHR. This path is still fail-closed.
+    const hashResult = verifySebHashes(request, session.seb_config_key);
+    if (hashResult.valid) return;
+
+    const isSebUserAgent = looksLikeSebUserAgent(userAgent);
+    logger.warn('SEB_SECURITY', 'Akses ditolak: preflight atau Config Key SEB tidak valid', {
+        hasAccessToken: Boolean(accessToken),
+        hasConfigHeader: Boolean(request.headers.get('x-safeexambrowser-configkeyhash')),
+        isSebUserAgent,
+        userAgent,
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+    }, context.userId);
 
     throw new ParticipantError(
-        'Konfigurasi SEB tidak valid. Pastikan Anda menggunakan file konfigurasi SEB yang benar.',
-        403
+        isSebUserAgent
+            ? 'Validasi SEB belum selesai atau sudah kedaluwarsa. Jalankan pemeriksaan ulang dari halaman ujian.'
+            : 'Ujian ini hanya dapat diakses melalui Safe Exam Browser (SEB).',
+        403,
     );
 }
 
@@ -497,4 +404,3 @@ export function generateSecurePassword(length = 12): string {
 
     return firstChar + rest.join('');
 }
-

@@ -332,6 +332,27 @@ CREATE TABLE proctor_snapshots (
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Time-limited, participant-specific emergency access when a verified SEB
+-- installation cannot complete the key handshake during a live exam.
+CREATE TABLE seb_access_overrides (
+  id          VARCHAR(36) PRIMARY KEY,
+  session_id  VARCHAR(36) NOT NULL,
+  user_id     VARCHAR(36) NOT NULL,
+  granted_by  VARCHAR(36) NOT NULL,
+  reason      VARCHAR(500) NOT NULL,
+  expires_at  DATETIME NOT NULL,
+  revoked_at  DATETIME NULL,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_seb_override_lookup (session_id, user_id, expires_at, revoked_at),
+  INDEX idx_seb_override_granted_by (granted_by, created_at),
+  CONSTRAINT fk_seb_override_session
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_seb_override_user
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_seb_override_admin
+    FOREIGN KEY (granted_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- ─────────────────────────────────────────────
 -- 14. Notifications (Sistem Notifikasi)
 -- ─────────────────────────────────────────────

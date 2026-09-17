@@ -585,7 +585,7 @@ docChildren.push(
     )
 );
 docChildren.push(createBulletItem('Penjadwalan Waktu Presisi:', 'Tentukan Tanggal & Jam Mulai (Start Time) serta Tanggal & Jam Berakhir (End Time). Peserta tidak akan bisa mengakses ujian sebelum waktu mulai tiba, dan akses akan ditutup otomatis saat waktu berakhir terlampaui.'));
-docChildren.push(createBulletItem('Integrasi Safe Exam Browser (SEB):', 'Jika dicentang Wajib SEB, peserta hanya bisa membuka sesi melalui aplikasi Safe Exam Browser. Masukkan SEB Config Key Hash yang sesuai dengan berkas konfigurasi .seb instansi Anda. Sistem akan menolak peramban biasa seperti Chrome, Edge, atau Firefox.'));
+docChildren.push(createBulletItem('Integrasi Safe Exam Browser (SEB):', 'Jika dicentang Wajib SEB, peserta hanya bisa membuka ujian setelah preflight berhasil. Config Key dihitung otomatis dari berkas .seb yang diunduh; peserta harus membuka ulang berkas terbaru setelah pengaturan sesi diubah.'));
 docChildren.push(createBulletItem('Kamera Proctoring Aktif:', 'Jika diaktifkan, peserta diwajibkan memberikan izin akses kamera web sebelum memulai tes. Sistem akan mengambil snapshot visual peserta secara berkala dan otomatis tanpa mengganggu pengerjaan soal.'));
 docChildren.push(createBulletItem('Visibilitas Skor (Show Score):', 'Pilihan untuk langsung menampilkan nilai kelulusan kepada peserta sesaat setelah menekan tombol submit, atau menyembunyikan nilai hingga evaluasi selesai dilakukan oleh instruktur.'));
 docChildren.push(createBulletItem('Pendaftaran Peserta (Assign Participants):', 'Pilih peserta dari daftar master untuk dimasukkan ke dalam sesi.'));
@@ -783,7 +783,7 @@ docChildren.push(
     )
 );
 docChildren.push(createBulletItem('Cara Memulai Ujian SEB:', 'Buka berkas konfigurasi .seb yang diberikan oleh Admin. Aplikasi SEB akan terbuka dan otomatis mengarahkan ke halaman login LMS Nusamitra.'));
-docChildren.push(createBulletItem('Validasi SEB Config Hash:', 'Server LMS memvalidasi header X-SafeExamBrowser-ConfigKeyHash yang dikirimkan oleh peramban SEB untuk memastikan peserta menggunakan berkas konfigurasi resmi.'));
+docChildren.push(createBulletItem('Preflight dan Validasi SEB:', 'Server memvalidasi Config Key melalui header native SEB pada Windows atau JavaScript API pada macOS, memeriksa izin kamera, lalu menerbitkan token sesi singkat untuk autosave dan submit. User-Agent tidak dipakai sebagai bukti tunggal.'));
 docChildren.push(createBulletItem('Cara Keluar dari SEB (/quit-seb):', 'Setelah ujian selesai dikumpulkan, tombol Keluar SEB akan muncul di navigasi atas, atau peserta dapat mengklik tautan /quit-seb. SEB akan meminta konfirmasi kata sandi keluar (quit password jika dikonfigurasi) dan menutup aplikasi secara aman.'));
 
 docChildren.push(createHeading2('5.2 Sistem Pencegahan Kecurangan (Anti-Cheat)'));
@@ -819,7 +819,7 @@ const troubleshootingData = [
     [
         'Ditolak Masuk: "Wajib Menggunakan SEB"',
         'Peserta mencoba membuka ujian dengan peramban biasa (Chrome/Edge) pada sesi yang mewajibkan SEB.',
-        'Unduh dan instal Safe Exam Browser di komputer Anda, lalu buka ujian menggunakan berkas konfigurasi .seb yang diberikan panitia.'
+        'Gunakan SEB 3.10.2+ pada Windows 10 1803+/11 atau SEB 3.7.1+ pada macOS 12+. Unduh dari situs resmi, buka berkas .seb terbaru, lalu jalankan tombol Cek SEB & kamera.'
     ],
     [
         'Waktu Ujian Tiba-tiba Habis',

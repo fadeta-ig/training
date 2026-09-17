@@ -37,7 +37,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { useIsSeb } from '@/hooks/useSeb';
+import { performSebPreflight, SebPreflightError, useIsSeb } from '@/hooks/useSeb';
 import { RequestMaterialModal } from '@/components/participant/RequestMaterialModal';
 import { formatDualSchedule, normalizeDbDateToIso } from '@/lib/timezone';
 
@@ -126,7 +126,25 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const [error, setError] = useState('');
     const [selectedItemForRequest, setSelectedItemForRequest] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState<number>(() => Date.now());
+    const [sebCheckState, setSebCheckState] = useState<'idle' | 'checking' | 'success' | 'error'>('idle');
+    const [sebCheckMessage, setSebCheckMessage] = useState('');
     const isSeb = useIsSeb();
+
+    const handleSebReadinessCheck = async () => {
+        setSebCheckState('checking');
+        setSebCheckMessage('Memeriksa Config Key, versi SEB, koneksi, dan izin kamera...');
+        try {
+            const result = await performSebPreflight(id, { timeoutMs: 15_000 });
+            setSebCheckState('success');
+            setSebCheckMessage(
+                `SEB siap digunakan${result.version ? ` (versi ${result.version})` : ''}${result.mode === 'admin_override' ? ' melalui override admin aktif' : ''}.`,
+            );
+        } catch (checkError) {
+            setSebCheckState('error');
+            const code = checkError instanceof SebPreflightError ? ` [${checkError.code}]` : '';
+            setSebCheckMessage(`${checkError instanceof Error ? checkError.message : 'Pemeriksaan SEB gagal.'}${code}`);
+        }
+    };
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -415,7 +433,7 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                             </div>
                             <div className="min-w-0 flex-1">
                                 <span className="font-semibold text-slate-900 dark:text-slate-100 mr-1.5">Windows:</span>
-                                <span>Buka file konfigurasi atau klik &apos;Buka Langsung&apos;. Keluar:</span>
+                                <span>Gunakan SEB 3.10.2 pada Windows 10 1803+/11. Keluar:</span>
                                 <kbd className="ml-1.5 inline-flex items-center rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-800 shadow-2xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                     Ctrl + Q
                                 </kbd>
@@ -428,13 +446,45 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                             </div>
                             <div className="min-w-0 flex-1">
                                 <span className="font-semibold text-slate-900 dark:text-slate-100 mr-1.5">macOS:</span>
-                                <span>Izinkan akses kamera di pop-up sistem macOS. Keluar:</span>
+                                <span>Gunakan SEB 3.7.1 pada macOS 12+ dan izinkan kamera. Keluar:</span>
                                 <kbd className="ml-1.5 inline-flex items-center rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-800 shadow-2xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                     Cmd + Q
                                 </kbd>
                             </div>
                         </div>
                     </div>
+                </section>
+            )}
+
+            {isSeb && session.require_seb && !isTimeEnded && (
+                <section className={cn(
+                    'flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between',
+                    sebCheckState === 'success'
+                        ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30'
+                        : sebCheckState === 'error'
+                            ? 'border-red-200 bg-red-50/70 dark:border-red-900 dark:bg-red-950/30'
+                            : 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40',
+                )}>
+                    <div className="flex items-start gap-3">
+                        <ShieldCheck className={cn(
+                            'mt-0.5 size-5 shrink-0',
+                            sebCheckState === 'success' ? 'text-emerald-700' : sebCheckState === 'error' ? 'text-red-700' : 'text-slate-600',
+                        )} />
+                        <div>
+                            <h2 className="text-sm font-semibold">Pemeriksaan kesiapan SEB</h2>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                {sebCheckMessage || 'Jalankan pemeriksaan sebelum hari ujian untuk memastikan Config Key dan kamera dapat digunakan.'}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleSebReadinessCheck}
+                        disabled={sebCheckState === 'checking'}
+                        className={cn(buttonVariants({ size: 'sm' }), 'shrink-0')}
+                    >
+                        {sebCheckState === 'checking' ? 'Memeriksa...' : sebCheckState === 'success' ? 'Periksa ulang' : 'Cek SEB & kamera'}
+                    </button>
                 </section>
             )}
 

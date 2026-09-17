@@ -90,7 +90,7 @@ async function handlePost(
         }
 
         // Enforce SEB if required
-        validateSebAccess(request, session);
+        await validateSebAccess(request, session, { userId: user.id, userRole: user.role });
         const sessionModuleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
 
         interface ExamRuleRow {

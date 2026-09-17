@@ -102,6 +102,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [showBulkScoreModal, setShowBulkScoreModal] = useState(false);
     const [isTogglingScoreVisibility, setIsTogglingScoreVisibility] = useState(false);
     const [isDownloadingBulkSheets, setIsDownloadingBulkSheets] = useState(false);
+    const [sebOverrideParticipantId, setSebOverrideParticipantId] = useState<string | null>(null);
 
     // Bulk Actions State
     const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
@@ -167,6 +168,40 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
             toast.error('Galat Eksekusi', { description: err.message });
         } finally {
             setIsSendingBlast(false);
+        }
+    };
+
+    const handleSebOverride = async (participant: User) => {
+        const reason = window.prompt(
+            `Alasan override SEB untuk ${participant.full_name || participant.username}:`,
+            'Security key SEB tidak terbaca saat ujian berlangsung',
+        );
+        if (!reason) return;
+
+        setSebOverrideParticipantId(participant.id);
+        try {
+            const response = await fetch(`/api/admin/sessions/${resolvedParams.id}/seb-override`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: participant.id,
+                    reason,
+                    duration_minutes: 15,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Gagal mengaktifkan override SEB');
+            }
+            toast.success('Override SEB aktif', {
+                description: `${data.message} Override hanya berlaku untuk peserta dan sesi ini.`,
+            });
+        } catch (overrideError) {
+            toast.error('Override SEB gagal', {
+                description: overrideError instanceof Error ? overrideError.message : 'Terjadi kesalahan sistem.',
+            });
+        } finally {
+            setSebOverrideParticipantId(null);
         }
     };
 
@@ -1039,14 +1074,31 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                             <td className="px-4 py-3.5 text-center align-middle">
                                                 <div className="flex items-center justify-center gap-1.5">
                                                     {userRole === 'admin' && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setSelectedParticipantForVerdict(p)}
-                                                            className="inline-flex items-center justify-center p-1.5 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors border border-black/5"
-                                                            title="Tetapkan / Ubah Keputusan Kelulusan"
-                                                        >
-                                                            <Award className="size-4 text-slate-700" />
-                                                        </button>
+                                                        <>
+                                                            {session.require_seb && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleSebOverride(p)}
+                                                                    disabled={sebOverrideParticipantId === p.id}
+                                                                    className="inline-flex items-center justify-center p-1.5 text-amber-700 hover:text-amber-900 hover:bg-amber-50 rounded-lg transition-colors border border-amber-200 disabled:opacity-50"
+                                                                    title="Berikan override SEB selama 15 menit"
+                                                                >
+                                                                    {sebOverrideParticipantId === p.id ? (
+                                                                        <span className="size-4 animate-spin rounded-full border-2 border-amber-300 border-t-amber-700" />
+                                                                    ) : (
+                                                                        <ShieldCheck className="size-4" />
+                                                                    )}
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedParticipantForVerdict(p)}
+                                                                className="inline-flex items-center justify-center p-1.5 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors border border-black/5"
+                                                                title="Tetapkan / Ubah Keputusan Kelulusan"
+                                                            >
+                                                                <Award className="size-4 text-slate-700" />
+                                                            </button>
+                                                        </>
                                                     )}
                                                     <a
                                                         href={`/api/admin/sessions/${session.id}/participants/${p.id}/answer-sheet`}

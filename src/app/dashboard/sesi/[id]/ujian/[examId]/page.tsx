@@ -22,7 +22,12 @@ import {
 import WebcamProctor from '@/components/proctor/WebcamProctor';
 import { ClientPortal } from '@/components/ui/ClientPortal';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
-import { useIsSeb, getSebHeaders, updateSebSecurityKeys } from '@/hooks/useSeb';
+import {
+    useIsSeb,
+    getSebRequestHeaders,
+    performSebPreflight,
+    SebPreflightError,
+} from '@/hooks/useSeb';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -305,6 +310,9 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [errorCode, setErrorCode] = useState('');
+    const [preflightAttempt, setPreflightAttempt] = useState(0);
+    const [preflightRun, setPreflightRun] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
     const [currentIdx, setCurrentIdx] = useState(0);
@@ -325,6 +333,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const periodicSyncTimerRef = useRef<number | null>(null);
     const deadlineRef = useRef<number | null>(null);
     const serverClockOffsetRef = useRef(0);
+    const sebAccessTokenRef = useRef<string | null>(null);
 
     const warned15MinRef = useRef(false);
     const warned5MinRef = useRef(false);
@@ -411,7 +420,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         setSaveState('saving');
 
         try {
-            const sebHeaders = getSebHeaders();
+            const sebHeaders = getSebRequestHeaders(sebAccessTokenRef.current);
             const response = await fetch(`/api/participant/sessions/${sessionId}/exam/${examId}/answers`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', ...sebHeaders },
@@ -534,7 +543,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         }));
 
         try {
-            const sebHeaders = await updateSebSecurityKeys();
+            const sebHeaders = getSebRequestHeaders(sebAccessTokenRef.current);
             const response = await fetch(`/api/participant/sessions/${sessionId}/exam/${examId}/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...sebHeaders },
@@ -562,14 +571,31 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         }
     }, [examData, examId, getStorageKey, sessionId, submitting]);
 
-    // Initial Exam Fetch with Server NTP Offset & Modern SEB Security Keys
+    // Complete one bounded, cross-platform SEB preflight before the exam API is called.
+    // The resulting token keeps autosave/submit independent from fragile WebView headers.
     useEffect(() => {
         let cancelled = false;
-        updateSebSecurityKeys()
-            .then((sebHeaders) => {
+        setLoading(true);
+        setError('');
+        setErrorCode('');
+        setPreflightAttempt(0);
+
+        performSebPreflight(sessionId, {
+            timeoutMs: 15_000,
+            onAttempt: (attempt) => {
+                if (!cancelled) setPreflightAttempt(attempt);
+            },
+        })
+            .then((preflight) => {
                 if (cancelled) return null;
+                sebAccessTokenRef.current = preflight.token || null;
+                if (preflight.mode === 'admin_override') {
+                    toast.warning('Override SEB aktif', {
+                        description: 'Akses darurat diberikan administrator dan tercatat pada audit log.',
+                    });
+                }
                 return fetch(`/api/participant/sessions/${sessionId}/exam/${examId}`, {
-                    headers: sebHeaders,
+                    headers: getSebRequestHeaders(sebAccessTokenRef.current),
                 });
             })
             .then(async (response) => {
@@ -666,7 +692,11 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 setExamData(data);
             })
             .catch((fetchError) => {
-                if (!cancelled) setError(fetchError instanceof Error ? fetchError.message : 'Kesalahan jaringan');
+                if (cancelled) return;
+                if (fetchError instanceof SebPreflightError) {
+                    setErrorCode(fetchError.code);
+                }
+                setError(fetchError instanceof Error ? fetchError.message : 'Kesalahan jaringan');
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -675,7 +705,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         return () => {
             cancelled = true;
         };
-    }, [examId, sessionId]);
+    }, [examId, preflightRun, sessionId]);
 
     // Sync timer every second
     useEffect(() => {
@@ -766,7 +796,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             <div className="grid min-h-dvh place-items-center bg-muted/30">
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
-                    Menyiapkan ujian...
+                    {preflightAttempt > 0 ? `Memeriksa SEB... percobaan ${preflightAttempt}` : 'Menyiapkan ujian...'}
                 </div>
             </div>
         );
@@ -782,9 +812,22 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                             <h1 className="text-lg font-semibold">Ujian tidak dapat dilanjutkan</h1>
                             <p className="text-sm text-muted-foreground">{error}</p>
                         </div>
-                        <Link href={`/dashboard/sesi/${sessionId}`} className={buttonVariants({ variant: 'outline' })}>
-                            <ArrowLeft /> Kembali ke sesi
-                        </Link>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            {errorCode && (
+                                <Button
+                                    type="button"
+                                    onClick={() => setPreflightRun((value) => value + 1)}
+                                >
+                                    Coba validasi ulang
+                                </Button>
+                            )}
+                            <Link href={`/dashboard/sesi/${sessionId}`} className={buttonVariants({ variant: 'outline' })}>
+                                <ArrowLeft /> Kembali ke sesi
+                            </Link>
+                        </div>
+                        {errorCode && (
+                            <p className="font-mono text-xs text-muted-foreground">Kode diagnosis: {errorCode}</p>
+                        )}
                     </CardContent>
                 </Card>
             </main>
@@ -1276,4 +1319,3 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         </div>
     );
 }
-

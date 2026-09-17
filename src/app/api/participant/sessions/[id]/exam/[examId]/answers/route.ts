@@ -7,6 +7,7 @@ import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
 import {
     getSessionModuleItem,
     ParticipantError,
+    validateSebAccess,
     validateSessionTiming,
     verifyEnrollment,
 } from '@/lib/participant-helpers';
@@ -75,6 +76,8 @@ async function handlePut(
         if (isUpcoming || isEnded) {
             return NextResponse.json({ success: false, error: 'Sesi tidak aktif' }, { status: 400 });
         }
+
+        await validateSebAccess(request, session, { userId: user.id, userRole: user.role });
 
         const moduleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
         if (answers.length > 0) {
@@ -214,4 +217,3 @@ async function handlePut(
 }
 
 export const PUT = withAuth(handlePut, { allowedRoles: ['trainee'] });
-

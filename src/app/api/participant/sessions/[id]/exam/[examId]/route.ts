@@ -76,7 +76,7 @@ async function handleGet(
             }
         }
 
-        validateSebAccess(_request, session, user.role);
+        await validateSebAccess(_request, session, { userId: user.id, userRole: user.role });
         const moduleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
 
         // Phase 2: Parallel exam rules + current progress

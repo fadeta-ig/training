@@ -42,7 +42,10 @@ async function handlePost(request: NextRequest) {
         const { module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, participant_ids } = parsed.data;
         const sessionId = uuidv4();
 
-        const sebConfigKey = require_seb ? process.env.SEB_CONFIG_KEY_HASH || null : null;
+        // The Config Key is calculated from the exact generated .seb file on download.
+        // It must never be a static environment value because startURL and settings
+        // are part of the platform-independent SEB checksum.
+        const sebConfigKey = null;
 
         connection = await pool.getConnection();
         await connection.beginTransaction();

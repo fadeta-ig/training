@@ -244,10 +244,25 @@ async function handlePut(
         }
 
         const { module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, participant_ids } = parsed.data;
-        const sebConfigKey = require_seb ? process.env.SEB_CONFIG_KEY_HASH || null : null;
 
         connection = await pool.getConnection();
         await connection.beginTransaction();
+
+        const [currentSessions] = await connection.execute<any[]>(
+            `SELECT require_seb, enable_proctoring, seb_config_key
+             FROM sessions
+             WHERE id = ?
+             LIMIT 1
+             FOR UPDATE`,
+            [resolvedParams.id],
+        );
+        const currentSession = currentSessions[0];
+        const keepsSameSebConfig = Boolean(require_seb)
+            && Boolean(currentSession?.require_seb)
+            && Boolean(enable_proctoring) === Boolean(currentSession?.enable_proctoring);
+        // Participant/time/title edits do not alter the generated plist. Preserve
+        // its key so an admin operation during a live exam cannot lock everyone out.
+        const sebConfigKey = keepsSameSebConfig ? currentSession?.seb_config_key || null : null;
 
         // Update session with normalized WIB timestamps and strict boolean flags
         await connection.execute(

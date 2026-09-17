@@ -272,6 +272,8 @@ CREATE TABLE user_progress (
   attempt_version    INT           NOT NULL DEFAULT 1,
   last_attempt_start DATETIME      NULL,
   individual_extension_until DATETIME NULL,
+  last_submission_id VARCHAR(36) NULL,
+  last_submission_result LONGTEXT NULL,
   updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_user_session (user_id, session_id),
   INDEX idx_progress_session_item (session_id, module_item_id),

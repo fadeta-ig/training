@@ -68,6 +68,22 @@ function checkSupportedVersion(platform: 'windows' | 'macos' | 'unknown', versio
     };
 }
 
+function cameraPreflightFailure(enabled: boolean, cameraStatus: CameraStatus | null): NextResponse | null {
+    if (!enabled || cameraStatus === 'granted') return null;
+    const unchecked = !cameraStatus || cameraStatus === 'unchecked';
+    return NextResponse.json({
+        success: false,
+        code: unchecked ? 'camera_check_required' : `camera_${cameraStatus}`,
+        error: unchecked
+            ? 'Izin kamera perlu diperiksa sebelum ujian dibuka.'
+            : cameraStatus === 'denied'
+                ? 'Izin kamera ditolak. Aktifkan izin kamera lalu coba kembali.'
+                : 'Kamera tidak tersedia atau sedang digunakan aplikasi lain.',
+        retryable: unchecked,
+        cameraRequired: true,
+    }, { status: 428 });
+}
+
 async function findActiveOverride(sessionId: string, userId: string): Promise<OverrideRow | null> {
     try {
         const rows = await executeQuery<OverrideRow[]>(
@@ -111,8 +127,16 @@ async function handlePost(
             }, { status: 400 });
         }
 
+        const cameraStatus = stringValue(body.camera_status, 30) as CameraStatus | null;
+
         if (!session.require_seb) {
-            return NextResponse.json({ success: true, required: false, cameraRequired: false });
+            const cameraFailure = cameraPreflightFailure(Boolean(session.enable_proctoring), cameraStatus);
+            if (cameraFailure) return cameraFailure;
+            return NextResponse.json({
+                success: true,
+                required: false,
+                cameraRequired: Boolean(session.enable_proctoring),
+            });
         }
 
         const userAgent = request.headers.get('user-agent') || '';
@@ -177,21 +201,8 @@ async function handlePost(
             }, { status: 403 });
         }
 
-        const cameraStatus = stringValue(body.camera_status, 30) as CameraStatus | null;
-        if (session.enable_proctoring && cameraStatus !== 'granted') {
-            const unchecked = !cameraStatus || cameraStatus === 'unchecked';
-            return NextResponse.json({
-                success: false,
-                code: unchecked ? 'camera_check_required' : `camera_${cameraStatus}`,
-                error: unchecked
-                    ? 'Izin kamera perlu diperiksa sebelum ujian dibuka.'
-                    : cameraStatus === 'denied'
-                        ? 'Izin kamera ditolak. Aktifkan izin kamera untuk Safe Exam Browser lalu coba kembali.'
-                        : 'Kamera tidak tersedia atau sedang digunakan aplikasi lain.',
-                retryable: unchecked,
-                cameraRequired: true,
-            }, { status: 428 });
-        }
+        const cameraFailure = cameraPreflightFailure(Boolean(session.enable_proctoring), cameraStatus);
+        if (cameraFailure) return cameraFailure;
 
         let expiresAt = new Date(effectiveEndTime.getTime() + 10 * 60 * 1000);
         if (accessMode === 'admin_override' && override?.expires_at) {

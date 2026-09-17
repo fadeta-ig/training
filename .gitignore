@@ -44,3 +44,10 @@ next-env.d.ts
 *.xlsx
 *.xls
 *CFRM*
+
+# Runtime proctoring evidence contains participant personal data.
+/storage/proctor/*
+!/storage/proctor/.gitkeep
+
+# Local package cache used by sandboxed verification.
+/.npm-cache/

@@ -4,6 +4,11 @@ import mysql, { Pool, PoolOptions } from 'mysql2/promise';
  * LMS Nusamitra Consulting MySQL Connection Pool (Singleton Pattern)
  * Prevents multiple pools during Next.js HMR (Hot Module Replacement).
  */
+const configuredConnectionLimit = Number.parseInt(process.env.DB_CONNECTION_LIMIT || '20', 10);
+const connectionLimit = Number.isFinite(configuredConnectionLimit)
+  ? Math.min(Math.max(configuredConnectionLimit, 2), 50)
+  : 20;
+
 const poolConfig: PoolOptions = {
   host: process.env.DB_HOST || '127.0.0.1',
   port: Number(process.env.DB_PORT) || 3306,
@@ -11,8 +16,11 @@ const poolConfig: PoolOptions = {
   password: process.env.DB_PASSWORD ?? '',
   database: process.env.DB_NAME || 'lms_antigravity',
   waitForConnections: true,
-  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 80,
-  queueLimit: 0,
+  connectionLimit,
+  maxIdle: Math.min(connectionLimit, 10),
+  idleTimeout: 60_000,
+  queueLimit: 500,
+  connectTimeout: 10_000,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
   dateStrings: true,

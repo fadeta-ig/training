@@ -323,6 +323,9 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const [saveState, setSaveState] = useState<SaveState>('idle');
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [mobilePaletteOpen, setMobilePaletteOpen] = useState(false);
+    const [proctorReady, setProctorReady] = useState(false);
+    const [proctorMessage, setProctorMessage] = useState('Menyiapkan kamera dan mengirim snapshot awal...');
+    const [submitError, setSubmitError] = useState('');
 
     const answersRef = useRef(answers);
     const dirtyQuestionIdsRef = useRef(new Set<string>());
@@ -334,6 +337,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const deadlineRef = useRef<number | null>(null);
     const serverClockOffsetRef = useRef(0);
     const sebAccessTokenRef = useRef<string | null>(null);
+    const autoSubmitAttemptedRef = useRef(false);
 
     const warned15MinRef = useRef(false);
     const warned5MinRef = useRef(false);
@@ -527,7 +531,13 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     }, [examData, result, saveDraft, submitting]);
 
     const handleProctorError = useCallback((message: string) => {
+        setProctorMessage(message);
         toast.error('Kamera proctoring tidak aktif', { description: message });
+    }, []);
+
+    const handleProctorReadyChange = useCallback((ready: boolean) => {
+        setProctorReady(ready);
+        if (ready) setProctorMessage('Kamera dan penyimpanan snapshot aktif.');
     }, []);
 
     const submitExam = useCallback(async () => {
@@ -536,21 +546,61 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         if (periodicSyncTimerRef.current !== null) window.clearTimeout(periodicSyncTimerRef.current);
         setConfirmOpen(false);
         setSubmitting(true);
+        setSubmitError('');
 
         const payload = examData.questions.map((question) => ({
             question_id: question.id,
             selected_option: answersRef.current[question.id] || '',
         }));
 
+        const submissionStorageKey = getStorageKey('submission_id');
+        let submissionId = '';
         try {
-            const sebHeaders = getSebRequestHeaders(sebAccessTokenRef.current);
-            const response = await fetch(`/api/participant/sessions/${sessionId}/exam/${examId}/submit`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...sebHeaders },
-                body: JSON.stringify({ answers: payload }),
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) throw new Error(data.error || 'Gagal mengirim jawaban ujian');
+            submissionId = localStorage.getItem(submissionStorageKey) || '';
+            if (!/^[0-9a-f-]{36}$/i.test(submissionId)) {
+                submissionId = crypto.randomUUID();
+                localStorage.setItem(submissionStorageKey, submissionId);
+            }
+        } catch {
+            submissionId = crypto.randomUUID();
+        }
+
+        try {
+            let data: any = null;
+            let lastFailure: Error | null = null;
+            for (let attempt = 1; attempt <= 4; attempt += 1) {
+                const controller = new AbortController();
+                const timeout = window.setTimeout(() => controller.abort(), 15_000);
+                try {
+                    const sebHeaders = getSebRequestHeaders(sebAccessTokenRef.current);
+                    const response = await fetch(`/api/participant/sessions/${sessionId}/exam/${examId}/submit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...sebHeaders },
+                        body: JSON.stringify({
+                            answers: payload,
+                            submission_id: submissionId,
+                            attempt_number: examData.attemptNumber,
+                            attempt_version: examData.attemptVersion || 1,
+                        }),
+                        signal: controller.signal,
+                    });
+                    data = await response.json().catch(() => ({}));
+                    if (response.ok && data.success) {
+                        lastFailure = null;
+                        break;
+                    }
+                    const requestError = new Error(data.error || 'Gagal mengirim jawaban ujian');
+                    lastFailure = requestError;
+                    if (response.status < 500 && response.status !== 408 && response.status !== 429) break;
+                } catch (requestError) {
+                    lastFailure = requestError instanceof Error ? requestError : new Error('Kesalahan jaringan saat mengirim jawaban');
+                    if (attempt === 4) break;
+                } finally {
+                    window.clearTimeout(timeout);
+                }
+                await new Promise((resolve) => window.setTimeout(resolve, attempt * 750));
+            }
+            if (lastFailure || !data?.success) throw lastFailure || new Error('Gagal mengirim jawaban ujian');
             dirtyQuestionIdsRef.current.clear();
             try {
                 localStorage.removeItem(getStorageKey('exam_draft'));
@@ -559,12 +609,13 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 localStorage.removeItem(`exam_draft_${sessionId}_${examId}`);
                 localStorage.removeItem(`exam_versions_${sessionId}_${examId}`);
                 localStorage.removeItem(`exam_flags_${sessionId}_${examId}`);
+                localStorage.removeItem(submissionStorageKey);
             } catch {}
             setResult(data.data);
             toast.success('Jawaban ujian berhasil dikirim');
         } catch (submitError) {
             const message = submitError instanceof Error ? submitError.message : 'Kesalahan jaringan saat mengirim jawaban';
-            setError(message);
+            setSubmitError(message);
             toast.error('Gagal mengirim ujian', { description: message });
         } finally {
             setSubmitting(false);
@@ -749,7 +800,8 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
     // Auto submit on time expiry
     useEffect(() => {
-        if (examData && deadlineRef.current !== null && timeLeft <= 0 && !result && !error && !submitting) {
+        if (examData && deadlineRef.current !== null && timeLeft <= 0 && !result && !error && !submitting && !autoSubmitAttemptedRef.current) {
+            autoSubmitAttemptedRef.current = true;
             submitExam();
         }
     }, [error, examData, result, submitExam, submitting, timeLeft]);
@@ -1000,7 +1052,30 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     sessionId={sessionId}
                     isActive
                     onError={handleProctorError}
+                    onReadyChange={handleProctorReadyChange}
                 />
+            )}
+
+            {examData.enableProctoring && !proctorReady && !result && (
+                <div className="fixed inset-0 z-35 grid place-items-center bg-background/90 p-4 backdrop-blur-sm">
+                    <Card className="w-full max-w-md border-amber-300 bg-background shadow-lg">
+                        <CardHeader><CardTitle className="text-base">Proctoring wajib aktif</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm text-muted-foreground">
+                            <p>{proctorMessage}</p>
+                            <p>Aktifkan izin kamera dan pastikan koneksi internet tersedia. Timer ujian tetap berjalan.</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {submitError && !result && (
+                <div className="fixed left-1/2 top-20 z-40 w-[min(92vw,36rem)] -translate-x-1/2 rounded-xl border border-destructive/30 bg-background p-4 shadow-lg">
+                    <p className="text-sm font-semibold text-destructive">Jawaban belum berhasil dikirim</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{submitError}</p>
+                    <Button className="mt-3" size="sm" onClick={() => void submitExam()} disabled={submitting || (examData.enableProctoring && !proctorReady)}>
+                        Coba kirim kembali
+                    </Button>
+                </div>
             )}
 
             <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">

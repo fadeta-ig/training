@@ -11,6 +11,7 @@ interface WebcamProctorProps {
     isActive: boolean;
     onSnapshotSent?: () => void;
     onError?: (error: string) => void;
+    onReadyChange?: (ready: boolean) => void;
 }
 
 export default function WebcamProctor({
@@ -18,11 +19,14 @@ export default function WebcamProctor({
     isActive,
     onSnapshotSent,
     onError,
+    onReadyChange,
 }: WebcamProctorProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const consecutiveFailuresRef = useRef(0);
+    const stoppingRef = useRef(false);
     const [isStreaming, setIsStreaming] = useState(false);
     const [minimized, setMinimized] = useState(false);
 
@@ -32,24 +36,37 @@ export default function WebcamProctor({
 
     const startCamera = useCallback(async () => {
         try {
+            stoppingRef.current = false;
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { width: 320, height: 240, facingMode: 'user' },
                 audio: false,
             });
             if (videoRef.current) videoRef.current.srcObject = stream;
+            stream.getVideoTracks().forEach((track) => {
+                track.addEventListener('ended', () => {
+                    if (stoppingRef.current) return;
+                    setIsStreaming(false);
+                    onReadyChange?.(false);
+                    onError?.('Kamera berhenti. Aktifkan kembali kamera untuk melanjutkan ujian.');
+                }, { once: true });
+            });
             streamRef.current = stream;
             setIsStreaming(true);
         } catch {
             onError?.('Akses webcam ditolak atau kamera tidak tersedia.');
+            onReadyChange?.(false);
+            setMinimized(false);
             setIsStreaming(false);
         }
-    }, [onError]);
+    }, [onError, onReadyChange]);
 
     const stopCamera = useCallback(() => {
+        stoppingRef.current = true;
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
         setIsStreaming(false);
-    }, []);
+        onReadyChange?.(false);
+    }, [onReadyChange]);
 
     const captureSnapshot = useCallback((): string | null => {
         const video = videoRef.current;
@@ -64,9 +81,9 @@ export default function WebcamProctor({
         return canvas.toDataURL('image/jpeg', 0.6);
     }, []);
 
-    const sendSnapshot = useCallback(async () => {
+    const sendSnapshot = useCallback(async (): Promise<boolean> => {
         const imageBase64 = captureSnapshot();
-        if (!imageBase64) return;
+        if (!imageBase64) return false;
         try {
             const response = await fetch('/api/proctor/snapshot', {
                 method: 'POST',
@@ -74,11 +91,20 @@ export default function WebcamProctor({
                 body: JSON.stringify({ sessionId, imageBase64 }),
             });
             if (!response.ok) throw new Error(`Snapshot API returned ${response.status}`);
+            consecutiveFailuresRef.current = 0;
+            onReadyChange?.(true);
             onSnapshotSent?.();
+            return true;
         } catch (error) {
+            consecutiveFailuresRef.current += 1;
             console.error('[PROCTOR]', error instanceof Error ? error.message : 'Snapshot gagal dikirim');
+            if (consecutiveFailuresRef.current >= 3) {
+                onReadyChange?.(false);
+                onError?.('Tiga pengiriman snapshot berturut-turut gagal. Periksa kamera dan koneksi internet.');
+            }
+            return false;
         }
-    }, [captureSnapshot, onSnapshotSent, sessionId]);
+    }, [captureSnapshot, onError, onReadyChange, onSnapshotSent, sessionId]);
 
     useEffect(() => {
         if (isActive && isStreaming) {
@@ -94,7 +120,7 @@ export default function WebcamProctor({
                 if (cancelled) return;
                 const video = videoRef.current;
                 if (video && video.readyState >= 2) {
-                    sendSnapshot();
+                    void sendSnapshot();
                     intervalRef.current = setInterval(sendSnapshot, SNAPSHOT_INTERVAL_MS);
                 } else if (retryCount < MAX_RETRIES) {
                     retryCount++;
@@ -168,8 +194,11 @@ export default function WebcamProctor({
                     <div className="relative aspect-[4/3] bg-black">
                         <video ref={videoRef} autoPlay playsInline muted className="size-full object-cover" />
                         {!isStreaming && (
-                            <div className="absolute inset-0 grid place-items-center text-white/60">
+                            <div className="absolute inset-0 grid place-items-center gap-2 bg-black/80 p-3 text-white/80">
                                 <Video className="size-5" />
+                                <Button type="button" size="sm" variant="secondary" onClick={() => void startCamera()}>
+                                    Aktifkan ulang
+                                </Button>
                             </div>
                         )}
                     </div>

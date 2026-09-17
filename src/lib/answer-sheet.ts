@@ -12,6 +12,7 @@ import {
     type MatchingPair,
 } from '@/lib/exam-answer-utils';
 import logger from '@/lib/logger';
+import { createAnswerSheetDocumentId } from '@/lib/answer-sheet-verification';
 
 export interface AnswerItemDetail {
     question_id: string;
@@ -307,7 +308,14 @@ export async function getParticipantAnswerSheetData(
         const passingGrade = Number(exam.passing_grade || 70);
         const isPassed = finalScore >= passingGrade;
 
-        const docId = `ANS-${sessionId.slice(0, 4).toUpperCase()}-${participantId.slice(0, 4).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+        const submittedAtValue = submittedAt || progress.updated_at || null;
+        const docId = createAnswerSheetDocumentId({
+            sessionId,
+            participantId,
+            examId: targetExamId,
+            attemptNumber,
+            submittedAt: submittedAtValue,
+        });
 
         return {
             session: {
@@ -334,7 +342,7 @@ export async function getParticipantAnswerSheetData(
                 passing_grade: passingGrade,
                 duration_minutes: Number(exam.duration_minutes || 60),
                 attempt_number: attemptNumber,
-                submitted_at: submittedAt || progress.updated_at || null,
+                submitted_at: submittedAtValue,
             },
             stats: {
                 total_questions: totalQuestions,
@@ -378,7 +386,7 @@ export async function renderAnswerSheetHtml(data: AnswerSheetData, baseUrl?: str
 
     // 2. Generate QR Code Verifikasi
     const verifyOrigin = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://lms.nusamitraconsulting.com';
-    const verifyUrl = `${verifyOrigin.replace(/\/+$/, '')}/verify/exam/${data.session.id}/${data.participant.id}?doc=${encodeURIComponent(data.document_id)}`;
+    const verifyUrl = `${verifyOrigin.replace(/\/+$/, '')}/verify/exam/${data.session.id}/${data.participant.id}?exam=${encodeURIComponent(data.exam.id)}&doc=${encodeURIComponent(data.document_id)}`;
     
     let qrCodeDataUrl = '';
     try {
@@ -1041,7 +1049,7 @@ function escapeHtml(str: string | null | undefined): string {
 /**
  * Merender dokumen PDF dari markup HTML menggunakan headless browser (Puppeteer).
  */
-export async function generateAnswerSheetPdf(html: string): Promise<Buffer> {
+async function launchAnswerSheetBrowser() {
     const puppeteer = (await import('puppeteer')).default;
 
     const possibleBrowserPaths = [
@@ -1054,7 +1062,7 @@ export async function generateAnswerSheetPdf(html: string): Promise<Buffer> {
 
     let executablePath: string | undefined = undefined;
     for (const p of possibleBrowserPaths) {
-        if (fs.existsSync(p)) {
+        if (fs.existsSync(/* turbopackIgnore: true */ p)) {
             executablePath = p;
             break;
         }
@@ -1068,9 +1076,14 @@ export async function generateAnswerSheetPdf(html: string): Promise<Buffer> {
         launchOptions.executablePath = executablePath;
     }
 
-    const browser = await puppeteer.launch(launchOptions);
+    return puppeteer.launch(launchOptions);
+}
+
+type AnswerSheetBrowser = Awaited<ReturnType<typeof launchAnswerSheetBrowser>>;
+
+async function renderAnswerSheetPdfWithBrowser(browser: AnswerSheetBrowser, html: string): Promise<Buffer> {
+    const page = await browser.newPage();
     try {
-        const page = await browser.newPage();
         await page.setContent(html, { waitUntil: 'load' });
         const pdfBuffer = await page.pdf({
             format: 'A4',
@@ -1083,6 +1096,15 @@ export async function generateAnswerSheetPdf(html: string): Promise<Buffer> {
             },
         });
         return Buffer.from(pdfBuffer);
+    } finally {
+        await page.close().catch(() => {});
+    }
+}
+
+export async function generateAnswerSheetPdf(html: string): Promise<Buffer> {
+    const browser = await launchAnswerSheetBrowser();
+    try {
+        return await renderAnswerSheetPdfWithBrowser(browser, html);
     } finally {
         await browser.close().catch(() => {});
     }
@@ -1100,6 +1122,16 @@ export async function generateBulkAnswerSheetsZip(
 ): Promise<{ buffer: Buffer; filename: string; totalProcessed: number }> {
     const zip = new JSZip();
     let processedCount = 0;
+    let browser: AnswerSheetBrowser | null = null;
+    if (format === 'pdf') {
+        try {
+            browser = await launchAnswerSheetBrowser();
+        } catch (error) {
+            logger.warn('BULK_PDF_BROWSER_UNAVAILABLE', 'Browser PDF tidak tersedia; seluruh dokumen akan memakai fallback HTML', {
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
 
     // Ambil detail sesi untuk nama zip
     const sessionRows = await executeQuery<any[]>(
@@ -1108,36 +1140,40 @@ export async function generateBulkAnswerSheetsZip(
     );
     const sessionTitle = sessionRows?.[0]?.title ? sessionRows[0].title.replace(/[^a-zA-Z0-9_-]/g, '_') : sessionId;
 
-    for (let i = 0; i < participantIds.length; i++) {
-        const pId = participantIds[i];
-        const data = await getParticipantAnswerSheetData(sessionId, pId, examId);
-        if (!data) continue;
+    try {
+        for (let i = 0; i < participantIds.length; i++) {
+            const pId = participantIds[i];
+            const data = await getParticipantAnswerSheetData(sessionId, pId, examId);
+            if (!data) continue;
 
-        const html = await renderAnswerSheetHtml(data, baseUrl);
-        const padIndex = String(i + 1).padStart(2, '0');
-        const safeNipOrUsername = (data.participant.nip || data.participant.username || 'user').replace(/[^a-zA-Z0-9_-]/g, '_');
-        const safeName = data.participant.full_name.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const html = await renderAnswerSheetHtml(data, baseUrl);
+            const padIndex = String(i + 1).padStart(2, '0');
+            const safeNipOrUsername = (data.participant.nip || data.participant.username || 'user').replace(/[^a-zA-Z0-9_-]/g, '_');
+            const safeName = data.participant.full_name.replace(/[^a-zA-Z0-9_-]/g, '_');
 
-        if (format === 'pdf') {
-            try {
-                const pdfBuffer = await generateAnswerSheetPdf(html);
-                const filename = `${padIndex}_${safeNipOrUsername}_${safeName}_Lembar_Pengerjaan.pdf`;
-                zip.file(filename, pdfBuffer);
-                processedCount++;
-            } catch (pdfErr) {
-                // Fallback ke file HTML jika render PDF mengalami kendala
-                logger.warn('BULK_PDF_FAIL_FALLBACK_HTML', `Fallback ke HTML untuk peserta ${safeName}`, {
-                    error: pdfErr instanceof Error ? pdfErr.message : String(pdfErr),
-                });
+            if (format === 'pdf' && browser) {
+                try {
+                    const pdfBuffer = await renderAnswerSheetPdfWithBrowser(browser, html);
+                    const filename = `${padIndex}_${safeNipOrUsername}_${safeName}_Lembar_Pengerjaan.pdf`;
+                    zip.file(filename, pdfBuffer);
+                    processedCount++;
+                } catch (pdfErr) {
+                    // Fallback ke file HTML jika satu halaman gagal dirender.
+                    logger.warn('BULK_PDF_FAIL_FALLBACK_HTML', `Fallback ke HTML untuk peserta ${safeName}`, {
+                        error: pdfErr instanceof Error ? pdfErr.message : String(pdfErr),
+                    });
+                    const filename = `${padIndex}_${safeNipOrUsername}_${safeName}_Lembar_Pengerjaan.html`;
+                    zip.file(filename, html);
+                    processedCount++;
+                }
+            } else {
                 const filename = `${padIndex}_${safeNipOrUsername}_${safeName}_Lembar_Pengerjaan.html`;
                 zip.file(filename, html);
                 processedCount++;
             }
-        } else {
-            const filename = `${padIndex}_${safeNipOrUsername}_${safeName}_Lembar_Pengerjaan.html`;
-            zip.file(filename, html);
-            processedCount++;
         }
+    } finally {
+        await browser?.close().catch(() => {});
     }
 
     const zipBuffer = await zip.generateAsync({

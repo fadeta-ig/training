@@ -25,8 +25,10 @@ const SUBMIT_RATE_LIMIT = { windowMs: 60_000, maxRequests: 5 };
 
 /** Grace period: allow submission up to 5 minutes after session ends */
 const LATE_GRACE_MS = 5 * 60 * 1000;
-/** Small network grace after exam duration expires. */
-const EXAM_DURATION_GRACE_MS = 30 * 1000;
+/** Network-only grace: the UI still auto-submits at the exact deadline. */
+const EXAM_DURATION_GRACE_MS = 5 * 60 * 1000;
+const PROCTOR_SNAPSHOT_MAX_AGE_SECONDS = 10 * 60;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface QuestionRow {
     id: string;
@@ -56,7 +58,12 @@ async function handlePost(
     try {
         const { id: sessionId, examId } = await context.params;
         const body = await request.json();
-        const { answers } = body as { answers: { question_id: string; selected_option: string }[] };
+        const { answers, submission_id: submissionId, attempt_number: requestAttemptNumber, attempt_version: requestAttemptVersion } = body as {
+            answers: { question_id: string; selected_option: string }[];
+            submission_id?: string;
+            attempt_number?: number;
+            attempt_version?: number;
+        };
 
 
         if (!answers || !Array.isArray(answers)) {
@@ -64,6 +71,12 @@ async function handlePost(
         }
         if (answers.length > 1000) {
             return NextResponse.json({ success: false, error: 'Jumlah jawaban melebihi batas' }, { status: 400 });
+        }
+        if (!submissionId || !UUID_RE.test(submissionId)) {
+            return NextResponse.json({ success: false, error: 'ID pengiriman jawaban tidak valid' }, { status: 400 });
+        }
+        if (!Number.isInteger(requestAttemptNumber) || !Number.isInteger(requestAttemptVersion)) {
+            return NextResponse.json({ success: false, error: 'Identitas attempt ujian tidak valid' }, { status: 400 });
         }
 
         await verifyEnrollment(sessionId, user.id);
@@ -110,6 +123,9 @@ async function handlePost(
             individual_extension_until: string | Date | null;
             attempt_elapsed_seconds: number | null;
             extension_remaining_seconds: number | null;
+            attempt_version: number;
+            last_submission_id: string | null;
+            last_submission_result: string | null;
         }
 
         // Fetch exam rules (passing grade, max attempts, remedial permission, remedial package)
@@ -134,6 +150,9 @@ async function handlePost(
                         status,
                         score,
                         individual_extension_until,
+                        attempt_version,
+                        last_submission_id,
+                        last_submission_result,
                         TIMESTAMPDIFF(SECOND, last_attempt_start, UTC_TIMESTAMP()) AS attempt_elapsed_seconds,
                         IF(individual_extension_until IS NOT NULL, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), individual_extension_until), NULL) AS extension_remaining_seconds
                  FROM user_progress
@@ -144,7 +163,7 @@ async function handlePost(
             let attemptNumber = 1;
             let progressId: string | null = null;
 
-            if (!progressRes || progressRes.length === 0 || !progressRes[0].last_attempt_start) {
+            if (!progressRes || progressRes.length === 0) {
                 await connection.rollback();
                 return NextResponse.json(
                     { success: false, error: 'Attempt ujian belum dimulai dari halaman ujian.' },
@@ -155,6 +174,33 @@ async function handlePost(
             const progressRow = progressRes[0];
             attemptNumber = (progressRow.attempts_count || 0) + 1;
             progressId = progressRow.id;
+
+            if (progressRow.last_submission_id === submissionId && progressRow.last_submission_result) {
+                let savedResult: unknown = null;
+                try {
+                    savedResult = JSON.parse(progressRow.last_submission_result);
+                } catch {}
+                if (savedResult) {
+                    await connection.rollback();
+                    return NextResponse.json({ success: true, data: savedResult, idempotent: true });
+                }
+            }
+
+            if (!progressRow.last_attempt_start) {
+                await connection.rollback();
+                return NextResponse.json(
+                    { success: false, error: 'Attempt ujian belum dimulai dari halaman ujian.' },
+                    { status: 403 }
+                );
+            }
+
+            if (Number(requestAttemptNumber) !== attemptNumber || Number(requestAttemptVersion) !== Number(progressRow.attempt_version || 1)) {
+                await connection.rollback();
+                return NextResponse.json(
+                    { success: false, error: 'Attempt ujian sudah berubah. Muat ulang halaman sebelum mengirim jawaban.' },
+                    { status: 409 }
+                );
+            }
 
             const previousScore = Number(progressRow.score ?? 0);
             const canRetake = progressRow.status === 'completed'
@@ -179,6 +225,25 @@ async function handlePost(
                     },
                     { status: 403 }
                 );
+            }
+
+            if (session.enable_proctoring) {
+                const [snapshotRows] = await connection.execute<Array<{ age_seconds: number }> & any[]>(
+                    `SELECT TIMESTAMPDIFF(SECOND, captured_at, CURRENT_TIMESTAMP()) AS age_seconds
+                     FROM proctor_snapshots
+                     WHERE user_id = ? AND session_id = ?
+                     ORDER BY captured_at DESC
+                     LIMIT 1`,
+                    [user.id, sessionId]
+                );
+                const snapshotAge = snapshotRows?.[0]?.age_seconds;
+                if (snapshotAge === undefined || snapshotAge === null || Number(snapshotAge) > PROCTOR_SNAPSHOT_MAX_AGE_SECONDS) {
+                    await connection.rollback();
+                    return NextResponse.json(
+                        { success: false, error: 'Snapshot proctoring belum tersimpan atau sudah kedaluwarsa. Aktifkan kamera dan coba kirim kembali.' },
+                        { status: 428 }
+                    );
+                }
             }
 
             const durationMs = Number(exam?.[0]?.duration_minutes || 0) * 60 * 1000;
@@ -305,12 +370,28 @@ async function handlePost(
 
             const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
             const passed = score >= passingGrade;
+            const isScoreVisible = !!session.show_score;
+            const responseData = isScoreVisible
+                ? {
+                      score: Math.round(score * 100) / 100,
+                      passed,
+                      earnedPoints,
+                      totalPoints,
+                      passingGrade,
+                      show_score: true,
+                  }
+                : {
+                      passed,
+                      show_score: false,
+                  };
 
             await connection.execute(
                 `UPDATE user_progress
-                 SET status = 'completed', score = ?, original_score = ?, score_adjustment = 0.00, attempts_count = attempts_count + 1, last_attempt_start = NULL
+                 SET status = 'completed', score = ?, original_score = ?, score_adjustment = 0.00,
+                     attempts_count = attempts_count + 1, last_attempt_start = NULL,
+                     last_submission_id = ?, last_submission_result = ?
                  WHERE id = ?`,
-                [score, score, progressId]
+                [score, score, submissionId, JSON.stringify(responseData), progressId]
             );
 
             await connection.commit();
@@ -325,24 +406,9 @@ async function handlePost(
                 totalPoints,
             }, 'EXAM_SUBMIT');
 
-            // Use show_score from the session already fetched by validateSessionTiming
-            const isScoreVisible = !!session.show_score;
-
             return NextResponse.json({
                 success: true,
-                data: isScoreVisible
-                    ? {
-                          score: Math.round(score * 100) / 100,
-                          passed,
-                          earnedPoints,
-                          totalPoints,
-                          passingGrade,
-                          show_score: true,
-                      }
-                    : {
-                          passed,
-                          show_score: false,
-                      },
+                data: responseData,
             });
         } catch (txError) {
             await connection.rollback();

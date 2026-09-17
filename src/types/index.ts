@@ -115,6 +115,7 @@ export interface Module {
     id: string;
     title: string;
     description: string | null;
+    enforce_sequence?: boolean;
     created_at: string;
 }
 
@@ -136,6 +137,7 @@ export interface Session {
     show_score: boolean;
     enable_proctoring: boolean;
     seb_config_key: string | null;
+    enforce_sequence?: boolean;
     created_at: string;
 }
 

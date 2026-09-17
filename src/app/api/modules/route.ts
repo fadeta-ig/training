@@ -15,7 +15,7 @@ async function handleGet(request: NextRequest) {
         const total = countResult[0]?.total || 0;
 
         const modules = await executeQuery(
-            `SELECT id, title, description, created_at FROM modules ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+            `SELECT id, title, description, enforce_sequence, created_at FROM modules ORDER BY created_at DESC LIMIT ? OFFSET ?`,
             [limit, offset]
         );
 
@@ -48,15 +48,15 @@ async function handlePost(request: NextRequest) {
             );
         }
 
-        const { title, description, items } = parsed.data;
+        const { title, description, enforce_sequence, items } = parsed.data;
         const moduleId = uuidv4();
 
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
         await connection.execute(
-            `INSERT INTO modules (id, title, description) VALUES (?, ?, ?)`,
-            [moduleId, title, description || null]
+            `INSERT INTO modules (id, title, description, enforce_sequence) VALUES (?, ?, ?, ?)`,
+            [moduleId, title, description || null, enforce_sequence ? 1 : 0]
         );
 
         for (const item of items) {

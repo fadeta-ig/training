@@ -189,6 +189,7 @@ CREATE TABLE modules (
   id          VARCHAR(36)  PRIMARY KEY,
   title       VARCHAR(150) NOT NULL,
   description TEXT,
+  enforce_sequence BOOLEAN NOT NULL DEFAULT FALSE,
   created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 

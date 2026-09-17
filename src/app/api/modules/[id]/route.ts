@@ -51,14 +51,14 @@ async function handlePut(
             );
         }
 
-        const { title, description, items } = parsed.data;
+        const { title, description, enforce_sequence, items } = parsed.data;
 
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
         await connection.execute(
-            `UPDATE modules SET title = ?, description = ? WHERE id = ?`,
-            [title, description || null, resolvedParams.id]
+            `UPDATE modules SET title = ?, description = ?, enforce_sequence = ? WHERE id = ?`,
+            [title, description || null, enforce_sequence ? 1 : 0, resolvedParams.id]
         );
 
         // Replace all items

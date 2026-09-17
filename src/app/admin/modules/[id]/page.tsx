@@ -162,13 +162,30 @@ export default function ModuleDetailPage({ params }: { params: Promise<{ id: str
             </div>
 
             <div className="glass-card p-5 sm:p-6 space-y-4">
-                <div className="pb-3 border-b border-black/5 flex items-center justify-between">
+                <div className="pb-3 border-b border-black/5 flex items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-sm font-semibold text-foreground">Alur Pembelajaran Modul</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-sm font-semibold text-foreground">Alur Pembelajaran Modul</h2>
+                            {!moduleData.enforce_sequence ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-md px-2 py-0.5">
+                                    Alur Terbuka (Fleksibel)
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200/80 rounded-md px-2 py-0.5">
+                                    Alur Bertahap (Terkunci)
+                                </span>
+                            )}
+                        </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                            Modul ini memiliki {items.length} sesi pembelajaran.
+                            Modul ini memiliki {items.length} item pembelajaran {!moduleData.enforce_sequence ? '(peserta dapat mengakses bebas tanpa prasyarat)' : '(peserta wajib menyelesaikan berurutan)'}.
                         </p>
                     </div>
+                    <Link
+                        href={`/admin/modules/${resolvedParams.id}/edit`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors shrink-0"
+                    >
+                        Edit Modul
+                    </Link>
                 </div>
 
                 <div className="space-y-3">

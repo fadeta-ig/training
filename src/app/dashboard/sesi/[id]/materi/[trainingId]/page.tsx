@@ -205,7 +205,7 @@ export default function MateriViewerPage({ params }: { params: Promise<{ id: str
 
             if (res.ok && data?.success) {
                 setCompleted(true);
-                toast.success('Materi telah diselesaikan! Anda dapat melanjutkan ke item berikutnya.');
+                toast.success('Materi telah diselesaikan! Progres belajar Anda telah tersimpan.');
             } else {
                 toast.error(data?.error || data?.message || `Gagal menandai selesai (Status ${res.status})`);
             }
@@ -398,8 +398,8 @@ Terima kasih atas bantuan dan bimbingannya.`;
                     </p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
                         {completed
-                            ? 'Anda dapat kembali ke daftar sesi untuk melanjutkan ke tahap berikutnya.'
-                            : 'Tandai selesai untuk membuka item pembelajaran atau ujian selanjutnya.'}
+                            ? 'Anda dapat kembali ke daftar sesi untuk melanjutkan pembelajaran lainnya.'
+                            : 'Tandai selesai untuk menyimpan progres ketuntasan belajar Anda.'}
                     </p>
                 </div>
 

@@ -13,7 +13,9 @@ import {
     Delete02Icon,
     PlusSignIcon
 } from 'hugeicons-react';
+import { Lock, Unlock, Sparkles, Layers, ListOrdered } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 type MasterItem = {
     id: string;
@@ -42,6 +44,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
     // Form State
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [enforceSequence, setEnforceSequence] = useState(false);
     const [selectedItems, setSelectedItems] = useState<ModuleItem[]>([]);
 
     const [error, setError] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
             if (mRes.success) {
                 setTitle(mRes.data.title);
                 setDescription(mRes.data.description || '');
+                setEnforceSequence(Boolean(mRes.data.enforce_sequence));
 
                 // Map items to include titles (the API returns item_type and item_id, we need to map titles from tRes and eRes)
                 let tempTrainings: any[] = [];
@@ -143,6 +147,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
         const payload = {
             title,
             description,
+            enforce_sequence: enforceSequence,
             items: selectedItems.map(si => ({
                 item_type: si.item_type,
                 item_id: si.item_id,
@@ -172,7 +177,13 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
         }
     };
 
-    if (isLoading) return <div className="p-10 text-center">Memuat data perakit modul...</div>;
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 pb-12">
@@ -189,7 +200,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                         Edit Alur Modul
                     </h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        Ubah kurikulum modul, tambah, kurangi, atau ubah urutan materi dan ujian.
+                        Ubah kurikulum modul, aturan akses alur, serta urutan materi dan ujian.
                     </p>
                 </div>
             </div>
@@ -229,9 +240,130 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                         </div>
                     </div>
 
+                    {/* Flow Rule Card */}
+                    <div className="glass-card p-6 space-y-5">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-black/5 pb-3">
+                            <div>
+                                <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+                                    <Layers className="size-5 text-indigo-600 dark:text-indigo-400" />
+                                    2. Aturan Alur Pengerjaan (Flow Rule)
+                                </h2>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Tentukan bagaimana peserta mengakses item-item materi dan ujian dalam modul ini.
+                                </p>
+                            </div>
+                            <span className={cn(
+                                "text-xs font-semibold px-3 py-1 rounded-full w-fit",
+                                !enforceSequence
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
+                                    : "bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800"
+                            )}>
+                                {!enforceSequence ? "Mode: Terbuka & Fleksibel" : "Mode: Terkunci Bertahap"}
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Option 1: Unlocked / Open Flow */}
+                            <div
+                                onClick={() => setEnforceSequence(false)}
+                                className={cn(
+                                    "relative flex flex-col p-4 sm:p-5 rounded-2xl border-2 transition-all cursor-pointer select-none",
+                                    !enforceSequence
+                                        ? "border-emerald-500 bg-emerald-50/40 shadow-sm dark:bg-emerald-950/20 dark:border-emerald-500"
+                                        : "border-black/10 bg-white/50 hover:border-black/20 hover:bg-white/80 dark:border-white/10 dark:bg-card/40 dark:hover:border-white/20"
+                                )}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-3">
+                                        <div className={cn(
+                                            "size-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
+                                            !enforceSequence
+                                                ? "bg-emerald-600 text-white shadow-xs"
+                                                : "bg-black/5 text-muted-foreground"
+                                        )}>
+                                            <Unlock className="size-5" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-bold text-sm text-foreground">Alur Terbuka & Fleksibel</h3>
+                                                <span className="text-[10px] uppercase font-bold tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-md">
+                                                    Standar
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                                                Peserta bebas membuka dan mengerjakan materi maupun ujian kapan saja tanpa harus menyelesaikan step sebelumnya terlebih dahulu.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className={cn(
+                                        "size-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5",
+                                        !enforceSequence
+                                            ? "border-emerald-600 bg-emerald-600 text-white"
+                                            : "border-black/20"
+                                    )}>
+                                        {!enforceSequence && <div className="size-2 rounded-full bg-white" />}
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-3 pt-3 border-t border-black/5 flex items-center gap-1.5 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
+                                    <Sparkles className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                    <span>Pilihan ideal untuk pembelajaran mandiri tanpa blokir.</span>
+                                </div>
+                            </div>
+
+                            {/* Option 2: Sequential / Locked Flow */}
+                            <div
+                                onClick={() => setEnforceSequence(true)}
+                                className={cn(
+                                    "relative flex flex-col p-4 sm:p-5 rounded-2xl border-2 transition-all cursor-pointer select-none",
+                                    enforceSequence
+                                        ? "border-amber-500 bg-amber-50/40 shadow-sm dark:bg-amber-950/20 dark:border-amber-500"
+                                        : "border-black/10 bg-white/50 hover:border-black/20 hover:bg-white/80 dark:border-white/10 dark:bg-card/40 dark:hover:border-white/20"
+                                )}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-3">
+                                        <div className={cn(
+                                            "size-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
+                                            enforceSequence
+                                                ? "bg-amber-600 text-white shadow-xs"
+                                                : "bg-black/5 text-muted-foreground"
+                                        )}>
+                                            <Lock className="size-5" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-bold text-sm text-foreground">Alur Bertahap (Terkunci)</h3>
+                                                <span className="text-[10px] uppercase font-bold tracking-wider bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 rounded-md">
+                                                    Linier
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                                                Peserta wajib menyelesaikan materi atau ujian secara berurutan. Step berikutnya baru terbuka setelah step sebelumnya tuntas.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className={cn(
+                                        "size-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5",
+                                        enforceSequence
+                                            ? "border-amber-600 bg-amber-600 text-white"
+                                            : "border-black/20"
+                                    )}>
+                                        {enforceSequence && <div className="size-2 rounded-full bg-white" />}
+                                    </div>
+                                </div>
+
+                                <div className="mt-3 pt-3 border-t border-black/5 flex items-center gap-1.5 text-[11px] font-medium text-amber-800 dark:text-amber-300">
+                                    <ListOrdered className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                                    <span>Gunakan bila materi awal merupakan prasyarat mutlak ujian.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="glass-card p-6 space-y-5">
                         <div className="flex flex-col items-start gap-2 border-b border-black/5 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                            <h2 className="text-lg font-bold">2. Alur Pembelajaran (Sequence)</h2>
+                            <h2 className="text-lg font-bold">3. Susunan Item Pembelajaran</h2>
                             <span className="text-sm font-semibold text-muted-foreground bg-black/5 px-3 py-1 rounded-full">
                                 {selectedItems.length} Item Terpilih
                             </span>
@@ -252,7 +384,18 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                         </div>
 
                                         <div className="min-w-[8rem] flex-1">
-                                            <h4 className="break-words font-semibold text-sm">{item.title}</h4>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h4 className="break-words font-semibold text-sm">{item.title}</h4>
+                                                {!enforceSequence ? (
+                                                    <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-md px-1.5 py-0.5">
+                                                        <Unlock className="size-3" /> Akses Terbuka
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200/80 rounded-md px-1.5 py-0.5">
+                                                        <Lock className="size-3" /> Langkah {index + 1}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-xs font-mono text-muted-foreground uppercase mt-0.5">{item.item_type}</p>
                                         </div>
 
@@ -291,21 +434,21 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                             <button
                                 type="submit"
                                 disabled={isSaving || selectedItems.length === 0}
-                                className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-8 py-3.5 text-sm font-semibold text-background shadow-sm transition-colors hover:bg-foreground/90 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 sm:w-auto"
+                                className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-8 py-3.5 text-sm font-semibold text-background shadow-sm transition-colors hover:bg-foreground/90 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 sm:w-auto cursor-pointer"
                             >
                                 <FloppyDiskIcon size={20} />
-                                {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                                {isSaving ? 'Menyimpan...' : 'Simpan Perubahan Modul'}
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Right Column */}
+                {/* Right Column: Library Pool */}
                 <div className="lg:col-span-4 space-y-6">
                     <div className="glass-card flex h-[min(600px,70dvh)] flex-col overflow-hidden lg:sticky lg:top-8">
                         <div className="p-5 border-b border-black/5 bg-white/60 z-10">
                             <h3 className="font-bold text-lg">Pustaka Konten</h3>
-                            <p className="text-xs text-muted-foreground mt-1">Klik item untuk menambahkannya.</p>
+                            <p className="text-xs text-muted-foreground mt-1">Klik item untuk menambahkannya ke antrean susunan modul.</p>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-3 space-y-6">
@@ -321,10 +464,10 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                     ) : (
                                         trainings.map(t => (
                                             <button
-                                                key={`t-${t.id}`}
+                                                key={t.id}
                                                 type="button"
                                                 onClick={() => addItem(t)}
-                                                className="w-full text-left p-3 rounded-xl hover:bg-black/5 active:bg-black/10 transition-colors text-sm font-medium border border-transparent hover:border-black/10 group flex justify-between items-center"
+                                                className="w-full text-left p-3 rounded-xl hover:bg-black/5 active:bg-black/10 transition-colors text-sm font-medium border border-transparent hover:border-black/10 group flex justify-between items-center cursor-pointer"
                                             >
                                                 <span className="truncate pr-2">{t.title}</span>
                                                 <PlusSignIcon size={16} className="opacity-0 group-hover:opacity-100 shrink-0 text-muted-foreground" />
@@ -345,10 +488,10 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                     ) : (
                                         exams.map(e => (
                                             <button
-                                                key={`e-${e.id}`}
+                                                key={e.id}
                                                 type="button"
                                                 onClick={() => addItem(e)}
-                                                className="w-full text-left p-3 rounded-xl hover:bg-black/5 active:bg-black/10 transition-colors text-sm font-medium border border-transparent hover:border-black/10 group flex justify-between items-center"
+                                                className="w-full text-left p-3 rounded-xl hover:bg-black/5 active:bg-black/10 transition-colors text-sm font-medium border border-transparent hover:border-black/10 group flex justify-between items-center cursor-pointer"
                                             >
                                                 <span className="truncate pr-2">{e.title}</span>
                                                 <PlusSignIcon size={16} className="opacity-0 group-hover:opacity-100 shrink-0 text-muted-foreground" />

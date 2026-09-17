@@ -64,6 +64,7 @@ type SessionDetail = {
     require_seb: boolean;
     module_title: string;
     module_id: string;
+    enforce_sequence?: boolean;
     participant_name?: string;
     graduation_status?: 'pending' | 'passed' | 'failed';
     graduation_decided_at?: string | null;
@@ -447,14 +448,29 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
 
             <section aria-labelledby="session-content-title">
                 <div className="mb-5">
-                    <div className="flex items-center gap-2">
-                        <ListChecks className="size-5 text-muted-foreground" />
-                        <h2 id="session-content-title" className="text-lg font-semibold">Materi dan ujian</h2>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <ListChecks className="size-5 text-muted-foreground" />
+                            <h2 id="session-content-title" className="text-lg font-semibold">Materi dan ujian</h2>
+                        </div>
+                        {!session.enforce_sequence ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Alur Fleksibel: Akses Bebas
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-full dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                <LockKeyhole className="size-3" />
+                                Alur Bertahap: Berurutan
+                            </span>
+                        )}
                     </div>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
                         {isTimeEnded
                             ? 'Masa pengerjaan sesi telah selesai. Modul materi dan ujian berada dalam status terkunci.'
-                            : 'Selesaikan setiap item sesuai urutan. Item berikutnya akan terbuka setelah item sebelumnya selesai.'}
+                            : session.enforce_sequence
+                                ? 'Selesaikan setiap item sesuai urutan. Item berikutnya akan terbuka setelah item sebelumnya selesai.'
+                                : 'Modul ini menggunakan alur terbuka. Anda dapat mempelajari materi dan mengerjakan ujian secara bebas tanpa harus berurutan.'}
                     </p>
                 </div>
 
@@ -527,7 +543,7 @@ function SessionItemCard({
 
     // Strict Lock: When session is ended, no direct access to either training or exam is permitted
     const canAccess = !isSessionEnded && (
-        (isTraining && (isSessionActive || isCompleted)) ||
+        (isTraining && !isLocked && (isSessionActive || isCompleted)) ||
         (isExam && isSessionActive && !isLocked && !sebLocked) ||
         (isExam && isCompleted && item.can_retake && isSessionActive && !sebLocked)
     );

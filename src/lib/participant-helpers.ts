@@ -44,10 +44,13 @@ export async function validateSessionTiming(
     userId?: string
 ): Promise<SessionTimingResult> {
     const rows = await executeQuery<(Session & { is_upcoming_db?: number; is_ended_db?: number })[]>(
-        `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, seb_config_key, created_at,
-                (NOW() < start_time) AS is_upcoming_db,
-                (NOW() > end_time) AS is_ended_db
-         FROM sessions WHERE id = ?`,
+        `SELECT s.id, s.module_id, s.title, s.start_time, s.end_time, s.require_seb, s.show_score, s.enable_proctoring, s.seb_config_key, s.created_at,
+                COALESCE(m.enforce_sequence, 0) AS enforce_sequence,
+                (NOW() < s.start_time) AS is_upcoming_db,
+                (NOW() > s.end_time) AS is_ended_db
+         FROM sessions s
+         LEFT JOIN modules m ON s.module_id = m.id
+         WHERE s.id = ?`,
         [sessionId]
     );
 
@@ -55,7 +58,10 @@ export async function validateSessionTiming(
         throw new ParticipantError('Sesi tidak ditemukan', 404);
     }
 
-    const session = rows[0];
+    const session = {
+        ...rows[0],
+        enforce_sequence: Boolean(rows[0].enforce_sequence),
+    };
     const now = new Date();
     const startIso = normalizeDbDateToIso(session.start_time);
     const endIso = normalizeDbDateToIso(session.end_time);
@@ -304,6 +310,12 @@ export async function assertCurrentItemAccessible(
     const progress = await getItemProgress(sessionId, userId, moduleItem.id);
 
     if (allowCompleted && progress?.status === 'completed') {
+        return;
+    }
+
+    // If module does not enforce sequential progression (enforce_sequence is false/falsy),
+    // all items in the active session are freely accessible without prerequisites!
+    if (!session.enforce_sequence) {
         return;
     }
 

@@ -34,6 +34,7 @@ type LearningModule = {
     id: string;
     title: string;
     description: string | null;
+    enforce_sequence?: boolean | number;
     created_at: string;
 };
 
@@ -163,9 +164,20 @@ export default function ModulesManagerPage() {
                         <Card key={module.id} className="gap-0 rounded-lg py-0 shadow-none">
                             <CardHeader className="gap-4 px-5 pb-4 pt-5">
                                 <div className="flex items-center justify-between gap-3">
-                                    <Badge variant="outline" className="rounded-md text-muted-foreground">
-                                        <ListTree /> Modul
-                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="rounded-md text-muted-foreground">
+                                            <ListTree /> Modul
+                                        </Badge>
+                                        {!module.enforce_sequence ? (
+                                            <Badge variant="outline" className="rounded-md border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 text-[11px]">
+                                                Alur Terbuka
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="rounded-md border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-[11px]">
+                                                Alur Bertahap
+                                            </Badge>
+                                        )}
+                                    </div>
                                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <CalendarDays className="size-3.5" /> {formatDate(module.created_at)}
                                     </span>
@@ -181,8 +193,10 @@ export default function ModulesManagerPage() {
                             <CardContent className="border-t px-5 py-4">
                                 <dl className="grid grid-cols-2 gap-4 text-sm">
                                     <div>
-                                        <dt className="text-xs text-muted-foreground">Struktur</dt>
-                                        <dd className="mt-1 font-medium">Alur pembelajaran terurut</dd>
+                                        <dt className="text-xs text-muted-foreground">Aturan Alur</dt>
+                                        <dd className="mt-1 font-medium">
+                                            {!module.enforce_sequence ? 'Terbuka & Fleksibel' : 'Terkunci Berurutan'}
+                                        </dd>
                                     </div>
                                     <div>
                                         <dt className="text-xs text-muted-foreground">Dibuat pada</dt>

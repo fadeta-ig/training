@@ -73,8 +73,8 @@ async function handleGet(
             [user.id, sessionId, session.module_id]
         );
 
-        // Apply sequential phase unlock based on session timing
-        // Rule: items must be completed in sequence_order. Only the FIRST uncompleted item is 'open'.
+        // Apply phase unlock based on session timing and module flow configuration
+        const enforceSequence = Boolean(session.enforce_sequence);
         let foundFirstIncomplete = false;
 
         const mappedItems = items.map((item: any) => {
@@ -100,13 +100,17 @@ async function handleGet(
                 // Session hasn't started → all locked
                 progressStatus = 'locked';
             } else if (isActive) {
-                if (!foundFirstIncomplete) {
-                    // This is the first non-completed item → it's open (accessible)
+                if (!enforceSequence) {
+                    // Open flow (default): All uncompleted items are open and accessible
                     progressStatus = 'open';
-                    foundFirstIncomplete = true;
                 } else {
-                    // Previous item not yet completed → locked
-                    progressStatus = 'locked';
+                    // Sequential flow: Only the first uncompleted item is open
+                    if (!foundFirstIncomplete) {
+                        progressStatus = 'open';
+                        foundFirstIncomplete = true;
+                    } else {
+                        progressStatus = 'locked';
+                    }
                 }
             } else {
                 // Session ended, not completed → show as locked (missed)
@@ -141,6 +145,7 @@ async function handleGet(
             success: true,
             data: {
                 ...session,
+                enforce_sequence: enforceSequence,
                 start_time: normalizeDbDateToIso(session.start_time),
                 end_time: normalizeDbDateToIso(session.end_time),
                 server_time: serverTime,

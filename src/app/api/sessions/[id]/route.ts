@@ -249,7 +249,7 @@ async function handlePut(
         await connection.beginTransaction();
 
         const [currentSessions] = await connection.execute<any[]>(
-            `SELECT require_seb, enable_proctoring, seb_config_key
+            `SELECT module_id, require_seb, enable_proctoring, seb_config_key
              FROM sessions
              WHERE id = ?
              LIMIT 1
@@ -257,6 +257,36 @@ async function handlePut(
             [resolvedParams.id],
         );
         const currentSession = currentSessions[0];
+        if (!currentSession) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
+        }
+
+        if (String(currentSession.module_id) !== module_id) {
+            const [activityRows] = await connection.execute<Array<{ total: number | string }> & any[]>(
+                `SELECT (
+                    (SELECT COUNT(*) FROM user_progress WHERE session_id = ?)
+                    + (SELECT COUNT(*) FROM exam_answers WHERE session_id = ?)
+                    + (SELECT COUNT(*) FROM exam_answer_drafts WHERE session_id = ?)
+                    + (SELECT COUNT(*) FROM proctor_snapshots WHERE session_id = ?)
+                    + (SELECT COUNT(*) FROM session_participants
+                       WHERE session_id = ?
+                         AND (graduation_status <> 'pending' OR skl_number IS NOT NULL OR certificate_file_url IS NOT NULL))
+                ) AS total`,
+                [resolvedParams.id, resolvedParams.id, resolvedParams.id, resolvedParams.id, resolvedParams.id],
+            );
+            if (Number(activityRows[0]?.total || 0) > 0) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json(
+                    { success: false, error: 'Modul sesi tidak dapat diganti setelah ada progres, jawaban, draft, proctoring, atau dokumen resmi peserta' },
+                    { status: 409 },
+                );
+            }
+        }
         const keepsSameSebConfig = Boolean(require_seb)
             && Boolean(currentSession?.require_seb)
             && Boolean(enable_proctoring) === Boolean(currentSession?.enable_proctoring);
@@ -294,6 +324,41 @@ async function handlePut(
         const userIdsToRemove = Array.from(existingUserIds).filter(id => !targetUserIds.has(id));
         if (userIdsToRemove.length > 0) {
             const placeholders = userIdsToRemove.map(() => '?').join(',');
+            const [activityRows] = await connection.execute<Array<{ user_id: string }> & any[]>(
+                `SELECT DISTINCT user_id FROM (
+                    SELECT user_id FROM user_progress WHERE session_id = ? AND user_id IN (${placeholders})
+                    UNION ALL
+                    SELECT user_id FROM exam_answers WHERE session_id = ? AND user_id IN (${placeholders})
+                    UNION ALL
+                    SELECT user_id FROM exam_answer_drafts WHERE session_id = ? AND user_id IN (${placeholders})
+                    UNION ALL
+                    SELECT user_id FROM proctor_snapshots WHERE session_id = ? AND user_id IN (${placeholders})
+                    UNION ALL
+                    SELECT user_id FROM session_participants
+                    WHERE session_id = ? AND user_id IN (${placeholders})
+                      AND (graduation_status <> 'pending' OR skl_number IS NOT NULL OR certificate_file_url IS NOT NULL)
+                ) activity`,
+                [
+                    resolvedParams.id, ...userIdsToRemove,
+                    resolvedParams.id, ...userIdsToRemove,
+                    resolvedParams.id, ...userIdsToRemove,
+                    resolvedParams.id, ...userIdsToRemove,
+                    resolvedParams.id, ...userIdsToRemove,
+                ],
+            );
+            if (activityRows.length > 0) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: 'Peserta yang sudah memiliki progres, jawaban, draft, proctoring, kelulusan, atau dokumen tidak dapat dikeluarkan dari sesi',
+                        participant_ids: activityRows.map((row) => row.user_id),
+                    },
+                    { status: 409 },
+                );
+            }
             await connection.execute(
                 `DELETE FROM session_participants WHERE session_id = ? AND user_id IN (${placeholders})`,
                 [resolvedParams.id, ...userIdsToRemove]
@@ -312,6 +377,7 @@ async function handlePut(
 
         await connection.commit();
         connection.release();
+        connection = undefined;
 
         return NextResponse.json({ success: true, message: 'Session updated completely' });
     } catch (error) {
@@ -331,24 +397,55 @@ async function handleDelete(
     _user: any,
     context: { params: Promise<{ id: string }> }
 ) {
+    let connection;
     try {
         const resolvedParams = await context.params;
 
-        // ON DELETE CASCADE will handle session_participants
-        const result = await executeQuery<{ affectedRows: number }>(
-            `DELETE FROM sessions WHERE id = ?`,
-            [resolvedParams.id]
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+        const [usageRows] = await connection.execute<Array<{ total: number | string }> & any[]>(
+            `SELECT (
+                (SELECT COUNT(*) FROM user_progress WHERE session_id = ?)
+                + (SELECT COUNT(*) FROM exam_answers WHERE session_id = ?)
+                + (SELECT COUNT(*) FROM exam_answer_drafts WHERE session_id = ?)
+                + (SELECT COUNT(*) FROM proctor_snapshots WHERE session_id = ?)
+                + (SELECT COUNT(*) FROM session_participants
+                   WHERE session_id = ?
+                     AND (graduation_status <> 'pending' OR skl_number IS NOT NULL OR certificate_file_url IS NOT NULL))
+            ) AS total`,
+            [resolvedParams.id, resolvedParams.id, resolvedParams.id, resolvedParams.id, resolvedParams.id],
         );
+        if (Number(usageRows[0]?.total || 0) > 0) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json(
+                { success: false, error: 'Sesi yang memiliki aktivitas peserta, jawaban, proctoring, kelulusan, atau dokumen resmi tidak dapat dihapus' },
+                { status: 409 },
+            );
+        }
+
+        const [result] = await connection.execute<any>('DELETE FROM sessions WHERE id = ?', [resolvedParams.id]);
 
         if (result && 'affectedRows' in result && result.affectedRows === 0) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
             return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
         }
 
+        await connection.commit();
+        connection.release();
+        connection = undefined;
+
         return NextResponse.json({ success: true, message: 'Session deleted' });
     } catch (error) {
+        if (connection) {
+            await connection.rollback();
+            connection.release();
+        }
         logger.error('DELETE_SESSION', 'Gagal menghapus sesi', error);
-        const message = error instanceof Error ? error.message : 'Internal Server Error';
-        return NextResponse.json({ success: false, error: message }, { status: 500 });
+        return NextResponse.json({ success: false, error: 'Gagal menghapus sesi' }, { status: 500 });
     }
 }
 

@@ -30,6 +30,9 @@ interface GradingAnswerRow extends RowDataPacket {
     current_points: number | null;
     module_item_id: string;
     attempts_count: number | null;
+    score_adjustment: number | null;
+    passing_grade: number | null;
+    show_score: number | boolean;
 }
 
 interface ScoreRow extends RowDataPacket {
@@ -74,13 +77,17 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         const [answerRows] = await connection.execute<GradingAnswerRow[]>(
             `SELECT ea.id, ea.selected_option, ea.question_snapshot,
                     q.question_type AS current_question_type, q.points AS current_points,
-                    mi.id AS module_item_id, up.attempts_count
+                    mi.id AS module_item_id, up.attempts_count, up.score_adjustment,
+                    module_exam.passing_grade, s.show_score
              FROM exam_answers ea
              INNER JOIN sessions s ON s.id = ea.session_id
              INNER JOIN session_participants sp
                 ON sp.session_id = ea.session_id AND sp.user_id = ea.user_id
              INNER JOIN module_items mi
-                ON mi.module_id = s.module_id AND mi.item_type = 'exam' AND mi.item_id = ea.exam_id
+                ON mi.module_id = s.module_id AND mi.item_type = 'exam'
+             INNER JOIN exams module_exam
+                ON module_exam.id = mi.item_id
+               AND (module_exam.id = ea.exam_id OR module_exam.remedial_exam_id = ea.exam_id)
              LEFT JOIN questions q ON q.id = ea.question_id
              LEFT JOIN user_progress up
                 ON up.user_id = ea.user_id AND up.session_id = ea.session_id AND up.module_item_id = mi.id
@@ -146,14 +153,52 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             ? Math.round((earnedPoints / totalPoints) * 10_000) / 100
             : 0;
 
+        const [pendingRows] = await connection.execute<Array<{ total: number | string }> & any[]>(
+            `SELECT COUNT(*) AS total
+             FROM exam_answers
+             WHERE session_id = ? AND user_id = ? AND exam_id = ? AND attempt_number = ?
+               AND grading_status = 'pending'`,
+            [session_id, user_id, exam_id, attempt_number],
+        );
+        const pendingCount = Number(pendingRows[0]?.total || 0);
+
         const isLatestAttempt = Number(answer.attempts_count) === attempt_number;
         if (isLatestAttempt) {
+            const finalScore = Math.round(
+                Math.min(100, Math.max(0, newScore + Number(answer.score_adjustment || 0))) * 100,
+            ) / 100;
+            const passed = finalScore >= Number(answer.passing_grade || 0);
+            const submissionResult = pendingCount > 0
+                ? JSON.stringify({ grading_pending: true, pendingEssayCount: pendingCount, show_score: false })
+                : Boolean(answer.show_score)
+                    ? JSON.stringify({
+                        score: finalScore,
+                        passed,
+                        earnedPoints,
+                        totalPoints,
+                        passingGrade: Number(answer.passing_grade || 0),
+                        show_score: true,
+                    })
+                    : JSON.stringify({ passed, show_score: false });
             await connection.execute(
                 `UPDATE user_progress 
                  SET original_score = ?, 
-                     score = LEAST(100, GREATEST(0, ? + COALESCE(score_adjustment, 0)))
+                     score = CASE WHEN ? = 0 THEN LEAST(100, GREATEST(0, ? + COALESCE(score_adjustment, 0))) ELSE NULL END,
+                     grading_pending = ?,
+                     status = CASE WHEN ? = 0 THEN 'completed' ELSE 'grading_pending' END,
+                     last_submission_result = ?
                  WHERE user_id = ? AND session_id = ? AND module_item_id = ?`,
-                [newScore, newScore, user_id, session_id, answer.module_item_id],
+                [
+                    pendingCount === 0 ? newScore : null,
+                    pendingCount,
+                    newScore,
+                    pendingCount > 0 ? 1 : 0,
+                    pendingCount,
+                    submissionResult,
+                    user_id,
+                    session_id,
+                    answer.module_item_id,
+                ],
             );
         }
 
@@ -176,7 +221,14 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         return NextResponse.json({
             success: true,
             message: 'Nilai jawaban berhasil diperbarui',
-            data: { newScore, awarded_points: finalAwardedPoints, is_correct: finalIsCorrect, progress_updated: isLatestAttempt },
+            data: {
+                newScore: pendingCount === 0 ? newScore : null,
+                awarded_points: finalAwardedPoints,
+                is_correct: finalIsCorrect,
+                progress_updated: isLatestAttempt,
+                grading_pending: pendingCount > 0,
+                pending_count: pendingCount,
+            },
         });
     } catch (error) {
         if (connection) {

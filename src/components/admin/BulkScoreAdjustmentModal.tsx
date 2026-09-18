@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     Cancel01Icon,
-    Tick01Icon,
-    AlertCircleIcon
+    Tick01Icon
 } from 'hugeicons-react';
 import { toast } from 'sonner';
 import { Calculator, Plus, Minus, Sparkles, Users } from 'lucide-react';

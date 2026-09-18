@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
+import { parsePagination } from '@/lib/sanitize';
+import { z } from 'zod';
+
+const notificationUpdateSchema = z.object({
+    notification_id: z.string().uuid().optional(),
+    mark_all: z.literal(true).optional(),
+}).refine((value) => Boolean(value.notification_id) !== Boolean(value.mark_all), {
+    message: 'Pilih tepat satu operasi notifikasi',
+});
 
 /**
  * GET /api/participant/notifications
@@ -8,18 +17,32 @@ import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
  */
 async function handleGet(request: NextRequest, user: AuthenticatedUser) {
     try {
-        const notifications = await executeQuery<any[]>(
-            `SELECT id, title, message, is_read, created_at, link_url
-             FROM notifications 
-             WHERE user_id = ? 
-             ORDER BY created_at DESC`,
-            [user.id]
-        );
+        const { page, limit, offset } = parsePagination(request.nextUrl.searchParams, 20, 50);
+        const [notifications, countRows] = await Promise.all([
+            executeQuery<any[]>(
+                `SELECT id, title, message, is_read, created_at, link_url
+                 FROM notifications
+                 WHERE user_id = ?
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT ? OFFSET ?`,
+                [user.id, limit, offset],
+            ),
+            executeQuery<Array<{ total: number | string; unread: number | string }>>(
+                `SELECT COUNT(*) AS total, SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) AS unread
+                 FROM notifications WHERE user_id = ?`,
+                [user.id],
+            ),
+        ]);
 
-        return NextResponse.json({ success: true, data: notifications });
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Kesalahan internal server';
-        return NextResponse.json({ success: false, error: message }, { status: 500 });
+        const total = Number(countRows[0]?.total || 0);
+        return NextResponse.json({
+            success: true,
+            data: notifications,
+            unreadCount: Number(countRows[0]?.unread || 0),
+            pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        });
+    } catch {
+        return NextResponse.json({ success: false, error: 'Kesalahan internal server' }, { status: 500 });
     }
 }
 
@@ -29,8 +52,11 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
  */
 async function handlePut(request: NextRequest, user: AuthenticatedUser) {
     try {
-        const body = await request.json();
-        const { notification_id, mark_all } = body;
+        const parsed = notificationUpdateSchema.safeParse(await request.json());
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: 'Parameter notifikasi tidak valid' }, { status: 400 });
+        }
+        const { notification_id, mark_all } = parsed.data;
 
         if (mark_all) {
             await executeQuery(
@@ -47,9 +73,8 @@ async function handlePut(request: NextRequest, user: AuthenticatedUser) {
         }
 
         return NextResponse.json({ success: true, message: 'Notifikasi diperbarui' });
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Kesalahan server saat memperbarui notifikasi';
-        return NextResponse.json({ success: false, error: message }, { status: 500 });
+    } catch {
+        return NextResponse.json({ success: false, error: 'Kesalahan server saat memperbarui notifikasi' }, { status: 500 });
     }
 }
 

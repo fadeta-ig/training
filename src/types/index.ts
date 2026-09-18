@@ -161,7 +161,7 @@ export interface UserProgress {
     user_id: string;
     session_id: string;
     module_item_id: string;
-    status: 'locked' | 'open' | 'completed';
+    status: 'locked' | 'open' | 'grading_pending' | 'completed';
     score: number | null;
     original_score?: number | null;
     score_adjustment?: number;
@@ -235,4 +235,3 @@ export interface AuditLog {
     full_name?: string;
     username?: string;
 }
-

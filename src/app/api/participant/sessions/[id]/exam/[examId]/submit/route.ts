@@ -112,13 +112,14 @@ async function handlePost(
             allow_remedial: boolean | number;
             duration_minutes: number;
             remedial_exam_id: string | null;
+            remedial_duration_minutes: number | null;
         }
 
         interface UserProgressLockRow {
             id: string;
             attempts_count: number;
             last_attempt_start: string | Date | null;
-            status: 'locked' | 'open' | 'completed';
+            status: 'locked' | 'open' | 'grading_pending' | 'completed';
             score: number | string | null;
             individual_extension_until: string | Date | null;
             attempt_elapsed_seconds: number | null;
@@ -126,11 +127,16 @@ async function handlePost(
             attempt_version: number;
             last_submission_id: string | null;
             last_submission_result: string | null;
+            grading_pending: number | boolean;
         }
 
         // Fetch exam rules (passing grade, max attempts, remedial permission, remedial package)
         const exam = await executeQuery<ExamRuleRow[]>(
-            `SELECT passing_grade, max_attempts, allow_remedial, duration_minutes, remedial_exam_id FROM exams WHERE id = ?`,
+            `SELECT e.passing_grade, e.max_attempts, e.allow_remedial, e.duration_minutes,
+                    e.remedial_exam_id, re.duration_minutes AS remedial_duration_minutes
+             FROM exams e
+             LEFT JOIN exams re ON re.id = e.remedial_exam_id
+             WHERE e.id = ?`,
             [examId]
         );
         const passingGrade = Number(exam?.[0]?.passing_grade ?? 70);
@@ -153,6 +159,7 @@ async function handlePost(
                         attempt_version,
                         last_submission_id,
                         last_submission_result,
+                        COALESCE(grading_pending, 0) AS grading_pending,
                         TIMESTAMPDIFF(SECOND, last_attempt_start, UTC_TIMESTAMP()) AS attempt_elapsed_seconds,
                         IF(individual_extension_until IS NOT NULL, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), individual_extension_until), NULL) AS extension_remaining_seconds
                  FROM user_progress
@@ -204,6 +211,7 @@ async function handlePost(
 
             const previousScore = Number(progressRow.score ?? 0);
             const canRetake = progressRow.status === 'completed'
+                && !Boolean(progressRow.grading_pending)
                 && allowRemedial
                 && previousScore < Number(passingGrade)
                 && Number(progressRow.attempts_count || 0) < Number(maxAttempts);
@@ -246,7 +254,12 @@ async function handlePost(
                 }
             }
 
-            const durationMs = Number(exam?.[0]?.duration_minutes || 0) * 60 * 1000;
+            const isRemedialAttempt = attemptNumber > 1 && allowRemedial && !!remedialExamId;
+            const activeExamId = isRemedialAttempt ? remedialExamId : examId;
+            const effectiveDurationMinutes = isRemedialAttempt && exam?.[0]?.remedial_duration_minutes
+                ? exam[0].remedial_duration_minutes
+                : exam?.[0]?.duration_minutes;
+            const durationMs = Number(effectiveDurationMinutes || 0) * 60 * 1000;
             const elapsedMs = Math.max(0, Number(progressRow.attempt_elapsed_seconds || 0)) * 1000;
             const isWithinStandardDuration = durationMs > 0 ? (elapsedMs <= durationMs + EXAM_DURATION_GRACE_MS) : true;
             const isWithinIndividualExtension = progressRow.extension_remaining_seconds !== null && progressRow.extension_remaining_seconds !== undefined
@@ -260,10 +273,6 @@ async function handlePost(
                     { status: 400 }
                 );
             }
-
-            // Determine active exam package (remedial vs standard)
-            const isRemedialAttempt = attemptNumber > 1 && allowRemedial && !!remedialExamId;
-            const activeExamId = isRemedialAttempt ? remedialExamId : examId;
 
             // Fetch questions from the active exam package
             const [questionsRes] = await connection.execute<QuestionRow[] & any[]>(
@@ -322,6 +331,7 @@ async function handlePost(
 
             const totalPoints = questions.reduce((sum, question) => sum + (Number(question.points) || 1), 0);
             let earnedPoints = 0;
+            let pendingEssayCount = 0;
 
             const answerValues: any[] = [];
             const placeholders: string[] = [];
@@ -333,6 +343,7 @@ async function handlePost(
                 const isPendingEssay = question.question_type === 'essay' && selectedOption.trim().length > 0;
                 const awardedPoints = isCorrect ? Number(question.points) || 1 : 0;
                 const gradingStatus = isPendingEssay ? 'pending' : 'auto';
+                if (isPendingEssay) pendingEssayCount += 1;
 
                 earnedPoints += awardedPoints;
 
@@ -371,7 +382,13 @@ async function handlePost(
             const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
             const passed = score >= passingGrade;
             const isScoreVisible = !!session.show_score;
-            const responseData = isScoreVisible
+            const responseData = pendingEssayCount > 0
+                ? {
+                      grading_pending: true,
+                      pendingEssayCount,
+                      show_score: false,
+                  }
+                : isScoreVisible
                 ? {
                       score: Math.round(score * 100) / 100,
                       passed,
@@ -387,11 +404,19 @@ async function handlePost(
 
             await connection.execute(
                 `UPDATE user_progress
-                 SET status = 'completed', score = ?, original_score = ?, score_adjustment = 0.00,
+                 SET status = ?, score = ?, original_score = ?, score_adjustment = 0.00,
                      attempts_count = attempts_count + 1, last_attempt_start = NULL,
-                     last_submission_id = ?, last_submission_result = ?
+                     last_submission_id = ?, last_submission_result = ?, grading_pending = ?
                  WHERE id = ?`,
-                [score, score, submissionId, JSON.stringify(responseData), progressId]
+                [
+                    pendingEssayCount > 0 ? 'grading_pending' : 'completed',
+                    pendingEssayCount > 0 ? null : score,
+                    pendingEssayCount > 0 ? null : score,
+                    submissionId,
+                    JSON.stringify(responseData),
+                    pendingEssayCount > 0 ? 1 : 0,
+                    progressId,
+                ]
             );
 
             await connection.commit();
@@ -400,8 +425,9 @@ async function handlePost(
             await logger.audit(user.id, 'SUBMIT_EXAM', 'exams', examId, {
                 sessionId,
                 attemptNumber,
-                score: Math.round(score * 100) / 100,
-                passed,
+                score: pendingEssayCount > 0 ? null : Math.round(score * 100) / 100,
+                passed: pendingEssayCount > 0 ? null : passed,
+                pendingEssayCount,
                 earnedPoints,
                 totalPoints,
             }, 'EXAM_SUBMIT');

@@ -11,7 +11,7 @@ export const mediaItemSchema = z.object({
 });
 
 export const trainingSchema = z.object({
-    title: z.string().min(3, 'Judul materi pelatihan minimal 3 karakter').max(255, 'Judul materi terlalu panjang'),
+    title: z.string().trim().min(3, 'Judul materi pelatihan minimal 3 karakter').max(150, 'Judul materi maksimal 150 karakter'),
     content_html: z.string()
         .min(1, 'Konten materi tidak boleh kosong')
         .transform((value) => sanitizeRichHtml(value))

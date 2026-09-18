@@ -3,13 +3,17 @@ import pool from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import logger from '@/lib/logger';
 import { z } from 'zod';
-import { ROMAN_MONTHS, formatSklNumber, getLatestSklSequence } from '@/lib/skl';
+import { formatSklNumber, getSklPeriod, reserveNextSklSequence } from '@/lib/skl';
+import { isSafePublicUrl } from '@/lib/sanitize';
+import { cleanupUnusedUploads } from '@/lib/upload-cleanup';
 
 const graduationSchema = z.object({
     graduation_status: z.enum(['pending', 'passed', 'failed']),
     graduation_notes: z.string().max(1000).optional().nullable(),
-    certificate_file_url: z.string().max(500).optional().nullable(),
-    certificate_number: z.string().max(100).optional().nullable(),
+    certificate_file_url: z.string().max(500)
+        .refine((value) => isSafePublicUrl(value), 'URL sertifikat tidak aman atau tidak valid')
+        .optional().nullable(),
+    certificate_number: z.string().trim().max(100).optional().nullable(),
 });
 
 async function handlePost(
@@ -37,7 +41,7 @@ async function handlePost(
 
         // Check if participant is enrolled with row lock
         const [participantRows] = await connection.execute<any[]>(
-            `SELECT sp.id, sp.graduation_status, sp.skl_number, p.batch, u.full_name
+            `SELECT sp.id, sp.graduation_status, sp.skl_number, sp.certificate_file_url, p.batch, u.full_name
              FROM session_participants sp
              JOIN users u ON sp.user_id = u.id
              LEFT JOIN participant_profiles p ON sp.user_id = p.user_id
@@ -57,14 +61,29 @@ async function handlePost(
         }
 
         const current = participantRows[0];
+        if (graduation_status !== 'pending') {
+            const [pendingRows] = await connection.execute<Array<{ total: number | string }> & any[]>(
+                `SELECT COUNT(*) AS total FROM user_progress
+                 WHERE session_id = ? AND user_id = ?
+                   AND (status = 'grading_pending' OR COALESCE(grading_pending, 0) = 1)`,
+                [sessionId, participantId],
+            );
+            if (Number(pendingRows[0]?.total || 0) > 0) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json(
+                    { success: false, error: 'Status kelulusan belum dapat ditetapkan karena penilaian esai masih berlangsung' },
+                    { status: 409 },
+                );
+            }
+        }
         let sklNumberToSet: string | null = current.skl_number || null;
 
         if (graduation_status === 'passed' && !sklNumberToSet) {
-            const now = new Date();
-            const year = now.getFullYear();
-            const romanMonth = ROMAN_MONTHS[now.getMonth()] || 'I';
-            const latestSeq = await getLatestSklSequence(connection, romanMonth, year);
-            sklNumberToSet = formatSklNumber(latestSeq + 1, romanMonth, year);
+            const { year, romanMonth } = getSklPeriod();
+            const nextSequence = await reserveNextSklSequence(connection, romanMonth, year);
+            sklNumberToSet = formatSklNumber(nextSequence, romanMonth, year);
         }
 
         await connection.execute(
@@ -102,6 +121,10 @@ async function handlePost(
         await connection.commit();
         connection.release();
         connection = undefined;
+
+        if (certificate_file_url && current.certificate_file_url && certificate_file_url !== current.certificate_file_url) {
+            await cleanupUnusedUploads([current.certificate_file_url]);
+        }
 
         await logger.audit(
             user.id,

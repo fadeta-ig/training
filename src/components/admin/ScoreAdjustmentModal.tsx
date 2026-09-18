@@ -5,9 +5,7 @@ import { createPortal } from 'react-dom';
 import {
     Cancel01Icon,
     PencilEdit01Icon,
-    Tick01Icon,
-    AlertCircleIcon,
-    InformationCircleIcon
+    Tick01Icon
 } from 'hugeicons-react';
 import { toast } from 'sonner';
 import { Calculator, ArrowRight, RotateCcw, Plus, Minus, Sparkles } from 'lucide-react';

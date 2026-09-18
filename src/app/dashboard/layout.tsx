@@ -17,7 +17,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
         fetch('/api/auth/me')
             .then((res) => {
                 if (res.status === 401) {
-                    window.location.href = `/auth/login?redirect=${encodeURIComponent(pathname)}`;
+                    window.location.replace(`/auth/login?redirect=${encodeURIComponent(pathname)}`);
                     return null;
                 }
                 return res.json();

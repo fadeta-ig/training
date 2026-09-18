@@ -79,8 +79,17 @@ export function sanitizeRichHtml(input: string | null | undefined): string {
 /** Returns true for app-relative paths or normal HTTP(S) URLs. */
 export function isSafePublicUrl(value: string | null | undefined): value is string {
     if (!value) return false;
+    // These characters can break an HTML attribute even when the URL parser
+    // itself accepts them. Callers must still escape the value when rendering.
+    if (/[\u0000-\u001F\u007F"'<>\\]/.test(value)) return false;
     if (value.startsWith('/')) {
-        return !value.startsWith('//') && !value.includes('\\') && !value.includes('\0');
+        if (value.startsWith('//')) return false;
+        try {
+            const decodedPath = decodeURIComponent(value.split(/[?#]/, 1)[0]);
+            return !decodedPath.split('/').some((segment) => segment === '.' || segment === '..');
+        } catch {
+            return false;
+        }
     }
 
     try {

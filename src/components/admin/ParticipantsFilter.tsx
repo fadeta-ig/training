@@ -4,10 +4,7 @@ import React, { useState } from 'react';
 import {
     Search01Icon,
     Cancel01Icon,
-    Calendar03Icon,
     CloudUploadIcon,
-    RefreshIcon,
-    UserIcon,
 } from 'hugeicons-react';
 import { Filter, ArrowDownUp, RotateCcw, Building2, Layers, FileSpreadsheet } from 'lucide-react';
 import Link from 'next/link';
@@ -154,7 +151,10 @@ export function ParticipantsFilter({
                                 date_to: filters.dateTo || '',
                                 sort_by: filters.sortBy || 'created_desc',
                             });
-                            window.location.href = `/api/admin/participants/export?${params.toString()}`;
+                            const link = document.createElement('a');
+                            link.href = `/api/admin/participants/export?${params.toString()}`;
+                            link.download = '';
+                            link.click();
                         }}
                         className="inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 text-xs font-semibold text-slate-700 shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
                         title="Unduh seluruh data peserta sesuai filter aktif (lengkap dengan password, NIP, & profil)"

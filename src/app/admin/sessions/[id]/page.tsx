@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, use, useMemo } from 'react';
+import { useState, useEffect, use, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
     ArrowLeft01Icon,
     Time02Icon,
     SecurityLockIcon,
-    Calendar02Icon,
     UserMultipleIcon,
     Logout01Icon,
     Download01Icon,
@@ -17,7 +16,6 @@ import {
     Camera01Icon,
     PencilEdit01Icon,
     Search01Icon,
-    CheckmarkCircle02Icon,
     FoldersIcon,
     Cancel01Icon
 } from 'hugeicons-react';
@@ -29,7 +27,7 @@ import { GraduationVerdictModal } from '@/components/admin/GraduationVerdictModa
 import { CertificateUploadModal } from '@/components/admin/CertificateUploadModal';
 import { ScoreAdjustmentModal } from '@/components/admin/ScoreAdjustmentModal';
 import { BulkScoreAdjustmentModal } from '@/components/admin/BulkScoreAdjustmentModal';
-import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles, FileBadge2, Copy, ExternalLink, ShieldCheck, FilePenLine, BookOpen, Clock3, SlidersHorizontal, Archive } from 'lucide-react';
+import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles, FileBadge2, Copy, ShieldCheck, FilePenLine, BookOpen, Clock3, SlidersHorizontal, Archive } from 'lucide-react';
 import { formatWibDateTime } from '@/lib/timezone';
 
 type User = {
@@ -116,7 +114,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [bulkVerdictNotes, setBulkVerdictNotes] = useState('');
     const [isSubmittingBulkVerdict, setIsSubmittingBulkVerdict] = useState(false);
 
-    const fetchSession = async () => {
+    const fetchSession = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -132,9 +130,9 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
         } finally {
             setLoading(false);
         }
-    };
+    }, [resolvedParams.id]);
 
-    const fetchRole = async () => {
+    const fetchRole = useCallback(async () => {
         try {
             const res = await fetch('/api/auth/me');
             const data = await res.json();
@@ -142,12 +140,12 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                 setUserRole(data.data.role);
             }
         } catch {}
-    };
+    }, []);
 
     useEffect(() => {
         fetchSession();
         fetchRole();
-    }, [resolvedParams.id]);
+    }, [fetchRole, fetchSession]);
 
     const formatDate = (dateString: string) => {
         return formatWibDateTime(dateString, { withDayName: true });

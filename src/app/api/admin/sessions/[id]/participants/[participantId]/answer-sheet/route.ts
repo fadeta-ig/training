@@ -7,6 +7,7 @@ import {
 } from '@/lib/answer-sheet';
 import { logActivity } from '@/lib/audit';
 import logger from '@/lib/logger';
+import { getAppBaseUrl } from '@/lib/app-url';
 
 /**
  * GET /api/admin/sessions/[id]/participants/[participantId]/answer-sheet
@@ -34,7 +35,8 @@ async function handleGet(
         }
 
         // 2. Render HTML
-        const html = await renderAnswerSheetHtml(data, request.nextUrl.origin);
+        const baseUrl = process.env.NODE_ENV === 'production' ? getAppBaseUrl() : request.nextUrl.origin;
+        const html = await renderAnswerSheetHtml(data, baseUrl);
 
         // 3. Log activity audit
         await logActivity(authUser.id, 'DOWNLOAD_ANSWER_SHEET', 'exam_answers', data.document_id, {

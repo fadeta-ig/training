@@ -97,7 +97,14 @@ async function handleGet(
         }
 
         const rules = exam[0];
+        if (user.role === 'trainee' && (currentProgress?.status === 'grading_pending' || Boolean(currentProgress?.grading_pending))) {
+            return NextResponse.json(
+                { success: false, error: 'Jawaban esai masih menunggu penilaian. Ujian belum dapat diulang.' },
+                { status: 409 },
+            );
+        }
         const canRetake = currentProgress?.status === 'completed'
+            && !Boolean(currentProgress?.grading_pending)
             && !!rules.allow_remedial
             && Number(currentProgress.score ?? 0) < Number(rules.passing_grade)
             && Number(currentProgress.attempts_count || 0) < Number(rules.max_attempts || 1);
@@ -111,21 +118,22 @@ async function handleGet(
 
             await executeQuery(
                 `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status, last_attempt_start)
-                 VALUES (?, ?, ?, ?, 'open', UTC_TIMESTAMP())
+                 VALUES (?, ?, ?, ?, 'open', IF(?, NULL, UTC_TIMESTAMP()))
                  ON DUPLICATE KEY UPDATE id = id`,
-                [uuidv4(), user.id, sessionId, moduleItem.id]
+                [uuidv4(), user.id, sessionId, moduleItem.id, Boolean(session.enable_proctoring)]
             );
 
             // Initialize an attempt once. Mark remedial progress as open so draft
             // persistence and submission share the same active-attempt state.
             await executeQuery(
                 `UPDATE user_progress
-                 SET status = 'open', last_attempt_start = UTC_TIMESTAMP()
+                 SET status = 'open',
+                     last_attempt_start = CASE WHEN ? THEN last_attempt_start ELSE UTC_TIMESTAMP() END
                  WHERE user_id = ?
                    AND session_id = ?
                    AND module_item_id = ?
                    AND last_attempt_start IS NULL`,
-                [user.id, sessionId, moduleItem.id]
+                [Boolean(session.enable_proctoring), user.id, sessionId, moduleItem.id]
             );
         }
 
@@ -169,6 +177,7 @@ async function handleGet(
 
         const currentProgressRow = progress[0];
         const isParticipant = user.role === 'trainee';
+        const attemptAlreadyStarted = Boolean(currentProgressRow?.attempt_start_utc);
 
         let attemptStartUtc = currentProgressRow?.attempt_start_utc;
         let serverTimeUtc = currentProgressRow?.server_time_utc;
@@ -179,7 +188,7 @@ async function handleGet(
 
         if (!attemptStartUtc) {
             attemptStartUtc = serverTimeUtc;
-            if (isParticipant) {
+            if (isParticipant && !session.enable_proctoring) {
                 await executeQuery(
                     `UPDATE user_progress SET last_attempt_start = UTC_TIMESTAMP() WHERE user_id = ? AND session_id = ? AND module_item_id = ? AND last_attempt_start IS NULL`,
                     [user.id, sessionId, moduleItem.id]
@@ -264,6 +273,7 @@ async function handleGet(
                 sessionEnd: normalizeDbDateToIso(session.end_time),
                 individualExtensionUntil: currentProgressRow?.individual_extension_until_utc || null,
                 enableProctoring: !!session.enable_proctoring,
+                attemptAlreadyStarted,
                 attemptStart: attemptStartUtc,
                 attemptNumber: attemptNumber,
                 attemptVersion: attemptVersion,

@@ -115,39 +115,34 @@ export async function getParticipantAnswerSheetData(
         if (!participantRows || participantRows.length === 0) return null;
         const participant = participantRows[0];
 
-        // 3. Tentukan ujian yang dievaluasi
-        let targetExamId: string = examId || '';
-        if (!targetExamId) {
-            const examItems = await executeQuery<any[]>(
-                `SELECT mi.item_id
-                 FROM module_items mi
-                 WHERE mi.module_id = ? AND mi.item_type = 'exam'
-                 ORDER BY mi.sequence_order ASC
-                 LIMIT 1`,
-                [session.module_id]
-            );
-
-            if (!examItems || examItems.length === 0) return null;
-            targetExamId = examItems[0].item_id;
-        }
-
-        const examRows = await executeQuery<any[]>(
-            `SELECT id, title, passing_grade, duration_minutes FROM exams WHERE id = ? LIMIT 1`,
-            [targetExamId]
+        // 3. Resolve the module exam and its optional remedial package. A remedial
+        // answer belongs to the original module item even though exam_answers.exam_id
+        // stores the remedial package ID.
+        const examItems = await executeQuery<any[]>(
+            `SELECT mi.id AS module_item_id,
+                    e.id AS original_exam_id,
+                    e.passing_grade AS original_passing_grade,
+                    e.remedial_exam_id
+             FROM module_items mi
+             INNER JOIN exams e ON e.id = mi.item_id
+             WHERE mi.module_id = ?
+               AND mi.item_type = 'exam'
+               ${examId ? 'AND (e.id = ? OR e.remedial_exam_id = ?)' : ''}
+             ORDER BY mi.sequence_order ASC
+             LIMIT 1`,
+            examId ? [session.module_id, examId, examId] : [session.module_id],
         );
+        if (!examItems || examItems.length === 0) return null;
+        const examMapping = examItems[0];
 
-        if (!examRows || examRows.length === 0) return null;
-        const exam = examRows[0];
-
-        // 4. Ambil progres ujian peserta (score, original_score, adjustment)
+        // 4. Ambil progres ujian peserta dari module item asli.
         const progressRows = await executeQuery<any[]>(
             `SELECT up.id, up.score, up.original_score, up.score_adjustment, up.adjustment_reason,
-                    up.attempts_count, up.updated_at
+                    up.attempts_count, up.updated_at, COALESCE(up.grading_pending, 0) AS grading_pending
              FROM user_progress up
-             JOIN module_items mi ON mi.id = up.module_item_id
-             WHERE up.session_id = ? AND up.user_id = ? AND mi.item_id = ?
+             WHERE up.session_id = ? AND up.user_id = ? AND up.module_item_id = ?
              LIMIT 1`,
-            [sessionId, participantId, targetExamId]
+            [sessionId, participantId, examMapping.module_item_id]
         );
 
         const progress = progressRows?.[0] || {};
@@ -159,6 +154,21 @@ export async function getParticipantAnswerSheetData(
             ? Number(progress.score)
             : Math.min(100, Math.max(0, originalScore + scoreAdjustment));
         const attemptNumber = Number(progress.attempts_count || 1);
+
+        let targetExamId = examId || examMapping.original_exam_id;
+        if (!examId && attemptNumber > 1 && examMapping.remedial_exam_id) {
+            targetExamId = examMapping.remedial_exam_id;
+        }
+        if (targetExamId !== examMapping.original_exam_id && targetExamId !== examMapping.remedial_exam_id) {
+            return null;
+        }
+
+        const examRows = await executeQuery<any[]>(
+            `SELECT id, title, duration_minutes FROM exams WHERE id = ? LIMIT 1`,
+            [targetExamId]
+        );
+        if (!examRows || examRows.length === 0) return null;
+        const exam = examRows[0];
 
         // 5. Ambil butir jawaban yang direkam
         const answerRows = await executeQuery<any[]>(
@@ -305,8 +315,8 @@ export async function getParticipantAnswerSheetData(
             });
         }
 
-        const passingGrade = Number(exam.passing_grade || 70);
-        const isPassed = finalScore >= passingGrade;
+        const passingGrade = Number(examMapping.original_passing_grade || 70);
+        const isPassed = !Boolean(progress.grading_pending) && pendingCount === 0 && finalScore >= passingGrade;
 
         const submittedAtValue = submittedAt || progress.updated_at || null;
         const docId = createAnswerSheetDocumentId({
@@ -445,7 +455,7 @@ export async function renderAnswerSheetHtml(data: AnswerSheetData, baseUrl?: str
 
             <div class="question-body">
                 <div class="q-text">${escapeHtml(q.question_text)}</div>
-                ${q.question_image ? `<div class="q-img-wrap"><img src="${q.question_image}" class="q-img" alt="Lampiran Soal" /></div>` : ''}
+                ${q.question_image ? `<div class="q-img-wrap"><img src="${escapeHtml(q.question_image)}" class="q-img" alt="Lampiran Soal" /></div>` : ''}
 
                 <div class="answers-comparison">
                     <div class="ans-box participant-ans ${isCorrect ? 'is-correct' : isUnanswered ? 'is-empty' : 'is-wrong'}">
@@ -1080,6 +1090,38 @@ async function launchAnswerSheetBrowser() {
 }
 
 type AnswerSheetBrowser = Awaited<ReturnType<typeof launchAnswerSheetBrowser>>;
+let sharedBrowserPromise: Promise<AnswerSheetBrowser> | null = null;
+let activePdfRenders = 0;
+const pdfRenderWaiters: Array<() => void> = [];
+
+async function acquirePdfRenderSlot(): Promise<void> {
+    if (activePdfRenders < 2) {
+        activePdfRenders += 1;
+        return;
+    }
+    await new Promise<void>((resolve) => pdfRenderWaiters.push(resolve));
+    activePdfRenders += 1;
+}
+
+function releasePdfRenderSlot(): void {
+    activePdfRenders = Math.max(0, activePdfRenders - 1);
+    pdfRenderWaiters.shift()?.();
+}
+
+async function getSharedAnswerSheetBrowser(): Promise<AnswerSheetBrowser> {
+    if (!sharedBrowserPromise) {
+        sharedBrowserPromise = launchAnswerSheetBrowser().catch((error) => {
+            sharedBrowserPromise = null;
+            throw error;
+        });
+    }
+    const browser = await sharedBrowserPromise;
+    if (!browser.connected) {
+        sharedBrowserPromise = null;
+        return getSharedAnswerSheetBrowser();
+    }
+    return browser;
+}
 
 async function renderAnswerSheetPdfWithBrowser(browser: AnswerSheetBrowser, html: string): Promise<Buffer> {
     const page = await browser.newPage();
@@ -1102,11 +1144,12 @@ async function renderAnswerSheetPdfWithBrowser(browser: AnswerSheetBrowser, html
 }
 
 export async function generateAnswerSheetPdf(html: string): Promise<Buffer> {
-    const browser = await launchAnswerSheetBrowser();
+    await acquirePdfRenderSlot();
     try {
+        const browser = await getSharedAnswerSheetBrowser();
         return await renderAnswerSheetPdfWithBrowser(browser, html);
     } finally {
-        await browser.close().catch(() => {});
+        releasePdfRenderSlot();
     }
 }
 

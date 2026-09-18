@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcryptjs';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { logActivity } from '@/lib/audit';
-import { sendBulkCredentialEmails } from '@/lib/email';
 import pool from '@/lib/db';
 import logger from '@/lib/logger';
 import { generateBulkNips } from '@/lib/nip';
 import { ensureParticipantSecurityColumns, generateSecurePassword } from '@/lib/participant-helpers';
+import { hashPasswordsBounded } from '@/lib/password-batch';
+import { enqueueCredentialEmail } from '@/lib/email-outbox';
 
 interface ImportItem {
     name: string;
@@ -41,6 +41,12 @@ function normalizeGender(raw: string | null | undefined): 'L' | 'P' | null {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function isValidIsoDate(value: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
     try {
         const body = await request.json();
@@ -69,15 +75,23 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
 
         for (let i = 0; i < participants.length; i++) {
             const item = participants[i];
-            const cleanName = (item.name || '').trim();
-            const cleanEmail = (item.email || '').trim().toLowerCase();
+            if (!item || typeof item !== 'object') {
+                failed.push({ name: `Baris ${i + 1}`, email: '-', reason: 'Struktur data peserta tidak valid' });
+                continue;
+            }
+            const cleanName = String(item.name || '').trim();
+            const cleanEmail = String(item.email || '').trim().toLowerCase();
 
             if (!cleanName || cleanName.length < 3) {
                 failed.push({ name: item.name || `Baris ${i + 1}`, email: cleanEmail || '-', reason: 'Nama lengkap minimal 3 karakter' });
                 continue;
             }
+            if (cleanName.length > 100) {
+                failed.push({ name: cleanName.slice(0, 100), email: cleanEmail || '-', reason: 'Nama lengkap maksimal 100 karakter' });
+                continue;
+            }
 
-            if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+            if (!cleanEmail || cleanEmail.length > 255 || !EMAIL_REGEX.test(cleanEmail)) {
                 failed.push({ name: cleanName, email: cleanEmail || '-', reason: 'Format email tidak valid' });
                 continue;
             }
@@ -87,33 +101,58 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 continue;
             }
 
-            seenEmails.add(cleanEmail);
-
             let parsedBatch = '1';
             if (item.batch !== undefined && item.batch !== null && String(item.batch).trim() !== '') {
                 parsedBatch = String(item.batch).trim();
             }
+            if (parsedBatch.length > 50) {
+                failed.push({ name: cleanName, email: cleanEmail, reason: 'Batch maksimal 50 karakter' });
+                continue;
+            }
 
             let regDate = todayStr;
-            if (item.registration_date && /^\d{4}-\d{2}-\d{2}$/.test(String(item.registration_date).trim())) {
-                regDate = String(item.registration_date).trim();
+            if (item.registration_date) {
+                const suppliedRegistrationDate = String(item.registration_date).trim();
+                if (!isValidIsoDate(suppliedRegistrationDate)) {
+                    failed.push({ name: cleanName, email: cleanEmail, reason: 'Tanggal pendaftaran tidak valid' });
+                    continue;
+                }
+                regDate = suppliedRegistrationDate;
+            }
+            const birthDate = item.date_of_birth ? String(item.date_of_birth).trim() : null;
+            if (birthDate && !isValidIsoDate(birthDate)) {
+                failed.push({ name: cleanName, email: cleanEmail, reason: 'Tanggal lahir tidak valid' });
+                continue;
             }
 
             // Normalize gender input if provided — OPTIONAL (can be completed by participant on profile)
-            const normalizedGender = item.gender ? normalizeGender(item.gender as string) : null;
+            const normalizedGender = item.gender ? normalizeGender(String(item.gender)) : null;
+            const phoneNumber = item.phone_number ? String(item.phone_number).trim() : null;
+            const institution = item.institution ? String(item.institution).trim() : null;
+            const idCardNumber = item.id_card_number ? String(item.id_card_number).trim() : null;
+            const targetCertification = item.target_certification_name ? String(item.target_certification_name).trim() : null;
+            if ((phoneNumber?.length || 0) > 20
+                || (institution?.length || 0) > 150
+                || (idCardNumber?.length || 0) > 50
+                || (targetCertification?.length || 0) > 255) {
+                failed.push({ name: cleanName, email: cleanEmail, reason: 'Salah satu data profil melebihi batas karakter' });
+                continue;
+            }
 
+            seenEmails.add(cleanEmail);
             validQueue.push({
                 ...item,
                 name: cleanName,
                 email: cleanEmail,
-                phone_number: item.phone_number ? String(item.phone_number).trim() : null,
-                institution: item.institution ? String(item.institution).trim() : null,
+                id_card_number: idCardNumber,
+                phone_number: phoneNumber,
+                institution,
                 batch: parsedBatch,
                 registration_date: regDate,
-                date_of_birth: item.date_of_birth ? String(item.date_of_birth).trim() : null,
+                date_of_birth: birthDate,
                 gender: normalizedGender,
                 address: item.address ? String(item.address).trim() : null,
-                target_certification_name: item.target_certification_name ? String(item.target_certification_name).trim() : null,
+                target_certification_name: targetCertification,
             });
         }
 
@@ -161,6 +200,13 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
 
         // 3. Batch DB Transaction Execution with Auto-NIP Generation
         await ensureParticipantSecurityColumns();
+        const preparedAccounts = readyToInsert.map((participant) => ({
+            participant,
+            rawPassword: generateSecurePassword(12),
+            userId: uuidv4(),
+            profileId: uuidv4(),
+        }));
+        const passwordHashes = await hashPasswordsBounded(preparedAccounts.map((account) => account.rawPassword));
         const connection = await pool.getConnection();
         const credentials: {
             name: string;
@@ -178,12 +224,9 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             // Auto-generate all NIPs atomically per (institution, batch, yearMonth)
             const { nips, institutionCodes } = await generateBulkNips(connection, readyToInsert);
 
-            for (let idx = 0; idx < readyToInsert.length; idx++) {
-                const participant = readyToInsert[idx];
-                const rawPassword = generateSecurePassword(12);
-                const passwordHash = await bcrypt.hash(rawPassword, 10);
-                const userId = uuidv4();
-                const profileId = uuidv4();
+            for (let idx = 0; idx < preparedAccounts.length; idx++) {
+                const { participant, rawPassword, userId, profileId } = preparedAccounts[idx];
+                const passwordHash = passwordHashes[idx];
                 const nip = nips[idx];
                 const institutionCode = institutionCodes[idx];
                 const batchVal = String(participant.batch) || '1';
@@ -193,6 +236,8 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                     `INSERT INTO users (id, username, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)`,
                     [userId, participant.email, passwordHash, participant.name, 'trainee']
                 );
+
+                if (sendEmail) await enqueueCredentialEmail(connection, userId);
 
                 await connection.execute(
                     `INSERT INTO participant_profiles (id, user_id, nip, id_card_number, phone_number, address, date_of_birth, gender, institution, institution_code, batch, registration_date, initial_password, must_change_password) 
@@ -241,35 +286,20 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             failedCount: failed.length,
         });
 
-        // 5. Send Emails if requested
-        if (sendEmail && credentials.length > 0) {
-            // Trigger emails in controlled, paced batches asynchronously without blocking response
-            sendBulkCredentialEmails(
-                credentials.map(c => ({ email: c.email, name: c.name, password: c.password })),
-                { batchSize: 5, delayBetweenBatchesMs: 1000, maxRetries: 2 }
-            ).then(result => {
-                logger.info('BULK_IMPORT_EMAIL_COMPLETE', `Pengiriman email peserta selesai: ${result.succeeded}/${result.total} berhasil, ${result.failed} gagal`, {
-                    succeededCount: result.succeeded,
-                    failedCount: result.failed,
-                });
-            }).catch(err => {
-                logger.error('BULK_IMPORT_PARTICIPANTS', 'Gagal memproses antrean email kredensial peserta secara asinkron', err, authUser.id);
-            });
-        }
-
         return NextResponse.json({
             success: true,
             message: `Berhasil mengimport ${credentials.length} peserta`,
             importedCount: credentials.length,
             failedCount: failed.length,
             credentials,
+            emailQueued: sendEmail ? credentials.length : 0,
             failed,
         }, { status: 201 });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         logger.error('BULK_IMPORT_PARTICIPANTS', 'Kesalahan sistem saat import massal peserta', error, authUser.id);
         return NextResponse.json(
-            { success: false, error: error.message || 'Terjadi kesalahan sistem saat import peserta' },
+            { success: false, error: 'Terjadi kesalahan sistem saat import peserta' },
             { status: 500 }
         );
     }

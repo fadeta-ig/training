@@ -78,6 +78,7 @@ async function handlePost(request: NextRequest) {
 
         await connection.commit();
         connection.release();
+        connection = undefined;
 
         return NextResponse.json({ success: true, id: sessionId, message: 'Session created' }, { status: 201 });
     } catch (error) {

@@ -2,15 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import {
-    UserCircleIcon,
     Tick01Icon,
     AlertCircleIcon,
     Copy01Icon,
     Building02Icon,
-    Calendar01Icon,
     SecurityLockIcon,
-    Mail01Icon,
-    Call02Icon,
     InformationCircleIcon,
     CheckmarkCircle02Icon,
     IdIcon,

@@ -205,6 +205,8 @@ CREATE TABLE module_items (
   INDEX idx_module_items_module_order (module_id, sequence_order),
   INDEX idx_module_items_lookup (module_id, item_type, item_id),
   INDEX idx_module_items_item_id (item_id),
+  UNIQUE KEY uq_module_items_item (module_id, item_type, item_id),
+  UNIQUE KEY uq_module_items_sequence (module_id, sequence_order),
   CONSTRAINT fk_module_items_module
     FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -247,10 +249,18 @@ CREATE TABLE session_participants (
   UNIQUE KEY uq_session_user (session_id, user_id),
   INDEX idx_session_participants_user (user_id),
   INDEX idx_sp_graduation (graduation_status),
+  UNIQUE KEY uq_session_participants_skl_number (skl_number),
   CONSTRAINT fk_sp_session
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
   CONSTRAINT fk_sp_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Atomic counters for official document numbers.
+CREATE TABLE document_sequences (
+  scope_key  VARCHAR(100) PRIMARY KEY,
+  next_value BIGINT UNSIGNED NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
@@ -261,7 +271,7 @@ CREATE TABLE user_progress (
   user_id            VARCHAR(36)   NOT NULL,
   session_id         VARCHAR(36)   NOT NULL,
   module_item_id     VARCHAR(36)   NOT NULL,
-  status             ENUM('locked', 'open', 'completed') DEFAULT 'locked',
+  status             ENUM('locked', 'open', 'grading_pending', 'completed') DEFAULT 'locked',
   score              DECIMAL(5, 2) NULL,
   original_score     DECIMAL(5, 2) NULL,
   score_adjustment   DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
@@ -274,6 +284,7 @@ CREATE TABLE user_progress (
   individual_extension_until DATETIME NULL,
   last_submission_id VARCHAR(36) NULL,
   last_submission_result LONGTEXT NULL,
+  grading_pending    BOOLEAN       NOT NULL DEFAULT FALSE,
   updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_user_session (user_id, session_id),
   INDEX idx_progress_session_item (session_id, module_item_id),
@@ -371,6 +382,38 @@ CREATE TABLE notifications (
   INDEX idx_notifications_user_read (user_id, is_read),
   CONSTRAINT fk_notification_user
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE email_outbox (
+  id           VARCHAR(36) PRIMARY KEY,
+  user_id      VARCHAR(36) NOT NULL,
+  template     ENUM('credential') NOT NULL,
+  status       ENUM('pending','processing','retry','sent','failed') NOT NULL DEFAULT 'pending',
+  attempts     INT NOT NULL DEFAULT 0,
+  available_at DATETIME NOT NULL,
+  locked_at    DATETIME NULL,
+  sent_at      DATETIME NULL,
+  last_error   VARCHAR(500) NULL,
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email_outbox_dispatch (status, available_at, created_at),
+  CONSTRAINT fk_email_outbox_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE session_reminder_runs (
+  id              VARCHAR(36) PRIMARY KEY,
+  session_id      VARCHAR(36) NOT NULL,
+  triggered_by    VARCHAR(36) NOT NULL,
+  cooldown_bucket BIGINT NOT NULL,
+  status          ENUM('processing','completed','failed') NOT NULL DEFAULT 'processing',
+  recipient_count INT NOT NULL DEFAULT 0,
+  sent_count      INT NOT NULL DEFAULT 0,
+  error_message   VARCHAR(500) NULL,
+  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  completed_at    DATETIME NULL,
+  INDEX idx_session_reminder_cooldown (session_id, created_at),
+  UNIQUE KEY uq_session_reminder_bucket (session_id, cooldown_bucket),
+  CONSTRAINT fk_session_reminder_session FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_session_reminder_user FOREIGN KEY (triggered_by) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- Draft answers are isolated from final, graded answers.

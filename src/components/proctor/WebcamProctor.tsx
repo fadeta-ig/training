@@ -8,6 +8,7 @@ const SNAPSHOT_INTERVAL_MS = 3 * 60 * 1000;
 
 interface WebcamProctorProps {
     sessionId: string;
+    examId: string;
     isActive: boolean;
     onSnapshotSent?: () => void;
     onError?: (error: string) => void;
@@ -16,6 +17,7 @@ interface WebcamProctorProps {
 
 export default function WebcamProctor({
     sessionId,
+    examId,
     isActive,
     onSnapshotSent,
     onError,
@@ -83,12 +85,16 @@ export default function WebcamProctor({
 
     const sendSnapshot = useCallback(async (): Promise<boolean> => {
         const imageBase64 = captureSnapshot();
-        if (!imageBase64) return false;
+        if (!imageBase64) {
+            consecutiveFailuresRef.current += 1;
+            if (consecutiveFailuresRef.current >= 3) onReadyChange?.(false);
+            return false;
+        }
         try {
             const response = await fetch('/api/proctor/snapshot', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, imageBase64 }),
+                body: JSON.stringify({ sessionId, examId, imageBase64 }),
             });
             if (!response.ok) throw new Error(`Snapshot API returned ${response.status}`);
             consecutiveFailuresRef.current = 0;
@@ -104,38 +110,43 @@ export default function WebcamProctor({
             }
             return false;
         }
-    }, [captureSnapshot, onError, onReadyChange, onSnapshotSent, sessionId]);
+    }, [captureSnapshot, examId, onError, onReadyChange, onSnapshotSent, sessionId]);
 
     useEffect(() => {
         if (isActive && isStreaming) {
-            // The video element needs time to become ready (readyState >= 2)
-            // after the stream starts. Wait briefly before attempting the first snapshot.
             let cancelled = false;
-            let retryCount = 0;
-            const MAX_RETRIES = 3;
-            const INITIAL_DELAY_MS = 1500;
-            const RETRY_DELAY_MS = 1000;
+            let retryTimer: ReturnType<typeof setTimeout> | null = null;
+            let startupFailureReported = false;
+            const startupDeadline = Date.now() + 30_000;
 
-            const attemptInitialSnapshot = () => {
+            const attemptInitialSnapshot = async () => {
                 if (cancelled) return;
                 const video = videoRef.current;
                 if (video && video.readyState >= 2) {
-                    void sendSnapshot();
-                    intervalRef.current = setInterval(sendSnapshot, SNAPSHOT_INTERVAL_MS);
-                } else if (retryCount < MAX_RETRIES) {
-                    retryCount++;
-                    setTimeout(attemptInitialSnapshot, RETRY_DELAY_MS);
-                } else {
-                    // Video never became ready — start interval anyway so future snapshots can still attempt
-                    intervalRef.current = setInterval(sendSnapshot, SNAPSHOT_INTERVAL_MS);
+                    const sent = await sendSnapshot();
+                    if (cancelled) return;
+                    if (sent) {
+                        intervalRef.current = setInterval(sendSnapshot, SNAPSHOT_INTERVAL_MS);
+                        return;
+                    }
                 }
+
+                const deadlineExceeded = Date.now() >= startupDeadline;
+                if (deadlineExceeded && !startupFailureReported) {
+                    startupFailureReported = true;
+                    onReadyChange?.(false);
+                    onError?.('Kamera belum siap atau snapshot awal gagal dikirim. Sistem akan terus mencoba; periksa izin kamera dan koneksi.');
+                }
+                // During startup retry quickly. After the deadline keep a bounded
+                // recovery loop instead of waiting for the three-minute interval.
+                retryTimer = setTimeout(attemptInitialSnapshot, deadlineExceeded ? 5_000 : 750);
             };
 
-            const initialTimer = setTimeout(attemptInitialSnapshot, INITIAL_DELAY_MS);
+            retryTimer = setTimeout(attemptInitialSnapshot, 250);
 
             return () => {
                 cancelled = true;
-                clearTimeout(initialTimer);
+                if (retryTimer) clearTimeout(retryTimer);
                 if (intervalRef.current) {
                     clearInterval(intervalRef.current);
                     intervalRef.current = null;
@@ -148,7 +159,7 @@ export default function WebcamProctor({
                 intervalRef.current = null;
             }
         };
-    }, [isActive, isStreaming, sendSnapshot]);
+    }, [isActive, isStreaming, onError, onReadyChange, sendSnapshot]);
 
     useEffect(() => {
         if (isActive) startCamera();

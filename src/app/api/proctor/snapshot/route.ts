@@ -47,25 +47,41 @@ async function cleanupExpiredSnapshots(uploadDir: string): Promise<void> {
 
         if (!expired.length) return;
 
-        const placeholders = expired.map(() => '?').join(', ');
-        await executeQuery(
-            `DELETE FROM proctor_snapshots WHERE id IN (${placeholders}) AND captured_at < ?`,
-            [...expired.map((snapshot) => snapshot.id), cutoff],
-        );
-
         const resolvedUploadDir = path.resolve(uploadDir);
-        await Promise.all(expired.map(async (snapshot) => {
-            if (!snapshot.image_url?.startsWith('/uploads/proctor/') && !snapshot.image_url?.startsWith('/api/proctor/image/')) return;
+        const legacyUploadDir = path.resolve(process.cwd(), 'public', 'uploads', 'proctor');
+        const deletableIds: string[] = [];
+        const fileBatchSize = 50;
+        for (let offset = 0; offset < expired.length; offset += fileBatchSize) {
+            const batch = expired.slice(offset, offset + fileBatchSize);
+            const results = await Promise.all(batch.map(async (snapshot) => {
+                if (!snapshot.image_url?.startsWith('/uploads/proctor/') && !snapshot.image_url?.startsWith('/api/proctor/image/')) return null;
+                const snapshotRoot = snapshot.image_url.startsWith('/uploads/proctor/') ? legacyUploadDir : resolvedUploadDir;
+                const filePath = path.resolve(snapshotRoot, path.basename(snapshot.image_url));
+                if (path.dirname(filePath) !== snapshotRoot) return null;
+                try {
+                    await fs.unlink(filePath);
+                    return snapshot.id;
+                } catch (error) {
+                    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return snapshot.id;
+                    logger.warn('PROCTOR_CLEANUP_FILE', 'Berkas snapshot gagal dihapus dan akan dicoba lagi', {
+                        snapshotId: snapshot.id,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                    return null;
+                }
+            }));
+            deletableIds.push(...results.filter((id): id is string => Boolean(id)));
+        }
 
-            const filePath = path.resolve(resolvedUploadDir, path.basename(snapshot.image_url));
-            if (path.dirname(filePath) !== resolvedUploadDir) return;
-
-            try {
-                await fs.unlink(filePath);
-            } catch (error) {
-                if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-            }
-        }));
+        const deleteBatchSize = 500;
+        for (let offset = 0; offset < deletableIds.length; offset += deleteBatchSize) {
+            const batch = deletableIds.slice(offset, offset + deleteBatchSize);
+            const placeholders = batch.map(() => '?').join(', ');
+            await executeQuery(
+                `DELETE FROM proctor_snapshots WHERE id IN (${placeholders}) AND captured_at < ?`,
+                [...batch, cutoff],
+            );
+        }
     } catch (error) {
         lastCleanupAt = 0;
         logger.warn('PROCTOR_CLEANUP', 'Pembersihan snapshot kedaluwarsa gagal', {
@@ -99,6 +115,7 @@ function isValidImageMagic(buffer: Buffer, type: 'jpeg' | 'png' | 'webp'): boole
  */
 const snapshotSchema = z.object({
     sessionId: z.string().uuid('Invalid session ID format'),
+    examId: z.string().uuid('Invalid exam ID format'),
     imageBase64: z
         .string()
         .min(100, 'Image data too short')
@@ -130,7 +147,7 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
             );
         }
 
-        const { sessionId, imageBase64 } = parsed.data;
+        const { sessionId, examId, imageBase64 } = parsed.data;
         await verifyEnrollment(sessionId, user.id);
 
         const { session, isActive } = await validateSessionTiming(sessionId);
@@ -171,6 +188,16 @@ async function handlePost(request: NextRequest, user: AuthenticatedUser) {
             await executeQuery(
                 `INSERT INTO proctor_snapshots (id, user_id, session_id, image_url) VALUES (?, ?, ?, ?)`,
                 [snapshotId, user.id, sessionId, fileUrl],
+            );
+            await executeQuery(
+                `UPDATE user_progress up
+                 INNER JOIN module_items mi ON mi.id = up.module_item_id
+                 INNER JOIN sessions s ON s.id = up.session_id AND s.module_id = mi.module_id
+                 SET up.last_attempt_start = UTC_TIMESTAMP()
+                 WHERE up.user_id = ? AND up.session_id = ?
+                   AND mi.item_type = 'exam' AND mi.item_id = ?
+                   AND up.status = 'open' AND up.last_attempt_start IS NULL`,
+                [user.id, sessionId, examId],
             );
         } catch (error) {
             await fs.unlink(filePath).catch(() => undefined);

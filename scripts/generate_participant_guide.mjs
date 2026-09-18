@@ -14,7 +14,6 @@ import {
     Header,
     Footer,
     PageNumber,
-    NumberFormat,
 } from 'docx';
 import fs from 'fs';
 import path from 'path';
@@ -24,15 +23,11 @@ const FONT_NAME = 'Calibri';
 const COLOR_PRIMARY = '1E3A8A'; // Deep Blue
 const COLOR_TEXT = '1E293B'; // Slate-800
 const COLOR_MUTED = '64748B'; // Slate-500
-const COLOR_ACCENT = '0D9488'; // Teal
 const COLOR_WARNING = 'B45309'; // Amber-700
-const BG_HEADER = 'F1F5F9'; // Slate-100
 const BG_CALLOUT = 'F8FAFC'; // Slate-50
 const BG_ALERT = 'FEF3C7'; // Amber-100
-const COLOR_BORDER = 'CBD5E1';
 
 const LINE_SPACING_1_25 = 300;
-const LINE_SPACING_SINGLE = 240;
 
 function createDocHeader() {
     return new Header({
@@ -136,22 +131,6 @@ function createSectionHeading(text) {
                 size: 28, // 14pt
                 bold: true,
                 color: COLOR_PRIMARY,
-            }),
-        ],
-    });
-}
-
-function createSubSectionHeading(text) {
-    return new Paragraph({
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 240, after: 100, line: LINE_SPACING_1_25 },
-        children: [
-            new TextRun({
-                text: text,
-                font: FONT_NAME,
-                size: 24, // 12pt
-                bold: true,
-                color: COLOR_ACCENT,
             }),
         ],
     });

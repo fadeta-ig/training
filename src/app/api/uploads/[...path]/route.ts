@@ -77,7 +77,8 @@ export async function GET(
         if (rangeHeader && rangeHeader.startsWith('bytes=')) {
             const parts = rangeHeader.replace(/bytes=/, '').split('-');
             const start = parseInt(parts[0], 10);
-            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const requestedEnd = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const end = Math.min(requestedEnd, fileSize - 1);
 
             if (isNaN(start) || isNaN(end) || start > end || start >= fileSize) {
                 return new NextResponse('Requested range not satisfiable', {

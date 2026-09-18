@@ -8,7 +8,14 @@ import { verifyAnswerSheetDocumentId } from '@/lib/answer-sheet-verification';
 export const metadata: Metadata = {
     title: 'Verifikasi Lembar Jawaban - Nusamitra Consulting',
     description: 'Portal verifikasi resmi lembar jawaban ujian LMS Nusamitra Consulting.',
+    robots: { index: false, follow: false, nocache: true },
 };
+
+function maskIdentifier(value: string | null | undefined): string {
+    if (!value) return '-';
+    const visible = value.slice(-4);
+    return `${'*'.repeat(Math.max(4, value.length - visible.length))}${visible}`;
+}
 
 interface PageProps {
     params: Promise<{ sessionId: string; participantId: string }>;
@@ -57,7 +64,7 @@ export default async function AnswerSheetVerificationPage({ params, searchParams
                         <div className="space-y-5 p-6 sm:p-8">
                             <dl className="grid gap-4 text-sm sm:grid-cols-2">
                                 <div><dt className="text-slate-500">Peserta</dt><dd className="font-semibold">{data.participant.full_name}</dd></div>
-                                <div><dt className="text-slate-500">NIP</dt><dd className="font-semibold">{data.participant.nip || '-'}</dd></div>
+                                <div><dt className="text-slate-500">NIP</dt><dd className="font-semibold">{maskIdentifier(data.participant.nip)}</dd></div>
                                 <div><dt className="text-slate-500">Sesi</dt><dd className="font-semibold">{data.session.title}</dd></div>
                                 <div><dt className="text-slate-500">Ujian</dt><dd className="font-semibold">{data.exam.title}</dd></div>
                                 <div><dt className="text-slate-500">Attempt</dt><dd className="font-semibold">{data.exam.attempt_number}</dd></div>

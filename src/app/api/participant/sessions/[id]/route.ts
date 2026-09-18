@@ -83,6 +83,13 @@ async function handleGet(
 
             if (user.role !== 'trainee') {
                 progressStatus = 'open';
+            } else if (progressStatus === 'grading_pending') {
+                // Preserve the terminal submission state until all essays are graded.
+                // It must never be reopened by the normal active-session logic below.
+                // In sequential modules, later items must also remain locked until grading finishes.
+                if (enforceSequence) {
+                    foundFirstIncomplete = true;
+                }
             } else if (progressStatus === 'completed') {
                 // Completed items generally remain accessible
                 if (item.item_type === 'exam') {

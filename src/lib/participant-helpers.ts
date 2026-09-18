@@ -195,9 +195,9 @@ export async function getItemProgress(
     sessionId: string,
     userId: string,
     moduleItemId: string
-): Promise<{ id: string; status: string; score: number | null; attempts_count: number; attempt_version: number; last_attempt_start: string | null; individual_extension_until: string | null } | null> {
-    const rows = await executeQuery<{ id: string; status: string; score: number | null; attempts_count: number; attempt_version: number; last_attempt_start: string | null; individual_extension_until: string | null }[]>(
-        `SELECT id, status, score, attempts_count, attempt_version, last_attempt_start, individual_extension_until
+): Promise<{ id: string; status: string; score: number | null; attempts_count: number; attempt_version: number; last_attempt_start: string | null; individual_extension_until: string | null; grading_pending: number | boolean } | null> {
+    const rows = await executeQuery<{ id: string; status: string; score: number | null; attempts_count: number; attempt_version: number; last_attempt_start: string | null; individual_extension_until: string | null; grading_pending: number | boolean }[]>(
+        `SELECT id, status, score, attempts_count, attempt_version, last_attempt_start, individual_extension_until, COALESCE(grading_pending, 0) AS grading_pending
          FROM user_progress
          WHERE user_id = ? AND session_id = ? AND module_item_id = ?
          LIMIT 1`,
@@ -255,84 +255,38 @@ export class ParticipantError extends Error {
 let checkedInitialPasswordColumn = false;
 let checkedParticipantSecurityColumns = false;
 
-/**
- * Ensures that the initial_password column exists in participant_profiles table.
- * Executed defensively to avoid runtime SQL errors on legacy database schemas.
- */
+/** Validate deployed schema. DDL is intentionally never executed in request paths. */
 export async function ensureInitialPasswordColumn(): Promise<void> {
     if (checkedInitialPasswordColumn) return;
-    try {
-        const columns = await executeQuery<{ COLUMN_NAME: string }[]>(
-            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME = 'initial_password'`
-        );
-        if (!columns || columns.length === 0) {
-            await executeQuery(
-                `ALTER TABLE participant_profiles ADD COLUMN initial_password VARCHAR(255) NULL AFTER registration_date`
-            );
-        }
-        checkedInitialPasswordColumn = true;
-    } catch (err) {
-        logger.warn('SCHEMA_MIGRATION', 'Could not ensure initial_password column', {
-            error: err instanceof Error ? err.message : String(err),
-        });
-        checkedInitialPasswordColumn = true;
+    const columns = await executeQuery<{ COLUMN_NAME: string }[]>(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME = 'initial_password'`
+    );
+    if (!columns || columns.length === 0) {
+        throw new Error('Schema database belum disinkronkan: participant_profiles.initial_password tidak tersedia');
     }
+    checkedInitialPasswordColumn = true;
 }
 
 /**
  * Ensures participant_profiles has nullable gender and must_change_password column.
- * Guarantees zero-risk migration without requiring manual DB commands.
+ * The deployment migration owns all ALTER TABLE statements.
  */
 export async function ensureParticipantSecurityColumns(): Promise<void> {
     if (checkedParticipantSecurityColumns) return;
     await ensureInitialPasswordColumn();
 
-    try {
-        // 1. Ensure gender is nullable
-        const genderCols = await executeQuery<{ COLUMN_NAME: string; IS_NULLABLE: string }[]>(
-            `SELECT COLUMN_NAME, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS 
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME = 'gender'`
-        );
-        if (genderCols && genderCols.length > 0 && genderCols[0].IS_NULLABLE === 'NO') {
-            await executeQuery(
-                `ALTER TABLE participant_profiles MODIFY COLUMN gender ENUM('L', 'P') NULL DEFAULT NULL`
-            );
-        }
-
-        // 2. Ensure must_change_password column exists
-        const mustChangeCols = await executeQuery<{ COLUMN_NAME: string }[]>(
-            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME = 'must_change_password'`
-        );
-        if (!mustChangeCols || mustChangeCols.length === 0) {
-            await executeQuery(
-                `ALTER TABLE participant_profiles ADD COLUMN must_change_password BOOLEAN NOT NULL DEFAULT FALSE AFTER initial_password`
-            );
-        }
-
-        // 3. Ensure id_card_number exists
-        const idCardCols = await executeQuery<{ COLUMN_NAME: string }[]>(
-            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles' AND COLUMN_NAME = 'id_card_number'`
-        );
-
-        if (!idCardCols || idCardCols.length === 0) {
-            await executeQuery(
-                `ALTER TABLE participant_profiles ADD COLUMN id_card_number VARCHAR(50) NULL AFTER nip`
-            );
-            await executeQuery(
-                `ALTER TABLE participant_profiles ADD INDEX idx_participant_id_card (id_card_number)`
-            ).catch(() => undefined);
-        }
-
-        checkedParticipantSecurityColumns = true;
-    } catch (err) {
-        logger.warn('SCHEMA_MIGRATION', 'Could not ensure participant security columns', {
-            error: err instanceof Error ? err.message : String(err),
-        });
-        checkedParticipantSecurityColumns = true;
+    const columns = await executeQuery<Array<{ COLUMN_NAME: string; IS_NULLABLE: string }>>(
+        `SELECT COLUMN_NAME, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'participant_profiles'
+           AND COLUMN_NAME IN ('gender', 'must_change_password', 'id_card_number')`,
+    );
+    const byName = new Map(columns.map((column) => [column.COLUMN_NAME, column]));
+    const missing = ['gender', 'must_change_password', 'id_card_number'].filter((name) => !byName.has(name));
+    if (missing.length > 0 || byName.get('gender')?.IS_NULLABLE !== 'YES') {
+        throw new Error(`Schema database belum disinkronkan: participant security columns (${missing.join(', ') || 'gender nullable'})`);
     }
+    checkedParticipantSecurityColumns = true;
 }
 
 let checkedExamDraftVersionColumn = false;
@@ -342,23 +296,14 @@ let checkedExamDraftVersionColumn = false;
  */
 export async function ensureExamDraftVersionColumn(): Promise<void> {
     if (checkedExamDraftVersionColumn) return;
-    try {
-        const cols = await executeQuery<{ COLUMN_NAME: string }[]>(
-            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'exam_answer_drafts' AND COLUMN_NAME = 'client_version'`
-        );
-        if (!cols || cols.length === 0) {
-            await executeQuery(
-                `ALTER TABLE exam_answer_drafts ADD COLUMN client_version INT NOT NULL DEFAULT 1 AFTER selected_option`
-            );
-        }
-        checkedExamDraftVersionColumn = true;
-    } catch (err) {
-        logger.warn('SCHEMA_MIGRATION', 'Could not ensure exam_answer_drafts client_version column', {
-            error: err instanceof Error ? err.message : String(err),
-        });
-        checkedExamDraftVersionColumn = true;
+    const cols = await executeQuery<{ COLUMN_NAME: string }[]>(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'exam_answer_drafts' AND COLUMN_NAME = 'client_version'`
+    );
+    if (!cols || cols.length === 0) {
+        throw new Error('Schema database belum disinkronkan: exam_answer_drafts.client_version tidak tersedia');
     }
+    checkedExamDraftVersionColumn = true;
 }
 
 /**

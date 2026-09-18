@@ -82,6 +82,7 @@ const requiredColumns = {
         individual_extension_until: 'DATETIME NULL',
         last_submission_id: 'VARCHAR(36) NULL',
         last_submission_result: 'LONGTEXT NULL',
+        grading_pending: 'BOOLEAN NOT NULL DEFAULT FALSE',
     },
     exam_answer_drafts: {
         client_version: 'INT NOT NULL DEFAULT 1',
@@ -103,10 +104,16 @@ const requiredIndexes = [
     ['question_import_batches', 'idx_question_import_exam_payload', '(exam_id, payload_sha256)'],
     ['question_import_batches', 'idx_question_import_status_expiry', '(status, expires_at)'],
     ['module_items', 'idx_module_items_item_id', '(item_id)'],
+    ['module_items', 'uq_module_items_item', '(module_id, item_type, item_id)', true],
+    ['module_items', 'uq_module_items_sequence', '(module_id, sequence_order)', true],
     ['session_participants', 'idx_sp_graduation', '(graduation_status)'],
     ['session_participants', 'idx_sp_session_status', '(session_id, graduation_status)'],
+    ['session_participants', 'uq_session_participants_skl_number', '(skl_number)', true],
     ['user_progress', 'idx_user_progress_status_updated', '(status, updated_at)'],
     ['proctor_snapshots', 'idx_proctor_captured_at', '(captured_at)'],
+    ['email_outbox', 'idx_email_outbox_dispatch', '(status, available_at, created_at)'],
+    ['session_reminder_runs', 'idx_session_reminder_cooldown', '(session_id, created_at)'],
+    ['session_reminder_runs', 'uq_session_reminder_bucket', '(session_id, cooldown_bucket)', true],
 ];
 
 const requiredTables = {
@@ -152,7 +159,57 @@ const requiredTables = {
         INDEX idx_seb_override_lookup (session_id, user_id, expires_at, revoked_at),
         INDEX idx_seb_override_granted_by (granted_by, created_at)
     ) ENGINE=InnoDB`,
+    document_sequences: `CREATE TABLE document_sequences (
+        scope_key VARCHAR(100) PRIMARY KEY,
+        next_value BIGINT UNSIGNED NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB`,
+    email_outbox: `CREATE TABLE email_outbox (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        template ENUM('credential') NOT NULL,
+        status ENUM('pending','processing','retry','sent','failed') NOT NULL DEFAULT 'pending',
+        attempts INT NOT NULL DEFAULT 0,
+        available_at DATETIME NOT NULL,
+        locked_at DATETIME NULL,
+        sent_at DATETIME NULL,
+        last_error VARCHAR(500) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_email_outbox_dispatch (status, available_at, created_at),
+        CONSTRAINT fk_email_outbox_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB`,
+    session_reminder_runs: `CREATE TABLE session_reminder_runs (
+        id VARCHAR(36) PRIMARY KEY,
+        session_id VARCHAR(36) NOT NULL,
+        triggered_by VARCHAR(36) NOT NULL,
+        cooldown_bucket BIGINT NOT NULL,
+        status ENUM('processing','completed','failed') NOT NULL DEFAULT 'processing',
+        recipient_count INT NOT NULL DEFAULT 0,
+        sent_count INT NOT NULL DEFAULT 0,
+        error_message VARCHAR(500) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at DATETIME NULL,
+        INDEX idx_session_reminder_cooldown (session_id, created_at),
+        UNIQUE KEY uq_session_reminder_bucket (session_id, cooldown_bucket),
+        CONSTRAINT fk_session_reminder_session FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+        CONSTRAINT fk_session_reminder_user FOREIGN KEY (triggered_by) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB`,
 };
+
+const requiredColumnDefinitions = [
+    {
+        table: 'user_progress',
+        column: 'status',
+        matches: (row) => String(row.COLUMN_TYPE || '').toLowerCase().includes('grading_pending'),
+        definition: "ENUM('locked','open','grading_pending','completed') DEFAULT 'locked'",
+    },
+    {
+        table: 'participant_profiles',
+        column: 'gender',
+        matches: (row) => row.IS_NULLABLE === 'YES',
+        definition: "ENUM('L','P') NULL DEFAULT NULL",
+    },
+];
 
 async function inspect(connection) {
     const [tableRows] = await connection.execute(
@@ -185,7 +242,62 @@ async function inspect(connection) {
         );
         if (rows.length === 0) missingIndexes.push(`${table}.${index}`);
     }
-    return { tables, missingTables, missingColumns, missingIndexes };
+    const invalidDefinitions = [];
+    for (const requirement of requiredColumnDefinitions) {
+        if (!tables.has(requirement.table)) continue;
+        const [rows] = await connection.execute(
+            `SELECT COLUMN_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1`,
+            [dbConfig.database, requirement.table, requirement.column],
+        );
+        if (rows.length > 0 && !requirement.matches(rows[0])) {
+            invalidDefinitions.push(`${requirement.table}.${requirement.column}`);
+        }
+    }
+    const dataConflicts = [];
+    const conflictChecks = [
+        {
+            table: 'module_items',
+            index: 'uq_module_items_item',
+            label: 'duplicate module item references',
+            sql: `SELECT COUNT(*) AS total FROM (
+                SELECT module_id, item_type, item_id
+                FROM module_items
+                GROUP BY module_id, item_type, item_id
+                HAVING COUNT(*) > 1
+            ) duplicates`,
+        },
+        {
+            table: 'module_items',
+            index: 'uq_module_items_sequence',
+            label: 'duplicate module sequence orders',
+            sql: `SELECT COUNT(*) AS total FROM (
+                SELECT module_id, sequence_order
+                FROM module_items
+                GROUP BY module_id, sequence_order
+                HAVING COUNT(*) > 1
+            ) duplicates`,
+        },
+        {
+            table: 'session_participants',
+            index: 'uq_session_participants_skl_number',
+            label: 'duplicate SKL numbers',
+            sql: `SELECT COUNT(*) AS total FROM (
+                SELECT skl_number
+                FROM session_participants
+                WHERE skl_number IS NOT NULL AND skl_number <> ''
+                GROUP BY skl_number
+                HAVING COUNT(*) > 1
+            ) duplicates`,
+        },
+    ];
+    for (const check of conflictChecks) {
+        if (!tables.has(check.table) || !missingIndexes.includes(`${check.table}.${check.index}`)) continue;
+        const [rows] = await connection.query(check.sql);
+        const total = Number(rows[0]?.total || 0);
+        if (total > 0) dataConflicts.push(`${check.label}: ${total} group(s)`);
+    }
+    return { tables, missingTables, missingColumns, missingIndexes, invalidDefinitions, dataConflicts };
 }
 
 async function main() {
@@ -195,10 +307,16 @@ async function main() {
         console.log(`[SCHEMA] Missing tables: ${state.missingTables.length ? state.missingTables.join(', ') : 'none'}`);
         console.log(`[SCHEMA] Missing columns: ${state.missingColumns.length ? state.missingColumns.join(', ') : 'none'}`);
         console.log(`[SCHEMA] Missing indexes: ${state.missingIndexes.length ? state.missingIndexes.join(', ') : 'none'}`);
+        console.log(`[SCHEMA] Invalid definitions: ${state.invalidDefinitions.length ? state.invalidDefinitions.join(', ') : 'none'}`);
+        console.log(`[SCHEMA] Data conflicts: ${state.dataConflicts.length ? state.dataConflicts.join(', ') : 'none'}`);
 
         if (!apply) {
-            if (state.missingTables.length || state.missingColumns.length || state.missingIndexes.length) process.exitCode = 1;
+            if (state.missingTables.length || state.missingColumns.length || state.missingIndexes.length || state.invalidDefinitions.length || state.dataConflicts.length) process.exitCode = 1;
             return;
+        }
+
+        if (state.dataConflicts.length) {
+            throw new Error(`Unique indexes cannot be created until data conflicts are resolved: ${state.dataConflicts.join(', ')}`);
         }
 
         for (const table of state.missingTables) {
@@ -217,14 +335,24 @@ async function main() {
         }
 
         state = await inspect(connection);
+        for (const requirement of requiredColumnDefinitions) {
+            if (!state.invalidDefinitions.includes(`${requirement.table}.${requirement.column}`)) continue;
+            await connection.query(
+                `ALTER TABLE \`${requirement.table}\` MODIFY COLUMN \`${requirement.column}\` ${requirement.definition}`,
+            );
+            console.log(`[SCHEMA] Updated definition ${requirement.table}.${requirement.column}`);
+        }
+
+        state = await inspect(connection);
         for (const [table, index, columns] of requiredIndexes) {
             if (!state.missingIndexes.includes(`${table}.${index}`)) continue;
-            await connection.query(`CREATE INDEX \`${index}\` ON \`${table}\` ${columns}`);
+            const unique = requiredIndexes.find((entry) => entry[0] === table && entry[1] === index)?.[3];
+            await connection.query(`CREATE ${unique ? 'UNIQUE ' : ''}INDEX \`${index}\` ON \`${table}\` ${columns}`);
             console.log(`[SCHEMA] Added index ${table}.${index}`);
         }
 
         const finalState = await inspect(connection);
-        if (finalState.missingTables.length || finalState.missingColumns.length || finalState.missingIndexes.length) {
+        if (finalState.missingTables.length || finalState.missingColumns.length || finalState.missingIndexes.length || finalState.invalidDefinitions.length || finalState.dataConflicts.length) {
             throw new Error(`Schema remains incomplete: ${JSON.stringify(finalState)}`);
         }
         console.log('[SCHEMA] Schema is synchronized.');

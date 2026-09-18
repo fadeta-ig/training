@@ -10,7 +10,7 @@ const bulkGraduationSchema = z.object({
     graduation_notes: z.string().max(1000).optional().nullable(),
 });
 
-import { ROMAN_MONTHS, formatSklNumber, getLatestSklSequence } from '@/lib/skl';
+import { formatSklNumber, getSklPeriod, reserveNextSklSequence } from '@/lib/skl';
 
 async function handlePost(
     request: NextRequest,
@@ -56,18 +56,36 @@ async function handlePost(
             );
         }
 
-        const now = new Date();
-        const year = now.getFullYear();
-        const romanMonth = ROMAN_MONTHS[now.getMonth()] || 'I';
-        let currentSeq = await getLatestSklSequence(connection, romanMonth, year);
+        if (graduation_status !== 'pending') {
+            const [pendingRows] = await connection.execute<Array<{ user_id: string }> & any[]>(
+                `SELECT DISTINCT user_id FROM user_progress
+                 WHERE session_id = ? AND user_id IN (${placeholders})
+                   AND (status = 'grading_pending' OR COALESCE(grading_pending, 0) = 1)`,
+                [sessionId, ...participant_ids],
+            );
+            if (pendingRows.length > 0) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: 'Sebagian peserta masih memiliki penilaian esai yang belum selesai',
+                        participant_ids: pendingRows.map((row) => row.user_id),
+                    },
+                    { status: 409 },
+                );
+            }
+        }
 
+        const { year, romanMonth } = getSklPeriod();
         let updatedCount = 0;
 
         for (const p of participants) {
             let sklNumberToSet = p.skl_number || null;
             if (graduation_status === 'passed' && !sklNumberToSet) {
-                currentSeq++;
-                sklNumberToSet = formatSklNumber(currentSeq, romanMonth, year);
+                const nextSequence = await reserveNextSklSequence(connection, romanMonth, year);
+                sklNumberToSet = formatSklNumber(nextSequence, romanMonth, year);
             }
 
             await connection.execute(
@@ -97,6 +115,7 @@ async function handlePost(
 
         await connection.commit();
         connection.release();
+        connection = undefined;
 
         await logger.audit(
             user.id,

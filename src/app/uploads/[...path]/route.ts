@@ -36,11 +36,19 @@ export async function GET(
             return new NextResponse('File path missing', { status: 400 });
         }
 
+        // Legacy proctor snapshots may still exist below public/uploads/proctor.
+        // They must only be served through the authenticated proctor endpoint.
+        if (pathSegments[0]?.toLowerCase() === 'proctor') {
+            return new NextResponse('Forbidden', { status: 403 });
+        }
+
         const uploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
         const targetPath = path.resolve(uploadsDir, ...pathSegments);
 
         // Security check: prevent path traversal attacks outside public/uploads
-        if (!targetPath.startsWith(uploadsDir + path.sep) && targetPath !== uploadsDir) {
+        const normalizedRoot = uploadsDir.toLowerCase();
+        const normalizedTarget = targetPath.toLowerCase();
+        if (!normalizedTarget.startsWith(normalizedRoot + path.sep) && normalizedTarget !== normalizedRoot) {
             return new NextResponse('Forbidden', { status: 403 });
         }
 

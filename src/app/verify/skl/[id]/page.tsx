@@ -3,20 +3,22 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { ShieldCheck, CheckCircle2, AlertTriangle, Building, Calendar, Award, User, Hash } from 'lucide-react';
+import { verifySklVerificationToken } from '@/lib/skl-verification';
 
 export const metadata: Metadata = {
     title: 'Verifikasi Keaslian Dokumen SKL - Nusamitra Consulting',
     description: 'Portal resmi verifikasi keabsahan dan keaslian Surat Keterangan Lulus (SKL) Nusamitra Consulting.',
+    robots: { index: false, follow: false, nocache: true },
 };
 
 interface VerificationPageProps {
     params: Promise<{ id: string }>;
-    searchParams: Promise<{ no?: string }>;
+    searchParams: Promise<{ no?: string; sig?: string }>;
 }
 
 export default async function SklVerificationPage({ params, searchParams }: VerificationPageProps) {
     const { id: enrollmentId } = await params;
-    const { no: sklNumberParam } = await searchParams;
+    const { no: sklNumberParam, sig } = await searchParams;
 
     let verificationData: any = null;
 
@@ -57,9 +59,30 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
 
 
     const dbSklNumber = verificationData?.skl_number?.trim() || null;
-    const isNumberTampered = Boolean(sklNumberParam && dbSklNumber && sklNumberParam.trim() !== dbSklNumber);
-    const isPassed = Boolean(verificationData && verificationData.graduation_status === 'passed' && !isNumberTampered);
-    const sklNumber = dbSklNumber || (isPassed ? 'Nomor Dokumen Sedang Diproses' : 'DOKUMEN TIDAK VALID');
+    const hasValidSignature = Boolean(
+        verificationData
+        && dbSklNumber
+        && sklNumberParam
+        && sig
+        && verifySklVerificationToken(sig, {
+            enrollmentId,
+            sklNumber: dbSklNumber,
+            decidedAt: verificationData.graduation_decided_at,
+        }),
+    );
+    const isPassed = Boolean(
+        verificationData
+        && verificationData.graduation_status === 'passed'
+        && dbSklNumber
+        && sklNumberParam?.trim() === dbSklNumber
+        && hasValidSignature,
+    );
+    const sklNumber = isPassed ? dbSklNumber : 'DOKUMEN TIDAK VALID';
+    const maskIdentifier = (value: string | null | undefined) => {
+        if (!value) return '';
+        const visible = value.slice(-4);
+        return `${'*'.repeat(Math.max(4, value.length - visible.length))}${visible}`;
+    };
     const decidedDate = verificationData?.graduation_decided_at
         ? new Date(verificationData.graduation_decided_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
         : 'Terdaftar Resmi';
@@ -128,7 +151,7 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
                                             <span>NIK / No. Paspor:</span>
                                         </div>
                                         <span className="font-mono font-bold text-slate-900 bg-slate-200/70 px-2 py-0.5 rounded text-xs uppercase tracking-wider">
-                                            {verificationData.id_card_number}
+                                            {maskIdentifier(verificationData.id_card_number)}
                                         </span>
                                     </div>
                                 )}
@@ -141,7 +164,7 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
                                             <span>Nomor Induk Peserta (NIP):</span>
                                         </div>
                                         <span className="font-mono font-bold text-slate-900 bg-slate-200/70 px-2 py-0.5 rounded text-xs">
-                                            {verificationData.nip}
+                                            {maskIdentifier(verificationData.nip)}
                                         </span>
                                     </div>
                                 )}

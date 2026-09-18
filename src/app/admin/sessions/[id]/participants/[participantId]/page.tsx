@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
 import Link from 'next/link';
 import {
     ArrowLeft01Icon,
@@ -44,7 +44,7 @@ type DetailData = {
             item_id: string;
             item_title: string;
             sequence_order: number;
-            status: 'locked' | 'open' | 'completed';
+            status: 'locked' | 'open' | 'grading_pending' | 'completed';
             score: number | null;
             updated_at: string | null;
         }>;
@@ -68,7 +68,7 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
     const [submittingOverride, setSubmittingOverride] = useState<boolean>(false);
     const [overrideMessage, setOverrideMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-    const loadData = () => {
+    const loadData = useCallback(() => {
         setLoading(true);
         fetch(`/api/sessions/${sessionId}/participants/${participantId}`)
             .then((res) => res.json())
@@ -78,7 +78,7 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
             })
             .catch(() => setError('Kesalahan jaringan'))
             .finally(() => setLoading(false));
-    };
+    }, [participantId, sessionId]);
 
     useEffect(() => {
         loadData();
@@ -86,7 +86,7 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
             .then((res) => res.json())
             .then((d) => { if (d.success) setUserRole(d.data.role); })
             .catch(() => {});
-    }, [sessionId, participantId]);
+    }, [loadData]);
 
     const handleExecuteOverride = async () => {
         if (!overrideTarget) return;

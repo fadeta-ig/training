@@ -5,6 +5,7 @@ import pool from '@/lib/db';
 import { moduleSchema } from '@/lib/validations/moduleSchema';
 import { withAuth } from '@/lib/api-auth';
 import { parsePagination } from '@/lib/sanitize';
+import { assertModuleItemReferences } from '@/lib/module-items';
 
 async function handleGet(request: NextRequest) {
     try {
@@ -59,6 +60,8 @@ async function handlePost(request: NextRequest) {
             [moduleId, title, description || null, enforce_sequence ? 1 : 0]
         );
 
+        await assertModuleItemReferences(connection, items);
+
         for (const item of items) {
             const itemId = uuidv4();
             await connection.execute(
@@ -69,6 +72,7 @@ async function handlePost(request: NextRequest) {
 
         await connection.commit();
         connection.release();
+        connection = undefined;
 
         return NextResponse.json({ success: true, id: moduleId, message: 'Module created with items' }, { status: 201 });
     } catch (error) {
@@ -77,7 +81,11 @@ async function handlePost(request: NextRequest) {
             connection.release();
         }
         const message = error instanceof Error ? error.message : 'Internal Server Error';
-        return NextResponse.json({ success: false, error: message }, { status: 500 });
+        const isValidationError = error instanceof Error && error.name === 'ModuleItemsError';
+        return NextResponse.json(
+            { success: false, error: isValidationError ? message : 'Gagal membuat modul' },
+            { status: isValidationError ? 400 : 500 },
+        );
     }
 }
 

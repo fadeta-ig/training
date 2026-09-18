@@ -4,13 +4,10 @@ import { useState, useEffect } from 'react';
 import {
     Download,
     Package,
-    FileText,
     Key,
     FileCheck,
     X,
     Loader2,
-    BookOpen,
-    Edit3,
     Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';

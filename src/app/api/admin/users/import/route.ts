@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcryptjs';
 import { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { logActivity } from '@/lib/audit';
-import { sendBulkCredentialEmails } from '@/lib/email';
 import pool from '@/lib/db';
 import logger from '@/lib/logger';
-import crypto from 'crypto';
 import { generateSecurePassword, ensureParticipantSecurityColumns } from '@/lib/participant-helpers';
+import { hashPasswordsBounded } from '@/lib/password-batch';
+import { enqueueCredentialEmail } from '@/lib/email-outbox';
 
 interface UserImportItem {
     name: string;
@@ -49,15 +48,23 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
 
         for (let i = 0; i < userItems.length; i++) {
             const item = userItems[i];
-            const cleanName = (item.name || '').trim();
-            const cleanEmail = (item.email || '').trim().toLowerCase();
+            if (!item || typeof item !== 'object') {
+                failed.push({ name: `Baris ${i + 1}`, email: '-', reason: 'Struktur data pengguna tidak valid' });
+                continue;
+            }
+            const cleanName = String(item.name || '').trim();
+            const cleanEmail = String(item.email || '').trim().toLowerCase();
 
             if (!cleanName || cleanName.length < 3) {
                 failed.push({ name: item.name || `Baris ${i + 1}`, email: cleanEmail || '-', reason: 'Nama lengkap minimal 3 karakter' });
                 continue;
             }
+            if (cleanName.length > 100) {
+                failed.push({ name: cleanName.slice(0, 100), email: cleanEmail || '-', reason: 'Nama lengkap maksimal 100 karakter' });
+                continue;
+            }
 
-            if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+            if (!cleanEmail || cleanEmail.length > 255 || !EMAIL_REGEX.test(cleanEmail)) {
                 failed.push({ name: cleanName, email: cleanEmail || '-', reason: 'Format email (username) tidak valid' });
                 continue;
             }
@@ -67,18 +74,29 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                 continue;
             }
 
-            const rawRole = (item.role || 'trainer').toLowerCase();
+            const rawRole = String(item.role || 'trainer').toLowerCase();
             const role: 'admin' | 'trainer' = (rawRole.includes('admin') || rawRole === 'administrator') ? 'admin' : 'trainer';
 
+            const suppliedPassword = item.password ? String(item.password).trim() : null;
+            if (suppliedPassword && suppliedPassword.length > 128) {
+                failed.push({ name: cleanName, email: cleanEmail, reason: 'Password maksimal 128 karakter' });
+                continue;
+            }
+            const phoneNumber = item.phone_number ? String(item.phone_number).trim() : null;
+            const institution = item.institution ? String(item.institution).trim() : null;
+            if ((phoneNumber?.length || 0) > 20 || (institution?.length || 0) > 150) {
+                failed.push({ name: cleanName, email: cleanEmail, reason: 'Nomor telepon atau instansi melebihi batas karakter' });
+                continue;
+            }
             seenEmails.add(cleanEmail);
             validQueue.push({
                 ...item,
                 name: cleanName,
                 email: cleanEmail,
                 role,
-                password: item.password ? String(item.password).trim() : null,
-                phone_number: item.phone_number ? String(item.phone_number).trim() : null,
-                institution: item.institution ? String(item.institution).trim() : null,
+                password: suppliedPassword,
+                phone_number: phoneNumber,
+                institution,
             });
         }
 
@@ -122,25 +140,31 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         }
 
         // 3. Batch DB Transaction Execution
+        const preparedAccounts = readyToInsert.map((item) => ({
+            item,
+            finalPassword: item.password && item.password.length >= 8 ? item.password : generateSecurePassword(12),
+            userId: uuidv4(),
+            profileId: uuidv4(),
+        }));
+        const passwordHashes = await hashPasswordsBounded(preparedAccounts.map((account) => account.finalPassword));
+        await ensureParticipantSecurityColumns();
         const connection = await pool.getConnection();
         const credentials: { name: string; email: string; password: string; role: string }[] = [];
 
         try {
             await connection.beginTransaction();
 
-            await ensureParticipantSecurityColumns();
-
-            for (const item of readyToInsert) {
-                const finalPassword = item.password && item.password.length >= 8 ? item.password : generateSecurePassword(12);
-                const passwordHash = await bcrypt.hash(finalPassword, 10);
-                const userId = uuidv4();
-                const profileId = uuidv4();
+            for (let index = 0; index < preparedAccounts.length; index += 1) {
+                const { item, finalPassword, userId, profileId } = preparedAccounts[index];
+                const passwordHash = passwordHashes[index];
                 const userRole = item.role || 'trainer';
 
                 await connection.execute(
                     `INSERT INTO users (id, username, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)`,
                     [userId, item.email, passwordHash, item.name, userRole]
                 );
+
+                if (sendEmail) await enqueueCredentialEmail(connection, userId);
 
                 await connection.execute(
                     `INSERT INTO participant_profiles (id, user_id, phone_number, institution, initial_password, must_change_password) 
@@ -177,34 +201,20 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
             failedCount: failed.length,
         });
 
-        // 5. Send Emails if requested
-        if (sendEmail && credentials.length > 0) {
-            sendBulkCredentialEmails(
-                credentials.map(c => ({ email: c.email, name: c.name, password: c.password })),
-                { batchSize: 5, delayBetweenBatchesMs: 1000, maxRetries: 2 }
-            ).then(result => {
-                logger.info('BULK_IMPORT_USERS_EMAIL_COMPLETE', `Pengiriman email pengguna selesai: ${result.succeeded}/${result.total} berhasil, ${result.failed} gagal`, {
-                    succeededCount: result.succeeded,
-                    failedCount: result.failed,
-                });
-            }).catch(err => {
-                logger.error('BULK_IMPORT_USERS', 'Gagal memproses antrean email kredensial pengguna secara asinkron', err, authUser.id);
-            });
-        }
-
         return NextResponse.json({
             success: true,
             message: `Berhasil mengimport ${credentials.length} pengguna`,
             importedCount: credentials.length,
             failedCount: failed.length,
             credentials,
+            emailQueued: sendEmail ? credentials.length : 0,
             failed,
         }, { status: 201 });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         logger.error('BULK_IMPORT_USERS', 'Kesalahan sistem saat import massal pengguna', error);
         return NextResponse.json(
-            { success: false, error: error.message || 'Terjadi kesalahan sistem saat import pengguna' },
+            { success: false, error: 'Terjadi kesalahan sistem saat import pengguna' },
             { status: 500 }
         );
     }

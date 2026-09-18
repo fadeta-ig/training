@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import logger from '@/lib/logger';
+import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
+import { verifyEnrollment, ParticipantError } from '@/lib/participant-helpers';
+import { getAppBaseUrl } from '@/lib/app-url';
 import {
     buildSebConfig,
     calculateSebConfigKey,
@@ -9,8 +12,9 @@ import {
     serializeSebConfigPlist,
 } from '@/lib/seb-config';
 
-export async function GET(
+async function handleGet(
     request: NextRequest,
+    user: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     const resolvedParams = await context?.params;
@@ -21,6 +25,9 @@ export async function GET(
     }
 
     try {
+        if (user.role === 'trainee') {
+            await verifyEnrollment(sessionId, user.id);
+        }
         // Cek sesi dan apakah mewajibkan SEB
         const queryStr = `
              SELECT s.id, s.require_seb, s.seb_config_key, s.title, s.enable_proctoring
@@ -40,19 +47,11 @@ export async function GET(
             return NextResponse.json({ success: false, message: 'Sesi ini tidak mewajibkan SEB' }, { status: 400 });
         }
 
-        const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL;
-        const proto = request.headers.get('x-forwarded-proto') || (request.nextUrl.protocol ? request.nextUrl.protocol.replace(':', '') : 'http');
-        const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
-        const requestOrigin = `${proto}://${host}`;
-
-        let origin: string;
-        // Only prioritize configuredAppUrl if it is a production domain (not localhost/127.0.0.1)
-        // This ensures remote devices (like MacBooks on LAN) get the correct network IP/host instead of unreachable localhost.
-        if (configuredAppUrl && !configuredAppUrl.includes('localhost') && !configuredAppUrl.includes('127.0.0.1')) {
-            origin = new URL(configuredAppUrl).origin;
-        } else {
-            origin = requestOrigin;
-        }
+        // Production must use the configured canonical origin. This prevents a
+        // caller-controlled Host/X-Forwarded-Host value from rotating Config Keys.
+        const origin = process.env.NODE_ENV === 'production'
+            ? getAppBaseUrl()
+            : request.nextUrl.origin;
         const startUrl = `${origin}/dashboard/sesi/${encodeURIComponent(session.id)}`;
         const config = buildSebConfig({
             sessionId: session.id,
@@ -98,6 +97,9 @@ export async function GET(
             },
         });
     } catch (error) {
+        if (error instanceof ParticipantError) {
+            return NextResponse.json({ success: false, message: error.message }, { status: error.statusCode });
+        }
         logger.error('SEB_CONFIG', 'Gagal membuat file konfigurasi SEB', error);
         return NextResponse.json(
             { success: false, message: 'Gagal membuat konfigurasi Safe Exam Browser. Silakan coba lagi.' },
@@ -105,3 +107,5 @@ export async function GET(
         );
     }
 }
+
+export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer', 'trainee'] });

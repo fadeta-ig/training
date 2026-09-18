@@ -34,6 +34,19 @@ function createContentDisposition(filename: string): string {
     return `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encoded}`;
 }
 
+function resolveUploadAttachment(uploadsBaseDir: string, mediaUrl: string): { filePath: string; filename: string } | null {
+    if (!mediaUrl.startsWith('/uploads/')) return null;
+    let relative: string;
+    try {
+        relative = decodeURIComponent(mediaUrl.slice('/uploads/'.length).split(/[?#]/, 1)[0]);
+    } catch {
+        return null;
+    }
+    const filePath = path.resolve(uploadsBaseDir, relative);
+    if (!filePath.startsWith(`${path.resolve(uploadsBaseDir)}${path.sep}`)) return null;
+    return { filePath, filename: path.basename(relative) };
+}
+
 async function handleGet(
     request: NextRequest,
     user: AuthenticatedUser,
@@ -44,7 +57,6 @@ async function handleGet(
         const moduleId = resolvedParams.id;
 
         const { searchParams } = new URL(request.url);
-        const format = searchParams.get('format') || 'zip';
         const includeAnswers = searchParams.get('includeAnswers') !== 'false';
         const targetItemId = searchParams.get('itemId');
         const targetItemType = searchParams.get('itemType');
@@ -165,6 +177,25 @@ async function handleGet(
         });
 
         const uploadsBaseDir = path.join(process.cwd(), 'public', 'uploads');
+        const selectedMedia = targetItemId && targetItemType === 'training'
+            ? (mediaMap.get(targetItemId) || [])
+            : targetItemId
+                ? []
+                : (Array.isArray(mediaList) ? mediaList : []);
+        const maxArchiveInputBytes = 100 * 1024 * 1024;
+        let archiveInputBytes = 0;
+        for (const media of selectedMedia) {
+            const attachment = resolveUploadAttachment(uploadsBaseDir, media.media_url);
+            if (!attachment) continue;
+            const stat = await fs.stat(/* turbopackIgnore: true */ attachment.filePath).catch(() => null);
+            archiveInputBytes += stat?.isFile() ? stat.size : 0;
+            if (archiveInputBytes > maxArchiveInputBytes) {
+                return NextResponse.json(
+                    { success: false, error: 'Total lampiran melebihi batas arsip 100 MB. Unduh materi secara terpisah.' },
+                    { status: 413 },
+                );
+            }
+        }
 
         // Handle Individual Item Download
         if (targetItemId && targetItemType) {
@@ -223,18 +254,14 @@ async function handleGet(
                     singleZip.file(`Materi_${safeTrainingTitle}.html`, trainingHtml);
 
                     for (const media of targetItem.mediaData) {
-                        if (media.media_url.startsWith('/uploads/')) {
-                            const filenameOnDisk = media.media_url.replace('/uploads/', '');
-                            const resolvedPath = path.resolve(uploadsBaseDir, filenameOnDisk);
-
-                            if (resolvedPath.startsWith(uploadsBaseDir)) {
-                                try {
-                                    const fileBuffer = await fs.readFile(resolvedPath);
-                                    const entryName = media.original_filename || filenameOnDisk;
-                                    singleZip.file(`Lampiran/${entryName}`, fileBuffer);
-                                } catch (e) {
-                                    logger.warn('MODULE_DOWNLOAD', `Lampiran tidak ditemukan di disk: ${resolvedPath}`);
-                                }
+                        const attachment = resolveUploadAttachment(uploadsBaseDir, media.media_url);
+                        if (attachment) {
+                            try {
+                                const fileBuffer = await fs.readFile(/* turbopackIgnore: true */ attachment.filePath);
+                                const entryName = sanitizeFilename(media.original_filename || attachment.filename);
+                                singleZip.file(`Lampiran/${entryName}`, fileBuffer);
+                            } catch {
+                                logger.warn('MODULE_DOWNLOAD', `Lampiran tidak ditemukan di disk: ${attachment.filePath}`);
                             }
                         }
                     }
@@ -300,21 +327,16 @@ async function handleGet(
                 if (item.mediaData && item.mediaData.length > 0) {
                     const mediaSubFolder = trainingsFolder.folder(`${itemPrefix}_Lampiran_${safeTitle}`);
                     for (const media of item.mediaData) {
-                        if (media.media_url.startsWith('/uploads/')) {
-                            const filenameOnDisk = media.media_url.replace('/uploads/', '');
-                            const resolvedPath = path.resolve(uploadsBaseDir, filenameOnDisk);
-
-                            // Path traversal defense
-                            if (resolvedPath.startsWith(uploadsBaseDir)) {
-                                try {
-                                    const fileBuffer = await fs.readFile(resolvedPath);
-                                    const entryName = media.original_filename || filenameOnDisk;
-                                    if (mediaSubFolder) {
-                                        mediaSubFolder.file(entryName, fileBuffer);
-                                    }
-                                } catch (fileErr) {
-                                    logger.warn('MODULE_DOWNLOAD', `File lampiran tidak ditemukan di disk: ${resolvedPath}`);
+                        const attachment = resolveUploadAttachment(uploadsBaseDir, media.media_url);
+                        if (attachment) {
+                            try {
+                                const fileBuffer = await fs.readFile(/* turbopackIgnore: true */ attachment.filePath);
+                                const entryName = sanitizeFilename(media.original_filename || attachment.filename);
+                                if (mediaSubFolder) {
+                                    mediaSubFolder.file(entryName, fileBuffer);
                                 }
+                            } catch {
+                                logger.warn('MODULE_DOWNLOAD', `File lampiran tidak ditemukan di disk: ${attachment.filePath}`);
                             }
                         }
                     }

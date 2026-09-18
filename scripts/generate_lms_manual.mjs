@@ -14,14 +14,12 @@ import {
     Header,
     Footer,
     PageNumber,
-    NumberFormat,
 } from 'docx';
 import fs from 'fs';
 import path from 'path';
 
 // Constants for styling
 const FONT_NAME = 'Times New Roman';
-const TITLE_SIZE = 28; // 14pt
 const HEADING_SIZE = 28; // 14pt
 const BODY_SIZE = 24; // 12pt
 const TABLE_SIZE = 22; // 11pt
@@ -33,7 +31,6 @@ const LINE_SPACING_SINGLE = 240;
 const COLOR_PRIMARY = '0F172A'; // Slate-900
 const COLOR_MUTED = '475569'; // Slate-600
 const COLOR_BORDER = 'CBD5E1'; // Slate-300
-const BG_HEADER = 'F1F5F9'; // Slate-100
 const BG_CALLOUT = 'F8FAFC'; // Slate-50
 
 // Helper functions for Document elements
@@ -97,24 +94,6 @@ function createHeading2(text) {
                 font: FONT_NAME,
                 size: HEADING_SIZE, // 14pt
                 bold: true,
-                color: COLOR_PRIMARY,
-            }),
-        ],
-    });
-}
-
-function createHeading3(text) {
-    return new Paragraph({
-        heading: HeadingLevel.HEADING_3,
-        alignment: AlignmentType.LEFT,
-        spacing: { before: 240, after: 100, line: LINE_SPACING_1_5 },
-        children: [
-            new TextRun({
-                text: text,
-                font: FONT_NAME,
-                size: HEADING_SIZE, // 14pt
-                bold: true,
-                italics: true,
                 color: COLOR_PRIMARY,
             }),
         ],

@@ -80,7 +80,7 @@ export async function executeQuery<T>(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown DB error';
     console.error('[DB_ERROR]', message);
-    throw new DatabaseError(`Database operation failed: ${message}`, error);
+    throw new DatabaseError('Operasi database gagal', error);
   }
 }
 

@@ -4,7 +4,10 @@ import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import fs from 'fs';
 import path from 'path';
 import QRCode from 'qrcode';
-import { ROMAN_MONTHS, formatSklNumber, getLatestSklSequence } from '@/lib/skl';
+import { formatSklNumber, getSklPeriod, reserveNextSklSequence } from '@/lib/skl';
+import { escapeHtml } from '@/lib/sanitize';
+import { createSklVerificationToken } from '@/lib/skl-verification';
+import { getAppBaseUrl } from '@/lib/app-url';
 
 /**
  * GET /api/participant/sessions/[id]/skl
@@ -63,10 +66,10 @@ async function handleGet(
 
         // Format date and Roman month
         const decidedDateObj = data.graduation_decided_at ? new Date(data.graduation_decided_at) : new Date();
-        const romanMonth = ROMAN_MONTHS[decidedDateObj.getMonth()] || 'I';
-        const currentYear = decidedDateObj.getFullYear();
+        const { romanMonth, year: currentYear } = getSklPeriod(data.graduation_decided_at || decidedDateObj);
 
         const printDate = decidedDateObj.toLocaleDateString('id-ID', {
+            timeZone: 'Asia/Jakarta',
             day: 'numeric',
             month: 'long',
             year: 'numeric'
@@ -74,30 +77,33 @@ async function handleGet(
 
         // Format SKL Number according to official pattern (<<No. SKL>>/E/SK/<<Bln Romawi>>/<<Tahun>>)
         let sklNumber = data.skl_number || '';
-        if (!sklNumber) {
+        if (!sklNumber.includes('/E/SK/')) {
             let connection;
             try {
                 connection = await pool.getConnection();
                 await connection.beginTransaction();
-                const latestSeq = await getLatestSklSequence(connection, romanMonth, currentYear);
-                sklNumber = formatSklNumber(latestSeq + 1, romanMonth, currentYear);
-                await connection.execute(
-                    `UPDATE session_participants SET skl_number = ?, skl_generated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                    [sklNumber, data.enrollment_id]
+                const [lockedRows] = await connection.execute<Array<{ skl_number: string | null }> & any[]>(
+                    'SELECT skl_number FROM session_participants WHERE id = ? FOR UPDATE',
+                    [data.enrollment_id],
                 );
+                const lockedNumber = lockedRows[0]?.skl_number || '';
+                if (lockedNumber.includes('/E/SK/')) {
+                    sklNumber = lockedNumber;
+                } else {
+                    const nextSequence = await reserveNextSklSequence(connection, romanMonth, currentYear);
+                    sklNumber = formatSklNumber(nextSequence, romanMonth, currentYear);
+                    await connection.execute(
+                        `UPDATE session_participants SET skl_number = ?, skl_generated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                        [sklNumber, data.enrollment_id]
+                    );
+                }
                 await connection.commit();
             } catch (seqErr) {
                 if (connection) await connection.rollback().catch(() => {});
-                console.error('Failed to assign sequential SKL number:', seqErr);
-                const shortId = (data.enrollment_id || '001').slice(0, 3).toUpperCase();
-                sklNumber = `${shortId}/E/SK/${romanMonth}/${currentYear}`;
+                throw seqErr;
             } finally {
                 if (connection) connection.release();
             }
-        } else if (!sklNumber.includes('/E/SK/')) {
-            const parts = sklNumber.split('/');
-            const seq = parts[parts.length - 1] || '001';
-            sklNumber = `${seq}/E/SK/${romanMonth}/${currentYear}`;
         }
 
         // Load Nusamitra logo as base64 for self-contained print reliability
@@ -112,21 +118,15 @@ async function handleGet(
             console.error('Failed reading Nusamitra logo:', logoErr);
         }
 
-        // Robust base URL resolution (respects reverse proxy headers & production domain)
-        const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host');
-        const forwardedProto = request.headers.get('x-forwarded-proto') || (request.url.startsWith('https') ? 'https' : 'http');
-        let baseUrl = request.nextUrl.origin;
-
-        if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')) {
-            baseUrl = process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
-        } else if (process.env.APP_URL && !process.env.APP_URL.includes('localhost')) {
-            baseUrl = process.env.APP_URL.replace(/\/+$/, '');
-        } else if (forwardedHost && !forwardedHost.includes('127.0.0.1')) {
-            baseUrl = `${forwardedProto}://${forwardedHost}`.replace(/\/+$/, '');
-        }
+        const baseUrl = process.env.NODE_ENV === 'production' ? getAppBaseUrl() : request.nextUrl.origin;
 
         // Generate dynamic QR Code for public online verification
-        const verificationPayload = `${baseUrl}/verify/skl/${data.enrollment_id}?no=${encodeURIComponent(sklNumber)}`;
+        const verificationToken = createSklVerificationToken({
+            enrollmentId: data.enrollment_id,
+            sklNumber,
+            decidedAt: data.graduation_decided_at,
+        });
+        const verificationPayload = `${baseUrl}/verify/skl/${data.enrollment_id}?no=${encodeURIComponent(sklNumber)}&sig=${encodeURIComponent(verificationToken)}`;
         const qrCodeDataUrl = await QRCode.toDataURL(verificationPayload, {
             errorCorrectionLevel: 'M',
             margin: 1,
@@ -140,6 +140,16 @@ async function handleGet(
         const participantName = data.full_name || data.username || '-';
         const institutionName = data.institution || 'Instansi Peserta Terdaftar';
         const certificationName = data.session_title || data.module_title || 'Pelatihan dan Sertifikasi Profesi International';
+        const safeParticipantName = escapeHtml(participantName);
+        const safeInstitutionName = escapeHtml(institutionName);
+        const safeCertificationName = escapeHtml(certificationName);
+        const safeSklNumber = escapeHtml(sklNumber);
+        const safePrintDate = escapeHtml(printDate);
+        const safeIdCardNumber = escapeHtml(data.id_card_number || '');
+        const safeNip = escapeHtml(data.nip || '');
+        const safeEnrollmentId = escapeHtml(data.enrollment_id || '');
+        const safeLogoBase64 = escapeHtml(logoBase64);
+        const safeQrCodeDataUrl = escapeHtml(qrCodeDataUrl);
 
         // Format HTML print document
         const html = `<!DOCTYPE html>
@@ -147,7 +157,7 @@ async function handleGet(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Surat Keterangan Hasil Ujian - ${participantName}</title>
+    <title>Surat Keterangan Hasil Ujian - ${safeParticipantName}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -492,8 +502,8 @@ async function handleGet(
         <!-- Letterhead -->
         <div class="letterhead">
             <div class="logo-container">
-                ${logoBase64 
-                    ? `<img src="${logoBase64}" alt="Nusamitra Consulting" class="logo-img" />`
+                ${safeLogoBase64
+                    ? `<img src="${safeLogoBase64}" alt="Nusamitra Consulting" class="logo-img" />`
                     : `<div style="font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.03em;">NUSAMITRA</div>`
                 }
             </div>
@@ -511,7 +521,7 @@ async function handleGet(
                     <tr>
                         <td class="meta-label">No</td>
                         <td class="meta-sep">:</td>
-                        <td class="meta-val">${sklNumber}</td>
+                        <td class="meta-val">${safeSklNumber}</td>
                     </tr>
                     <tr>
                         <td class="meta-label">Perihal</td>
@@ -526,17 +536,17 @@ async function handleGet(
                 </table>
             </div>
             <div class="meta-right">
-                Surabaya, ${printDate}
+                Surabaya, ${safePrintDate}
             </div>
         </div>
 
         <!-- Recipient Information -->
         <div class="recipient-box">
             <div class="recipient-title">Kepada Yth :</div>
-            <div class="recipient-name">${participantName}</div>
-            <div class="recipient-inst">${institutionName}</div>
-            ${data.id_card_number ? `<div style="font-size: 11px; color: #475569; margin-top: 2px;">NIK / No. Identitas: ${data.id_card_number}</div>` : ''}
-            ${data.nip ? `<div style="font-size: 11px; color: #475569;">NIP: ${data.nip}</div>` : ''}
+            <div class="recipient-name">${safeParticipantName}</div>
+            <div class="recipient-inst">${safeInstitutionName}</div>
+            ${safeIdCardNumber ? `<div style="font-size: 11px; color: #475569; margin-top: 2px;">NIK / No. Identitas: ${safeIdCardNumber}</div>` : ''}
+            ${safeNip ? `<div style="font-size: 11px; color: #475569;">NIP: ${safeNip}</div>` : ''}
         </div>
 
         <!-- Salutation -->
@@ -560,11 +570,11 @@ async function handleGet(
                 <tbody>
                     <tr>
                         <td class="col-nama">
-                            <div style="font-weight: 700;">${participantName}</div>
-                            ${data.nip ? `<div style="font-size: 11px; color: #475569; font-weight: normal; margin-top: 1px;">NIP: ${data.nip}</div>` : ''}
-                            ${data.id_card_number ? `<div style="font-size: 11px; color: #475569; font-weight: normal; margin-top: 1px;">NIK: ${data.id_card_number}</div>` : ''}
+                            <div style="font-weight: 700;">${safeParticipantName}</div>
+                            ${safeNip ? `<div style="font-size: 11px; color: #475569; font-weight: normal; margin-top: 1px;">NIP: ${safeNip}</div>` : ''}
+                            ${safeIdCardNumber ? `<div style="font-size: 11px; color: #475569; font-weight: normal; margin-top: 1px;">NIK: ${safeIdCardNumber}</div>` : ''}
                         </td>
-                        <td class="col-sertifikasi">${certificationName}</td>
+                        <td class="col-sertifikasi">${safeCertificationName}</td>
                         <td class="col-keterangan">LULUS</td>
                     </tr>
                 </tbody>
@@ -586,7 +596,7 @@ async function handleGet(
             <div class="signature-box">
                 <div class="sign-salute">Hormat Kami,</div>
                 <div class="qr-wrapper">
-                    <img src="${qrCodeDataUrl}" alt="QR Verification" class="qr-img" />
+                    <img src="${safeQrCodeDataUrl}" alt="QR Verification" class="qr-img" />
                     <span class="qr-hint">Pindai untuk Verifikasi</span>
                 </div>
                 <div class="sign-name">Nusamitra Training Directorate</div>
@@ -596,7 +606,7 @@ async function handleGet(
 
         <!-- Footer Audit Trail -->
         <div class="doc-footer-audit">
-            <div>ID Dokumen: <code>${data.enrollment_id}</code></div>
+            <div>ID Dokumen: <code>${safeEnrollmentId}</code></div>
             <div>Status: <strong>TERCATAT RESMI DIGITAL</strong></div>
         </div>
     </div>
@@ -610,12 +620,9 @@ async function handleGet(
                 'Content-Type': 'text/html; charset=utf-8',
             },
         });
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Internal Server Error';
-        return new NextResponse(`Terjadi kesalahan sistem: ${message}`, { status: 500 });
+    } catch {
+        return new NextResponse('Terjadi kesalahan saat menerbitkan SKL. Silakan coba kembali atau hubungi administrator.', { status: 500 });
     }
 }
 
 export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer', 'trainee'] });
-
-

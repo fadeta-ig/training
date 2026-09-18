@@ -8,7 +8,6 @@ import {
     Tick01Icon,
     ArrowRight01Icon,
 } from 'hugeicons-react';
-import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/ui/Pagination';
 
 type Notification = {
@@ -20,16 +19,30 @@ type Notification = {
     link_url: string | null;
 };
 
+function safeNotificationLink(value: string | null): string | null {
+    if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\u0000-\u001f]/.test(value)) return null;
+    return value;
+}
+
 export default function NotificationsPage() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     const fetchNotifications = () => {
-        fetch('/api/participant/notifications')
+        setLoading(true);
+        fetch(`/api/participant/notifications?page=${currentPage}&limit=${pageSize}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data.success) {
                     setNotifications(data.data);
+                    setTotalItems(data.pagination?.total || 0);
+                    setTotalPages(data.pagination?.totalPages || 1);
+                    setUnreadCount(data.unreadCount || 0);
                 }
             })
             .catch(() => {})
@@ -38,37 +51,32 @@ export default function NotificationsPage() {
 
     useEffect(() => {
         fetchNotifications();
-    }, []);
-
-    const {
-        currentPage,
-        pageSize,
-        totalPages,
-        totalItems,
-        paginatedItems: paginatedNotifications,
-        setPage,
-        setPageSize,
-    } = usePagination({ items: notifications, initialPageSize: 10 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage, pageSize]);
 
     const markAsRead = async (id: string) => {
         try {
-            await fetch('/api/participant/notifications', {
+            const response = await fetch('/api/participant/notifications', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ notification_id: id }),
             });
+            if (!response.ok) throw new Error('Gagal memperbarui notifikasi');
             setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+            setUnreadCount((value) => Math.max(0, value - 1));
         } catch {}
     };
 
     const markAllAsRead = async () => {
         try {
-            await fetch('/api/participant/notifications', {
+            const response = await fetch('/api/participant/notifications', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mark_all: true }),
             });
+            if (!response.ok) throw new Error('Gagal memperbarui notifikasi');
             setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+            setUnreadCount(0);
         } catch {}
     };
 
@@ -79,8 +87,6 @@ export default function NotificationsPage() {
             </div>
         );
     }
-
-    const unreadCount = notifications.filter((n) => !n.is_read).length;
 
     return (
         <div className="max-w-3xl mx-auto space-y-6 pb-12">
@@ -116,7 +122,7 @@ export default function NotificationsPage() {
                 ) : (
                     <div className="space-y-4">
                         <div className="space-y-3">
-                            {paginatedNotifications.map((n) => (
+                            {notifications.map((n) => (
                                 <div
                                     key={n.id}
                                     className={`glass-card p-4 sm:p-5 flex items-start gap-4 transition-all ${
@@ -158,9 +164,9 @@ export default function NotificationsPage() {
                                         </p>
 
                                         <div className="flex items-center gap-3">
-                                            {n.link_url && (
+                                            {safeNotificationLink(n.link_url) && (
                                                 <Link
-                                                    href={n.link_url}
+                                                    href={safeNotificationLink(n.link_url)!}
                                                     className="text-[11px] font-semibold text-foreground bg-slate-100 hover:bg-slate-200/70 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 w-fit"
                                                 >
                                                     Lihat Detail
@@ -187,8 +193,11 @@ export default function NotificationsPage() {
                             totalPages={totalPages}
                             totalItems={totalItems}
                             pageSize={pageSize}
-                            onPageChange={setPage}
-                            onPageSizeChange={setPageSize}
+                            onPageChange={setCurrentPage}
+                            onPageSizeChange={(size) => {
+                                setPageSize(size);
+                                setCurrentPage(1);
+                            }}
                         />
                     </div>
                 )}

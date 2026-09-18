@@ -309,7 +309,10 @@ export default function ParticipantsManagerPage() {
         if (selectedIds.size === 0) return;
         const ids = Array.from(selectedIds).join(',');
         toast.info(`Menyiapkan unduhan data ${selectedIds.size} peserta terpilih...`);
-        window.location.href = `/api/admin/participants/export?ids=${encodeURIComponent(ids)}`;
+        const link = document.createElement('a');
+        link.href = `/api/admin/participants/export?ids=${encodeURIComponent(ids)}`;
+        link.download = '';
+        link.click();
     };
 
     const deleteParticipant = async (id: string, name: string) => {
@@ -1064,5 +1067,4 @@ export default function ParticipantsManagerPage() {
         </div>
     );
 }
-
 

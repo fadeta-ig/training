@@ -46,6 +46,14 @@ export function validateMutationOrigin(request: NextRequest): NextResponse | nul
     const refererHeader = request.headers.get('referer');
     const origin = normalizeOrigin(originHeader) || normalizeOrigin(refererHeader);
     const allowedOrigins = getAllowedOrigins(request);
+    const fetchSite = request.headers.get('sec-fetch-site');
+
+    if (!origin && process.env.NODE_ENV === 'production' && fetchSite !== 'same-origin') {
+        return NextResponse.json(
+            { success: false, error: 'Bukti origin request tidak tersedia' },
+            { status: 403 },
+        );
+    }
 
     if (origin && !allowedOrigins.has(origin)) {
         return NextResponse.json(
@@ -63,7 +71,7 @@ interface CachedAuthUser {
 }
 
 const userAuthCache = new Map<string, CachedAuthUser>();
-const USER_AUTH_CACHE_TTL_MS = 30_000;
+const USER_AUTH_CACHE_TTL_MS = 5_000;
 
 function getCachedUser(userId: string): { id: string; username: string; role: AuthRole; approval_status?: 'pending' | 'approved' | 'rejected' } | null {
     const cached = userAuthCache.get(userId);
@@ -181,10 +189,9 @@ export function withAuth(
         try {
             return await handler(request, user, context);
         } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan sistem internal';
             console.error('[API_AUTH_UNHANDLED_ERROR]', error);
             return NextResponse.json(
-                { success: false, error: errorMessage },
+                { success: false, error: 'Terjadi kesalahan sistem internal' },
                 { status: 500 }
             );
         }

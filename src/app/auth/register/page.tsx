@@ -259,8 +259,6 @@ export default function RegisterPage() {
         }
     };
 
-    const progressPercentage = ((currentStep - 1) / (STEPS.length - 1)) * 100;
-
     return (
         <div className="min-h-screen w-full flex flex-col lg:flex-row bg-slate-50/50 font-sans antialiased selection:bg-primary/20 selection:text-primary">
             {/* ── Left Hero Panel (Branding & Atmosphere) ── */}

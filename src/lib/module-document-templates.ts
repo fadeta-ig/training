@@ -767,7 +767,7 @@ export function generateExamSheetHtml(
                     ${answerKeyHtml}
                 </div>
             `;
-            } catch (renderErr) {
+            } catch {
                 return `
                 <div class="question-card">
                     <div class="question-header">

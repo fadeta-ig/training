@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { examSchema } from '@/lib/validations/examSchema';
 import { withAuth } from '@/lib/api-auth';
+import pool from '@/lib/db';
 
 async function handleGet(
     request: NextRequest,
@@ -86,22 +87,72 @@ async function handleDelete(
     _user: any,
     context: { params: Promise<{ id: string }> }
 ) {
+    let connection;
     try {
         const resolvedParams = await context.params;
 
-        const result = await executeQuery<{ affectedRows: number }>(
-            `DELETE FROM exams WHERE id = ?`,
-            [resolvedParams.id]
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+        const [examRows] = await connection.execute<Array<{ id: string }> & any[]>(
+            'SELECT id FROM exams WHERE id = ? LIMIT 1 FOR UPDATE',
+            [resolvedParams.id],
         );
-
-        if (result && 'affectedRows' in result && result.affectedRows === 0) {
+        if (examRows.length === 0) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
             return NextResponse.json({ success: false, error: 'Exam not found' }, { status: 404 });
         }
 
+        const [usageRows] = await connection.execute<Array<{
+            answers: number | string;
+            drafts: number | string;
+            module_references: number | string;
+            remedial_references: number | string;
+        }> & any[]>(
+            `SELECT
+                (SELECT COUNT(*) FROM exam_answers WHERE exam_id = ?) AS answers,
+                (SELECT COUNT(*) FROM exam_answer_drafts WHERE exam_id = ?) AS drafts,
+                (SELECT COUNT(*) FROM module_items WHERE item_type = 'exam' AND item_id = ?) AS module_references,
+                (SELECT COUNT(*) FROM exams WHERE remedial_exam_id = ?) AS remedial_references`,
+            [resolvedParams.id, resolvedParams.id, resolvedParams.id, resolvedParams.id],
+        );
+        const usage = usageRows[0];
+        if (
+            Number(usage?.answers || 0) > 0
+            || Number(usage?.drafts || 0) > 0
+            || Number(usage?.module_references || 0) > 0
+            || Number(usage?.remedial_references || 0) > 0
+        ) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json(
+                { success: false, error: 'Ujian yang sudah digunakan, memiliki jawaban/draft, atau menjadi paket remedial tidak dapat dihapus. Duplikasi ujian untuk membuat revisi.' },
+                { status: 409 },
+            );
+        }
+
+        const [result] = await connection.execute<any>('DELETE FROM exams WHERE id = ?', [resolvedParams.id]);
+
+        if (result && 'affectedRows' in result && result.affectedRows === 0) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json({ success: false, error: 'Exam not found' }, { status: 404 });
+        }
+
+        await connection.commit();
+        connection.release();
+        connection = undefined;
+
         return NextResponse.json({ success: true, message: 'Exam deleted' });
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Internal Server Error';
-        return NextResponse.json({ success: false, error: message }, { status: 500 });
+    } catch {
+        if (connection) {
+            await connection.rollback();
+            connection.release();
+        }
+        return NextResponse.json({ success: false, error: 'Gagal menghapus ujian' }, { status: 500 });
     }
 }
 

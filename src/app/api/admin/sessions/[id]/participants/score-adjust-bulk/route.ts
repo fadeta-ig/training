@@ -68,7 +68,7 @@ async function handlePost(
         for (const pId of participant_ids) {
             // Ambil data progress peserta saat ini
             const [progressRows] = await connection.execute<any[]>(
-                `SELECT id, score, original_score, score_adjustment, status
+                `SELECT id, score, original_score, score_adjustment, status, COALESCE(grading_pending, 0) AS grading_pending
                  FROM user_progress
                  WHERE session_id = ? AND user_id = ? AND module_item_id = ?
                  LIMIT 1
@@ -82,6 +82,15 @@ async function handlePost(
 
             if (progressRows.length > 0) {
                 const pRow = progressRows[0];
+                if (pRow.status === 'grading_pending' || Boolean(pRow.grading_pending)) {
+                    await connection.rollback();
+                    connection.release();
+                    connection = undefined;
+                    return NextResponse.json(
+                        { success: false, error: 'Penyesuaian massal dibatalkan karena ada peserta yang masih menunggu penilaian esai', participant_id: pId },
+                        { status: 409 },
+                    );
+                }
                 progressId = pRow.id;
                 originalScore = pRow.original_score !== null && pRow.original_score !== undefined
                     ? Number(pRow.original_score)

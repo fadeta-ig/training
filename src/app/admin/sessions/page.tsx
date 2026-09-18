@@ -13,7 +13,6 @@ import {
     Camera01Icon,
     Search01Icon,
     Add01Icon,
-    UserMultipleIcon,
     CheckmarkCircle02Icon,
     Clock01Icon
 } from 'hugeicons-react';

@@ -3,6 +3,7 @@ import { jwtVerify, SignJWT } from 'jose';
 import type { NextRequest } from 'next/server';
 import { JWT_SECRET } from '@/lib/auth';
 import { parseStoredSebConfigKeys } from '@/lib/seb-config';
+import { getAppBaseUrl } from '@/lib/app-url';
 
 const encodedKey = new TextEncoder().encode(JWT_SECRET);
 const SEB_TOKEN_ISSUER = 'lms-seb-preflight';
@@ -42,12 +43,10 @@ function safeAbsoluteUrl(value: string | null | undefined): string | null {
 
 function requestUrlCandidates(request: NextRequest): string[] {
     const parsed = new URL(request.url);
-    const proto = request.headers.get('x-forwarded-proto') || parsed.protocol.replace(':', '');
-    const host = request.headers.get('x-forwarded-host') || parsed.host;
+    const origin = process.env.NODE_ENV === 'production' ? getAppBaseUrl() : parsed.origin;
     const candidates = [
-        request.url,
-        `${proto}://${host}${parsed.pathname}${parsed.search}`,
-        `${proto}://${host}${parsed.pathname}`,
+        `${origin}${parsed.pathname}${parsed.search}`,
+        `${origin}${parsed.pathname}`,
     ];
     return Array.from(new Set(candidates.map(safeAbsoluteUrl).filter((url): url is string => Boolean(url))));
 }

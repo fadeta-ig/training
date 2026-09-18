@@ -51,6 +51,10 @@ interface RateLimitConfig {
  * Prioritizes proxy headers for deployments behind reverse proxies (Nginx / Cloudflare).
  */
 export function getClientIp(request: NextRequest): string {
+    const trustProxyHeaders = process.env.TRUST_PROXY_HEADERS === 'true';
+    if (!trustProxyHeaders) {
+        return 'direct-client';
+    }
     return (
         request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
         request.headers.get('x-real-ip') ||
@@ -228,4 +232,3 @@ export function recordLoginSuccess(username: string): void {
         failureStore.delete(`acc:${cleanUsername}`);
     }
 }
-

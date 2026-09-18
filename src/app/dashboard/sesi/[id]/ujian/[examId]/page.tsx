@@ -91,6 +91,7 @@ type ExamData = {
     sessionEnd: string;
     individualExtensionUntil?: string | null;
     enableProctoring: boolean;
+    attemptAlreadyStarted?: boolean;
     attemptStart: string;
     attemptNumber: number;
     attemptVersion?: number;
@@ -98,10 +99,12 @@ type ExamData = {
 
 type ExamResult = {
     score?: number;
-    passed: boolean;
+    passed?: boolean;
     earnedPoints?: number;
     totalPoints?: number;
     show_score?: boolean;
+    grading_pending?: boolean;
+    pendingEssayCount?: number;
 };
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'offline' | 'error';
@@ -338,6 +341,12 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const serverClockOffsetRef = useRef(0);
     const sebAccessTokenRef = useRef<string | null>(null);
     const autoSubmitAttemptedRef = useRef(false);
+    const autosaveFailureCountRef = useRef(0);
+    const autosaveBlockedRef = useRef(false);
+    const examDurationMsRef = useRef(0);
+    const sessionEndMsRef = useRef<number | null>(null);
+    const extensionEndMsRef = useRef<number | null>(null);
+    const proctorTimerStartedRef = useRef(false);
 
     const warned15MinRef = useRef(false);
     const warned5MinRef = useRef(false);
@@ -383,6 +392,8 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     const handleAnswerChange = useCallback((questionId: string, value: string) => {
         if (answersRef.current[questionId] === value) return;
         dirtyQuestionIdsRef.current.add(questionId);
+        autosaveBlockedRef.current = false;
+        autosaveFailureCountRef.current = 0;
         // Monotonically increment client version for OCC to prevent out-of-order race conditions
         questionVersionsRef.current[questionId] = (questionVersionsRef.current[questionId] || 0) + 1;
         setSaveState('idle');
@@ -398,6 +409,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
     const saveDraft = useCallback(async () => {
         if (!examData || submitting || result) return;
+        if (autosaveBlockedRef.current) return;
 
         // In-flight mutex: if a request is currently in transit across the network, queue a follow-up
         if (isSavingRef.current) {
@@ -422,6 +434,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         isSavingRef.current = true;
         pendingSyncRef.current = false;
         setSaveState('saving');
+        let shouldRetry = false;
 
         try {
             const sebHeaders = getSebRequestHeaders(sebAccessTokenRef.current);
@@ -437,6 +450,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             const data = await response.json();
 
             if (response.status === 409) {
+                autosaveBlockedRef.current = true;
                 toast.error('Akses Ujian Diperbarui', {
                     description: 'Administrator telah memperbarui status ujian Anda. Halaman akan dimuat ulang.',
                 });
@@ -444,7 +458,11 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 return;
             }
 
-            if (!response.ok || !data.success) throw new Error(data.error || 'Draft gagal disimpan');
+            if (!response.ok || !data.success) {
+                shouldRetry = response.status >= 500 || [408, 425, 429].includes(response.status);
+                if (!shouldRetry) autosaveBlockedRef.current = true;
+                throw new Error(data.error || 'Draft gagal disimpan');
+            }
 
             // Clean only items whose answer and client_version have NOT changed while this request was in flight
             for (const item of snapshot) {
@@ -455,16 +473,30 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 }
             }
             setSaveState(dirtyQuestionIdsRef.current.size === 0 ? 'saved' : 'idle');
+            autosaveFailureCountRef.current = 0;
+            autosaveBlockedRef.current = false;
         } catch {
+            if (typeof navigator !== 'undefined' && navigator.onLine) {
+                // Fetch/network errors have no HTTP status and are safe to retry.
+                shouldRetry = !autosaveBlockedRef.current;
+            }
             setSaveState(typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'error');
         } finally {
             isSavingRef.current = false;
-            // If new dirty answers were marked during in-flight request, schedule immediate follow-up sync with minor jitter
-            if (pendingSyncRef.current || dirtyQuestionIdsRef.current.size > 0) {
+            const hasPendingChanges = pendingSyncRef.current;
+            if ((hasPendingChanges || shouldRetry) && dirtyQuestionIdsRef.current.size > 0 && !autosaveBlockedRef.current) {
                 pendingSyncRef.current = false;
                 if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
-                const followUpJitter = Math.floor(Math.random() * 200) + 100;
-                autosaveTimerRef.current = window.setTimeout(saveDraft, followUpJitter);
+                autosaveFailureCountRef.current = shouldRetry
+                    ? Math.min(autosaveFailureCountRef.current + 1, 6)
+                    : 0;
+                const baseDelay = hasPendingChanges && !shouldRetry
+                    ? 250
+                    : Math.min(30_000, 1_000 * (2 ** autosaveFailureCountRef.current));
+                const jitter = Math.floor(Math.random() * 500);
+                autosaveTimerRef.current = window.setTimeout(saveDraft, baseDelay + jitter);
+            } else {
+                pendingSyncRef.current = false;
             }
         }
     }, [examData, examId, result, sessionId, submitting]);
@@ -473,6 +505,8 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     useEffect(() => {
         const handleOnline = () => {
             setIsOnline(true);
+            autosaveBlockedRef.current = false;
+            autosaveFailureCountRef.current = 0;
             toast.success('Koneksi Internet Pulih', {
                 description: 'Menyinkronkan draft jawaban ke server...',
             });
@@ -516,7 +550,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             const jitter = Math.floor(Math.random() * 6000) - 3000; // -3000ms to +3000ms
             const interval = 15000 + jitter; // 12s - 18s
             periodicSyncTimerRef.current = window.setTimeout(() => {
-                if (dirtyQuestionIdsRef.current.size > 0 && !isSavingRef.current) {
+                if (dirtyQuestionIdsRef.current.size > 0 && !isSavingRef.current && !autosaveBlockedRef.current) {
                     saveDraft();
                 }
                 schedulePeriodicSync();
@@ -537,7 +571,22 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
     const handleProctorReadyChange = useCallback((ready: boolean) => {
         setProctorReady(ready);
-        if (ready) setProctorMessage('Kamera dan penyimpanan snapshot aktif.');
+        if (ready) {
+            setProctorMessage('Kamera dan penyimpanan snapshot aktif.');
+            if (!proctorTimerStartedRef.current && examDurationMsRef.current > 0) {
+                const serverAdjustedNow = Date.now() + serverClockOffsetRef.current;
+                let deadline = serverAdjustedNow + examDurationMsRef.current;
+                if (sessionEndMsRef.current !== null && sessionEndMsRef.current < deadline) {
+                    deadline = sessionEndMsRef.current;
+                }
+                if (extensionEndMsRef.current !== null && extensionEndMsRef.current > deadline) {
+                    deadline = extensionEndMsRef.current;
+                }
+                deadlineRef.current = deadline;
+                proctorTimerStartedRef.current = true;
+                setTimeLeft(Math.max(0, Math.ceil((deadline - serverAdjustedNow) / 1000)));
+            }
+        }
     }, []);
 
     const submitExam = useCallback(async () => {
@@ -652,7 +701,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             .then(async (response) => {
                 if (!response) return null;
                 if (response.status === 401) {
-                    window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+                    window.location.replace(`/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`);
                     return null;
                 }
                 const data = await response.json();
@@ -713,6 +762,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
 
                 const parsedDuration = Number(data.exam?.duration_minutes) || 60;
                 const durationMs = Math.max(1, parsedDuration) * 60 * 1000;
+                examDurationMsRef.current = durationMs;
                 const serverNow = Number.isFinite(new Date(data.serverTime).getTime())
                     ? new Date(data.serverTime).getTime()
                     : Date.now();
@@ -724,6 +774,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 // Bound by sessionEnd if configured
                 if (data.sessionEnd) {
                     const sessionEndTime = new Date(data.sessionEnd).getTime();
+                    sessionEndMsRef.current = Number.isFinite(sessionEndTime) ? sessionEndTime : null;
                     if (Number.isFinite(sessionEndTime) && sessionEndTime < deadline) {
                         deadline = sessionEndTime;
                     }
@@ -732,12 +783,14 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                 // Sync deadline with individual extension granted by admin
                 if (data.individualExtensionUntil) {
                     const extensionTime = new Date(data.individualExtensionUntil).getTime();
+                    extensionEndMsRef.current = Number.isFinite(extensionTime) ? extensionTime : null;
                     if (Number.isFinite(extensionTime) && extensionTime > deadline) {
                         deadline = extensionTime;
                     }
                 }
 
                 deadlineRef.current = deadline;
+                proctorTimerStartedRef.current = !data.enableProctoring || Boolean(data.attemptAlreadyStarted);
                 serverClockOffsetRef.current = serverNow - Date.now();
                 setTimeLeft(Math.max(0, Math.ceil((deadline - serverNow) / 1000)));
                 setExamData(data);
@@ -761,6 +814,9 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
     // Sync timer every second
     useEffect(() => {
         if (result || error || !examData || deadlineRef.current === null) return;
+        // Proctoring delays the timer only until the first persisted snapshot.
+        // A later camera/network interruption must never pause or extend an exam.
+        if (examData.enableProctoring && !proctorTimerStartedRef.current) return;
         const syncTimer = () => {
             const serverAdjustedNow = Date.now() + serverClockOffsetRef.current;
             setTimeLeft(Math.max(0, Math.ceil((deadlineRef.current! - serverAdjustedNow) / 1000)));
@@ -772,7 +828,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             window.clearInterval(timer);
             document.removeEventListener('visibilitychange', syncTimer);
         };
-    }, [error, examData, result]);
+    }, [error, examData, proctorReady, result]);
 
     // Smart Timer Warning Triggers
     useEffect(() => {
@@ -893,13 +949,20 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                     <CardContent className="space-y-6 py-8 text-center">
                         <div className={cn(
                             'mx-auto grid size-14 place-items-center rounded-full',
-                            result.show_score === false || result.passed
+                            result.grading_pending || result.show_score === false || result.passed
                                 ? 'bg-emerald-100 text-emerald-700'
                                 : 'bg-amber-100 text-amber-700',
                         )}>
                             {result.show_score === false || result.passed ? <Check className="size-7" /> : <AlertCircle className="size-7" />}
                         </div>
-                        {result.show_score !== false ? (
+                        {result.grading_pending ? (
+                            <div>
+                                <h1 className="text-xl font-semibold">Ujian selesai, menunggu penilaian</h1>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    {result.pendingEssayCount || 1} jawaban esai sedang menunggu penilaian asesor. Nilai dan status kelulusan belum ditetapkan.
+                                </p>
+                            </div>
+                        ) : result.show_score !== false ? (
                             <div className="space-y-3">
                                 <div>
                                     <h1 className="text-xl font-semibold">{result.passed ? 'Ujian selesai dan lulus' : 'Ujian selesai'}</h1>
@@ -1050,6 +1113,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
             {examData.enableProctoring && (
                 <WebcamProctor
                     sessionId={sessionId}
+                    examId={examId}
                     isActive
                     onError={handleProctorError}
                     onReadyChange={handleProctorReadyChange}
@@ -1062,7 +1126,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                         <CardHeader><CardTitle className="text-base">Proctoring wajib aktif</CardTitle></CardHeader>
                         <CardContent className="space-y-3 text-sm text-muted-foreground">
                             <p>{proctorMessage}</p>
-                            <p>Aktifkan izin kamera dan pastikan koneksi internet tersedia. Timer ujian tetap berjalan.</p>
+                            <p>Aktifkan izin kamera dan pastikan koneksi internet tersedia. Timer ujian dimulai setelah snapshot awal berhasil disimpan.</p>
                         </CardContent>
                     </Card>
                 </div>

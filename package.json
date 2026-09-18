@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:question-import": "node --experimental-strip-types scripts/test-question-import.mjs",
     "test:seb-config": "node --experimental-strip-types scripts/test-seb-config.mjs",
+    "test:hardening": "node --experimental-strip-types scripts/test-lms-hardening.mjs",
     "db:migrate-users": "node scripts/migrate-users.mjs",
     "db:migrate-question-import": "node scripts/migrate-question-import.mjs",
     "db:migrate-initial-password": "node scripts/migrate-add-initial-password.mjs",
@@ -17,7 +18,9 @@
     "db:migrate-score-adjustment": "node scripts/migrate-score-adjustment.mjs",
     "db:migrate-seb-preflight": "node scripts/migrate-seb-preflight.mjs",
     "db:schema-check": "node scripts/migrate-schema-sync.mjs --check",
-    "db:schema-sync": "node scripts/migrate-schema-sync.mjs --apply"
+    "db:schema-sync": "node scripts/migrate-schema-sync.mjs --apply",
+    "uploads:orphan-check": "node scripts/cleanup-orphan-uploads.mjs",
+    "uploads:orphan-clean": "node scripts/cleanup-orphan-uploads.mjs --apply"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^3.0.0",
@@ -57,6 +60,7 @@
     "tailwind-merge": "^3.5.0",
     "tw-animate-css": "^1.4.0",
     "uuid": "^14.0.1",
+    "puppeteer": "^25.11.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -70,7 +74,6 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "^16.3.5",
-    "puppeteer": "^24.40.0",
     "shadcn": "^4.0.2",
     "tailwindcss": "^4",
     "typescript": "^5"
@@ -78,6 +81,9 @@
   "overrides": {
     "@hono/node-server": "^2.0.5",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "exceljs": {
+      "uuid": "^11.1.1"
+    },
     "postcss": "^8.5.28",
     "sharp": "^0.35.4"
   }

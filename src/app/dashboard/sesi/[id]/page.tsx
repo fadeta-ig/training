@@ -48,7 +48,7 @@ type ModuleItem = {
     sequence_order: number;
     item_title: string;
     duration_minutes: number | null;
-    progress_status: 'locked' | 'open' | 'completed';
+    progress_status: 'locked' | 'open' | 'grading_pending' | 'completed';
     score: number | null;
     can_retake: boolean;
     attempts_count: number;
@@ -83,25 +83,6 @@ const SESSION_STATUS: Record<SessionState, { label: string; className: string }>
     upcoming: { label: 'Akan datang', className: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300' },
     ended: { label: 'Berakhir (Terkunci)', className: 'border-border bg-muted text-muted-foreground' },
 };
-
-function formatSchedule(start: Date, end: Date) {
-    const dateFormatter = new Intl.DateTimeFormat('id-ID', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-    });
-    const timeFormatter = new Intl.DateTimeFormat('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-
-    if (start.toDateString() === end.toDateString()) {
-        return `${dateFormatter.format(start)}, ${timeFormatter.format(start)} - ${timeFormatter.format(end)}`;
-    }
-
-    return `${dateFormatter.format(start)}, ${timeFormatter.format(start)} - ${dateFormatter.format(end)}, ${timeFormatter.format(end)}`;
-}
 
 function WindowsIcon({ className = 'size-4' }: { className?: string }) {
     return (
@@ -157,7 +138,7 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
         fetch(`/api/participant/sessions/${id}`)
             .then((response) => {
                 if (response.status === 401) {
-                    window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+                    window.location.replace(`/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`);
                     return null;
                 }
                 return response.json();
@@ -587,6 +568,7 @@ function SessionItemCard({
 }) {
     const isCompleted = item.progress_status === 'completed';
     const isLocked = item.progress_status === 'locked';
+    const isGradingPending = item.progress_status === 'grading_pending';
     const isExam = item.item_type === 'exam';
     const isTraining = item.item_type === 'training';
     const sebLocked = isExam && requireSeb && !isSeb;
@@ -594,7 +576,7 @@ function SessionItemCard({
     // Strict Lock: When session is ended, no direct access to either training or exam is permitted
     const canAccess = !isSessionEnded && (
         (isTraining && !isLocked && (isSessionActive || isCompleted)) ||
-        (isExam && isSessionActive && !isLocked && !sebLocked) ||
+        (isExam && isSessionActive && !isLocked && !isGradingPending && !sebLocked) ||
         (isExam && isCompleted && item.can_retake && isSessionActive && !sebLocked)
     );
 
@@ -613,6 +595,9 @@ function SessionItemCard({
             statusLabel = 'Sesi Berakhir';
             statusClass = 'border-border bg-muted text-muted-foreground';
         }
+    } else if (isGradingPending) {
+        statusLabel = 'Menunggu penilaian esai';
+        statusClass = 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-300';
     } else if (isCompleted && item.can_retake) {
         statusLabel = 'Remedial tersedia';
         statusClass = 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300';
@@ -635,6 +620,8 @@ function SessionItemCard({
         unavailableMessage = 'Item tersedia setelah jadwal sesi dimulai.';
     } else if (isCompleted && isExam && !item.can_retake) {
         unavailableMessage = 'Ujian telah diselesaikan dan tidak memerlukan pengerjaan ulang.';
+    } else if (isGradingPending) {
+        unavailableMessage = 'Jawaban esai sedang dinilai. Nilai dan status kelulusan belum tersedia.';
     }
 
     let actionLabel = isExam ? 'Mulai ujian' : 'Buka materi';
@@ -670,7 +657,7 @@ function SessionItemCard({
                     <div>
                         <dt className="text-xs text-muted-foreground">Status</dt>
                         <dd className="mt-1 font-medium">
-                            {isCompleted ? 'Sudah selesai' : item.progress_status === 'open' && !isSessionEnded ? 'Belum selesai' : 'Tidak tersedia'}
+                            {isCompleted ? 'Sudah selesai' : isGradingPending ? 'Menunggu penilaian' : item.progress_status === 'open' && !isSessionEnded ? 'Belum selesai' : 'Tidak tersedia'}
                         </dd>
                     </div>
                     {isExam && (

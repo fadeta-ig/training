@@ -115,7 +115,7 @@ export function FirstLoginModal({ user }: FirstLoginModalProps) {
 
                 // Short delay to allow user to see success state before redirecting
                 setTimeout(() => {
-                    window.location.href = '/auth/login?reason=password_changed';
+                    window.location.replace('/auth/login?reason=password_changed');
                 }, 800);
             } else {
                 setErrorMessage(result.error || 'Gagal menyimpan perubahan kata sandi dan profil.');

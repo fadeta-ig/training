@@ -10,13 +10,59 @@ async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const { page, limit, offset } = parsePagination(searchParams);
+        const search = searchParams.get('search')?.trim() || searchParams.get('q')?.trim() || '';
+        const mediaType = searchParams.get('media_type') || 'all';
+        const usage = searchParams.get('usage') || 'all';
+        const sort = searchParams.get('sort') || 'created_desc';
 
-        const countResult = await executeQuery<{ total: number }[]>(`SELECT COUNT(*) as total FROM trainings`);
+        const conditions: string[] = [];
+        const conditionParams: (string | number)[] = [];
+
+        if (search) {
+            conditions.push(`t.title LIKE ?`);
+            conditionParams.push(`%${search}%`);
+        }
+
+        if (mediaType === 'video') {
+            conditions.push(`EXISTS (SELECT 1 FROM training_media tm WHERE tm.training_id = t.id AND tm.media_type = 'video')`);
+        } else if (mediaType === 'document') {
+            conditions.push(`EXISTS (SELECT 1 FROM training_media tm WHERE tm.training_id = t.id AND tm.media_type IN ('document', 'pdf'))`);
+        } else if (mediaType === 'none') {
+            conditions.push(`NOT EXISTS (SELECT 1 FROM training_media tm WHERE tm.training_id = t.id)`);
+        }
+
+        if (usage === 'in_module') {
+            conditions.push(`EXISTS (SELECT 1 FROM module_items mi WHERE mi.item_id = t.id AND mi.item_type = 'training')`);
+        } else if (usage === 'standalone') {
+            conditions.push(`NOT EXISTS (SELECT 1 FROM module_items mi WHERE mi.item_id = t.id AND mi.item_type = 'training')`);
+        }
+
+        const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+
+        const SORT_MAP: Record<string, string> = {
+            created_desc: 't.created_at DESC',
+            created_asc: 't.created_at ASC',
+            title_asc: 't.title ASC',
+            title_desc: 't.title DESC',
+            updated_desc: 't.updated_at DESC',
+        };
+        const orderClause = SORT_MAP[sort] || 't.created_at DESC';
+
+        const countResult = await executeQuery<{ total: number }[]>(
+            `SELECT COUNT(*) as total FROM trainings t${whereClause}`,
+            conditionParams
+        );
         const total = countResult[0]?.total || 0;
 
         const trainings = await executeQuery(
-            `SELECT id, title, created_at, updated_at FROM trainings ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-            [limit, offset]
+            `SELECT t.id, t.title, t.created_at, t.updated_at,
+                    (SELECT COUNT(*) FROM training_media tm WHERE tm.training_id = t.id) AS media_count,
+                    (SELECT COUNT(*) FROM module_items mi WHERE mi.item_id = t.id AND mi.item_type = 'training') AS module_count
+             FROM trainings t
+             ${whereClause}
+             ORDER BY ${orderClause}
+             LIMIT ? OFFSET ?`,
+            [...conditionParams, limit, offset]
         );
 
         return NextResponse.json({

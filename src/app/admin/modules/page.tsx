@@ -11,9 +11,15 @@ import {
     ListTree,
     Pencil,
     Plus,
+    RotateCcw,
     Trash2,
 } from 'lucide-react';
 import { ManagementPageHeader } from '@/components/admin/ManagementPageHeader';
+import {
+    LearningFilterBar,
+    FilterItemConfig,
+    SortOption,
+} from '@/components/admin/LearningFilterBar';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -36,7 +42,19 @@ type LearningModule = {
     description: string | null;
     enforce_sequence?: boolean | number;
     created_at: string;
+    item_count?: number;
+    training_count?: number;
+    exam_count?: number;
+    session_count?: number;
 };
+
+const SORT_OPTIONS: SortOption[] = [
+    { label: 'Terbaru Dibuat', value: 'created_desc' },
+    { label: 'Terlama Dibuat', value: 'created_asc' },
+    { label: 'Judul (A - Z)', value: 'title_asc' },
+    { label: 'Judul (Z - A)', value: 'title_desc' },
+    { label: 'Jumlah Item Terbanyak', value: 'items_desc' },
+];
 
 function formatDate(value: string) {
     return new Date(value).toLocaleDateString('id-ID', {
@@ -56,25 +74,50 @@ export default function ModulesManagerPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [selectedModuleForDownload, setSelectedModuleForDownload] = useState<{ id: string; title: string } | null>(null);
+
+    // Search, Filter, Sort States
+    const [search, setSearch] = useState('');
+    const [sequence, setSequence] = useState('all');
+    const [composition, setComposition] = useState('all');
+    const [sort, setSort] = useState('created_desc');
+
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchModules = useCallback(async (targetPage: number, limit: number) => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const response = await fetch(`/api/modules?page=${targetPage}&limit=${limit}`);
-            if (!response.ok) throw new Error('Gagal mengambil data modul');
-            const body = await response.json();
-            if (!body.success) throw new Error(body.error || 'Terjadi kesalahan server');
-            setModules(body.data);
-            setTotalPages(body.pagination?.totalPages || 1);
-            setTotalItems(body.pagination?.total || body.data.length);
-        } catch (caught) {
-            setError(caught instanceof Error ? caught.message : 'Gagal mengambil data modul');
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+    const fetchModules = useCallback(
+        async (
+            targetPage: number,
+            limit: number,
+            currentSearch = search,
+            currentSequence = sequence,
+            currentComposition = composition,
+            currentSort = sort
+        ) => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const params = new URLSearchParams({
+                    page: String(targetPage),
+                    limit: String(limit),
+                    search: currentSearch,
+                    sequence: currentSequence,
+                    composition: currentComposition,
+                    sort: currentSort,
+                });
+                const response = await fetch(`/api/modules?${params.toString()}`);
+                if (!response.ok) throw new Error('Gagal mengambil data modul');
+                const body = await response.json();
+                if (!body.success) throw new Error(body.error || 'Terjadi kesalahan server');
+                setModules(body.data);
+                setTotalPages(body.pagination?.totalPages || 1);
+                setTotalItems(body.pagination?.total || body.data.length);
+            } catch (caught) {
+                setError(caught instanceof Error ? caught.message : 'Gagal mengambil data modul');
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [search, sequence, composition, sort]
+    );
 
     useEffect(() => {
         fetchModules(page, pageSize);
@@ -88,6 +131,67 @@ export default function ModulesManagerPage() {
             })
             .catch(() => undefined);
     }, []);
+
+    const handleSearchChange = (newSearch: string) => {
+        setSearch(newSearch);
+        setPage(1);
+    };
+
+    const handleSequenceChange = (newSequence: string) => {
+        setSequence(newSequence);
+        setPage(1);
+    };
+
+    const handleCompositionChange = (newComposition: string) => {
+        setComposition(newComposition);
+        setPage(1);
+    };
+
+    const handleSortChange = (newSort: string) => {
+        setSort(newSort);
+        setPage(1);
+    };
+
+    const handleReset = () => {
+        setSearch('');
+        setSequence('all');
+        setComposition('all');
+        setSort('created_desc');
+        setPage(1);
+    };
+
+    const isFilterActive =
+        search.trim() !== '' ||
+        sequence !== 'all' ||
+        composition !== 'all' ||
+        sort !== 'created_desc';
+
+    const filterConfigs: FilterItemConfig[] = [
+        {
+            id: 'sequence',
+            label: 'Aturan Alur',
+            value: sequence,
+            onChange: handleSequenceChange,
+            options: [
+                { label: 'Semua Aturan Alur', value: 'all' },
+                { label: 'Alur Bertahap (Terkunci)', value: 'enforced' },
+                { label: 'Alur Terbuka (Bebas)', value: 'free' },
+            ],
+        },
+        {
+            id: 'composition',
+            label: 'Komposisi Item',
+            value: composition,
+            onChange: handleCompositionChange,
+            options: [
+                { label: 'Semua Komposisi', value: 'all' },
+                { label: 'Lengkap (Materi & Ujian)', value: 'complete' },
+                { label: 'Materi Saja', value: 'training_only' },
+                { label: 'Ujian Saja', value: 'exam_only' },
+                { label: 'Belum Ada Item', value: 'empty' },
+            ],
+        },
+    ];
 
     const deleteModule = async (id: string, title: string) => {
         const isConfirmed = await confirm({
@@ -110,9 +214,9 @@ export default function ModulesManagerPage() {
     };
 
     return (
-        <div className="relative max-w-6xl space-y-8 pb-12">
+        <div className="relative max-w-6xl space-y-6 pb-12">
             <ConfirmComponent />
-            
+
             {/* Download Modal Dialog */}
             <ModuleDownloadDialog
                 isOpen={!!selectedModuleForDownload}
@@ -131,6 +235,20 @@ export default function ModulesManagerPage() {
                 isRefreshing={isLoading}
             />
 
+            {/* Filter Bar */}
+            <LearningFilterBar
+                search={search}
+                onSearchChange={handleSearchChange}
+                searchPlaceholder="Cari judul modul atau deskripsi..."
+                filters={filterConfigs}
+                sort={sort}
+                onSortChange={handleSortChange}
+                sortOptions={SORT_OPTIONS}
+                onReset={handleReset}
+                totalItems={totalItems}
+                itemLabel="modul"
+            />
+
             {error && (
                 <div className="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-destructive">
                     <AlertCircle className="mt-0.5 size-5 shrink-0" />
@@ -146,25 +264,38 @@ export default function ModulesManagerPage() {
                     {[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-64 rounded-lg" />)}
                 </div>
             ) : modules.length === 0 ? (
-                <div className="rounded-lg border border-dashed px-6 py-14 text-center">
-                    <Boxes className="mx-auto size-9 text-muted-foreground/50" />
-                    <h2 className="mt-4 font-medium">Belum ada modul pembelajaran</h2>
-                    <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-                        Buat modul pertama dan tentukan urutan materi serta evaluasi yang harus diselesaikan peserta.
-                    </p>
-                    {userRole === 'admin' && (
-                        <Link href="/admin/modules/new" className={cn(buttonVariants({ size: 'lg' }), 'mt-5')}>
-                            <Plus /> Buat Modul Pertama
-                        </Link>
-                    )}
-                </div>
+                isFilterActive ? (
+                    <div className="rounded-lg border border-dashed px-6 py-14 text-center">
+                        <Boxes className="mx-auto size-9 text-muted-foreground/50" />
+                        <h2 className="mt-4 font-medium">Tidak ada modul yang cocok</h2>
+                        <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
+                            Pencarian atau filter yang Anda gunakan tidak menemukan hasil. Coba ganti kata kunci atau reset filter.
+                        </p>
+                        <Button variant="outline" onClick={handleReset} className="mt-5">
+                            <RotateCcw className="size-4 mr-1.5" /> Reset Filter
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="rounded-lg border border-dashed px-6 py-14 text-center">
+                        <Boxes className="mx-auto size-9 text-muted-foreground/50" />
+                        <h2 className="mt-4 font-medium">Belum ada modul pembelajaran</h2>
+                        <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
+                            Buat modul pertama dan tentukan urutan materi serta evaluasi yang harus diselesaikan peserta.
+                        </p>
+                        {userRole === 'admin' && (
+                            <Link href="/admin/modules/new" className={cn(buttonVariants({ size: 'lg' }), 'mt-5')}>
+                                <Plus /> Buat Modul Pertama
+                            </Link>
+                        )}
+                    </div>
+                )
             ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                     {modules.map((module) => (
                         <Card key={module.id} className="gap-0 rounded-lg py-0 shadow-none">
                             <CardHeader className="gap-4 px-5 pb-4 pt-5">
                                 <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <Badge variant="outline" className="rounded-md text-muted-foreground">
                                             <ListTree /> Modul
                                         </Badge>
@@ -177,8 +308,22 @@ export default function ModulesManagerPage() {
                                                 Alur Bertahap
                                             </Badge>
                                         )}
+                                        {Number(module.item_count) > 0 ? (
+                                            <Badge variant="outline" className="rounded-md border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 text-[11px]">
+                                                {module.item_count} Item
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="rounded-md border-slate-200 text-slate-500 dark:border-slate-800 text-[11px]">
+                                                Kosong
+                                            </Badge>
+                                        )}
+                                        {Number(module.session_count) > 0 && (
+                                            <Badge variant="outline" className="rounded-md border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300 text-[11px]">
+                                                {module.session_count} Sesi
+                                            </Badge>
+                                        )}
                                     </div>
-                                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
                                         <CalendarDays className="size-3.5" /> {formatDate(module.created_at)}
                                     </span>
                                 </div>
@@ -193,9 +338,11 @@ export default function ModulesManagerPage() {
                             <CardContent className="border-t px-5 py-4">
                                 <dl className="grid grid-cols-2 gap-4 text-sm">
                                     <div>
-                                        <dt className="text-xs text-muted-foreground">Aturan Alur</dt>
+                                        <dt className="text-xs text-muted-foreground">Komposisi Item</dt>
                                         <dd className="mt-1 font-medium">
-                                            {!module.enforce_sequence ? 'Terbuka & Fleksibel' : 'Terkunci Berurutan'}
+                                            {Number(module.item_count) > 0
+                                                ? `${module.training_count ?? 0} Materi, ${module.exam_count ?? 0} Ujian`
+                                                : 'Belum ada item'}
                                         </dd>
                                     </div>
                                     <div>

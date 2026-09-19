@@ -13,6 +13,7 @@
     "test:exam-results": "node --experimental-strip-types scripts/test-exam-results.mjs",
     "test:session-score-resolution": "node --experimental-strip-types scripts/test-session-score-resolution.mjs",
     "test:bulk-score-reset": "node scripts/test-bulk-score-reset.mjs",
+    "test:learning-filters": "node scripts/test-learning-management-filters.mjs",
     "db:migrate-users": "node scripts/migrate-users.mjs",
     "db:migrate-question-import": "node scripts/migrate-question-import.mjs",
     "db:migrate-initial-password": "node scripts/migrate-add-initial-password.mjs",

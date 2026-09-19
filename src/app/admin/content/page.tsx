@@ -10,9 +10,15 @@ import {
     FileText,
     Pencil,
     Plus,
+    RotateCcw,
     Trash2,
 } from 'lucide-react';
 import { ManagementPageHeader } from '@/components/admin/ManagementPageHeader';
+import {
+    LearningFilterBar,
+    FilterItemConfig,
+    SortOption,
+} from '@/components/admin/LearningFilterBar';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -32,7 +38,18 @@ type Training = {
     id: string;
     title: string;
     created_at: string;
+    updated_at?: string;
+    media_count?: number;
+    module_count?: number;
 };
+
+const SORT_OPTIONS: SortOption[] = [
+    { label: 'Terbaru Dibuat', value: 'created_desc' },
+    { label: 'Terlama Dibuat', value: 'created_asc' },
+    { label: 'Judul (A - Z)', value: 'title_asc' },
+    { label: 'Judul (Z - A)', value: 'title_desc' },
+    { label: 'Terakhir Diperbarui', value: 'updated_desc' },
+];
 
 function formatDate(value: string) {
     return new Date(value).toLocaleDateString('id-ID', {
@@ -51,25 +68,50 @@ export default function ContentManagerPage() {
     const [userRole, setUserRole] = useState('');
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
+
+    // Search, Filter, Sort States
+    const [search, setSearch] = useState('');
+    const [mediaType, setMediaType] = useState('all');
+    const [usage, setUsage] = useState('all');
+    const [sort, setSort] = useState('created_desc');
+
     const { confirm, ConfirmComponent } = useConfirm();
 
-    const fetchTrainings = useCallback(async (targetPage: number, limit: number) => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const response = await fetch(`/api/trainings?page=${targetPage}&limit=${limit}`);
-            if (!response.ok) throw new Error('Gagal mengambil data materi');
-            const body = await response.json();
-            if (!body.success) throw new Error(body.error || 'Terjadi kesalahan sistem');
-            setTrainings(body.data);
-            setTotalPages(body.pagination?.totalPages || 1);
-            setTotalItems(body.pagination?.total || body.data.length);
-        } catch (caught) {
-            setError(caught instanceof Error ? caught.message : 'Gagal mengambil data materi');
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+    const fetchTrainings = useCallback(
+        async (
+            targetPage: number,
+            limit: number,
+            currentSearch = search,
+            currentMediaType = mediaType,
+            currentUsage = usage,
+            currentSort = sort
+        ) => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const params = new URLSearchParams({
+                    page: String(targetPage),
+                    limit: String(limit),
+                    search: currentSearch,
+                    media_type: currentMediaType,
+                    usage: currentUsage,
+                    sort: currentSort,
+                });
+                const response = await fetch(`/api/trainings?${params.toString()}`);
+                if (!response.ok) throw new Error('Gagal mengambil data materi');
+                const body = await response.json();
+                if (!body.success) throw new Error(body.error || 'Terjadi kesalahan sistem');
+                setTrainings(body.data);
+                setTotalPages(body.pagination?.totalPages || 1);
+                setTotalItems(body.pagination?.total || body.data.length);
+            } catch (caught) {
+                setError(caught instanceof Error ? caught.message : 'Gagal mengambil data materi');
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [search, mediaType, usage, sort]
+    );
 
     useEffect(() => {
         fetchTrainings(page, pageSize);
@@ -83,6 +125,62 @@ export default function ContentManagerPage() {
             })
             .catch(() => undefined);
     }, []);
+
+    const handleSearchChange = (newSearch: string) => {
+        setSearch(newSearch);
+        setPage(1);
+    };
+
+    const handleMediaTypeChange = (newMediaType: string) => {
+        setMediaType(newMediaType);
+        setPage(1);
+    };
+
+    const handleUsageChange = (newUsage: string) => {
+        setUsage(newUsage);
+        setPage(1);
+    };
+
+    const handleSortChange = (newSort: string) => {
+        setSort(newSort);
+        setPage(1);
+    };
+
+    const handleReset = () => {
+        setSearch('');
+        setMediaType('all');
+        setUsage('all');
+        setSort('created_desc');
+        setPage(1);
+    };
+
+    const isFilterActive = search.trim() !== '' || mediaType !== 'all' || usage !== 'all' || sort !== 'created_desc';
+
+    const filterConfigs: FilterItemConfig[] = [
+        {
+            id: 'media_type',
+            label: 'Format Media',
+            value: mediaType,
+            onChange: handleMediaTypeChange,
+            options: [
+                { label: 'Semua Format Media', value: 'all' },
+                { label: 'Video Saja', value: 'video' },
+                { label: 'Dokumen / PDF', value: 'document' },
+                { label: 'Teks Saja', value: 'none' },
+            ],
+        },
+        {
+            id: 'usage',
+            label: 'Status Modul',
+            value: usage,
+            onChange: handleUsageChange,
+            options: [
+                { label: 'Semua Status Modul', value: 'all' },
+                { label: 'Dipakai di Modul', value: 'in_module' },
+                { label: 'Belum Masuk Modul', value: 'standalone' },
+            ],
+        },
+    ];
 
     const deleteTraining = async (id: string, title: string) => {
         const isConfirmed = await confirm({
@@ -105,7 +203,7 @@ export default function ContentManagerPage() {
     };
 
     return (
-        <div className="relative max-w-6xl space-y-8 pb-12">
+        <div className="relative max-w-6xl space-y-6 pb-12">
             <ConfirmComponent />
             <ManagementPageHeader
                 title="Materi Pelatihan"
@@ -115,6 +213,20 @@ export default function ContentManagerPage() {
                 actionHref={userRole === 'admin' ? '/admin/content/new' : undefined}
                 onRefresh={() => fetchTrainings(page, pageSize)}
                 isRefreshing={isLoading}
+            />
+
+            {/* Filter Bar */}
+            <LearningFilterBar
+                search={search}
+                onSearchChange={handleSearchChange}
+                searchPlaceholder="Cari judul materi pelatihan..."
+                filters={filterConfigs}
+                sort={sort}
+                onSortChange={handleSortChange}
+                sortOptions={SORT_OPTIONS}
+                onReset={handleReset}
+                totalItems={totalItems}
+                itemLabel="materi"
             />
 
             {error && (
@@ -132,28 +244,61 @@ export default function ContentManagerPage() {
                     {[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-60 rounded-lg" />)}
                 </div>
             ) : trainings.length === 0 ? (
-                <div className="rounded-lg border border-dashed px-6 py-14 text-center">
-                    <FileText className="mx-auto size-9 text-muted-foreground/50" />
-                    <h2 className="mt-4 font-medium">Belum ada materi pelatihan</h2>
-                    <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-                        Buat materi pertama agar dapat digunakan saat menyusun alur pembelajaran pada Modul Builder.
-                    </p>
-                    {userRole === 'admin' && (
-                        <Link href="/admin/content/new" className={cn(buttonVariants({ size: 'lg' }), 'mt-5')}>
-                            <Plus /> Buat Materi Pertama
-                        </Link>
-                    )}
-                </div>
+                isFilterActive ? (
+                    <div className="rounded-lg border border-dashed px-6 py-14 text-center">
+                        <FileText className="mx-auto size-9 text-muted-foreground/50" />
+                        <h2 className="mt-4 font-medium">Tidak ada materi yang cocok</h2>
+                        <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
+                            Pencarian atau filter yang Anda gunakan tidak menemukan hasil. Coba ganti kata kunci atau reset filter.
+                        </p>
+                        <Button variant="outline" onClick={handleReset} className="mt-5">
+                            <RotateCcw className="size-4 mr-1.5" /> Reset Filter
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="rounded-lg border border-dashed px-6 py-14 text-center">
+                        <FileText className="mx-auto size-9 text-muted-foreground/50" />
+                        <h2 className="mt-4 font-medium">Belum ada materi pelatihan</h2>
+                        <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
+                            Buat materi pertama agar dapat digunakan saat menyusun alur pembelajaran pada Modul Builder.
+                        </p>
+                        {userRole === 'admin' && (
+                            <Link href="/admin/content/new" className={cn(buttonVariants({ size: 'lg' }), 'mt-5')}>
+                                <Plus /> Buat Materi Pertama
+                            </Link>
+                        )}
+                    </div>
+                )
             ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                     {trainings.map((training) => (
                         <Card key={training.id} className="gap-0 rounded-lg py-0 shadow-none">
                             <CardHeader className="gap-4 px-5 pb-4 pt-5">
                                 <div className="flex items-center justify-between gap-3">
-                                    <Badge variant="outline" className="rounded-md text-muted-foreground">
-                                        <FileText /> Materi
-                                    </Badge>
-                                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <Badge variant="outline" className="rounded-md text-muted-foreground">
+                                            <FileText /> Materi
+                                        </Badge>
+                                        {Number(training.media_count) > 0 ? (
+                                            <Badge variant="secondary" className="rounded-md text-xs font-normal border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+                                                {training.media_count} Media
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="rounded-md text-[11px] font-normal text-muted-foreground">
+                                                Teks Saja
+                                            </Badge>
+                                        )}
+                                        {Number(training.module_count) > 0 ? (
+                                            <Badge variant="outline" className="rounded-md border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 text-[11px]">
+                                                {training.module_count} Modul
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="rounded-md border-slate-200 text-slate-500 dark:border-slate-800 text-[11px]">
+                                                Standalone
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
                                         <CalendarDays className="size-3.5" /> {formatDate(training.created_at)}
                                     </span>
                                 </div>
@@ -168,8 +313,10 @@ export default function ContentManagerPage() {
                             <CardContent className="border-t px-5 py-4">
                                 <dl className="grid grid-cols-2 gap-4 text-sm">
                                     <div>
-                                        <dt className="text-xs text-muted-foreground">Jenis konten</dt>
-                                        <dd className="mt-1 font-medium">Materi pembelajaran</dd>
+                                        <dt className="text-xs text-muted-foreground">Status Lampiran</dt>
+                                        <dd className="mt-1 font-medium">
+                                            {Number(training.media_count) > 0 ? `${training.media_count} berkas lampiran` : 'Tanpa lampiran'}
+                                        </dd>
                                     </div>
                                     <div>
                                         <dt className="text-xs text-muted-foreground">Dibuat pada</dt>

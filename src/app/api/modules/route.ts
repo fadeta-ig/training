@@ -11,13 +11,63 @@ async function handleGet(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const { page, limit, offset } = parsePagination(searchParams);
+        const search = searchParams.get('search')?.trim() || searchParams.get('q')?.trim() || '';
+        const sequence = searchParams.get('sequence') || 'all';
+        const composition = searchParams.get('composition') || 'all';
+        const sort = searchParams.get('sort') || 'created_desc';
 
-        const countResult = await executeQuery<{ total: number }[]>(`SELECT COUNT(*) as total FROM modules`);
+        const conditions: string[] = [];
+        const conditionParams: (string | number)[] = [];
+
+        if (search) {
+            conditions.push(`(m.title LIKE ? OR m.description LIKE ?)`);
+            conditionParams.push(`%${search}%`, `%${search}%`);
+        }
+
+        if (sequence === 'enforced') {
+            conditions.push(`m.enforce_sequence = 1`);
+        } else if (sequence === 'free') {
+            conditions.push(`(m.enforce_sequence = 0 OR m.enforce_sequence IS NULL)`);
+        }
+
+        if (composition === 'complete') {
+            conditions.push(`EXISTS (SELECT 1 FROM module_items mi WHERE mi.module_id = m.id AND mi.item_type = 'training') AND EXISTS (SELECT 1 FROM module_items mi WHERE mi.module_id = m.id AND mi.item_type = 'exam')`);
+        } else if (composition === 'training_only') {
+            conditions.push(`EXISTS (SELECT 1 FROM module_items mi WHERE mi.module_id = m.id AND mi.item_type = 'training') AND NOT EXISTS (SELECT 1 FROM module_items mi WHERE mi.module_id = m.id AND mi.item_type = 'exam')`);
+        } else if (composition === 'exam_only') {
+            conditions.push(`EXISTS (SELECT 1 FROM module_items mi WHERE mi.module_id = m.id AND mi.item_type = 'exam') AND NOT EXISTS (SELECT 1 FROM module_items mi WHERE mi.module_id = m.id AND mi.item_type = 'training')`);
+        } else if (composition === 'empty') {
+            conditions.push(`NOT EXISTS (SELECT 1 FROM module_items mi WHERE mi.module_id = m.id)`);
+        }
+
+        const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+
+        const SORT_MAP: Record<string, string> = {
+            created_desc: 'm.created_at DESC',
+            created_asc: 'm.created_at ASC',
+            title_asc: 'm.title ASC',
+            title_desc: 'm.title DESC',
+            items_desc: 'item_count DESC, m.title ASC',
+        };
+        const orderClause = SORT_MAP[sort] || 'm.created_at DESC';
+
+        const countResult = await executeQuery<{ total: number }[]>(
+            `SELECT COUNT(*) as total FROM modules m${whereClause}`,
+            conditionParams
+        );
         const total = countResult[0]?.total || 0;
 
         const modules = await executeQuery(
-            `SELECT id, title, description, enforce_sequence, created_at FROM modules ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-            [limit, offset]
+            `SELECT m.id, m.title, m.description, m.enforce_sequence, m.created_at,
+                    (SELECT COUNT(*) FROM module_items mi WHERE mi.module_id = m.id) AS item_count,
+                    (SELECT COUNT(*) FROM module_items mi WHERE mi.module_id = m.id AND mi.item_type = 'training') AS training_count,
+                    (SELECT COUNT(*) FROM module_items mi WHERE mi.module_id = m.id AND mi.item_type = 'exam') AS exam_count,
+                    (SELECT COUNT(*) FROM sessions s WHERE s.module_id = m.id) AS session_count
+             FROM modules m
+             ${whereClause}
+             ORDER BY ${orderClause}
+             LIMIT ? OFFSET ?`,
+            [...conditionParams, limit, offset]
         );
 
         return NextResponse.json({

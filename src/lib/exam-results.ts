@@ -50,6 +50,7 @@ export function resolveExamResultView(input: {
     passingGrade: number;
     hasNextRemedialSession: boolean;
     nextRemedialSessionId: string | null;
+    attemptsCount?: number;
 }) {
     if (input.resultState === 'published') {
         if (!input.published) {
@@ -97,7 +98,7 @@ export function resolveExamResultView(input: {
     const finalScore = nullableFiniteNumber(input.bestAttempt?.final_score);
     const outcome = input.hasPending
         ? 'grading_pending'
-        : !input.currentCycleComplete
+        : finalScore === null || !input.currentCycleComplete
             ? 'draft'
             : classifyPublishedOutcome({
                 bestScore: finalScore,
@@ -114,7 +115,7 @@ export function resolveExamResultView(input: {
         passingGrade: input.passingGrade,
         outcome: outcome as ResultViewOutcome,
         remedialSessionId: outcome === 'remedial_required' ? input.nextRemedialSessionId : null,
-        attemptsCount: 0,
+        attemptsCount: input.attemptsCount ?? 0,
         gradingPending: input.hasPending,
         published: false,
     };

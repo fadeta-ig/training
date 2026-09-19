@@ -127,7 +127,25 @@ const incompleteRemedialDraft = resolveExamResultView({
     passingGrade: 70,
     hasNextRemedialSession: false,
     nextRemedialSessionId: null,
+    attemptsCount: 1,
 });
 assert.equal(incompleteRemedialDraft.outcome, 'draft', 'remedial yang belum dikerjakan belum boleh disebut habis');
+assert.equal(incompleteRemedialDraft.attemptsCount, 1, 'attemptsCount live harus diteruskan pada mode draft');
+
+const unstartedRegularDraft = resolveExamResultView({
+    resultState: 'draft',
+    published: null,
+    publishedAttempt: null,
+    bestAttempt: null,
+    hasPending: false,
+    currentCycleComplete: true,
+    passingGrade: 70,
+    hasNextRemedialSession: false,
+    nextRemedialSessionId: null,
+    attemptsCount: 0,
+});
+assert.equal(unstartedRegularDraft.outcome, 'draft', 'peserta yang belum mulai ujian pada sesi reguler draft harus berstatus draft dan tidak boleh absent/remedial_exhausted');
+assert.equal(unstartedRegularDraft.finalScore, null, 'peserta yang belum mulai ujian tidak memiliki nilai');
+assert.equal(unstartedRegularDraft.attemptsCount, 0, 'peserta yang belum mulai ujian memiliki 0 attempt');
 
 console.log('Session score resolution tests passed.');

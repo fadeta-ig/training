@@ -360,6 +360,7 @@ async function handleGet(
                     && attempt.final_score !== null
                     && attempt.final_score !== undefined
                 ));
+                const completedAttemptsCount = examAttempts.filter((attempt: any) => !Boolean(attempt.grading_pending)).length;
                 const resolved = resolveExamResultView({
                     resultState: session.result_state === 'published' ? 'published' : 'draft',
                     published,
@@ -374,6 +375,7 @@ async function handleGet(
                     passingGrade,
                     hasNextRemedialSession: Boolean(exam.allow_remedial) && Boolean(nextRemedial),
                     nextRemedialSessionId: nextRemedial?.session_id || null,
+                    attemptsCount: completedAttemptsCount,
                 });
                 return {
                     source_exam_id: exam.exam_id,
@@ -389,9 +391,7 @@ async function handleGet(
                     passing_grade: resolved.passingGrade,
                     outcome: resolved.outcome,
                     remedial_session_id: resolved.remedialSessionId,
-                    attempts_count: resolved.published
-                        ? resolved.attemptsCount
-                        : examAttempts.filter((attempt: any) => !Boolean(attempt.grading_pending)).length,
+                    attempts_count: resolved.attemptsCount,
                     grading_pending: resolved.gradingPending,
                     published: resolved.published,
                 };

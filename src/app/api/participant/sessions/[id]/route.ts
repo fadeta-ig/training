@@ -64,7 +64,7 @@ async function handleGet(
                  JOIN module_items source_mi ON source_mi.module_id = parent_session.module_id
                                               AND source_mi.item_type = 'exam'
                  JOIN exams source_exam ON source_exam.id = source_mi.item_id
-                 JOIN exams remedial_exam ON remedial_exam.id = source_exam.remedial_exam_id
+                 JOIN exams remedial_exam ON remedial_exam.id = COALESCE(source_exam.remedial_exam_id, source_exam.id)
                  WHERE parent_session.id = ?`,
                 [session.parent_session_id],
             )

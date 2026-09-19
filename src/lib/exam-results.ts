@@ -110,7 +110,7 @@ export async function getSessionExamMappings(
          JOIN exams source_exam
            ON source_mi.item_type = 'exam'
           AND source_exam.id = source_mi.item_id
-          AND source_exam.remedial_exam_id = remedial_exam.id
+          AND COALESCE(source_exam.remedial_exam_id, source_exam.id) = remedial_exam.id
          WHERE remedial_mi.module_id = ? AND remedial_mi.item_type = 'exam'
          ORDER BY remedial_mi.sequence_order ASC`,
         [context.parent_session_id, context.module_id],
@@ -134,7 +134,7 @@ export async function findNextRemedialSession(
          FROM sessions rs
          JOIN module_items rmi ON rmi.module_id = rs.module_id AND rmi.item_type = 'exam'
          JOIN exams remedial_exam ON remedial_exam.id = rmi.item_id
-         JOIN exams source_exam ON source_exam.id = ? AND source_exam.remedial_exam_id = remedial_exam.id
+         JOIN exams source_exam ON source_exam.id = ? AND COALESCE(source_exam.remedial_exam_id, source_exam.id) = remedial_exam.id
          WHERE rs.session_type = 'remedial'
            AND rs.parent_session_id = ?
            AND rs.remedial_cycle > ?
@@ -165,8 +165,11 @@ export async function validateRemedialSessionConfiguration(
     const [mappingRows] = await connection.execute<Array<RowDataPacket & {
         module_item_id: string;
         source_count: number | string;
+        source_allow_remedial_count: number | string;
     }>>(
-        `SELECT remedial_mi.id AS module_item_id, COUNT(source_exam.id) AS source_count
+        `SELECT remedial_mi.id AS module_item_id,
+                COUNT(source_exam.id) AS source_count,
+                COUNT(CASE WHEN source_exam.allow_remedial = 1 THEN 1 END) AS source_allow_remedial_count
          FROM module_items remedial_mi
          JOIN exams remedial_exam ON remedial_exam.id = remedial_mi.item_id
          LEFT JOIN sessions parent ON parent.id = ?
@@ -174,7 +177,7 @@ export async function validateRemedialSessionConfiguration(
            ON source_mi.module_id = parent.module_id AND source_mi.item_type = 'exam'
          LEFT JOIN exams source_exam
            ON source_exam.id = source_mi.item_id
-          AND source_exam.remedial_exam_id = remedial_exam.id
+          AND COALESCE(source_exam.remedial_exam_id, source_exam.id) = remedial_exam.id
          WHERE remedial_mi.module_id = ? AND remedial_mi.item_type = 'exam'
          GROUP BY remedial_mi.id`,
         [input.parentSessionId, input.moduleId],
@@ -183,7 +186,10 @@ export async function validateRemedialSessionConfiguration(
         return 'Modul remedial harus memiliki minimal satu exam';
     }
     if (mappingRows.some((row) => Number(row.source_count) !== 1)) {
-        return 'Setiap exam dalam modul remedial harus dipetakan tepat ke satu exam pada sesi induk melalui konfigurasi Remedial Exam';
+        return 'Setiap exam dalam modul remedial harus dipetakan tepat ke satu exam pada sesi induk (pastikan modul yang dipilih sama atau exam remedial telah dikonfigurasi)';
+    }
+    if (mappingRows.some((row) => Number(row.source_allow_remedial_count) !== 1)) {
+        return 'Ujian pada sesi induk belum mengaktifkan opsi "Izinkan Pelaksanaan Remidi Ujian" di menu Edit Ujian';
     }
 
     const duplicateParams: Array<string | number> = [input.parentSessionId, input.remedialCycle];

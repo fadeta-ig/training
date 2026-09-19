@@ -9,6 +9,117 @@ export interface AttemptScore {
     completed_at?: string | Date | null;
 }
 
+export interface AttemptResultView extends AttemptScore {
+    original_score?: number | string | null;
+    score_adjustment?: number | string | null;
+    adjustment_reason?: string | null;
+    adjusted_at?: string | Date | null;
+}
+
+export interface PublishedResultView {
+    best_score: number | string | null;
+    passing_grade: number | string;
+    outcome: ResultOutcome;
+    remedial_session_id?: string | null;
+    attempts_used?: number | string;
+}
+
+export type ResultViewOutcome = ResultOutcome | 'grading_pending' | 'draft';
+
+function nullableFiniteNumber(value: number | string | null | undefined): number | null {
+    if (value === null || value === undefined) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Resolves the admin-facing result from one coherent source.
+ *
+ * A published session is an immutable view of the active publication snapshot.
+ * A draft session is a live view of the highest attempt across the root session.
+ * Keeping the two modes separate prevents a frozen score/outcome from being
+ * combined with a newer adjustment badge or pending state.
+ */
+export function resolveExamResultView(input: {
+    resultState: 'draft' | 'published';
+    published: PublishedResultView | null;
+    publishedAttempt: AttemptResultView | null;
+    bestAttempt: AttemptResultView | null;
+    hasPending: boolean;
+    currentCycleComplete: boolean;
+    passingGrade: number;
+    hasNextRemedialSession: boolean;
+    nextRemedialSessionId: string | null;
+}) {
+    if (input.resultState === 'published') {
+        if (!input.published) {
+            // Fail closed instead of presenting mutable live data as official.
+            return {
+                finalScore: null,
+                originalScore: null,
+                scoreAdjustment: 0,
+                adjustmentReason: null,
+                adjustedAt: null,
+                passingGrade: input.passingGrade,
+                outcome: 'draft' as ResultViewOutcome,
+                remedialSessionId: null,
+                attemptsCount: 0,
+                gradingPending: false,
+                published: false,
+            };
+        }
+
+        const finalScore = nullableFiniteNumber(input.published.best_score);
+        const snapshotOriginalScore = nullableFiniteNumber(input.publishedAttempt?.original_score);
+        const originalScore = snapshotOriginalScore ?? finalScore;
+        const scoreAdjustment = finalScore !== null && originalScore !== null
+            ? Math.round((finalScore - originalScore) * 100) / 100
+            : 0;
+
+        return {
+            finalScore,
+            originalScore,
+            scoreAdjustment,
+            // The attempt row remains mutable during a later remedial draft.
+            // Its latest reason/timestamp therefore cannot be claimed as part
+            // of an older immutable publication snapshot.
+            adjustmentReason: null,
+            adjustedAt: null,
+            passingGrade: Number(input.published.passing_grade),
+            outcome: input.published.outcome as ResultViewOutcome,
+            remedialSessionId: input.published.remedial_session_id || null,
+            attemptsCount: Number(input.published.attempts_used || 0),
+            gradingPending: false,
+            published: true,
+        };
+    }
+
+    const finalScore = nullableFiniteNumber(input.bestAttempt?.final_score);
+    const outcome = input.hasPending
+        ? 'grading_pending'
+        : !input.currentCycleComplete
+            ? 'draft'
+            : classifyPublishedOutcome({
+                bestScore: finalScore,
+                passingGrade: input.passingGrade,
+                hasNextRemedialSession: input.hasNextRemedialSession,
+            });
+
+    return {
+        finalScore,
+        originalScore: nullableFiniteNumber(input.bestAttempt?.original_score) ?? finalScore,
+        scoreAdjustment: nullableFiniteNumber(input.bestAttempt?.score_adjustment) ?? 0,
+        adjustmentReason: input.bestAttempt?.adjustment_reason || null,
+        adjustedAt: input.bestAttempt?.adjusted_at || null,
+        passingGrade: input.passingGrade,
+        outcome: outcome as ResultViewOutcome,
+        remedialSessionId: outcome === 'remedial_required' ? input.nextRemedialSessionId : null,
+        attemptsCount: 0,
+        gradingPending: input.hasPending,
+        published: false,
+    };
+}
+
 export interface ExamResultMapping extends RowDataPacket {
     module_item_id: string;
     exam_id: string;
@@ -39,6 +150,18 @@ export function pickHighestAttempt<T extends AttemptScore>(attempts: T[]): T | n
         const bestScore = Number(best.final_score);
         if (score > bestScore) return current;
         if (score < bestScore) return best;
+
+        const completedAt = current.completed_at ? new Date(current.completed_at).getTime() : Number.NaN;
+        const bestCompletedAt = best.completed_at ? new Date(best.completed_at).getTime() : Number.NaN;
+        if (Number.isFinite(completedAt) && Number.isFinite(bestCompletedAt)) {
+            if (completedAt > bestCompletedAt) return current;
+            if (completedAt < bestCompletedAt) return best;
+        } else if (Number.isFinite(completedAt)) {
+            return current;
+        } else if (Number.isFinite(bestCompletedAt)) {
+            return best;
+        }
+
         return Number(current.attempt_number) >= Number(best.attempt_number) ? current : best;
     }, null);
 }

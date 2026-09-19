@@ -76,7 +76,7 @@ type ExamReview = {
 };
 
 type ReviewData = {
-    session: { id: string; title: string };
+    session: { id: string; title: string; result_state: 'draft' | 'published' };
     participant: { id: string; username: string; full_name: string };
     exams: ExamReview[];
 };
@@ -428,7 +428,12 @@ export default function ParticipantAnswersPage({
                                                     ? `Dinilai oleh ${answer.grader_name || 'Admin'} pada ${new Date(answer.graded_at).toLocaleString('id-ID')}`
                                                     : 'Jawaban ini memerlukan penilaian manual.'}
                                             </p>
-                                            {userRole === 'trainer' ? (
+                                            {data.session.result_state === 'published' ? (
+                                                <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+                                                    <AlertCircle className="size-3.5 shrink-0" />
+                                                    <span>Buka revisi hasil sesi sebelum mengubah penilaian esai.</span>
+                                                </div>
+                                            ) : userRole === 'trainer' ? (
                                                 <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
                                                     <AlertCircle className="size-3.5 shrink-0" />
                                                     <span>Mode Peninjauan: Penilaian manual esai hanya dapat dilakukan oleh Administrator.</span>

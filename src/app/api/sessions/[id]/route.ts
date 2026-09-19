@@ -6,7 +6,7 @@ import { sessionSchema } from '@/lib/validations/sessionSchema';
 import { withAuth } from '@/lib/api-auth';
 import logger from '@/lib/logger';
 import { normalizeDbDateToIso, toMysqlDatetimeWib } from '@/lib/timezone';
-import { pickHighestAttempt, validateRemedialSessionConfiguration } from '@/lib/exam-results';
+import { pickHighestAttempt, resolveExamResultView, validateRemedialSessionConfiguration } from '@/lib/exam-results';
 
 // GET Detail Sesi & Peserta + Progress Monitoring
 async function handleGet(
@@ -285,11 +285,13 @@ async function handleGet(
             [rootSessionId],
         );
         const attemptsByKey = new Map<string, any[]>();
+        const attemptById = new Map<string, any>();
         for (const attempt of attemptResults || []) {
             const key = `${attempt.user_id}:${attempt.source_exam_id}`;
             const values = attemptsByKey.get(key) || [];
             values.push(attempt);
             attemptsByKey.set(key, values);
+            attemptById.set(attempt.id, attempt);
         }
         const publicationByKey = new Map<string, any>();
         for (const item of publicationItems || []) {
@@ -307,6 +309,33 @@ async function handleGet(
             }
         }
 
+        const nextRemedialRows = session.result_state === 'draft'
+            ? await executeQuery<any[]>(
+                `SELECT rs.id AS session_id, rs.remedial_cycle, source_exam.id AS source_exam_id
+                 FROM sessions rs
+                 JOIN module_items remedial_mi
+                   ON remedial_mi.module_id = rs.module_id AND remedial_mi.item_type = 'exam'
+                 JOIN exams remedial_exam ON remedial_exam.id = remedial_mi.item_id
+                 JOIN sessions root ON root.id = ?
+                 JOIN module_items source_mi
+                   ON source_mi.module_id = root.module_id AND source_mi.item_type = 'exam'
+                 JOIN exams source_exam
+                   ON source_exam.id = source_mi.item_id
+                  AND COALESCE(source_exam.remedial_exam_id, source_exam.id) = remedial_exam.id
+                 WHERE rs.session_type = 'remedial'
+                   AND rs.parent_session_id = ?
+                   AND rs.remedial_cycle > ?
+                 ORDER BY source_exam.id ASC, rs.remedial_cycle ASC, rs.start_time ASC`,
+                [rootSessionId, rootSessionId, Number(session.remedial_cycle || 0)],
+            )
+            : [];
+        const nextRemedialByExam = new Map<string, any>();
+        for (const row of nextRemedialRows || []) {
+            if (!nextRemedialByExam.has(row.source_exam_id)) {
+                nextRemedialByExam.set(row.source_exam_id, row);
+            }
+        }
+
         for (const participant of participantsWithDetail) {
             const examResults = (sourceExamItems || []).map((exam: any) => {
                 const key = `${participant.id}:${exam.exam_id}`;
@@ -316,39 +345,62 @@ async function handleGet(
                 );
                 const hasPending = examAttempts.some((attempt: any) => Boolean(attempt.grading_pending));
                 const published = publicationByKey.get(key) || null;
-                const finalScore = published?.best_score !== null && published?.best_score !== undefined
-                    ? Number(published.best_score)
-                    : bestAttempt?.final_score !== null && bestAttempt?.final_score !== undefined
-                        ? Number(bestAttempt.final_score)
-                        : null;
+                const nextRemedial = nextRemedialByExam.get(exam.exam_id) || null;
+                const passingGrade = Number(exam.passing_grade || 0);
+                const bestLiveScore = bestAttempt?.final_score === null || bestAttempt?.final_score === undefined
+                    ? null
+                    : Number(bestAttempt.final_score);
+                const currentModuleItemId = moduleItemBySourceExam.get(exam.exam_id) || null;
+                const isAssignedInCurrentRemedial = session.session_type === 'remedial'
+                    && currentModuleItemId !== null
+                    && (assignedItemsByUser.get(participant.id)?.has(currentModuleItemId) || false);
+                const hasCompletedCurrentCycleAttempt = examAttempts.some((attempt: any) => (
+                    attempt.session_id === session.id
+                    && !Boolean(attempt.grading_pending)
+                    && attempt.final_score !== null
+                    && attempt.final_score !== undefined
+                ));
+                const resolved = resolveExamResultView({
+                    resultState: session.result_state === 'published' ? 'published' : 'draft',
+                    published,
+                    publishedAttempt: published?.best_attempt_result_id
+                        ? attemptById.get(published.best_attempt_result_id) || null
+                        : null,
+                    bestAttempt,
+                    hasPending,
+                    currentCycleComplete: !isAssignedInCurrentRemedial
+                        || (bestLiveScore !== null && bestLiveScore >= passingGrade)
+                        || hasCompletedCurrentCycleAttempt,
+                    passingGrade,
+                    hasNextRemedialSession: Boolean(exam.allow_remedial) && Boolean(nextRemedial),
+                    nextRemedialSessionId: nextRemedial?.session_id || null,
+                });
                 return {
                     source_exam_id: exam.exam_id,
                     exam_title: exam.title,
                     module_item_id: session.session_type === 'remedial'
                         ? moduleItemBySourceExam.get(exam.exam_id) || null
                         : exam.module_item_id,
-                    final_score: finalScore,
-                    original_score: bestAttempt?.original_score !== null && bestAttempt?.original_score !== undefined
-                        ? Number(bestAttempt.original_score)
-                        : finalScore,
-                    score_adjustment: Number(bestAttempt?.score_adjustment || 0),
-                    adjustment_reason: bestAttempt?.adjustment_reason || null,
-                    adjusted_at: bestAttempt?.adjusted_at || null,
-                    passing_grade: Number(published?.passing_grade ?? exam.passing_grade ?? 0),
-                    outcome: published?.outcome || (hasPending ? 'grading_pending' : 'draft'),
-                    remedial_session_id: published?.remedial_session_id || null,
-                    attempts_count: examAttempts.filter((attempt: any) => !Boolean(attempt.grading_pending)).length,
-                    grading_pending: hasPending,
-                    published: Boolean(published),
+                    final_score: resolved.finalScore,
+                    original_score: resolved.originalScore,
+                    score_adjustment: resolved.scoreAdjustment,
+                    adjustment_reason: resolved.adjustmentReason,
+                    adjusted_at: resolved.adjustedAt,
+                    passing_grade: resolved.passingGrade,
+                    outcome: resolved.outcome,
+                    remedial_session_id: resolved.remedialSessionId,
+                    attempts_count: resolved.published
+                        ? resolved.attemptsCount
+                        : examAttempts.filter((attempt: any) => !Boolean(attempt.grading_pending)).length,
+                    grading_pending: resolved.gradingPending,
+                    published: resolved.published,
                 };
             });
             const outcomes = examResults.map((result: any) => result.outcome);
             participant.exam_results = examResults;
             participant.evaluation_status = outcomes.includes('grading_pending')
                 ? 'grading_pending'
-                : !activePublication
-                    ? 'draft'
-                    : outcomes.includes('remedial_required')
+                : outcomes.includes('remedial_required')
                         ? 'remedial_required'
                         : outcomes.some((outcome: string) => outcome === 'remedial_exhausted' || outcome === 'absent')
                             ? 'remedial_exhausted'

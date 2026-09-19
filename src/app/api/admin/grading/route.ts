@@ -75,6 +75,25 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
+        // Serialize grading with publish/reopen so an official snapshot cannot
+        // be created while the underlying attempt is being recalculated.
+        const resultContext = await getSessionResultContext(connection, session_id, true);
+        if (!resultContext) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json({ success: false, error: 'Konteks hasil sesi tidak ditemukan' }, { status: 404 });
+        }
+        if (resultContext.result_state === 'published') {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json(
+                { success: false, error: 'Hasil sudah dipublikasikan. Buka revisi hasil sesi sebelum mengubah penilaian esai.' },
+                { status: 409 },
+            );
+        }
+
         const [answerRows] = await connection.execute<GradingAnswerRow[]>(
             `SELECT ea.id, ea.selected_option, ea.question_snapshot,
                     q.question_type AS current_question_type, q.points AS current_points,
@@ -181,13 +200,6 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                         show_score: true,
                     })
                     : JSON.stringify({ passed, show_score: false });
-            const resultContext = await getSessionResultContext(connection, session_id, false);
-            if (!resultContext) {
-                await connection.rollback();
-                connection.release();
-                connection = undefined;
-                return NextResponse.json({ success: false, error: 'Konteks hasil sesi tidak ditemukan' }, { status: 409 });
-            }
             const mappings = await getSessionExamMappings(connection, resultContext);
             const mapping = mappings.find((entry) => entry.module_item_id === answer.module_item_id);
             if (!mapping) {

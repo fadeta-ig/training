@@ -16,6 +16,14 @@ assert.equal(
     'newer',
     'attempt terbaru harus menjadi tie breaker',
 );
+assert.equal(
+    pickHighestAttempt([
+        { id: 'older-session', final_score: 80, attempt_number: 1, completed_at: '2026-09-19T01:00:00Z' },
+        { id: 'newer-session', final_score: 80, attempt_number: 1, completed_at: '2026-09-20T01:00:00Z' },
+    ])?.id,
+    'newer-session',
+    'waktu selesai harus menjadi tie breaker lintas sesi saat nomor attempt sama',
+);
 assert.equal(pickHighestAttempt([{ id: 'pending', final_score: null, attempt_number: 1 }]), null);
 
 assert.equal(classifyPublishedOutcome({ bestScore: 75, passingGrade: 75, hasNextRemedialSession: false }), 'passed');

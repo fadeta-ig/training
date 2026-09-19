@@ -11,6 +11,7 @@
     "test:seb-config": "node --experimental-strip-types scripts/test-seb-config.mjs",
     "test:hardening": "node --experimental-strip-types scripts/test-lms-hardening.mjs",
     "test:exam-results": "node --experimental-strip-types scripts/test-exam-results.mjs",
+    "test:session-score-resolution": "node --experimental-strip-types scripts/test-session-score-resolution.mjs",
     "test:bulk-score-reset": "node scripts/test-bulk-score-reset.mjs",
     "db:migrate-users": "node scripts/migrate-users.mjs",
     "db:migrate-question-import": "node scripts/migrate-question-import.mjs",

@@ -1064,7 +1064,8 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                         adjusted_at: selectedExamResult.adjusted_at,
                                         exam_module_item_id: selectedExamResult.module_item_id,
                                     } : p;
-                                    const canSetVerdict = session.session_type !== 'remedial' && (
+                                    const canSetVerdict = session.result_state === 'published'
+                                        && session.session_type !== 'remedial' && (
                                         p.evaluation_status === 'ready_for_graduation'
                                         || p.evaluation_status === 'remedial_exhausted'
                                     );

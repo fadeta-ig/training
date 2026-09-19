@@ -59,11 +59,12 @@ async function handleGet(
         const enrollment = await executeQuery<Array<{
             session_id: string;
             session_title: string;
+            result_state: 'draft' | 'published';
             participant_id: string;
             username: string;
             full_name: string;
         }>>(
-            `SELECT s.id AS session_id, s.title AS session_title,
+            `SELECT s.id AS session_id, s.title AS session_title, s.result_state,
                     u.id AS participant_id, u.username, u.full_name
              FROM sessions s
              INNER JOIN session_participants sp ON sp.session_id = s.id
@@ -189,7 +190,11 @@ async function handleGet(
         return NextResponse.json({
             success: true,
             data: {
-                session: { id: record.session_id, title: record.session_title },
+                session: {
+                    id: record.session_id,
+                    title: record.session_title,
+                    result_state: record.result_state,
+                },
                 participant: {
                     id: record.participant_id,
                     username: record.username,

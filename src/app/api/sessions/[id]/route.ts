@@ -371,7 +371,7 @@ async function handleGet(
                 require_seb: Boolean(session.require_seb),
                 show_score: session.show_score === 1 || session.show_score === true || session.show_score === '1',
                 enable_proctoring: session.enable_proctoring === 1 || session.enable_proctoring === true || session.enable_proctoring === '1',
-                total_items: totalItems,
+                total_items: moduleItems?.length || 0,
                 module_items: moduleItems,
                 publication: activePublication ? {
                     id: activePublication.id,

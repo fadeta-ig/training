@@ -121,6 +121,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [publishPreview, setPublishPreview] = useState<any>(null);
     const [isLoadingPublishPreview, setIsLoadingPublishPreview] = useState(false);
     const [markMissingAbsent, setMarkMissingAbsent] = useState(false);
+    const [forfeitIncompleteRemedial, setForfeitIncompleteRemedial] = useState(false);
 
     // Modal state for verdict & certificate
     const [selectedParticipantForVerdict, setSelectedParticipantForVerdict] = useState<User | null>(null);
@@ -453,13 +454,14 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
             const res = await fetch(`/api/admin/sessions/${session.id}/publish-results`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ confirm: true, mark_missing_absent: markMissingAbsent }),
+                body: JSON.stringify({ confirm: true, mark_missing_absent: markMissingAbsent, forfeit_incomplete_remedial: forfeitIncompleteRemedial }),
             });
             const data = await res.json();
             if (res.ok && data.success) {
                 toast.success('Hasil Sesi Dipublikasikan', { description: data.message });
                 setShowPublishModal(false);
                 setMarkMissingAbsent(false);
+                setForfeitIncompleteRemedial(false);
                 fetchSession();
             } else {
                 toast.error('Publikasi Hasil Gagal', {
@@ -1486,6 +1488,12 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                             <span><strong>Tandai hasil tanpa nilai sebagai Tidak Mengikuti.</strong><br /><span className="text-muted-foreground">Peserta tersebut tidak dapat diluluskan dan hasil ini tercatat pada snapshot publikasi.</span></span>
                                         </label>
                                     )}
+                                    {publishPreview.counts?.current_cycle_incomplete > 0 && publishPreview.counts?.grading_pending === 0 && (
+                                        <label className="flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs">
+                                            <input type="checkbox" checked={forfeitIncompleteRemedial} onChange={(event) => setForfeitIncompleteRemedial(event.target.checked)} className="mt-0.5 size-4" />
+                                            <span><strong>Tutup siklus bagi peserta yang tidak mengerjakan remedial.</strong><br /><span className="text-muted-foreground">Nilai terbaik sebelumnya tetap digunakan. Peserta tersebut tidak mendapatkan kesempatan remedial tambahan pada siklus ini.</span></span>
+                                        </label>
+                                    )}
                                     <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-950">
                                         Setelah dipublikasikan, adjustment dikunci. Gunakan <strong>Buka Revisi</strong> untuk membuat versi hasil baru.
                                     </div>
@@ -1497,7 +1505,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                             <button
                                 type="button"
                                 onClick={handlePublishResults}
-                                disabled={isTogglingScoreVisibility || isLoadingPublishPreview || !publishPreview || (publishPreview.counts?.grading_pending > 0) || (publishPreview.counts?.current_cycle_incomplete > 0) || (publishPreview.counts?.absent > 0 && !markMissingAbsent)}
+                                disabled={isTogglingScoreVisibility || isLoadingPublishPreview || !publishPreview || (publishPreview.counts?.grading_pending > 0) || (publishPreview.counts?.current_cycle_incomplete > 0 && !forfeitIncompleteRemedial) || (publishPreview.counts?.absent > 0 && !markMissingAbsent)}
                                 className="min-h-10 rounded-xl bg-emerald-600 px-5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {isTogglingScoreVisibility ? 'Mempublikasikan...' : `Publikasikan Versi ${(publishPreview?.current_version || 0) + 1}`}

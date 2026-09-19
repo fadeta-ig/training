@@ -18,6 +18,7 @@ import {
 const publishSchema = z.object({
     confirm: z.literal(true),
     mark_missing_absent: z.boolean().default(false),
+    forfeit_incomplete_remedial: z.boolean().default(false),
 });
 
 interface ParticipantRow extends RowDataPacket {
@@ -57,6 +58,7 @@ async function buildPreview(
     connection: PoolConnection,
     sessionId: string,
     markMissingAbsent: boolean,
+    forfeitIncompleteRemedial: boolean,
 ) {
     const context = await getSessionResultContext(connection, sessionId, false);
     if (!context) throw Object.assign(new Error('Sesi tidak ditemukan'), { statusCode: 404 });
@@ -175,7 +177,9 @@ async function buildPreview(
         ...(!markMissingAbsent
             ? missingItems.map((item) => ({ ...item, reason: 'missing_score' as const }))
             : []),
-        ...incompleteCurrentCycleItems.map((item) => ({ ...item, reason: 'current_cycle_incomplete' as const })),
+        ...(!forfeitIncompleteRemedial
+            ? incompleteCurrentCycleItems.map((item) => ({ ...item, reason: 'current_cycle_incomplete' as const }))
+            : []),
     ];
 
     const participantOutcomes = new Map<string, ResultOutcome[]>();
@@ -218,7 +222,7 @@ async function handleGet(
     try {
         const { id } = await context.params;
         connection = await pool.getConnection();
-        const preview = await buildPreview(connection, id, false);
+        const preview = await buildPreview(connection, id, false, false);
         return NextResponse.json({
             success: true,
             data: {
@@ -272,7 +276,11 @@ async function handlePost(
             );
         }
 
-        const preview = await buildPreview(connection, sessionId, parsed.data.mark_missing_absent);
+        const preview = await buildPreview(
+            connection, sessionId,
+            parsed.data.mark_missing_absent,
+            parsed.data.forfeit_incomplete_remedial,
+        );
         if (preview.blockers.length > 0) {
             await connection.rollback();
             return NextResponse.json({

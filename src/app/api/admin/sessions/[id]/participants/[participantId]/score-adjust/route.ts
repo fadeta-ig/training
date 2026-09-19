@@ -8,8 +8,8 @@ import { getSessionExamMappings, getSessionResultContext } from '@/lib/exam-resu
 
 const adjustScoreSchema = z.object({
     module_item_id: z.string().uuid().optional(),
-    adjustment_type: z.enum(['add', 'subtract', 'set']),
-    value: z.number().min(0).max(100),
+    adjustment_type: z.enum(['add', 'subtract', 'set', 'reset']),
+    value: z.number().min(0).max(100).optional().default(0),
     reason: z.string().min(2, 'Alasan penyesuaian nilai wajib diisi (minimal 2 karakter)').max(255),
 });
 
@@ -200,6 +200,9 @@ async function handlePost(
         } else if (adjustment_type === 'set') {
             finalScore = Math.min(100, Math.max(0, Math.round(value * 100) / 100));
             newAdjustment = Math.round((finalScore - originalScore) * 100) / 100;
+        } else if (adjustment_type === 'reset') {
+            newAdjustment = 0.00;
+            finalScore = originalScore;
         }
 
         // 5. Update the selected best attempt, then recompute the session best.
@@ -254,7 +257,8 @@ async function handlePost(
         await connection.commit();
 
         // 6. Audit Trail Logging
-        await logActivity(authUser.id, 'SCORE_ADJUSTMENT', 'user_progress', progressId, {
+        const auditAction = adjustment_type === 'reset' ? 'SCORE_RESET' : 'SCORE_ADJUSTMENT';
+        await logActivity(authUser.id, auditAction, 'user_progress', progressId, {
             sessionId,
             participantId,
             participantName: enrollment.full_name || enrollment.username,
@@ -269,9 +273,13 @@ async function handlePost(
             reason: reason.trim(),
         });
 
+        const successMessage = adjustment_type === 'reset'
+            ? `Nilai peserta berhasil di-reset ke nilai awal (${Number(highestAttempt.final_score).toFixed(1)}).`
+            : `Attempt tertinggi berhasil disesuaikan. Nilai tertinggi saat ini ${Number(highestAttempt.final_score).toFixed(1)}.`;
+
         return NextResponse.json({
             success: true,
-            message: `Attempt tertinggi berhasil disesuaikan. Nilai tertinggi saat ini ${Number(highestAttempt.final_score).toFixed(1)}.`,
+            message: successMessage,
             data: {
                 progress_id: progressId,
                 original_score: Number(highestAttempt.original_score),

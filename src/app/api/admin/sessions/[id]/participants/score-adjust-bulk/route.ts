@@ -10,8 +10,8 @@ const bulkAdjustScoreSchema = z.object({
     participant_ids: z.array(z.string().uuid()).min(1, 'Pilih minimal 1 peserta').max(1000)
         .refine((ids) => new Set(ids).size === ids.length, 'Daftar peserta mengandung ID duplikat'),
     module_item_id: z.string().uuid().optional(),
-    adjustment_type: z.enum(['add', 'subtract', 'set']),
-    value: z.number().min(0).max(100),
+    adjustment_type: z.enum(['add', 'subtract', 'set', 'reset']),
+    value: z.number().min(0).max(100).optional().default(0),
     reason: z.string().min(2, 'Alasan penyesuaian nilai wajib diisi (minimal 2 karakter)').max(255),
 });
 
@@ -173,6 +173,9 @@ async function handlePost(
             } else if (adjustment_type === 'set') {
                 finalScore = Math.min(100, Math.max(0, Math.round(value * 100) / 100));
                 newAdjustment = Math.round((finalScore - originalScore) * 100) / 100;
+            } else if (adjustment_type === 'reset') {
+                newAdjustment = 0.00;
+                finalScore = originalScore;
             }
 
             await connection.execute(
@@ -218,7 +221,8 @@ async function handlePost(
         await connection.commit();
 
         // Audit Trail Logging
-        await logActivity(authUser.id, 'BULK_SCORE_ADJUSTMENT', 'user_progress', sessionId, {
+        const auditAction = adjustment_type === 'reset' ? 'BULK_SCORE_RESET' : 'BULK_SCORE_ADJUSTMENT';
+        await logActivity(authUser.id, auditAction, 'user_progress', sessionId, {
             sessionId,
             participantCount: participant_ids.length,
             adjustmentType: adjustment_type,
@@ -227,9 +231,13 @@ async function handlePost(
             moduleItemId: targetModuleItemId,
         });
 
+        const successMessage = adjustment_type === 'reset'
+            ? `Nilai ${updatedCount} peserta berhasil di-reset kembali ke nilai awal.`
+            : `Nilai ${updatedCount} peserta berhasil disesuaikan (${adjustment_type === 'add' ? '+' : adjustment_type === 'subtract' ? '-' : '='}${value})`;
+
         return NextResponse.json({
             success: true,
-            message: `Nilai ${updatedCount} peserta berhasil disesuaikan (${adjustment_type === 'add' ? '+' : adjustment_type === 'subtract' ? '-' : '='}${value})`,
+            message: successMessage,
             data: {
                 updated_count: updatedCount,
             },

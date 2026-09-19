@@ -349,6 +349,7 @@ async function inspect(connection) {
         {
             table: 'sessions',
             index: 'uq_sessions_parent_cycle',
+            columns: ['parent_session_id', 'remedial_cycle'],
             label: 'duplicate remedial cycles per parent session',
             sql: `SELECT COUNT(*) AS total FROM (
                 SELECT parent_session_id, remedial_cycle
@@ -383,6 +384,7 @@ async function inspect(connection) {
         {
             table: 'session_participants',
             index: 'uq_session_participants_skl_number',
+            columns: ['skl_number'],
             label: 'duplicate SKL numbers',
             sql: `SELECT COUNT(*) AS total FROM (
                 SELECT skl_number
@@ -395,6 +397,7 @@ async function inspect(connection) {
     ];
     for (const check of conflictChecks) {
         if (!tables.has(check.table) || !missingIndexes.includes(`${check.table}.${check.index}`)) continue;
+        if (check.columns?.some((col) => missingColumns.includes(`${check.table}.${col}`))) continue;
         const [rows] = await connection.query(check.sql);
         const total = Number(rows[0]?.total || 0);
         if (total > 0) dataConflicts.push(`${check.label}: ${total} group(s)`);

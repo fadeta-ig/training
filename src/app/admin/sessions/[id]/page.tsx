@@ -432,6 +432,8 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
         setShowPublishModal(true);
         setIsLoadingPublishPreview(true);
         setPublishPreview(null);
+        setMarkMissingAbsent(false);
+        setForfeitIncompleteRemedial(false);
         try {
             const response = await fetch(`/api/admin/sessions/${session.id}/publish-results`);
             const data = await response.json();

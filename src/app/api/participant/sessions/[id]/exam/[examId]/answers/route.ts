@@ -10,6 +10,7 @@ import {
     validateSebAccess,
     validateSessionTiming,
     verifyEnrollment,
+    verifyRemedialExamAssignment,
 } from '@/lib/participant-helpers';
 import {
     toParticipantQuestionShape,
@@ -80,21 +81,15 @@ async function handlePut(
         await validateSebAccess(request, session, { userId: user.id, userRole: user.role });
 
         const moduleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
+        await verifyRemedialExamAssignment(session, user.id, moduleItem.id);
         if (answers.length > 0) {
-            const examRows = await executeQuery<{ allow_remedial: boolean | number; remedial_exam_id: string | null }[]>(
-                `SELECT allow_remedial, remedial_exam_id FROM exams WHERE id = ? LIMIT 1`,
-                [examId],
-            );
-            const examRules = examRows?.[0];
-            const remedialExamId = (examRules?.allow_remedial && examRules?.remedial_exam_id) ? examRules.remedial_exam_id : null;
-
             const questionIds = [...uniqueQuestionIds];
             const placeholders = questionIds.map(() => '?').join(', ');
             const questions = await executeQuery<QuestionRow[]>(
                 `SELECT id, question_type, options_json
                  FROM questions
-                 WHERE (exam_id = ? OR exam_id = ?) AND id IN (${placeholders})`,
-                [examId, remedialExamId || examId, ...questionIds],
+                 WHERE exam_id = ? AND id IN (${placeholders})`,
+                [examId, ...questionIds],
             );
 
             if (questions.length !== questionIds.length) {

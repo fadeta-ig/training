@@ -33,6 +33,45 @@ async function handleGet(
             [user.id]
         );
         const participantName = userRows?.[0]?.full_name || user.username;
+        const rootSessionId = session.session_type === 'remedial' && session.parent_session_id
+            ? session.parent_session_id
+            : sessionId;
+        const publicationRows = await executeQuery<any[]>(
+            `SELECT id, session_id, version, published_at
+             FROM session_result_publications
+             WHERE root_session_id = ? AND status = 'active'
+             ORDER BY version DESC LIMIT 1`,
+            [rootSessionId],
+        );
+        const activePublication = publicationRows?.[0] || null;
+        const publishedItems = activePublication
+            ? await executeQuery<any[]>(
+                `SELECT pi.source_exam_id, pi.best_score, pi.passing_grade, pi.outcome,
+                        pi.remedial_session_id, pi.attempts_used, e.title AS source_exam_title
+                 FROM session_result_publication_items pi
+                 JOIN exams e ON e.id = pi.source_exam_id
+                 WHERE pi.publication_id = ? AND pi.user_id = ?`,
+                [activePublication.id, user.id],
+            )
+            : [];
+        const publishedByExam = new Map<string, any>(
+            publishedItems.map((item: any) => [item.source_exam_id, item]),
+        );
+        const remedialSourceRows = session.session_type === 'remedial' && session.parent_session_id
+            ? await executeQuery<any[]>(
+                `SELECT remedial_exam.id AS remedial_exam_id, source_exam.id AS source_exam_id
+                 FROM sessions parent_session
+                 JOIN module_items source_mi ON source_mi.module_id = parent_session.module_id
+                                              AND source_mi.item_type = 'exam'
+                 JOIN exams source_exam ON source_exam.id = source_mi.item_id
+                 JOIN exams remedial_exam ON remedial_exam.id = source_exam.remedial_exam_id
+                 WHERE parent_session.id = ?`,
+                [session.parent_session_id],
+            )
+            : [];
+        const remedialSourceByExam = new Map<string, string>(
+            remedialSourceRows.map((row: any) => [row.remedial_exam_id, row.source_exam_id]),
+        );
 
         // Fetch module items with progress
         const items = await executeQuery<any[]>(
@@ -69,8 +108,16 @@ async function handleGet(
             LEFT JOIN exams e ON mi.item_type = 'exam' AND mi.item_id = e.id
             LEFT JOIN user_progress up ON up.module_item_id = mi.id AND up.user_id = ? AND up.session_id = ?
             WHERE mi.module_id = ?
+              AND (
+                  ? <> 'remedial'
+                  OR mi.item_type = 'training'
+                  OR EXISTS (
+                      SELECT 1 FROM session_participant_exam_assignments sea
+                      WHERE sea.session_id = ? AND sea.user_id = ? AND sea.module_item_id = mi.id
+                  )
+              )
             ORDER BY mi.sequence_order ASC`,
-            [user.id, sessionId, session.module_id]
+            [user.id, sessionId, session.module_id, session.session_type || 'regular', sessionId, user.id]
         );
 
         // Apply phase unlock based on session timing and module flow configuration
@@ -79,7 +126,7 @@ async function handleGet(
 
         const mappedItems = items.map((item: any) => {
             let progressStatus = item.raw_progress_status;
-            let canRetake = false;
+            const canRetake = false;
 
             if (user.role !== 'trainee') {
                 progressStatus = 'open';
@@ -91,18 +138,8 @@ async function handleGet(
                     foundFirstIncomplete = true;
                 }
             } else if (progressStatus === 'completed') {
-                // Completed items generally remain accessible
-                if (item.item_type === 'exam') {
-                    const parsedScore = Number(item.score);
-                    const parsedPassing = Number(item.passing_grade);
-                    const allowRemedial = item.allow_remedial === 1 || item.allow_remedial === true;
-                    const maxAttempts = Number(item.max_attempts) || 1;
-                    const currentAttempts = Number(item.attempts_count) || 1;
-
-                    if (parsedScore < parsedPassing && allowRemedial && currentAttempts < maxAttempts) {
-                        canRetake = true;
-                    }
-                }
+                // Completed exams remain final for this schedule. A further
+                // opportunity is opened only through another remedial session.
             } else if (!isActive && !isEnded) {
                 // Session hasn't started → all locked
                 progressStatus = 'locked';
@@ -124,6 +161,15 @@ async function handleGet(
                 progressStatus = progressStatus || 'locked';
             }
 
+            const sourceExamId = item.item_type === 'exam'
+                ? (remedialSourceByExam.get(item.item_id) || item.item_id)
+                : null;
+            const publishedResult = sourceExamId ? publishedByExam.get(sourceExamId) || null : null;
+            const currentRemedialAwaitingPublication = session.session_type === 'remedial'
+                && activePublication?.session_id !== sessionId
+                && (item.raw_progress_status === 'completed' || item.raw_progress_status === 'grading_pending');
+            const isLegacyVisible = Boolean(session.show_score)
+                && Number(session.result_publication_version || 0) === 0;
             return {
                 module_item_id: item.module_item_id,
                 item_type: item.item_type,
@@ -132,7 +178,20 @@ async function handleGet(
                 item_title: item.item_title,
                 duration_minutes: item.duration_minutes,
                 progress_status: progressStatus,
-                score: session.show_score ? item.score : null,
+                score: item.item_type === 'exam'
+                    ? publishedResult?.best_score !== null && publishedResult?.best_score !== undefined
+                        ? Number(publishedResult.best_score)
+                        : isLegacyVisible ? item.score : null
+                    : null,
+                passing_grade: publishedResult?.passing_grade !== undefined
+                    ? Number(publishedResult.passing_grade)
+                    : Number(item.passing_grade || 0),
+                result_outcome: currentRemedialAwaitingPublication
+                    ? (item.raw_progress_status === 'grading_pending' ? 'grading_pending' : 'draft')
+                    : publishedResult?.outcome || (item.raw_progress_status === 'grading_pending' ? 'grading_pending' : 'draft'),
+                source_exam_id: sourceExamId,
+                remedial_session_id: publishedResult?.remedial_session_id || null,
+                result_published: Boolean(publishedResult) && !currentRemedialAwaitingPublication,
                 can_retake: canRetake,
                 attempts_count: item.attempts_count || 0,
                 max_attempts: item.max_attempts || 1
@@ -144,9 +203,31 @@ async function handleGet(
              FROM session_participants
              WHERE session_id = ? AND user_id = ?
              LIMIT 1`,
-            [sessionId, user.id]
+            [rootSessionId, user.id]
         );
         const enrollment = enrollmentRows?.[0] || {};
+        const participantOutcomes = publishedItems.map((item: any) => item.outcome as string);
+        const currentRemedialAwaitingPublication = session.session_type === 'remedial'
+            && activePublication?.session_id !== sessionId
+            && items.some((item: any) => item.raw_progress_status === 'completed' || item.raw_progress_status === 'grading_pending');
+        const evaluationStatus = currentRemedialAwaitingPublication || !activePublication
+            ? 'draft'
+            : participantOutcomes.includes('remedial_required')
+                ? 'remedial_required'
+                : participantOutcomes.some((outcome) => outcome === 'remedial_exhausted' || outcome === 'absent')
+                    ? 'remedial_exhausted'
+                    : participantOutcomes.length > 0 && participantOutcomes.every((outcome) => outcome === 'passed')
+                        ? 'ready_for_graduation'
+                        : 'draft';
+        const publishedRemedialSessionId = publishedItems.find((item: any) => item.remedial_session_id)?.remedial_session_id || null;
+        const remedialSessionId = publishedRemedialSessionId === sessionId ? null : publishedRemedialSessionId;
+        const remedialSessionRows = remedialSessionId
+            ? await executeQuery<any[]>(
+                `SELECT id, title, start_time, end_time FROM sessions WHERE id = ? LIMIT 1`,
+                [remedialSessionId],
+            )
+            : [];
+        const remedialSession = remedialSessionRows?.[0] || null;
 
         return NextResponse.json({
             success: true,
@@ -160,7 +241,27 @@ async function handleGet(
                 is_ended: isEnded,
                 module_title: moduleTitle,
                 participant_name: participantName,
-                show_score: !!session.show_score,
+                show_score: Boolean(activePublication) || (Boolean(session.show_score) && Number(session.result_publication_version || 0) === 0),
+                result_state: activePublication ? 'published' : 'draft',
+                result_publication: activePublication ? {
+                    version: Number(activePublication.version),
+                    published_at: normalizeDbDateToIso(activePublication.published_at),
+                } : null,
+                evaluation_status: evaluationStatus,
+                published_exam_results: publishedItems.map((item: any) => ({
+                    source_exam_id: item.source_exam_id,
+                    exam_title: item.source_exam_title,
+                    best_score: item.best_score === null ? null : Number(item.best_score),
+                    passing_grade: Number(item.passing_grade),
+                    outcome: item.outcome,
+                    attempts_used: Number(item.attempts_used || 0),
+                })),
+                remedial_session: remedialSession ? {
+                    id: remedialSession.id,
+                    title: remedialSession.title,
+                    start_time: normalizeDbDateToIso(remedialSession.start_time),
+                    end_time: normalizeDbDateToIso(remedialSession.end_time),
+                } : null,
                 graduation_status: enrollment.graduation_status || 'pending',
                 graduation_decided_at: enrollment.graduation_decided_at || null,
                 graduation_notes: enrollment.graduation_notes || null,

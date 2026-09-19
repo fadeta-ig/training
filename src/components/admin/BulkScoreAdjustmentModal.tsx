@@ -15,6 +15,7 @@ export interface BulkScoreAdjustmentModalProps {
     onSuccess: () => void;
     sessionId: string;
     participantIds: string[];
+    moduleItemId?: string | null;
     selectedCount?: number;
     participantCount?: number;
 }
@@ -31,6 +32,7 @@ export function BulkScoreAdjustmentModal({
     onClose,
     onSuccess,
     sessionId,
+    moduleItemId,
     selectedCount,
     participantCount,
     participantIds,
@@ -58,6 +60,7 @@ export function BulkScoreAdjustmentModal({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     participant_ids: participantIds,
+                    module_item_id: moduleItemId || undefined,
                     adjustment_type: adjustmentType,
                     value: Number(value) || 0,
                     reason: reason.trim(),

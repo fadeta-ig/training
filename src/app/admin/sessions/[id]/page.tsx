@@ -27,7 +27,7 @@ import { GraduationVerdictModal } from '@/components/admin/GraduationVerdictModa
 import { CertificateUploadModal } from '@/components/admin/CertificateUploadModal';
 import { ScoreAdjustmentModal } from '@/components/admin/ScoreAdjustmentModal';
 import { BulkScoreAdjustmentModal } from '@/components/admin/BulkScoreAdjustmentModal';
-import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles, FileBadge2, Copy, ShieldCheck, FilePenLine, BookOpen, Clock3, SlidersHorizontal, Archive } from 'lucide-react';
+import { Award, FileText, UploadCloud, Printer, CheckCircle2, AlertCircle, Sparkles, FileBadge2, Copy, ShieldCheck, FilePenLine, BookOpen, Clock3, SlidersHorizontal, Archive, ArrowDownUp, Filter, RotateCcw } from 'lucide-react';
 import { formatWibDateTime } from '@/lib/timezone';
 
 type User = {
@@ -64,6 +64,22 @@ type User = {
     adjustment_reason?: string | null;
     adjusted_at?: string | null;
     exam_module_item_id?: string | null;
+    evaluation_status?: 'draft' | 'grading_pending' | 'remedial_required' | 'remedial_exhausted' | 'ready_for_graduation';
+    exam_results?: Array<{
+        source_exam_id: string;
+        exam_title: string;
+        module_item_id: string | null;
+        final_score: number | null;
+        original_score: number | null;
+        score_adjustment: number;
+        adjustment_reason?: string | null;
+        adjusted_at?: string | null;
+        passing_grade: number;
+        outcome: 'draft' | 'grading_pending' | 'passed' | 'remedial_required' | 'remedial_exhausted' | 'absent';
+        remedial_session_id?: string | null;
+        attempts_count: number;
+        published: boolean;
+    }>;
 };
 
 type SessionDetail = {
@@ -74,6 +90,12 @@ type SessionDetail = {
     end_time: string;
     require_seb: boolean;
     show_score: boolean;
+    session_type?: 'regular' | 'remedial';
+    parent_session_id?: string | null;
+    remedial_cycle?: number;
+    result_state?: 'draft' | 'published';
+    result_publication_version?: number;
+    publication?: { id: string; version: number; session_id: string; published_at: string } | null;
     enable_proctoring: boolean;
     seb_config_key: string | null;
     created_at: string;
@@ -90,6 +112,15 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
     const [showBlastConfirm, setShowBlastConfirm] = useState(false);
     const [userRole, setUserRole] = useState<string>('');
     const [searchParticipant, setSearchParticipant] = useState('');
+    const [selectedExamId, setSelectedExamId] = useState('');
+    const [scoreMin, setScoreMin] = useState('');
+    const [scoreMax, setScoreMax] = useState('');
+    const [scoreSort, setScoreSort] = useState<'default' | 'desc' | 'asc'>('default');
+    const [evaluationFilter, setEvaluationFilter] = useState<'all' | User['evaluation_status']>('all');
+    const [showPublishModal, setShowPublishModal] = useState(false);
+    const [publishPreview, setPublishPreview] = useState<any>(null);
+    const [isLoadingPublishPreview, setIsLoadingPublishPreview] = useState(false);
+    const [markMissingAbsent, setMarkMissingAbsent] = useState(false);
 
     // Modal state for verdict & certificate
     const [selectedParticipantForVerdict, setSelectedParticipantForVerdict] = useState<User | null>(null);
@@ -146,6 +177,12 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
         fetchSession();
         fetchRole();
     }, [fetchRole, fetchSession]);
+
+    useEffect(() => {
+        if (selectedExamId || !session?.participants) return;
+        const firstExam = session.participants.flatMap((participant) => participant.exam_results || [])[0];
+        if (firstExam) setSelectedExamId(firstExam.source_exam_id);
+    }, [selectedExamId, session?.participants]);
 
     const formatDate = (dateString: string) => {
         return formatWibDateTime(dateString, { withDayName: true });
@@ -215,12 +252,43 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
 
     const filteredParticipants = useMemo(() => {
         if (!session?.participants) return [];
-        return session.participants.filter(
-            (p) =>
-                p.full_name.toLowerCase().includes(searchParticipant.toLowerCase()) ||
-                p.username.toLowerCase().includes(searchParticipant.toLowerCase())
-        );
-    }, [session?.participants, searchParticipant]);
+        const minimum = scoreMin === '' ? null : Number(scoreMin);
+        const maximum = scoreMax === '' ? null : Number(scoreMax);
+        const values = session.participants.filter((p) => {
+            const matchesSearch = p.full_name.toLowerCase().includes(searchParticipant.toLowerCase())
+                || p.username.toLowerCase().includes(searchParticipant.toLowerCase());
+            const matchesStatus = evaluationFilter === 'all' || p.evaluation_status === evaluationFilter;
+            const examResult = p.exam_results?.find((result) => result.source_exam_id === selectedExamId);
+            const score = examResult?.final_score;
+            const matchesMinimum = minimum === null || (score !== null && score !== undefined && score >= minimum);
+            const matchesMaximum = maximum === null || (score !== null && score !== undefined && score <= maximum);
+            return matchesSearch && matchesStatus && matchesMinimum && matchesMaximum;
+        });
+        if (scoreSort === 'default') return values;
+        return [...values].sort((a, b) => {
+            const aScore = a.exam_results?.find((result) => result.source_exam_id === selectedExamId)?.final_score;
+            const bScore = b.exam_results?.find((result) => result.source_exam_id === selectedExamId)?.final_score;
+            if ((aScore === null || aScore === undefined) && (bScore === null || bScore === undefined)) return 0;
+            if (aScore === null || aScore === undefined) return 1;
+            if (bScore === null || bScore === undefined) return -1;
+            return scoreSort === 'desc' ? bScore - aScore : aScore - bScore;
+        });
+    }, [session?.participants, searchParticipant, selectedExamId, scoreMin, scoreMax, scoreSort, evaluationFilter]);
+
+    const selectedExamModuleItemId = useMemo(() => {
+        if (!selectedExamId) return null;
+        return session?.participants
+            .flatMap((participant) => participant.exam_results || [])
+            .find((result) => result.source_exam_id === selectedExamId)?.module_item_id || null;
+    }, [selectedExamId, session?.participants]);
+
+    const examOptions = useMemo(() => {
+        const byId = new Map<string, string>();
+        for (const participant of session?.participants || []) {
+            for (const result of participant.exam_results || []) byId.set(result.source_exam_id, result.exam_title);
+        }
+        return [...byId.entries()].map(([id, title]) => ({ id, title }));
+    }, [session?.participants]);
 
     const {
         currentPage,
@@ -358,30 +426,85 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
         }
     };
 
-    const handleToggleScoreVisibility = async () => {
+    const openPublishPreview = async () => {
+        if (!session) return;
+        setShowPublishModal(true);
+        setIsLoadingPublishPreview(true);
+        setPublishPreview(null);
+        try {
+            const response = await fetch(`/api/admin/sessions/${session.id}/publish-results`);
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.error || 'Gagal memuat preview publikasi');
+            setPublishPreview(data.data);
+        } catch (error) {
+            toast.error('Preview Publikasi Gagal', {
+                description: error instanceof Error ? error.message : 'Terjadi kesalahan sistem',
+            });
+            setShowPublishModal(false);
+        } finally {
+            setIsLoadingPublishPreview(false);
+        }
+    };
+
+    const handlePublishResults = async () => {
         if (!session) return;
         setIsTogglingScoreVisibility(true);
-        const newStatus = !session.show_score;
         try {
-            const res = await fetch(`/api/admin/sessions/${session.id}/toggle-score-visibility`, {
-                method: 'PATCH',
+            const res = await fetch(`/api/admin/sessions/${session.id}/publish-results`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ show_score: newStatus }),
+                body: JSON.stringify({ confirm: true, mark_missing_absent: markMissingAbsent }),
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                setSession((prev) => prev ? { ...prev, show_score: newStatus } : null);
-                toast.success(data.message || (newStatus ? 'Nilai dipublikasikan ke peserta' : 'Nilai disembunyikan dari peserta'));
+                toast.success('Hasil Sesi Dipublikasikan', { description: data.message });
+                setShowPublishModal(false);
+                setMarkMissingAbsent(false);
+                fetchSession();
             } else {
-                toast.error('Gagal Mengubah Visibilitas Nilai', {
+                toast.error('Publikasi Hasil Gagal', {
                     description: data.error || 'Terjadi kesalahan sistem',
                 });
+                if (data.counts || data.blockers) {
+                    setPublishPreview((previous: any) => ({
+                        ...(previous || {}), counts: data.counts || previous?.counts,
+                        blockers: data.blockers || previous?.blockers,
+                        can_publish: false,
+                    }));
+                }
             }
         } catch (err: any) {
             toast.error('Kesalahan Jaringan', { description: err.message });
         } finally {
             setIsTogglingScoreVisibility(false);
         }
+    };
+
+    const handleReopenRevision = async () => {
+        if (!session) return;
+        setIsTogglingScoreVisibility(true);
+        try {
+            const res = await fetch(`/api/admin/sessions/${session.id}/toggle-score-visibility`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ show_score: false }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || 'Gagal membuka revisi hasil');
+            toast.success('Mode Revisi Dibuka', { description: data.message });
+            fetchSession();
+        } catch (error) {
+            toast.error('Gagal Membuka Revisi', {
+                description: error instanceof Error ? error.message : 'Terjadi kesalahan sistem',
+            });
+        } finally {
+            setIsTogglingScoreVisibility(false);
+        }
+    };
+
+    const handleToggleScoreVisibility = () => {
+        if (session?.show_score || session?.result_state === 'published') handleReopenRevision();
+        else openPublishPreview();
     };
 
     const handleDownloadBulkSheets = async (targetIds?: string[]) => {
@@ -480,6 +603,15 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                     Selesai
                                 </span>
                             )}
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                                session.session_type === 'remedial'
+                                    ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                    : 'border-sky-200 bg-sky-50 text-sky-800'
+                            }`}>
+                                {session.session_type === 'remedial'
+                                    ? `Remedial siklus ${session.remedial_cycle || 1}`
+                                    : 'Sesi reguler'}
+                            </span>
                         </div>
                         <p className="font-mono text-xs text-muted-foreground">ID Sesi: {session.id}</p>
                     </div>
@@ -520,6 +652,18 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                 </div>
             </div>
+
+            {session.session_type === 'remedial' && session.parent_session_id && (
+                <div className="flex flex-col justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/80 p-4 sm:flex-row sm:items-center">
+                    <div>
+                        <p className="text-xs font-semibold text-blue-950">Sesi ini hanya untuk pengerjaan remedial</p>
+                        <p className="mt-0.5 text-[11px] text-blue-800">Keputusan lulus/tidak lulus dan penerbitan SKL tetap dilakukan dari sesi reguler induk setelah hasil remedial dipublikasikan.</p>
+                    </div>
+                    <Link href={`/admin/sessions/${session.parent_session_id}`} className="shrink-0 rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-100">
+                        Buka sesi induk
+                    </Link>
+                </div>
+            )}
 
             {/* Information Grid: 3 Clean Info Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -606,9 +750,9 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                         onClick={handleToggleScoreVisibility}
                                         disabled={isTogglingScoreVisibility}
                                         className="text-[10px] font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded transition-all border border-black/5 cursor-pointer disabled:opacity-50"
-                                        title={session.show_score ? 'Sembunyikan nilai dari peserta' : 'Publikasikan nilai ke peserta'}
+                                        title={session.show_score ? 'Buka revisi hasil dan sembunyikan versi aktif' : 'Validasi dan publikasikan hasil sesi'}
                                     >
-                                        {isTogglingScoreVisibility ? '...' : session.show_score ? 'Sembunyikan' : 'Publikasikan'}
+                                        {isTogglingScoreVisibility ? '...' : session.show_score ? 'Buka Revisi' : 'Publikasikan'}
                                     </button>
                                 )}
                             </div>
@@ -642,7 +786,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                         <div className="space-y-0.5">
                             <p className="text-xs font-semibold text-amber-950">Mode Evaluasi & Penyesuaian Nilai (Draft)</p>
                             <p className="text-[11px] text-amber-800 leading-snug">
-                                Nilai ujian saat ini disembunyikan dari peserta. Anda dapat menyesuaikan (adjust) nilai peserta sebelum mempublikasikannya.
+                                Hasil sesi masih draft. Selesaikan penilaian dan adjustment sebelum publikasi atomik ke seluruh peserta.
                             </p>
                         </div>
                     </div>
@@ -654,7 +798,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-2xs transition-all active:scale-95 shrink-0 cursor-pointer disabled:opacity-50"
                         >
                             <ViewIcon size={13} />
-                            <span>{isTogglingScoreVisibility ? 'Memproses...' : 'Publikasikan Nilai ke Peserta'}</span>
+                            <span>{isTogglingScoreVisibility ? 'Memproses...' : 'Preview & Publikasikan Hasil Sesi'}</span>
                         </button>
                     )}
                 </div>
@@ -702,6 +846,90 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                 </div>
 
+                <div className="border-b border-black/5 bg-slate-50/60 p-4" aria-label="Filter dan pengurutan hasil peserta">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                        <label className="space-y-1 lg:col-span-2">
+                            <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                                <FilePenLine className="size-3" /> Ujian
+                            </span>
+                            <select
+                                value={selectedExamId}
+                                onChange={(event) => setSelectedExamId(event.target.value)}
+                                className="h-9 w-full rounded-lg border border-black/10 bg-white px-3 text-xs font-medium"
+                            >
+                                {examOptions.length === 0 && <option value="">Belum ada ujian</option>}
+                                {examOptions.map((exam) => <option key={exam.id} value={exam.id}>{exam.title}</option>)}
+                            </select>
+                        </label>
+                        <label className="space-y-1">
+                            <span className="text-[11px] font-semibold text-muted-foreground">Nilai minimum</span>
+                            <input
+                                type="number" min={0} max={100} step="0.01" value={scoreMin}
+                                onChange={(event) => setScoreMin(event.target.value)}
+                                className="h-9 w-full rounded-lg border border-black/10 bg-white px-3 text-xs tabular-nums"
+                                placeholder="0"
+                            />
+                        </label>
+                        <label className="space-y-1">
+                            <span className="text-[11px] font-semibold text-muted-foreground">Nilai maksimum</span>
+                            <input
+                                type="number" min={0} max={100} step="0.01" value={scoreMax}
+                                onChange={(event) => setScoreMax(event.target.value)}
+                                className="h-9 w-full rounded-lg border border-black/10 bg-white px-3 text-xs tabular-nums"
+                                placeholder="100"
+                            />
+                        </label>
+                        <label className="space-y-1">
+                            <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                                <Filter className="size-3" /> Status evaluasi
+                            </span>
+                            <select
+                                value={evaluationFilter || 'all'}
+                                onChange={(event) => setEvaluationFilter(event.target.value as typeof evaluationFilter)}
+                                className="h-9 w-full rounded-lg border border-black/10 bg-white px-3 text-xs font-medium"
+                            >
+                                <option value="all">Semua status</option>
+                                <option value="draft">Draft</option>
+                                <option value="grading_pending">Menunggu penilaian</option>
+                                <option value="remedial_required">Perlu remedial</option>
+                                <option value="remedial_exhausted">Remedial habis</option>
+                                <option value="ready_for_graduation">Siap keputusan</option>
+                            </select>
+                        </label>
+                        <label className="space-y-1">
+                            <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                                <ArrowDownUp className="size-3" /> Urutan nilai
+                            </span>
+                            <select
+                                value={scoreSort}
+                                onChange={(event) => setScoreSort(event.target.value as typeof scoreSort)}
+                                className="h-9 w-full rounded-lg border border-black/10 bg-white px-3 text-xs font-medium"
+                            >
+                                <option value="default">Urutan default</option>
+                                <option value="desc">Tertinggi ke terendah</option>
+                                <option value="asc">Terendah ke tertinggi</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                        <span className="text-muted-foreground" role="status">
+                            Menampilkan <strong className="text-foreground">{filteredParticipants.length}</strong> dari {session.participants.length} peserta
+                        </span>
+                        {(scoreMin || scoreMax || scoreSort !== 'default' || evaluationFilter !== 'all') && (
+                            <button
+                                type="button"
+                                onClick={() => { setScoreMin(''); setScoreMax(''); setScoreSort('default'); setEvaluationFilter('all'); }}
+                                className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border bg-white px-2.5 font-semibold text-slate-700 hover:bg-slate-100"
+                            >
+                                <RotateCcw className="size-3" /> Reset filter nilai
+                            </button>
+                        )}
+                    </div>
+                    {scoreMin !== '' && scoreMax !== '' && Number(scoreMin) > Number(scoreMax) && (
+                        <p className="mt-2 text-xs font-medium text-red-600" role="alert">Nilai minimum tidak boleh lebih besar dari nilai maksimum.</p>
+                    )}
+                </div>
+
                 {/* Batch Actions Bar (when >= 1 participant selected) */}
                 {selectedParticipantIds.length > 0 && (
                     <div className="p-3 bg-slate-50 border-b border-black/5 flex items-center justify-between gap-3 flex-wrap animate-in fade-in duration-150">
@@ -716,33 +944,38 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                         <div className="flex items-center gap-2 flex-wrap">
                             {userRole === 'admin' && (
                                 <>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setBulkVerdictStatus('passed');
-                                            setShowBulkVerdictModal(true);
-                                        }}
-                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-emerald-700/30 active:scale-95 cursor-pointer"
-                                    >
-                                        <CheckCircle2 className="size-3.5" />
-                                        <span>Luluskan Massal</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setBulkVerdictStatus('failed');
-                                            setShowBulkVerdictModal(true);
-                                        }}
-                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-rose-700/30 active:scale-95 cursor-pointer"
-                                    >
-                                        <AlertCircle className="size-3.5" />
-                                        <span>Tidak Luluskan Massal</span>
-                                    </button>
+                                    {session.session_type !== 'remedial' && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setBulkVerdictStatus('passed');
+                                                    setShowBulkVerdictModal(true);
+                                                }}
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-emerald-700/30 active:scale-95 cursor-pointer"
+                                            >
+                                                <CheckCircle2 className="size-3.5" />
+                                                <span>Luluskan Massal</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setBulkVerdictStatus('failed');
+                                                    setShowBulkVerdictModal(true);
+                                                }}
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-rose-700/30 active:scale-95 cursor-pointer"
+                                            >
+                                                <AlertCircle className="size-3.5" />
+                                                <span>Tidak Luluskan Massal</span>
+                                            </button>
+                                        </>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => setShowBulkScoreModal(true)}
-                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-indigo-700/30 active:scale-95 cursor-pointer"
-                                        title="Sesuaikan nilai ujian seluruh peserta terpilih sekaligus"
+                                        disabled={!selectedExamModuleItemId}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs hover:shadow-sm border border-indigo-700/30 active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                                        title={selectedExamModuleItemId ? 'Sesuaikan nilai ujian seluruh peserta terpilih sekaligus' : 'Exam ini tidak tersedia pada modul sesi remedial'}
                                     >
                                         <SlidersHorizontal className="size-3.5" />
                                         <span>Adjust Nilai Massal</span>
@@ -807,7 +1040,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                     <th className="px-4 py-3">Peserta & NIP</th>
                                     <th className="px-4 py-3">Instansi & Batch</th>
                                     <th className="px-4 py-3 w-40">Progres & Nilai</th>
-                                    <th className="px-4 py-3 text-center w-36">Status Kelulusan</th>
+                                    <th className="px-4 py-3 text-center w-44">Evaluasi / Kelulusan</th>
                                     <th className="px-4 py-3 text-center w-40">SKL & Sertifikat</th>
                                     <th className="px-4 py-3 text-center w-28">Aksi</th>
                                 </tr>
@@ -817,6 +1050,20 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                     const isSelected = selectedParticipantIds.includes(p.id);
                                     const isPassed = p.graduation_status === 'passed';
                                     const isFailed = p.graduation_status === 'failed';
+                                    const selectedExamResult = p.exam_results?.find((result) => result.source_exam_id === selectedExamId) || null;
+                                    const participantForSelectedExam: User = selectedExamResult ? {
+                                        ...p,
+                                        final_score: selectedExamResult.final_score,
+                                        original_score: selectedExamResult.original_score,
+                                        score_adjustment: selectedExamResult.score_adjustment,
+                                        adjustment_reason: selectedExamResult.adjustment_reason,
+                                        adjusted_at: selectedExamResult.adjusted_at,
+                                        exam_module_item_id: selectedExamResult.module_item_id,
+                                    } : p;
+                                    const canSetVerdict = session.session_type !== 'remedial' && (
+                                        p.evaluation_status === 'ready_for_graduation'
+                                        || p.evaluation_status === 'remedial_exhausted'
+                                    );
 
                                     return (
                                         <tr
@@ -940,32 +1187,33 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                         <div className="flex items-center gap-1.5 flex-wrap justify-end">
                                                             <span>Nilai:</span>
                                                             <span className={`font-semibold ${
-                                                                p.final_score !== null && p.final_score !== undefined
+                                                                selectedExamResult?.final_score !== null && selectedExamResult?.final_score !== undefined
                                                                     ? 'text-emerald-600 dark:text-emerald-400'
                                                                     : 'text-slate-400'
                                                             }`}>
-                                                                {p.final_score !== null && p.final_score !== undefined
-                                                                    ? Number(p.final_score).toFixed(1)
+                                                                {selectedExamResult?.final_score !== null && selectedExamResult?.final_score !== undefined
+                                                                    ? Number(selectedExamResult.final_score).toFixed(1)
                                                                     : '-'}
                                                             </span>
-                                                            {p.score_adjustment !== null && p.score_adjustment !== undefined && Number(p.score_adjustment) !== 0 && (
+                                                            {selectedExamResult?.score_adjustment !== null && selectedExamResult?.score_adjustment !== undefined && Number(selectedExamResult.score_adjustment) !== 0 && (
                                                                 <span
                                                                     className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold border ${
-                                                                        Number(p.score_adjustment) > 0
+                                                                        Number(selectedExamResult.score_adjustment) > 0
                                                                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                                             : 'bg-rose-50 text-rose-700 border-rose-200'
                                                                     }`}
-                                                                    title={`Nilai Asli: ${p.original_score ?? '-'} | Penyesuaian: ${Number(p.score_adjustment) > 0 ? '+' : ''}${p.score_adjustment} | Alasan: ${p.adjustment_reason || '-'}`}
+                                                                    title={`Nilai Asli: ${selectedExamResult.original_score ?? '-'} | Penyesuaian: ${Number(selectedExamResult.score_adjustment) > 0 ? '+' : ''}${selectedExamResult.score_adjustment} | Alasan: ${selectedExamResult.adjustment_reason || '-'}`}
                                                                 >
-                                                                    {Number(p.score_adjustment) > 0 ? `+${Number(p.score_adjustment).toFixed(1)}` : Number(p.score_adjustment).toFixed(1)}
+                                                                    {Number(selectedExamResult.score_adjustment) > 0 ? `+${Number(selectedExamResult.score_adjustment).toFixed(1)}` : Number(selectedExamResult.score_adjustment).toFixed(1)}
                                                                 </span>
                                                             )}
                                                             {userRole === 'admin' && (
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => setSelectedParticipantForScoreAdjust(p)}
+                                                                    onClick={() => setSelectedParticipantForScoreAdjust(participantForSelectedExam)}
+                                                                    disabled={!selectedExamResult?.module_item_id || session.result_state === 'published'}
                                                                     className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-200/70 transition-colors cursor-pointer"
-                                                                    title="Sesuaikan (Adjust) Nilai Peserta Ini"
+                                                                    title={session.result_state === 'published' ? 'Buka revisi hasil sebelum adjustment' : 'Sesuaikan nilai ujian terpilih'}
                                                                 >
                                                                     <SlidersHorizontal className="size-3" />
                                                                 </button>
@@ -975,11 +1223,27 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5 text-center align-middle">
+                                                <div className="flex flex-col items-center gap-1.5">
+                                                    <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
+                                                        p.evaluation_status === 'ready_for_graduation'
+                                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                            : p.evaluation_status === 'remedial_required'
+                                                                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                                                : p.evaluation_status === 'remedial_exhausted'
+                                                                    ? 'border-red-200 bg-red-50 text-red-700'
+                                                                    : 'border-slate-200 bg-slate-100 text-slate-600'
+                                                    }`}>
+                                                        {p.evaluation_status === 'ready_for_graduation' ? 'Tidak perlu remedial'
+                                                            : p.evaluation_status === 'remedial_required' ? 'Perlu remedial'
+                                                                : p.evaluation_status === 'remedial_exhausted' ? 'Remedial habis'
+                                                                    : p.evaluation_status === 'grading_pending' ? 'Menunggu penilaian' : 'Draft'}
+                                                    </span>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setSelectedParticipantForVerdict(p)}
-                                                    className="inline-flex items-center gap-1.5 rounded-full text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                                                    title="Klik untuk menetapkan / mengubah status kelulusan"
+                                                    onClick={() => canSetVerdict && setSelectedParticipantForVerdict(p)}
+                                                    disabled={!canSetVerdict && !isPassed && !isFailed}
+                                                    className="inline-flex items-center gap-1.5 rounded-full text-xs font-bold transition-all enabled:hover:scale-105 enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    title={canSetVerdict || isPassed || isFailed ? 'Tetapkan / ubah keputusan kelulusan' : 'Selesaikan publikasi dan remedial terlebih dahulu'}
                                                 >
                                                     {isPassed ? (
                                                         <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 rounded-full shadow-2xs">
@@ -995,6 +1259,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                         </span>
                                                     )}
                                                 </button>
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3.5 align-middle">
                                                 {isPassed ? (
@@ -1090,9 +1355,10 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                                                             )}
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setSelectedParticipantForVerdict(p)}
-                                                                className="inline-flex items-center justify-center p-1.5 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors border border-black/5"
-                                                                title="Tetapkan / Ubah Keputusan Kelulusan"
+                                                                onClick={() => canSetVerdict && setSelectedParticipantForVerdict(p)}
+                                                                disabled={!canSetVerdict}
+                                                                className="inline-flex items-center justify-center p-1.5 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors border border-black/5 disabled:cursor-not-allowed disabled:opacity-40"
+                                                                title={canSetVerdict ? 'Tetapkan / Ubah Keputusan Kelulusan' : 'Peserta belum siap memasuki keputusan kelulusan'}
                                                             >
                                                                 <Award className="size-4 text-slate-700" />
                                                             </button>
@@ -1172,8 +1438,75 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
                 }}
                 sessionId={session.id}
                 participantIds={selectedParticipantIds}
+                moduleItemId={selectedExamModuleItemId}
                 participantCount={selectedParticipantIds.length}
             />
+
+            {showPublishModal && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs" onClick={() => !isTogglingScoreVisibility && setShowPublishModal(false)}>
+                    <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="publish-results-title" onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-start justify-between border-b p-5">
+                            <div>
+                                <h2 id="publish-results-title" className="text-base font-bold">Publikasikan Hasil Sesi</h2>
+                                <p className="mt-1 text-xs text-muted-foreground">Nilai tertinggi, passing grade, status remedial, dan notifikasi akan disimpan sebagai satu versi.</p>
+                            </div>
+                            <button type="button" onClick={() => setShowPublishModal(false)} className="min-h-8 min-w-8 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Tutup preview publikasi">×</button>
+                        </div>
+                        <div className="space-y-5 p-5">
+                            {isLoadingPublishPreview ? (
+                                <div className="py-12 text-center text-sm text-muted-foreground">Memeriksa kesiapan seluruh hasil...</div>
+                            ) : publishPreview ? (
+                                <>
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                        {[
+                                            ['Peserta', publishPreview.counts?.participants || 0],
+                                            ['Siap keputusan', publishPreview.counts?.ready_for_graduation || 0],
+                                            ['Peserta remedial', publishPreview.counts?.remedial_participants || 0],
+                                            ['Tidak tuntas', publishPreview.counts?.remedial_exhausted_participants || 0],
+                                        ].map(([label, value]) => (
+                                            <div key={String(label)} className="rounded-xl border bg-slate-50 p-3">
+                                                <p className="text-[11px] text-muted-foreground">{label}</p>
+                                                <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {(publishPreview.counts?.grading_pending > 0 || publishPreview.counts?.absent > 0 || publishPreview.counts?.current_cycle_incomplete > 0) && (
+                                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950" role="alert">
+                                            <p className="font-bold">Ditemukan blocker publikasi</p>
+                                            <ul className="mt-2 list-disc space-y-1 pl-5">
+                                                 {publishPreview.counts.grading_pending > 0 && <li>{publishPreview.counts.grading_pending} hasil masih menunggu penilaian esai.</li>}
+                                                 {publishPreview.counts.current_cycle_incomplete > 0 && <li>{publishPreview.counts.current_cycle_incomplete} pengerjaan pada siklus remedial ini belum selesai.</li>}
+                                                {publishPreview.counts.absent > 0 && <li>{publishPreview.counts.absent} hasil belum mempunyai nilai.</li>}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {publishPreview.counts?.absent > 0 && publishPreview.counts?.grading_pending === 0 && (
+                                        <label className="flex items-start gap-3 rounded-xl border p-3 text-xs">
+                                            <input type="checkbox" checked={markMissingAbsent} onChange={(event) => setMarkMissingAbsent(event.target.checked)} className="mt-0.5 size-4" />
+                                            <span><strong>Tandai hasil tanpa nilai sebagai Tidak Mengikuti.</strong><br /><span className="text-muted-foreground">Peserta tersebut tidak dapat diluluskan dan hasil ini tercatat pada snapshot publikasi.</span></span>
+                                        </label>
+                                    )}
+                                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-950">
+                                        Setelah dipublikasikan, adjustment dikunci. Gunakan <strong>Buka Revisi</strong> untuk membuat versi hasil baru.
+                                    </div>
+                                </>
+                            ) : null}
+                        </div>
+                        <div className="flex flex-col-reverse gap-2 border-t bg-slate-50 p-4 sm:flex-row sm:justify-end">
+                            <button type="button" onClick={() => setShowPublishModal(false)} disabled={isTogglingScoreVisibility} className="min-h-10 rounded-xl border bg-white px-4 text-xs font-semibold">Batal</button>
+                            <button
+                                type="button"
+                                onClick={handlePublishResults}
+                                disabled={isTogglingScoreVisibility || isLoadingPublishPreview || !publishPreview || (publishPreview.counts?.grading_pending > 0) || (publishPreview.counts?.current_cycle_incomplete > 0) || (publishPreview.counts?.absent > 0 && !markMissingAbsent)}
+                                className="min-h-10 rounded-xl bg-emerald-600 px-5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {isTogglingScoreVisibility ? 'Mempublikasikan...' : `Publikasikan Versi ${(publishPreview?.current_version || 0) + 1}`}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body,
+            )}
 
             {/* Bulk Verdict Confirmation Modal */}
             {showBulkVerdictModal &&

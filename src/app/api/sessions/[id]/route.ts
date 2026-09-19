@@ -6,6 +6,7 @@ import { sessionSchema } from '@/lib/validations/sessionSchema';
 import { withAuth } from '@/lib/api-auth';
 import logger from '@/lib/logger';
 import { normalizeDbDateToIso, toMysqlDatetimeWib } from '@/lib/timezone';
+import { pickHighestAttempt, validateRemedialSessionConfiguration } from '@/lib/exam-results';
 
 // GET Detail Sesi & Peserta + Progress Monitoring
 async function handleGet(
@@ -16,7 +17,9 @@ async function handleGet(
     try {
         const resolvedParams = await context.params;
         const result = await executeQuery<any[]>(
-            `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, seb_config_key, created_at 
+            `SELECT id, module_id, title, start_time, end_time, session_type, parent_session_id,
+                    remedial_cycle, result_state, result_published_at, result_publication_version,
+                    require_seb, show_score, enable_proctoring, seb_config_key, created_at
              FROM sessions WHERE id = ?`,
             [resolvedParams.id]
         );
@@ -27,19 +30,12 @@ async function handleGet(
 
         const session = result[0];
 
-        // Total module items
-        const countResult = await executeQuery<any[]>(
-            `SELECT COUNT(*) as total FROM module_items WHERE module_id = ?`,
-            [session.module_id]
-        );
-        const totalItems = countResult?.[0]?.total || 0;
-
         // Fetch module items with titles & metadata from trainings and exams
         const moduleItems = await executeQuery<any[]>(
             `SELECT 
                 mi.id, 
                 mi.item_type, 
-                mi.item_id, 
+                mi.item_id,
                 mi.sequence_order,
                 CASE mi.item_type
                     WHEN 'training' THEN t.title
@@ -52,7 +48,15 @@ async function handleGet(
                 CASE mi.item_type
                     WHEN 'exam' THEN e.passing_grade
                     ELSE NULL
-                END AS passing_score
+                END AS passing_score,
+                CASE mi.item_type
+                    WHEN 'exam' THEN e.allow_remedial
+                    ELSE FALSE
+                END AS allow_remedial,
+                CASE mi.item_type
+                    WHEN 'exam' THEN e.remedial_exam_id
+                    ELSE NULL
+                END AS remedial_exam_id
              FROM module_items mi
              LEFT JOIN trainings t ON mi.item_type = 'training' AND mi.item_id = t.id
              LEFT JOIN exams e ON mi.item_type = 'exam' AND mi.item_id = e.id
@@ -60,6 +64,20 @@ async function handleGet(
              ORDER BY mi.sequence_order ASC`,
             [session.module_id]
         );
+        const assignmentRows = session.session_type === 'remedial'
+            ? await executeQuery<any[]>(
+                `SELECT user_id, module_item_id
+                 FROM session_participant_exam_assignments
+                 WHERE session_id = ?`,
+                [resolvedParams.id],
+            )
+            : [];
+        const assignedItemsByUser = new Map<string, Set<string>>();
+        for (const assignment of assignmentRows) {
+            const assigned = assignedItemsByUser.get(assignment.user_id) || new Set<string>();
+            assigned.add(assignment.module_item_id);
+            assignedItemsByUser.set(assignment.user_id, assigned);
+        }
 
         // Fetch all progress records for this session to determine real-time participant activity
         const progressRows = await executeQuery<any[]>(
@@ -130,7 +148,15 @@ async function handleGet(
         const participantsWithDetail = participants.map(p => {
             const userItems = progressByUser.get(p.user_id) || [];
             const openItem = userItems.find(ui => ui.item_status === 'open');
-            const completedCount = Number(p.completed_items || 0);
+            const assignedExamItems = assignedItemsByUser.get(p.user_id) || new Set<string>();
+            const participantModuleItems = session.session_type === 'remedial'
+                ? (moduleItems || []).filter((item: any) => item.item_type === 'training' || assignedExamItems.has(item.id))
+                : (moduleItems || []);
+            const participantItemIds = new Set<string>(participantModuleItems.map((item: any) => item.id));
+            const participantTotalItems = participantModuleItems.length;
+            const completedCount = userItems.filter(
+                (item: any) => item.item_status === 'completed' && participantItemIds.has(item.module_item_id),
+            ).length;
 
             let currentActivity = {
                 type: 'not_started' as 'exam' | 'training' | 'completed' | 'in_between' | 'not_started',
@@ -149,7 +175,7 @@ async function handleGet(
                     label: isExam ? 'Sedang Mengerjakan Ujian' : 'Sedang Membuka Materi',
                     last_activity_at: openItem.updated_at || openItem.last_attempt_start || null,
                 };
-            } else if (totalItems > 0 && completedCount >= totalItems) {
+            } else if (participantTotalItems > 0 && completedCount >= participantTotalItems) {
                 currentActivity = {
                     type: 'completed',
                     title: null,
@@ -158,7 +184,7 @@ async function handleGet(
                     last_activity_at: userItems[0]?.updated_at || null,
                 };
             } else if (completedCount > 0) {
-                const nextItem = (moduleItems || []).find((mi: any) => !userItems.some((ui: any) => ui.module_item_id === mi.id && ui.item_status === 'completed'));
+                const nextItem = participantModuleItems.find((mi: any) => !userItems.some((ui: any) => ui.module_item_id === mi.id && ui.item_status === 'completed'));
                 currentActivity = {
                     type: 'in_between',
                     title: nextItem?.title || null,
@@ -178,8 +204,8 @@ async function handleGet(
                 institution: p.institution || null,
                 batch: p.batch || '1',
                 completed_items: completedCount,
-                total_items: totalItems,
-                progress: totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0,
+                total_items: participantTotalItems,
+                progress: participantTotalItems > 0 ? Math.round((completedCount / participantTotalItems) * 100) : 0,
                 current_activity: currentActivity,
                 graduation_status: p.graduation_status || 'pending',
                 graduation_decided_at: p.graduation_decided_at || null,
@@ -200,8 +226,141 @@ async function handleGet(
                 adjusted_at: p.exam_adjusted_at || null,
                 exam_module_item_id: p.exam_module_item_id || null,
                 avg_score: p.exam_avg_score !== null && p.exam_avg_score !== undefined ? Number(p.exam_avg_score) : null,
+                exam_results: [] as any[],
+                evaluation_status: 'draft' as 'draft' | 'grading_pending' | 'remedial_required' | 'remedial_exhausted' | 'ready_for_graduation',
             };
         });
+
+        const rootSessionId = session.session_type === 'remedial' && session.parent_session_id
+            ? session.parent_session_id
+            : session.id;
+        const sourceExamItems = session.session_type === 'remedial' && session.parent_session_id
+            ? await executeQuery<any[]>(
+                `SELECT mi.id AS module_item_id, e.id AS exam_id, e.title,
+                        e.passing_grade, e.allow_remedial, e.remedial_exam_id,
+                        mi.sequence_order
+                 FROM sessions root
+                 JOIN module_items mi ON mi.module_id = root.module_id AND mi.item_type = 'exam'
+                 JOIN exams e ON e.id = mi.item_id
+                 WHERE root.id = ?
+                 ORDER BY mi.sequence_order ASC`,
+                [rootSessionId],
+            )
+            : (moduleItems || [])
+                .filter((item: any) => item.item_type === 'exam')
+                .map((item: any) => ({
+                    module_item_id: item.id,
+                    exam_id: item.item_id,
+                    title: item.title,
+                    passing_grade: item.passing_score,
+                    allow_remedial: item.allow_remedial,
+                    remedial_exam_id: item.remedial_exam_id,
+                    sequence_order: item.sequence_order,
+                }));
+
+        const publicationRows = await executeQuery<any[]>(
+            `SELECT id, version, session_id, published_at
+             FROM session_result_publications
+             WHERE root_session_id = ? AND status = 'active'
+             ORDER BY version DESC LIMIT 1`,
+            [rootSessionId],
+        );
+        const activePublication = publicationRows?.[0] || null;
+        const publicationItems = activePublication
+            ? await executeQuery<any[]>(
+                `SELECT user_id, source_exam_id, best_attempt_result_id, best_score,
+                        passing_grade, outcome, remedial_session_id, attempts_used
+                 FROM session_result_publication_items
+                 WHERE publication_id = ?`,
+                [activePublication.id],
+            )
+            : [];
+        const attemptResults = await executeQuery<any[]>(
+            `SELECT id, session_id, user_id, module_item_id, exam_id, source_exam_id,
+                    attempt_number, original_score, score_adjustment, final_score,
+                    adjustment_reason, adjusted_at, grading_pending, completed_at
+             FROM exam_attempt_results
+             WHERE root_session_id = ?
+             ORDER BY final_score DESC, attempt_number DESC`,
+            [rootSessionId],
+        );
+        const attemptsByKey = new Map<string, any[]>();
+        for (const attempt of attemptResults || []) {
+            const key = `${attempt.user_id}:${attempt.source_exam_id}`;
+            const values = attemptsByKey.get(key) || [];
+            values.push(attempt);
+            attemptsByKey.set(key, values);
+        }
+        const publicationByKey = new Map<string, any>();
+        for (const item of publicationItems || []) {
+            publicationByKey.set(`${item.user_id}:${item.source_exam_id}`, item);
+        }
+        const moduleItemBySourceExam = new Map<string, string>();
+        for (const exam of sourceExamItems || []) {
+            if (session.session_type === 'remedial') {
+                const remedialItem = (moduleItems || []).find(
+                    (item: any) => item.item_type === 'exam' && item.item_id === exam.remedial_exam_id,
+                );
+                if (remedialItem) moduleItemBySourceExam.set(exam.exam_id, remedialItem.id);
+            } else {
+                moduleItemBySourceExam.set(exam.exam_id, exam.module_item_id);
+            }
+        }
+
+        for (const participant of participantsWithDetail) {
+            const examResults = (sourceExamItems || []).map((exam: any) => {
+                const key = `${participant.id}:${exam.exam_id}`;
+                const examAttempts = attemptsByKey.get(key) || [];
+                const bestAttempt = pickHighestAttempt(
+                    examAttempts.filter((attempt: any) => !Boolean(attempt.grading_pending)),
+                );
+                const hasPending = examAttempts.some((attempt: any) => Boolean(attempt.grading_pending));
+                const published = publicationByKey.get(key) || null;
+                const finalScore = published?.best_score !== null && published?.best_score !== undefined
+                    ? Number(published.best_score)
+                    : bestAttempt?.final_score !== null && bestAttempt?.final_score !== undefined
+                        ? Number(bestAttempt.final_score)
+                        : null;
+                return {
+                    source_exam_id: exam.exam_id,
+                    exam_title: exam.title,
+                    module_item_id: session.session_type === 'remedial'
+                        ? moduleItemBySourceExam.get(exam.exam_id) || null
+                        : exam.module_item_id,
+                    final_score: finalScore,
+                    original_score: bestAttempt?.original_score !== null && bestAttempt?.original_score !== undefined
+                        ? Number(bestAttempt.original_score)
+                        : finalScore,
+                    score_adjustment: Number(bestAttempt?.score_adjustment || 0),
+                    adjustment_reason: bestAttempt?.adjustment_reason || null,
+                    adjusted_at: bestAttempt?.adjusted_at || null,
+                    passing_grade: Number(published?.passing_grade ?? exam.passing_grade ?? 0),
+                    outcome: published?.outcome || (hasPending ? 'grading_pending' : 'draft'),
+                    remedial_session_id: published?.remedial_session_id || null,
+                    attempts_count: examAttempts.filter((attempt: any) => !Boolean(attempt.grading_pending)).length,
+                    grading_pending: hasPending,
+                    published: Boolean(published),
+                };
+            });
+            const outcomes = examResults.map((result: any) => result.outcome);
+            participant.exam_results = examResults;
+            participant.evaluation_status = outcomes.includes('grading_pending')
+                ? 'grading_pending'
+                : !activePublication
+                    ? 'draft'
+                    : outcomes.includes('remedial_required')
+                        ? 'remedial_required'
+                        : outcomes.some((outcome: string) => outcome === 'remedial_exhausted' || outcome === 'absent')
+                            ? 'remedial_exhausted'
+                            : outcomes.length > 0 && outcomes.every((outcome: string) => outcome === 'passed')
+                                ? 'ready_for_graduation'
+                                : 'draft';
+            const numericScores = examResults
+                .map((result: any) => result.final_score)
+                .filter((score: number | null) => score !== null) as number[];
+            participant.final_score = numericScores.length > 0 ? Math.min(...numericScores) : null;
+            participant.exam_module_item_id = examResults.length === 1 ? examResults[0].module_item_id : null;
+        }
 
         return NextResponse.json({
             success: true,
@@ -214,6 +373,12 @@ async function handleGet(
                 enable_proctoring: session.enable_proctoring === 1 || session.enable_proctoring === true || session.enable_proctoring === '1',
                 total_items: totalItems,
                 module_items: moduleItems,
+                publication: activePublication ? {
+                    id: activePublication.id,
+                    version: Number(activePublication.version),
+                    session_id: activePublication.session_id,
+                    published_at: normalizeDbDateToIso(activePublication.published_at),
+                } : null,
                 participants: participantsWithDetail,
             }
         });
@@ -243,13 +408,17 @@ async function handlePut(
             );
         }
 
-        const { module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, participant_ids } = parsed.data;
+        const {
+            module_id, title, start_time, end_time, session_type, parent_session_id,
+            remedial_cycle, require_seb, enable_proctoring, participant_ids,
+        } = parsed.data;
 
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
         const [currentSessions] = await connection.execute<any[]>(
-            `SELECT module_id, require_seb, enable_proctoring, seb_config_key
+            `SELECT module_id, session_type, parent_session_id, remedial_cycle,
+                    require_seb, show_score, enable_proctoring, seb_config_key
              FROM sessions
              WHERE id = ?
              LIMIT 1
@@ -264,16 +433,18 @@ async function handlePut(
             return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
         }
 
-        if (String(currentSession.module_id) !== module_id) {
+        const changesWorkflowIdentity = String(currentSession.module_id) !== module_id
+            || String(currentSession.session_type || 'regular') !== session_type
+            || String(currentSession.parent_session_id || '') !== String(session_type === 'remedial' ? parent_session_id || '' : '')
+            || Number(currentSession.remedial_cycle || 0) !== Number(session_type === 'remedial' ? remedial_cycle : 0);
+        if (changesWorkflowIdentity) {
             const [activityRows] = await connection.execute<Array<{ total: number | string }> & any[]>(
                 `SELECT (
                     (SELECT COUNT(*) FROM user_progress WHERE session_id = ?)
                     + (SELECT COUNT(*) FROM exam_answers WHERE session_id = ?)
                     + (SELECT COUNT(*) FROM exam_answer_drafts WHERE session_id = ?)
                     + (SELECT COUNT(*) FROM proctor_snapshots WHERE session_id = ?)
-                    + (SELECT COUNT(*) FROM session_participants
-                       WHERE session_id = ?
-                         AND (graduation_status <> 'pending' OR skl_number IS NOT NULL OR certificate_file_url IS NOT NULL))
+                    + (SELECT COUNT(*) FROM session_participants WHERE session_id = ?)
                 ) AS total`,
                 [resolvedParams.id, resolvedParams.id, resolvedParams.id, resolvedParams.id, resolvedParams.id],
             );
@@ -282,9 +453,23 @@ async function handlePut(
                 connection.release();
                 connection = undefined;
                 return NextResponse.json(
-                    { success: false, error: 'Modul sesi tidak dapat diganti setelah ada progres, jawaban, draft, proctoring, atau dokumen resmi peserta' },
+                    { success: false, error: 'Modul atau relasi remedial tidak dapat diganti setelah ada progres, jawaban, draft, proctoring, atau dokumen resmi peserta' },
                     { status: 409 },
                 );
+            }
+        }
+        if (session_type === 'remedial') {
+            const configurationError = await validateRemedialSessionConfiguration(connection, {
+                parentSessionId: parent_session_id!,
+                moduleId: module_id,
+                remedialCycle: remedial_cycle,
+                excludeSessionId: resolvedParams.id,
+            });
+            if (configurationError) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json({ success: false, error: configurationError }, { status: 409 });
             }
         }
         const keepsSameSebConfig = Boolean(require_seb)
@@ -296,22 +481,29 @@ async function handlePut(
 
         // Update session with normalized WIB timestamps and strict boolean flags
         await connection.execute(
-            `UPDATE sessions 
-             SET module_id = ?, title = ?, start_time = ?, end_time = ?, require_seb = ?, show_score = ?, enable_proctoring = ?, seb_config_key = ? 
+            `UPDATE sessions
+             SET module_id = ?, title = ?, start_time = ?, end_time = ?,
+                 session_type = ?, parent_session_id = ?, remedial_cycle = ?,
+                 require_seb = ?, enable_proctoring = ?, seb_config_key = ?
              WHERE id = ?`,
             [
                 module_id,
                 title,
                 toMysqlDatetimeWib(start_time),
                 toMysqlDatetimeWib(end_time),
+                session_type,
+                session_type === 'remedial' ? parent_session_id : null,
+                session_type === 'remedial' ? remedial_cycle : 0,
                 Boolean(require_seb),
-                Boolean(show_score),
                 Boolean(enable_proctoring),
                 sebConfigKey,
                 resolvedParams.id
             ]
         );
 
+        // Remedial enrollment and exam assignment are generated from a published
+        // result snapshot. Manual participant synchronization applies to regular sessions only.
+        if (session_type === 'regular') {
         // Diff-based synchronization: Preserves graduation_status, SKL, & certificate records
         const [existingRows] = await connection.execute<any[]>(
             `SELECT user_id FROM session_participants WHERE session_id = ?`,
@@ -374,6 +566,7 @@ async function handlePut(
                 [participantId, resolvedParams.id, userId]
             );
         }
+        }
 
         await connection.commit();
         connection.release();
@@ -424,7 +617,6 @@ async function handleDelete(
                 { status: 409 },
             );
         }
-
         const [result] = await connection.execute<any>('DELETE FROM sessions WHERE id = ?', [resolvedParams.id]);
 
         if (result && 'affectedRows' in result && result.affectedRows === 0) {

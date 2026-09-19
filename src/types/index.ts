@@ -133,6 +133,12 @@ export interface Session {
     title: string;
     start_time: string;
     end_time: string;
+    session_type?: 'regular' | 'remedial';
+    parent_session_id?: string | null;
+    remedial_cycle?: number;
+    result_state?: 'draft' | 'published';
+    result_published_at?: string | null;
+    result_publication_version?: number;
     require_seb: boolean;
     show_score: boolean;
     enable_proctoring: boolean;

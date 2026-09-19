@@ -10,6 +10,7 @@ import {
     Clock3,
     LockKeyhole,
     PlayCircle,
+    RotateCcw,
     ShieldCheck,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,8 @@ type Session = {
     start_time: string;
     end_time: string;
     require_seb: boolean;
+    session_type?: 'regular' | 'remedial';
+    remedial_cycle?: number;
     module_title: string;
     total_items: number;
     completed_items: number;
@@ -201,6 +204,11 @@ function SessionCard({ session, status }: { session: Session; status: SessionSta
                     {session.require_seb && (
                         <Badge variant="outline" className="rounded-md text-muted-foreground">
                             <ShieldCheck /> SEB diperlukan
+                        </Badge>
+                    )}
+                    {session.session_type === 'remedial' && (
+                        <Badge variant="outline" className="rounded-md border-amber-200 bg-amber-50 text-amber-800">
+                            <RotateCcw /> Remedial {session.remedial_cycle || 1}
                         </Badge>
                     )}
                 </div>

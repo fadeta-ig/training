@@ -16,6 +16,9 @@ async function handleGet(_request: NextRequest, user: AuthenticatedUser) {
                 s.title,
                 s.start_time,
                 s.end_time,
+                s.session_type,
+                s.parent_session_id,
+                s.remedial_cycle,
                 s.require_seb,
                 s.show_score,
                 s.enable_proctoring,
@@ -27,7 +30,19 @@ async function handleGet(_request: NextRequest, user: AuthenticatedUser) {
                 sp.certificate_number,
                 m.title AS module_title,
                 m.id AS module_id,
-                (SELECT COUNT(*) FROM module_items mi WHERE mi.module_id = m.id) AS total_items,
+                (SELECT COUNT(*)
+                 FROM module_items mi
+                 WHERE mi.module_id = m.id
+                   AND (
+                       s.session_type <> 'remedial'
+                       OR mi.item_type = 'training'
+                       OR EXISTS (
+                           SELECT 1 FROM session_participant_exam_assignments assignment
+                           WHERE assignment.session_id = s.id
+                             AND assignment.user_id = sp.user_id
+                             AND assignment.module_item_id = mi.id
+                       )
+                   )) AS total_items,
                 (SELECT COUNT(*) FROM user_progress up
                     WHERE up.user_id = ? AND up.session_id = s.id AND up.status = 'completed') AS completed_items
             FROM session_participants sp

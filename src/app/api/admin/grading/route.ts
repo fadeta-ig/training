@@ -4,6 +4,7 @@ import type { RowDataPacket } from 'mysql2';
 import pool from '@/lib/db';
 import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
 import logger from '@/lib/logger';
+import { getSessionExamMappings, getSessionResultContext } from '@/lib/exam-results';
 
 const gradeSchema = z.object({
     session_id: z.string().uuid(),
@@ -180,18 +181,66 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
                         show_score: true,
                     })
                     : JSON.stringify({ passed, show_score: false });
+            const resultContext = await getSessionResultContext(connection, session_id, false);
+            if (!resultContext) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json({ success: false, error: 'Konteks hasil sesi tidak ditemukan' }, { status: 409 });
+            }
+            const mappings = await getSessionExamMappings(connection, resultContext);
+            const mapping = mappings.find((entry) => entry.module_item_id === answer.module_item_id);
+            if (!mapping) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json({ success: false, error: 'Pemetaan exam ke sesi induk tidak ditemukan' }, { status: 409 });
+            }
+
+            await connection.execute(
+                `INSERT INTO exam_attempt_results
+                    (id, root_session_id, session_id, user_id, module_item_id, exam_id,
+                     source_exam_id, attempt_number, original_score, score_adjustment,
+                     final_score, grading_pending, completed_at)
+                 VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                     original_score = VALUES(original_score),
+                     final_score = VALUES(final_score),
+                     grading_pending = VALUES(grading_pending),
+                     completed_at = VALUES(completed_at)`,
+                [
+                    resultContext.root_session_id, session_id, user_id, answer.module_item_id,
+                    exam_id, mapping.source_exam_id, attempt_number,
+                    pendingCount === 0 ? newScore : null,
+                    Number(answer.score_adjustment || 0),
+                    pendingCount === 0 ? finalScore : null,
+                    pendingCount > 0 ? 1 : 0,
+                    pendingCount === 0 ? new Date() : null,
+                ],
+            );
+
+            const [bestRows] = await connection.execute<Array<RowDataPacket & { best_score: number | string | null }>>(
+                `SELECT MAX(final_score) AS best_score
+                 FROM exam_attempt_results
+                 WHERE session_id = ? AND user_id = ? AND module_item_id = ?
+                   AND grading_pending = FALSE AND final_score IS NOT NULL`,
+                [session_id, user_id, answer.module_item_id],
+            );
+            const bestSessionScore = bestRows[0]?.best_score === null || bestRows[0]?.best_score === undefined
+                ? null
+                : Number(bestRows[0].best_score);
+
             await connection.execute(
                 `UPDATE user_progress 
                  SET original_score = ?, 
-                     score = CASE WHEN ? = 0 THEN LEAST(100, GREATEST(0, ? + COALESCE(score_adjustment, 0))) ELSE NULL END,
+                     score = ?,
                      grading_pending = ?,
                      status = CASE WHEN ? = 0 THEN 'completed' ELSE 'grading_pending' END,
                      last_submission_result = ?
                  WHERE user_id = ? AND session_id = ? AND module_item_id = ?`,
                 [
                     pendingCount === 0 ? newScore : null,
-                    pendingCount,
-                    newScore,
+                    bestSessionScore,
                     pendingCount > 0 ? 1 : 0,
                     pendingCount,
                     submissionResult,

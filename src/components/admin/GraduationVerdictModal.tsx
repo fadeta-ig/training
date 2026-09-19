@@ -19,6 +19,7 @@ interface GraduationVerdictModalProps {
         graduation_notes?: string | null;
         skl_number?: string | null;
         final_score?: number | null;
+        evaluation_status?: 'draft' | 'grading_pending' | 'remedial_required' | 'remedial_exhausted' | 'ready_for_graduation';
     } | null;
 }
 
@@ -48,7 +49,8 @@ export function GraduationVerdictModal({
 
     useEffect(() => {
         if (participant) {
-            setStatus(participant.graduation_status || 'pending');
+            const existingStatus = participant.graduation_status || 'pending';
+            setStatus(participant.evaluation_status === 'remedial_exhausted' && existingStatus === 'pending' ? 'failed' : existingStatus);
             setNotes(participant.graduation_notes || '');
         }
     }, [participant]);
@@ -162,6 +164,9 @@ export function GraduationVerdictModal({
                             {/* Passed */}
                             <label
                                 className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl border p-3.5 cursor-pointer transition-all ${
+                                    participant.evaluation_status === 'remedial_exhausted'
+                                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 opacity-60 dark:border-slate-800 dark:bg-slate-800'
+                                        :
                                     status === 'passed'
                                         ? 'border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500/30 shadow-xs dark:bg-emerald-950/40 dark:text-emerald-200'
                                         : 'border-slate-200 hover:bg-slate-50 text-muted-foreground dark:border-slate-800 dark:hover:bg-slate-800'
@@ -173,6 +178,7 @@ export function GraduationVerdictModal({
                                     value="passed"
                                     checked={status === 'passed'}
                                     onChange={() => setStatus('passed')}
+                                    disabled={participant.evaluation_status === 'remedial_exhausted'}
                                     className="sr-only"
                                 />
                                 <div className={`size-8 rounded-full flex items-center justify-center ${

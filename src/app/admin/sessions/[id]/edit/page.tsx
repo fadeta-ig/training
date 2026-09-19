@@ -19,6 +19,7 @@ import {
 import { formatIsoToWibInput } from '@/lib/timezone';
 
 type Module = { id: string; title: string };
+type SessionOption = { id: string; title: string; session_type?: 'regular' | 'remedial' };
 
 export default function EditSessionPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
@@ -37,9 +38,13 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
     const [requireSeb, setRequireSeb] = useState(false);
     const [showScore, setShowScore] = useState(true);
     const [enableProctoring, setEnableProctoring] = useState(true);
+    const [sessionType, setSessionType] = useState<'regular' | 'remedial'>('regular');
+    const [parentSessionId, setParentSessionId] = useState('');
+    const [remedialCycle, setRemedialCycle] = useState(1);
 
     // Enrollments
     const [availableModules, setAvailableModules] = useState<Module[]>([]);
+    const [availableParentSessions, setAvailableParentSessions] = useState<SessionOption[]>([]);
     const [availableUsers, setAvailableUsers] = useState<ParticipantItem[]>([]);
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
@@ -51,6 +56,12 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                 const modRes = await fetch('/api/modules?limit=100');
                 const modData = await modRes.json();
                 if (modData.success) setAvailableModules(modData.data);
+
+                const listSessionRes = await fetch('/api/sessions');
+                const listSessionData = await listSessionRes.json();
+                if (listSessionData.success) {
+                    setAvailableParentSessions(listSessionData.data.filter((item: SessionOption) => item.id !== resolvedParams.id && (item.session_type || 'regular') === 'regular'));
+                }
 
                 // Fetch Users (Participants / Trainees) up to 10,000 for full picker capability
                 const usrRes = await fetch('/api/admin/participants?limit=10000');
@@ -91,6 +102,9 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                     setRequireSeb(Boolean(session.require_seb));
                     setShowScore(session.show_score === 1 || session.show_score === true || session.show_score === '1');
                     setEnableProctoring(session.enable_proctoring === 1 || session.enable_proctoring === true || session.enable_proctoring === '1');
+                    setSessionType(session.session_type || 'regular');
+                    setParentSessionId(session.parent_session_id || '');
+                    setRemedialCycle(Number(session.remedial_cycle || 1));
 
                     if (session.participants && Array.isArray(session.participants)) {
                         setSelectedUserIds(session.participants.map((p: any) => p.id));
@@ -131,6 +145,9 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                 module_id: moduleId,
                 start_time: startTime,
                 end_time: endTime,
+                session_type: sessionType,
+                parent_session_id: sessionType === 'remedial' ? parentSessionId : null,
+                remedial_cycle: sessionType === 'remedial' ? remedialCycle : 0,
                 require_seb: requireSeb,
                 show_score: showScore,
                 enable_proctoring: enableProctoring,
@@ -215,6 +232,31 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                         </div>
 
                         <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">Jenis Sesi</label>
+                            <select value={sessionType} onChange={(event) => setSessionType(event.target.value as 'regular' | 'remedial')} className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium">
+                                <option value="regular">Sesi Utama</option>
+                                <option value="remedial">Sesi Remedial</option>
+                            </select>
+                        </div>
+
+                        {sessionType === 'remedial' && (
+                            <>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Sesi Induk <span className="text-destructive">*</span></label>
+                                    <select required value={parentSessionId} onChange={(event) => setParentSessionId(event.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium">
+                                        <option value="">-- Pilih Sesi Utama --</option>
+                                        {availableParentSessions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Siklus Remedial</label>
+                                    <input type="number" min={1} max={20} value={remedialCycle} onChange={(event) => setRemedialCycle(Number(event.target.value) || 1)} className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium" />
+                                    <p className="text-xs text-muted-foreground">Modul remedial harus memakai exam yang telah dipilih sebagai paket remedial pada exam sesi induk.</p>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">
                                 Modul / Materi Ujian <span className="text-destructive">*</span>
                             </label>
@@ -268,7 +310,7 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                                     <input
                                         type="checkbox"
                                         checked={showScore}
-                                        onChange={(e) => setShowScore(e.target.checked)}
+                                        disabled
                                         className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary appearance-none checked:bg-primary checked:border-primary transition-colors cursor-pointer"
                                     />
                                     <Tick02Icon
@@ -280,10 +322,10 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-foreground">
-                                        Tampilkan Nilai ke Peserta
+                                        Visibilitas Dikelola dari Session Manager
                                     </p>
                                     <p className="text-xs text-muted-foreground mt-0.5">
-                                        Jika dinonaktifkan, peserta tidak akan dapat melihat skor/nilai ujian mereka.
+                                        Gunakan Publikasikan Hasil atau Buka Revisi pada halaman detail sesi.
                                     </p>
                                 </div>
                             </label>
@@ -358,15 +400,22 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
                 </GlassCard>
 
                 {/* Bagian 2: Enrollment Peserta (Modular & Rich Filtering) */}
-                <ParticipantEnrollmentPicker
-                    participants={availableUsers}
-                    selectedUserIds={selectedUserIds}
-                    onSelectionChange={setSelectedUserIds}
-                    isLoading={isLoadingParticipants}
-                    stepNumber={2}
-                    title="Enrollment Peserta"
-                    description="Pilih dan tandai peserta yang berhak mengikuti sesi ini dengan filter cerdas."
-                />
+                {sessionType === 'regular' ? (
+                    <ParticipantEnrollmentPicker
+                        participants={availableUsers}
+                        selectedUserIds={selectedUserIds}
+                        onSelectionChange={setSelectedUserIds}
+                        isLoading={isLoadingParticipants}
+                        stepNumber={2}
+                        title="Enrollment Peserta"
+                        description="Pilih dan tandai peserta yang berhak mengikuti sesi ini dengan filter cerdas."
+                    />
+                ) : (
+                    <GlassCard className="p-5 border-amber-200 bg-amber-50/60">
+                        <h2 className="font-bold text-amber-950">Enrollment remedial dikelola otomatis</h2>
+                        <p className="mt-1 text-sm text-amber-800">Peserta dan exam yang ditugaskan berasal dari publikasi hasil sesi induk dan tidak dapat diedit manual.</p>
+                    </GlassCard>
+                )}
 
                 <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-4">
                     <Link

@@ -39,6 +39,26 @@ async function handlePost(
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
+        const [sessionIdentityRows] = await connection.execute<any[]>(
+            `SELECT session_type, parent_session_id FROM sessions WHERE id = ? LIMIT 1`,
+            [sessionId],
+        );
+        if (!sessionIdentityRows.length) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json({ success: false, error: 'Sesi tidak ditemukan' }, { status: 404 });
+        }
+        if (sessionIdentityRows[0].session_type === 'remedial') {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json(
+                { success: false, error: 'Keputusan kelulusan dan SKL hanya dikelola dari Session Manager sesi reguler induk' },
+                { status: 409 },
+            );
+        }
+
         // Check if participant is enrolled with row lock
         const [participantRows] = await connection.execute<any[]>(
             `SELECT sp.id, sp.graduation_status, sp.skl_number, sp.certificate_file_url, p.batch, u.full_name
@@ -74,6 +94,42 @@ async function handlePost(
                 connection = undefined;
                 return NextResponse.json(
                     { success: false, error: 'Status kelulusan belum dapat ditetapkan karena penilaian esai masih berlangsung' },
+                    { status: 409 },
+                );
+            }
+
+            const [resultRows] = await connection.execute<any[]>(
+                `SELECT pi.outcome
+                 FROM session_result_publications publication
+                 JOIN session_result_publication_items pi ON pi.publication_id = publication.id
+                 WHERE publication.root_session_id = ? AND publication.status = 'active'
+                   AND pi.user_id = ?`,
+                [sessionId, participantId],
+            );
+            if (resultRows.length === 0) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json(
+                    { success: false, error: 'Keputusan kelulusan belum dapat ditetapkan karena hasil sesi belum dipublikasikan' },
+                    { status: 409 },
+                );
+            }
+            if (resultRows.some((row) => row.outcome === 'remedial_required')) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json(
+                    { success: false, error: 'Keputusan kelulusan belum dapat ditetapkan karena peserta masih wajib mengikuti remedial' },
+                    { status: 409 },
+                );
+            }
+            if (graduation_status === 'passed' && resultRows.some((row) => row.outcome !== 'passed')) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json(
+                    { success: false, error: 'Peserta tidak dapat diluluskan karena belum seluruh exam mencapai passing grade' },
                     { status: 409 },
                 );
             }

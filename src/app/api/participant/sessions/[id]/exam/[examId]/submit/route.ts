@@ -8,6 +8,7 @@ import {
     verifyEnrollment,
     validateSessionTiming,
     validateSebAccess,
+    verifyRemedialExamAssignment,
     ParticipantError,
 } from '@/lib/participant-helpers';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -19,6 +20,7 @@ import {
     validateParticipantAnswer,
     type ExamQuestionType,
 } from '@/lib/exam-answer-utils';
+import { getSessionExamMappings, getSessionResultContext } from '@/lib/exam-results';
 
 /** Max 5 submissions per minute per IP to prevent abuse */
 const SUBMIT_RATE_LIMIT = { windowMs: 60_000, maxRequests: 5 };
@@ -105,14 +107,12 @@ async function handlePost(
         // Enforce SEB if required
         await validateSebAccess(request, session, { userId: user.id, userRole: user.role });
         const sessionModuleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
+        await verifyRemedialExamAssignment(session, user.id, sessionModuleItem.id);
 
         interface ExamRuleRow {
             passing_grade: number | string;
             max_attempts: number;
-            allow_remedial: boolean | number;
             duration_minutes: number;
-            remedial_exam_id: string | null;
-            remedial_duration_minutes: number | null;
         }
 
         interface UserProgressLockRow {
@@ -132,17 +132,13 @@ async function handlePost(
 
         // Fetch exam rules (passing grade, max attempts, remedial permission, remedial package)
         const exam = await executeQuery<ExamRuleRow[]>(
-            `SELECT e.passing_grade, e.max_attempts, e.allow_remedial, e.duration_minutes,
-                    e.remedial_exam_id, re.duration_minutes AS remedial_duration_minutes
+            `SELECT e.passing_grade, e.max_attempts, e.duration_minutes
              FROM exams e
-             LEFT JOIN exams re ON re.id = e.remedial_exam_id
              WHERE e.id = ?`,
             [examId]
         );
         const passingGrade = Number(exam?.[0]?.passing_grade ?? 70);
         const maxAttempts = exam?.[0]?.max_attempts || 1;
-        const allowRemedial = !!exam?.[0]?.allow_remedial;
-        const remedialExamId = exam?.[0]?.remedial_exam_id || null;
 
         connection = await pool.getConnection();
         try {
@@ -209,12 +205,7 @@ async function handlePost(
                 );
             }
 
-            const previousScore = Number(progressRow.score ?? 0);
-            const canRetake = progressRow.status === 'completed'
-                && !Boolean(progressRow.grading_pending)
-                && allowRemedial
-                && previousScore < Number(passingGrade)
-                && Number(progressRow.attempts_count || 0) < Number(maxAttempts);
+            const canRetake = false;
 
             if (progressRow.status === 'completed' && !canRetake) {
                 await connection.rollback();
@@ -254,11 +245,8 @@ async function handlePost(
                 }
             }
 
-            const isRemedialAttempt = attemptNumber > 1 && allowRemedial && !!remedialExamId;
-            const activeExamId = isRemedialAttempt ? remedialExamId : examId;
-            const effectiveDurationMinutes = isRemedialAttempt && exam?.[0]?.remedial_duration_minutes
-                ? exam[0].remedial_duration_minutes
-                : exam?.[0]?.duration_minutes;
+            const activeExamId = examId;
+            const effectiveDurationMinutes = exam?.[0]?.duration_minutes;
             const durationMs = Number(effectiveDurationMinutes || 0) * 60 * 1000;
             const elapsedMs = Math.max(0, Number(progressRow.attempt_elapsed_seconds || 0)) * 1000;
             const isWithinStandardDuration = durationMs > 0 ? (elapsedMs <= durationMs + EXAM_DURATION_GRACE_MS) : true;
@@ -382,7 +370,7 @@ async function handlePost(
             const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
             const passed = score >= passingGrade;
             const isScoreVisible = !!session.show_score;
-            const responseData = pendingEssayCount > 0
+            let responseData: Record<string, unknown> = pendingEssayCount > 0
                 ? {
                       grading_pending: true,
                       pendingEssayCount,
@@ -402,6 +390,76 @@ async function handlePost(
                       show_score: false,
                   };
 
+            const resultContext = await getSessionResultContext(connection, sessionId, false);
+            if (!resultContext) {
+                await connection.rollback();
+                return NextResponse.json({ success: false, error: 'Konteks hasil sesi tidak ditemukan' }, { status: 409 });
+            }
+            const resultMappings = await getSessionExamMappings(connection, resultContext);
+            const resultMapping = resultMappings.find((mapping) => mapping.exam_id === examId);
+            if (!resultMapping) {
+                await connection.rollback();
+                return NextResponse.json({
+                    success: false,
+                    error: resultContext.session_type === 'remedial'
+                        ? 'Exam remedial belum dipetakan ke exam sesi induk'
+                        : 'Exam tidak ditemukan pada pemetaan hasil sesi',
+                }, { status: 409 });
+            }
+
+            await connection.execute(
+                `INSERT INTO exam_attempt_results
+                    (id, root_session_id, session_id, user_id, module_item_id, exam_id,
+                     source_exam_id, attempt_number, original_score, score_adjustment,
+                     final_score, grading_pending, completed_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                     exam_id = VALUES(exam_id), source_exam_id = VALUES(source_exam_id),
+                     original_score = VALUES(original_score), score_adjustment = 0.00,
+                     final_score = VALUES(final_score), grading_pending = VALUES(grading_pending),
+                     completed_at = VALUES(completed_at), adjustment_reason = NULL,
+                     adjusted_by = NULL, adjusted_at = NULL`,
+                [
+                    uuidv4(), resultContext.root_session_id, sessionId, user.id,
+                    sessionModuleItem.id, activeExamId, resultMapping.source_exam_id,
+                    attemptNumber,
+                    pendingEssayCount > 0 ? null : Math.round(score * 100) / 100,
+                    pendingEssayCount > 0 ? null : Math.round(score * 100) / 100,
+                    pendingEssayCount > 0 ? 1 : 0,
+                    pendingEssayCount > 0 ? null : new Date(),
+                ],
+            );
+
+            const [bestRows] = await connection.execute<Array<{ best_score: number | string | null } & any>>(
+                `SELECT MAX(final_score) AS best_score
+                 FROM exam_attempt_results
+                 WHERE session_id = ? AND user_id = ? AND module_item_id = ?
+                   AND grading_pending = FALSE AND final_score IS NOT NULL`,
+                [sessionId, user.id, sessionModuleItem.id],
+            );
+            const bestSessionScore = bestRows[0]?.best_score === null || bestRows[0]?.best_score === undefined
+                ? null
+                : Number(bestRows[0].best_score);
+
+            if (pendingEssayCount === 0 && isScoreVisible) {
+                const [rootBestRows] = await connection.execute<Array<{ best_score: number | string | null } & any>>(
+                    `SELECT MAX(final_score) AS best_score
+                     FROM exam_attempt_results
+                     WHERE root_session_id = ? AND user_id = ? AND source_exam_id = ?
+                       AND grading_pending = FALSE AND final_score IS NOT NULL`,
+                    [resultContext.root_session_id, user.id, resultMapping.source_exam_id],
+                );
+                const highestScore = Number(rootBestRows[0]?.best_score ?? score);
+                responseData = {
+                    score: Math.round(highestScore * 100) / 100,
+                    passed: highestScore >= passingGrade,
+                    earnedPoints,
+                    totalPoints,
+                    passingGrade,
+                    show_score: true,
+                };
+            }
+
             await connection.execute(
                 `UPDATE user_progress
                  SET status = ?, score = ?, original_score = ?, score_adjustment = 0.00,
@@ -410,8 +468,8 @@ async function handlePost(
                  WHERE id = ?`,
                 [
                     pendingEssayCount > 0 ? 'grading_pending' : 'completed',
-                    pendingEssayCount > 0 ? null : score,
-                    pendingEssayCount > 0 ? null : score,
+                    bestSessionScore,
+                    bestSessionScore,
                     submissionId,
                     JSON.stringify(responseData),
                     pendingEssayCount > 0 ? 1 : 0,

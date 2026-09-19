@@ -50,6 +50,10 @@ type ModuleItem = {
     duration_minutes: number | null;
     progress_status: 'locked' | 'open' | 'grading_pending' | 'completed';
     score: number | null;
+    passing_grade?: number;
+    result_outcome?: 'draft' | 'grading_pending' | 'passed' | 'remedial_required' | 'remedial_exhausted' | 'absent';
+    result_published?: boolean;
+    remedial_session_id?: string | null;
     can_retake: boolean;
     attempts_count: number;
     max_attempts: number;
@@ -64,6 +68,7 @@ type SessionDetail = {
     require_seb: boolean;
     module_title: string;
     module_id: string;
+    session_type?: 'regular' | 'remedial';
     enforce_sequence?: boolean;
     participant_name?: string;
     graduation_status?: 'pending' | 'passed' | 'failed';
@@ -72,6 +77,18 @@ type SessionDetail = {
     skl_number?: string | null;
     certificate_file_url?: string | null;
     certificate_number?: string | null;
+    result_state?: 'draft' | 'published';
+    evaluation_status?: 'draft' | 'remedial_required' | 'remedial_exhausted' | 'ready_for_graduation';
+    result_publication?: { version: number; published_at: string } | null;
+    published_exam_results?: Array<{
+        source_exam_id: string;
+        exam_title: string;
+        best_score: number | null;
+        passing_grade: number;
+        outcome: 'passed' | 'remedial_required' | 'remedial_exhausted' | 'absent';
+        attempts_used: number;
+    }>;
+    remedial_session?: { id: string; title: string; start_time: string; end_time: string } | null;
     items: ModuleItem[];
 };
 
@@ -254,6 +271,102 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                     <Progress value={progress} aria-label={`Progres sesi ${progress}%`} />
                 </div>
             </header>
+
+            {session.graduation_status === 'pending' && session.evaluation_status === 'draft' && (
+                <section className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" role="status">
+                    <Clock3 className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-400" />
+                    <div>
+                        <h2 className="text-sm font-semibold text-amber-950 dark:text-amber-200">Hasil sedang diverifikasi</h2>
+                        <p className="mt-0.5 text-xs leading-relaxed text-amber-900/80 dark:text-amber-300/80">
+                            {session.session_type === 'remedial'
+                                ? 'Hasil remedial pada jadwal ini sedang direkap dan belum dipublikasikan oleh administrator.'
+                                : 'Nilai dan status remedial belum dipublikasikan oleh administrator.'}
+                        </p>
+                    </div>
+                </section>
+            )}
+
+            {session.graduation_status === 'pending' && session.evaluation_status === 'remedial_required' && (
+                <section className="flex flex-col justify-between gap-4 rounded-xl border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center dark:border-amber-800 dark:bg-amber-950/40" role="status">
+                    <div className="flex items-start gap-3">
+                        <RotateCcw className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-400" />
+                        <div>
+                            <h2 className="text-sm font-semibold text-amber-950 dark:text-amber-200">Anda perlu mengikuti remedial</h2>
+                            <p className="mt-0.5 text-xs leading-relaxed text-amber-900/80 dark:text-amber-300/80">
+                                Terdapat ujian yang belum mencapai passing grade. Nilai tertinggi tetap digunakan setelah remedial.
+                            </p>
+                            {session.remedial_session && (
+                                <p className="mt-2 text-xs font-medium text-amber-950 dark:text-amber-200">
+                                    {session.remedial_session.title} · {formatDualSchedule(session.remedial_session.start_time, session.remedial_session.end_time).fullText}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                    {session.remedial_session && (
+                        <Link href={`/dashboard/sesi/${session.remedial_session.id}`} className={cn(buttonVariants({ size: 'sm' }), 'shrink-0 gap-1.5')}>
+                            <RotateCcw className="size-4" /> Buka Sesi Remedial
+                        </Link>
+                    )}
+                </section>
+            )}
+
+            {session.graduation_status === 'pending' && session.evaluation_status === 'ready_for_graduation' && (
+                <section className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30" role="status">
+                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-700 dark:text-emerald-400" />
+                    <div>
+                        <h2 className="text-sm font-semibold text-emerald-950 dark:text-emerald-200">Tidak perlu remedial</h2>
+                        <p className="mt-0.5 text-xs leading-relaxed text-emerald-900/80 dark:text-emerald-300/80">
+                            Seluruh ujian telah mencapai passing grade. Keputusan kelulusan resmi masih menunggu administrator.
+                        </p>
+                    </div>
+                </section>
+            )}
+
+            {session.graduation_status === 'pending' && session.evaluation_status === 'remedial_exhausted' && (
+                <section className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50/70 p-4 dark:border-red-900/50 dark:bg-red-950/30" role="status">
+                    <AlertCircle className="mt-0.5 size-5 shrink-0 text-red-700 dark:text-red-400" />
+                    <div>
+                        <h2 className="text-sm font-semibold text-red-950 dark:text-red-200">Evaluasi selesai, passing grade belum terpenuhi</h2>
+                        <p className="mt-0.5 text-xs leading-relaxed text-red-900/80 dark:text-red-300/80">
+                            Tidak ada sesi remedial lanjutan. Keputusan akhir sedang menunggu administrator.
+                        </p>
+                    </div>
+                </section>
+            )}
+
+            {session.published_exam_results && session.published_exam_results.length > 0 && (
+                <section className="rounded-xl border bg-card p-4" aria-labelledby="published-results-heading">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 id="published-results-heading" className="text-sm font-semibold">Hasil ujian yang dipublikasikan</h2>
+                        {session.result_publication && (
+                            <span className="text-xs text-muted-foreground">Versi {session.result_publication.version}</span>
+                        )}
+                    </div>
+                    <div className="mt-3 divide-y">
+                        {session.published_exam_results.map((result) => (
+                            <div key={result.source_exam_id} className="grid gap-2 py-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                                <div>
+                                    <p className="text-sm font-medium">{result.exam_title}</p>
+                                    <p className="text-xs text-muted-foreground">Passing grade {result.passing_grade.toLocaleString('id-ID')}</p>
+                                </div>
+                                <p className="text-sm font-semibold tabular-nums">
+                                    Nilai tertinggi: {result.best_score === null ? '-' : result.best_score.toLocaleString('id-ID', { maximumFractionDigits: 2 })}
+                                </p>
+                                <Badge variant="outline" className={cn(
+                                    'w-fit rounded-md',
+                                    result.outcome === 'passed'
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : result.outcome === 'remedial_required'
+                                            ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                            : 'border-red-200 bg-red-50 text-red-700',
+                                )}>
+                                    {result.outcome === 'passed' ? 'Memenuhi' : result.outcome === 'remedial_required' ? 'Perlu remedial' : result.outcome === 'absent' ? 'Tidak mengikuti' : 'Belum memenuhi'}
+                                </Badge>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             {/* Official Graduation & Certification Banner */}
             {session.graduation_status === 'passed' && (
@@ -598,6 +711,12 @@ function SessionItemCard({
     } else if (isGradingPending) {
         statusLabel = 'Menunggu penilaian esai';
         statusClass = 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/40 dark:text-violet-300';
+    } else if (isCompleted && item.result_outcome === 'remedial_required') {
+        statusLabel = 'Perlu remedial';
+        statusClass = 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300';
+    } else if (isCompleted && item.result_outcome === 'passed') {
+        statusLabel = 'Tidak perlu remedial';
+        statusClass = 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300';
     } else if (isCompleted && item.can_retake) {
         statusLabel = 'Remedial tersedia';
         statusClass = 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300';
@@ -676,7 +795,7 @@ function SessionItemCard({
                     )}
                     {isExam && isCompleted && (
                         <div>
-                            <dt className="text-xs text-muted-foreground">Nilai evaluasi</dt>
+                            <dt className="text-xs text-muted-foreground">Nilai tertinggi</dt>
                             <dd className="mt-1">
                                 {item.score !== null ? (
                                     <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">

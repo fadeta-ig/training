@@ -35,6 +35,26 @@ async function handlePost(
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
+        const [sessionIdentityRows] = await connection.execute<any[]>(
+            `SELECT session_type FROM sessions WHERE id = ? LIMIT 1`,
+            [sessionId],
+        );
+        if (!sessionIdentityRows.length) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json({ success: false, error: 'Sesi tidak ditemukan' }, { status: 404 });
+        }
+        if (sessionIdentityRows[0].session_type === 'remedial') {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json(
+                { success: false, error: 'Keputusan kelulusan dan SKL hanya dikelola dari Session Manager sesi reguler induk' },
+                { status: 409 },
+            );
+        }
+
         // Fetch enrolled participants with row lock
         const placeholders = participant_ids.map(() => '?').join(',');
         const [participants] = await connection.execute<any[]>(
@@ -75,6 +95,46 @@ async function handlePost(
                     },
                     { status: 409 },
                 );
+            }
+
+            const [outcomeRows] = await connection.execute<any[]>(
+                `SELECT pi.user_id, pi.outcome
+                 FROM session_result_publications publication
+                 JOIN session_result_publication_items pi ON pi.publication_id = publication.id
+                 WHERE publication.root_session_id = ? AND publication.status = 'active'
+                   AND pi.user_id IN (${placeholders})`,
+                [sessionId, ...participant_ids],
+            );
+            const outcomesByUser = new Map<string, string[]>();
+            for (const row of outcomeRows) {
+                const outcomes = outcomesByUser.get(row.user_id) || [];
+                outcomes.push(row.outcome);
+                outcomesByUser.set(row.user_id, outcomes);
+            }
+            const unpublishedIds = participants
+                .map((participant) => participant.user_id)
+                .filter((participantId) => !outcomesByUser.has(participantId));
+            const activeRemedialIds = participants
+                .map((participant) => participant.user_id)
+                .filter((participantId) => outcomesByUser.get(participantId)?.includes('remedial_required'));
+            const ineligiblePassedIds = graduation_status === 'passed'
+                ? participants
+                    .map((participant) => participant.user_id)
+                    .filter((participantId) => !(outcomesByUser.get(participantId) || []).every((outcome) => outcome === 'passed'))
+                : [];
+            if (unpublishedIds.length > 0 || activeRemedialIds.length > 0 || ineligiblePassedIds.length > 0) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json({
+                    success: false,
+                    error: unpublishedIds.length > 0
+                        ? 'Sebagian peserta belum memiliki hasil sesi yang dipublikasikan'
+                        : activeRemedialIds.length > 0
+                            ? 'Sebagian peserta masih wajib mengikuti remedial'
+                            : 'Sebagian peserta belum mencapai passing grade seluruh exam',
+                    participant_ids: unpublishedIds.length > 0 ? unpublishedIds : activeRemedialIds.length > 0 ? activeRemedialIds : ineligiblePassedIds,
+                }, { status: 409 });
             }
         }
 

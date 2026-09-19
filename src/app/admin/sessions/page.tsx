@@ -28,6 +28,10 @@ type Session = {
     title: string;
     start_time: string;
     end_time: string;
+    session_type?: 'regular' | 'remedial';
+    parent_session_id?: string | null;
+    remedial_cycle?: number;
+    result_state?: 'draft' | 'published';
     require_seb: boolean;
     show_score: boolean;
     enable_proctoring: boolean;
@@ -331,6 +335,15 @@ export default function SessionsPage() {
                                                 <span className="font-mono text-[10px] text-muted-foreground mt-0.5 block">
                                                     ID: {session.id.slice(0, 13)}...
                                                 </span>
+                                                <span className={`mt-1.5 inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
+                                                    session.session_type === 'remedial'
+                                                        ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                                        : 'border-sky-200 bg-sky-50 text-sky-800'
+                                                }`}>
+                                                    {session.session_type === 'remedial'
+                                                        ? `Remedial siklus ${session.remedial_cycle || 1}`
+                                                        : 'Sesi reguler'}
+                                                </span>
                                             </td>
 
                                             {/* Jadwal Pelaksanaan */}
@@ -366,12 +379,17 @@ export default function SessionsPage() {
                                                         </span>
                                                     ) : null}
 
-                                                    {!session.show_score ? (
+                                                    {session.result_state === 'published' ? (
+                                                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60">
+                                                            <ViewIcon size={11} />
+                                                            Hasil Published
+                                                        </span>
+                                                    ) : (
                                                         <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60">
                                                             <ViewOffIcon size={11} />
-                                                            Nilai Sembunyi
+                                                            Hasil Draft
                                                         </span>
-                                                    ) : null}
+                                                    )}
 
                                                     {!session.require_seb && !session.enable_proctoring && session.show_score ? (
                                                         <span className="text-muted-foreground text-xs font-normal">

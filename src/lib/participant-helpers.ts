@@ -45,7 +45,10 @@ export async function validateSessionTiming(
     userId?: string
 ): Promise<SessionTimingResult> {
     const rows = await executeQuery<(Session & { is_upcoming_db?: number; is_ended_db?: number })[]>(
-        `SELECT s.id, s.module_id, s.title, s.start_time, s.end_time, s.require_seb, s.show_score, s.enable_proctoring, s.seb_config_key, s.created_at,
+        `SELECT s.id, s.module_id, s.title, s.start_time, s.end_time,
+                s.session_type, s.parent_session_id, s.remedial_cycle,
+                s.result_state, s.result_published_at, s.result_publication_version,
+                s.require_seb, s.show_score, s.enable_proctoring, s.seb_config_key, s.created_at,
                 COALESCE(m.enforce_sequence, 0) AS enforce_sequence,
                 (NOW() < s.start_time) AS is_upcoming_db,
                 (NOW() > s.end_time) AS is_ended_db
@@ -166,6 +169,30 @@ export async function getSessionModuleItem(
     }
 
     return rows[0];
+}
+
+/**
+ * Remedial sessions are populated by the result-publication workflow. An
+ * enrollment grants access to the session, while this assignment grants
+ * access only to the failed exam item(s) selected for that participant.
+ */
+export async function verifyRemedialExamAssignment(
+    session: Pick<Session, 'id' | 'session_type'>,
+    userId: string,
+    moduleItemId: string,
+): Promise<void> {
+    if (session.session_type !== 'remedial') return;
+
+    const rows = await executeQuery<Array<{ id: string }>>(
+        `SELECT id
+         FROM session_participant_exam_assignments
+         WHERE session_id = ? AND user_id = ? AND module_item_id = ?
+         LIMIT 1`,
+        [session.id, userId, moduleItemId],
+    );
+    if (!rows.length) {
+        throw new ParticipantError('Ujian remedial ini tidak ditugaskan kepada Anda', 403);
+    }
 }
 
 export async function hasBlockingPreviousItems(

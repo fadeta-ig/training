@@ -220,14 +220,26 @@ CREATE TABLE sessions (
   title          VARCHAR(150) NOT NULL,
   start_time     DATETIME     NOT NULL,
   end_time       DATETIME     NOT NULL,
+  session_type   ENUM('regular','remedial') NOT NULL DEFAULT 'regular',
+  parent_session_id VARCHAR(36) NULL,
+  remedial_cycle INT NOT NULL DEFAULT 0,
+  result_state   ENUM('draft','published') NOT NULL DEFAULT 'draft',
+  result_published_at DATETIME NULL,
+  result_published_by VARCHAR(36) NULL,
+  result_publication_version INT NOT NULL DEFAULT 0,
   require_seb    BOOLEAN      DEFAULT FALSE,
-  show_score     BOOLEAN      DEFAULT TRUE,
+  show_score     BOOLEAN      DEFAULT FALSE,
   enable_proctoring BOOLEAN   NOT NULL DEFAULT TRUE,
   seb_config_key VARCHAR(255) NULL,
   created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_sessions_module_time (module_id, start_time, end_time),
+  UNIQUE KEY uq_sessions_parent_cycle (parent_session_id, remedial_cycle),
   CONSTRAINT fk_sessions_module
-    FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
+    FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE,
+  CONSTRAINT fk_sessions_parent
+    FOREIGN KEY (parent_session_id) REFERENCES sessions(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_sessions_result_publisher
+    FOREIGN KEY (result_published_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
@@ -297,6 +309,94 @@ CREATE TABLE user_progress (
     FOREIGN KEY (module_item_id) REFERENCES module_items(id) ON DELETE CASCADE,
   CONSTRAINT fk_progress_adjusted_by
     FOREIGN KEY (adjusted_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Immutable per-attempt score summaries. user_progress remains the fast current
+-- state, while this table is the source of truth for the highest-score policy.
+CREATE TABLE exam_attempt_results (
+  id                VARCHAR(36) PRIMARY KEY,
+  root_session_id   VARCHAR(36) NOT NULL,
+  session_id        VARCHAR(36) NOT NULL,
+  user_id           VARCHAR(36) NOT NULL,
+  module_item_id    VARCHAR(36) NOT NULL,
+  exam_id           VARCHAR(36) NOT NULL,
+  source_exam_id    VARCHAR(36) NOT NULL,
+  attempt_number    INT NOT NULL,
+  original_score    DECIMAL(5,2) NULL,
+  score_adjustment  DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+  final_score       DECIMAL(5,2) NULL,
+  adjustment_reason VARCHAR(255) NULL,
+  adjusted_by       VARCHAR(36) NULL,
+  adjusted_at       DATETIME NULL,
+  grading_pending   BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_at      DATETIME NULL,
+  created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_exam_attempt_result (user_id, session_id, module_item_id, attempt_number),
+  INDEX idx_exam_attempt_best (root_session_id, user_id, source_exam_id, grading_pending, final_score),
+  INDEX idx_exam_attempt_session_item (session_id, module_item_id, user_id),
+  CONSTRAINT fk_attempt_root_session FOREIGN KEY (root_session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attempt_session FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attempt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attempt_module_item FOREIGN KEY (module_item_id) REFERENCES module_items(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attempt_exam FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_attempt_source_exam FOREIGN KEY (source_exam_id) REFERENCES exams(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_attempt_adjusted_by FOREIGN KEY (adjusted_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- One active, versioned publication for a regular session and its remedial cycles.
+CREATE TABLE session_result_publications (
+  id              VARCHAR(36) PRIMARY KEY,
+  session_id      VARCHAR(36) NOT NULL,
+  root_session_id VARCHAR(36) NOT NULL,
+  version         INT NOT NULL,
+  status          ENUM('active','superseded') NOT NULL DEFAULT 'active',
+  published_by    VARCHAR(36) NOT NULL,
+  published_at    DATETIME NOT NULL,
+  superseded_at   DATETIME NULL,
+  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_result_publication_version (root_session_id, version),
+  INDEX idx_result_publication_active (root_session_id, status, published_at),
+  CONSTRAINT fk_result_publication_session FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_result_publication_root FOREIGN KEY (root_session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_result_publication_user FOREIGN KEY (published_by) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+CREATE TABLE session_result_publication_items (
+  id                     VARCHAR(36) PRIMARY KEY,
+  publication_id         VARCHAR(36) NOT NULL,
+  user_id                VARCHAR(36) NOT NULL,
+  source_exam_id         VARCHAR(36) NOT NULL,
+  best_attempt_result_id VARCHAR(36) NULL,
+  best_score             DECIMAL(5,2) NULL,
+  passing_grade          DECIMAL(5,2) NOT NULL,
+  outcome                ENUM('passed','remedial_required','remedial_exhausted','absent') NOT NULL,
+  remedial_session_id    VARCHAR(36) NULL,
+  attempts_used          INT NOT NULL DEFAULT 0,
+  created_at             TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_publication_user_exam (publication_id, user_id, source_exam_id),
+  INDEX idx_publication_item_user (user_id, outcome),
+  CONSTRAINT fk_publication_item_publication FOREIGN KEY (publication_id) REFERENCES session_result_publications(id) ON DELETE CASCADE,
+  CONSTRAINT fk_publication_item_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_publication_item_exam FOREIGN KEY (source_exam_id) REFERENCES exams(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_publication_item_attempt FOREIGN KEY (best_attempt_result_id) REFERENCES exam_attempt_results(id) ON DELETE SET NULL,
+  CONSTRAINT fk_publication_item_remedial_session FOREIGN KEY (remedial_session_id) REFERENCES sessions(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- In a remedial module, only the failed exam items are assigned to each participant.
+CREATE TABLE session_participant_exam_assignments (
+  id             VARCHAR(36) PRIMARY KEY,
+  session_id     VARCHAR(36) NOT NULL,
+  user_id        VARCHAR(36) NOT NULL,
+  module_item_id VARCHAR(36) NOT NULL,
+  source_exam_id VARCHAR(36) NOT NULL,
+  created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_participant_exam_assignment (session_id, user_id, module_item_id),
+  INDEX idx_participant_exam_assignment_user (session_id, user_id),
+  CONSTRAINT fk_exam_assignment_session FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_exam_assignment_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_exam_assignment_item FOREIGN KEY (module_item_id) REFERENCES module_items(id) ON DELETE CASCADE,
+  CONSTRAINT fk_exam_assignment_source FOREIGN KEY (source_exam_id) REFERENCES exams(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────

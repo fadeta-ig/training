@@ -60,6 +60,15 @@ const requiredColumns = {
     modules: {
         enforce_sequence: 'BOOLEAN NOT NULL DEFAULT FALSE',
     },
+    sessions: {
+        session_type: "ENUM('regular','remedial') NOT NULL DEFAULT 'regular'",
+        parent_session_id: 'VARCHAR(36) NULL',
+        remedial_cycle: 'INT NOT NULL DEFAULT 0',
+        result_state: "ENUM('draft','published') NOT NULL DEFAULT 'draft'",
+        result_published_at: 'DATETIME NULL',
+        result_published_by: 'VARCHAR(36) NULL',
+        result_publication_version: 'INT NOT NULL DEFAULT 0',
+    },
     session_participants: {
         graduation_status: "ENUM('pending','passed','failed') NOT NULL DEFAULT 'pending'",
         graduation_decided_at: 'DATETIME NULL',
@@ -106,6 +115,7 @@ const requiredIndexes = [
     ['module_items', 'idx_module_items_item_id', '(item_id)'],
     ['module_items', 'uq_module_items_item', '(module_id, item_type, item_id)', true],
     ['module_items', 'uq_module_items_sequence', '(module_id, sequence_order)', true],
+    ['sessions', 'uq_sessions_parent_cycle', '(parent_session_id, remedial_cycle)', true],
     ['session_participants', 'idx_sp_graduation', '(graduation_status)'],
     ['session_participants', 'idx_sp_session_status', '(session_id, graduation_status)'],
     ['session_participants', 'uq_session_participants_skl_number', '(skl_number)', true],
@@ -194,6 +204,86 @@ const requiredTables = {
         CONSTRAINT fk_session_reminder_session FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
         CONSTRAINT fk_session_reminder_user FOREIGN KEY (triggered_by) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB`,
+    exam_attempt_results: `CREATE TABLE exam_attempt_results (
+        id VARCHAR(36) PRIMARY KEY,
+        root_session_id VARCHAR(36) NOT NULL,
+        session_id VARCHAR(36) NOT NULL,
+        user_id VARCHAR(36) NOT NULL,
+        module_item_id VARCHAR(36) NOT NULL,
+        exam_id VARCHAR(36) NOT NULL,
+        source_exam_id VARCHAR(36) NOT NULL,
+        attempt_number INT NOT NULL,
+        original_score DECIMAL(5,2) NULL,
+        score_adjustment DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+        final_score DECIMAL(5,2) NULL,
+        adjustment_reason VARCHAR(255) NULL,
+        adjusted_by VARCHAR(36) NULL,
+        adjusted_at DATETIME NULL,
+        grading_pending BOOLEAN NOT NULL DEFAULT FALSE,
+        completed_at DATETIME NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_exam_attempt_result (user_id, session_id, module_item_id, attempt_number),
+        INDEX idx_exam_attempt_best (root_session_id, user_id, source_exam_id, grading_pending, final_score),
+        INDEX idx_exam_attempt_session_item (session_id, module_item_id, user_id),
+        CONSTRAINT fk_attempt_root_session FOREIGN KEY (root_session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+        CONSTRAINT fk_attempt_session FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+        CONSTRAINT fk_attempt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        CONSTRAINT fk_attempt_module_item FOREIGN KEY (module_item_id) REFERENCES module_items(id) ON DELETE CASCADE,
+        CONSTRAINT fk_attempt_exam FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE RESTRICT,
+        CONSTRAINT fk_attempt_source_exam FOREIGN KEY (source_exam_id) REFERENCES exams(id) ON DELETE RESTRICT,
+        CONSTRAINT fk_attempt_adjusted_by FOREIGN KEY (adjusted_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB`,
+    session_result_publications: `CREATE TABLE session_result_publications (
+        id VARCHAR(36) PRIMARY KEY,
+        session_id VARCHAR(36) NOT NULL,
+        root_session_id VARCHAR(36) NOT NULL,
+        version INT NOT NULL,
+        status ENUM('active','superseded') NOT NULL DEFAULT 'active',
+        published_by VARCHAR(36) NOT NULL,
+        published_at DATETIME NOT NULL,
+        superseded_at DATETIME NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_result_publication_version (root_session_id, version),
+        INDEX idx_result_publication_active (root_session_id, status, published_at),
+        CONSTRAINT fk_result_publication_session FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+        CONSTRAINT fk_result_publication_root FOREIGN KEY (root_session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+        CONSTRAINT fk_result_publication_user FOREIGN KEY (published_by) REFERENCES users(id) ON DELETE RESTRICT
+    ) ENGINE=InnoDB`,
+    session_result_publication_items: `CREATE TABLE session_result_publication_items (
+        id VARCHAR(36) PRIMARY KEY,
+        publication_id VARCHAR(36) NOT NULL,
+        user_id VARCHAR(36) NOT NULL,
+        source_exam_id VARCHAR(36) NOT NULL,
+        best_attempt_result_id VARCHAR(36) NULL,
+        best_score DECIMAL(5,2) NULL,
+        passing_grade DECIMAL(5,2) NOT NULL,
+        outcome ENUM('passed','remedial_required','remedial_exhausted','absent') NOT NULL,
+        remedial_session_id VARCHAR(36) NULL,
+        attempts_used INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_publication_user_exam (publication_id, user_id, source_exam_id),
+        INDEX idx_publication_item_user (user_id, outcome),
+        CONSTRAINT fk_publication_item_publication FOREIGN KEY (publication_id) REFERENCES session_result_publications(id) ON DELETE CASCADE,
+        CONSTRAINT fk_publication_item_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        CONSTRAINT fk_publication_item_exam FOREIGN KEY (source_exam_id) REFERENCES exams(id) ON DELETE RESTRICT,
+        CONSTRAINT fk_publication_item_attempt FOREIGN KEY (best_attempt_result_id) REFERENCES exam_attempt_results(id) ON DELETE SET NULL,
+        CONSTRAINT fk_publication_item_remedial_session FOREIGN KEY (remedial_session_id) REFERENCES sessions(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB`,
+    session_participant_exam_assignments: `CREATE TABLE session_participant_exam_assignments (
+        id VARCHAR(36) PRIMARY KEY,
+        session_id VARCHAR(36) NOT NULL,
+        user_id VARCHAR(36) NOT NULL,
+        module_item_id VARCHAR(36) NOT NULL,
+        source_exam_id VARCHAR(36) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_participant_exam_assignment (session_id, user_id, module_item_id),
+        INDEX idx_participant_exam_assignment_user (session_id, user_id),
+        CONSTRAINT fk_exam_assignment_session FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+        CONSTRAINT fk_exam_assignment_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        CONSTRAINT fk_exam_assignment_item FOREIGN KEY (module_item_id) REFERENCES module_items(id) ON DELETE CASCADE,
+        CONSTRAINT fk_exam_assignment_source FOREIGN KEY (source_exam_id) REFERENCES exams(id) ON DELETE RESTRICT
+    ) ENGINE=InnoDB`,
 };
 
 const requiredColumnDefinitions = [
@@ -256,6 +346,18 @@ async function inspect(connection) {
     }
     const dataConflicts = [];
     const conflictChecks = [
+        {
+            table: 'sessions',
+            index: 'uq_sessions_parent_cycle',
+            label: 'duplicate remedial cycles per parent session',
+            sql: `SELECT COUNT(*) AS total FROM (
+                SELECT parent_session_id, remedial_cycle
+                FROM sessions
+                WHERE parent_session_id IS NOT NULL
+                GROUP BY parent_session_id, remedial_cycle
+                HAVING COUNT(*) > 1
+            ) duplicates`,
+        },
         {
             table: 'module_items',
             index: 'uq_module_items_item',
@@ -349,6 +451,34 @@ async function main() {
             const unique = requiredIndexes.find((entry) => entry[0] === table && entry[1] === index)?.[3];
             await connection.query(`CREATE ${unique ? 'UNIQUE ' : ''}INDEX \`${index}\` ON \`${table}\` ${columns}`);
             console.log(`[SCHEMA] Added index ${table}.${index}`);
+        }
+
+        // Preserve existing completed scores as one legacy attempt so the new
+        // highest-score policy can be introduced without discarding history.
+        const [backfillResult] = await connection.query(`
+            INSERT IGNORE INTO exam_attempt_results
+                (id, root_session_id, session_id, user_id, module_item_id, exam_id,
+                 source_exam_id, attempt_number, original_score, score_adjustment,
+                 final_score, adjustment_reason, adjusted_by, adjusted_at,
+                 grading_pending, completed_at)
+            SELECT UUID(),
+                   CASE WHEN COALESCE(s.session_type, 'regular') = 'remedial'
+                        THEN COALESCE(s.parent_session_id, s.id) ELSE s.id END,
+                   up.session_id, up.user_id, up.module_item_id, e.id, e.id,
+                   GREATEST(COALESCE(up.attempts_count, 1), 1),
+                   COALESCE(up.original_score, up.score),
+                   COALESCE(up.score_adjustment, 0),
+                   up.score, up.adjustment_reason, up.adjusted_by, up.adjusted_at,
+                   COALESCE(up.grading_pending, 0),
+                   CASE WHEN up.score IS NOT NULL THEN up.updated_at ELSE NULL END
+            FROM user_progress up
+            JOIN sessions s ON s.id = up.session_id
+            JOIN module_items mi ON mi.id = up.module_item_id AND mi.item_type = 'exam'
+            JOIN exams e ON e.id = mi.item_id
+            WHERE up.score IS NOT NULL OR COALESCE(up.grading_pending, 0) = 1
+        `);
+        if (Number(backfillResult.affectedRows || 0) > 0) {
+            console.log(`[SCHEMA] Backfilled ${backfillResult.affectedRows} legacy exam attempt result(s)`);
         }
 
         const finalState = await inspect(connection);

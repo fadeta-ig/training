@@ -18,6 +18,7 @@ import {
 } from '@/components/admin/ParticipantEnrollmentPicker';
 
 type Module = { id: string; title: string };
+type SessionOption = { id: string; title: string; session_type?: 'regular' | 'remedial' };
 
 export default function CreateSessionPage() {
     const router = useRouter();
@@ -31,11 +32,15 @@ export default function CreateSessionPage() {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     const [requireSeb, setRequireSeb] = useState(false);
-    const [showScore, setShowScore] = useState(true);
+    const [showScore] = useState(false);
     const [enableProctoring, setEnableProctoring] = useState(true);
+    const [sessionType, setSessionType] = useState<'regular' | 'remedial'>('regular');
+    const [parentSessionId, setParentSessionId] = useState('');
+    const [remedialCycle, setRemedialCycle] = useState(1);
 
     // Enrollments
     const [availableModules, setAvailableModules] = useState<Module[]>([]);
+    const [availableParentSessions, setAvailableParentSessions] = useState<SessionOption[]>([]);
     const [availableUsers, setAvailableUsers] = useState<ParticipantItem[]>([]);
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
@@ -47,6 +52,12 @@ export default function CreateSessionPage() {
                 const modRes = await fetch('/api/modules?limit=100');
                 const modData = await modRes.json();
                 if (modData.success) setAvailableModules(modData.data);
+
+                const sessionRes = await fetch('/api/sessions');
+                const sessionData = await sessionRes.json();
+                if (sessionData.success) {
+                    setAvailableParentSessions(sessionData.data.filter((item: SessionOption) => (item.session_type || 'regular') === 'regular'));
+                }
 
                 // Fetch Users (Participants / Trainees) up to 10,000 for full picker capability
                 const usrRes = await fetch('/api/admin/participants?limit=10000');
@@ -99,6 +110,9 @@ export default function CreateSessionPage() {
                 module_id: moduleId,
                 start_time: startTime,
                 end_time: endTime,
+                session_type: sessionType,
+                parent_session_id: sessionType === 'remedial' ? parentSessionId : null,
+                remedial_cycle: sessionType === 'remedial' ? remedialCycle : 0,
                 require_seb: requireSeb,
                 show_score: showScore,
                 enable_proctoring: enableProctoring,
@@ -175,6 +189,39 @@ export default function CreateSessionPage() {
                         </div>
 
                         <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">Jenis Sesi</label>
+                            <select
+                                value={sessionType}
+                                onChange={(event) => {
+                                    const nextType = event.target.value as 'regular' | 'remedial';
+                                    setSessionType(nextType);
+                                    if (nextType === 'regular') setParentSessionId('');
+                                }}
+                                className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                            >
+                                <option value="regular">Sesi Utama</option>
+                                <option value="remedial">Sesi Remedial</option>
+                            </select>
+                        </div>
+
+                        {sessionType === 'remedial' && (
+                            <>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Sesi Induk <span className="text-destructive">*</span></label>
+                                    <select required value={parentSessionId} onChange={(event) => setParentSessionId(event.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium">
+                                        <option value="">-- Pilih Sesi Utama --</option>
+                                        {availableParentSessions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Siklus Remedial</label>
+                                    <input type="number" min={1} max={20} value={remedialCycle} onChange={(event) => setRemedialCycle(Number(event.target.value) || 1)} className="w-full px-4 py-2.5 rounded-xl border border-black/10 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium" />
+                                    <p className="text-xs text-muted-foreground">Peserta yang belum memenuhi passing grade akan didaftarkan saat hasil sesi sebelumnya dipublikasikan.</p>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">
                                 Modul / Materi Ujian <span className="text-destructive">*</span>
                             </label>
@@ -228,7 +275,7 @@ export default function CreateSessionPage() {
                                     <input
                                         type="checkbox"
                                         checked={showScore}
-                                        onChange={(e) => setShowScore(e.target.checked)}
+                                        disabled
                                         className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary appearance-none checked:bg-primary checked:border-primary transition-colors cursor-pointer"
                                     />
                                     <Tick02Icon
@@ -240,10 +287,10 @@ export default function CreateSessionPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-foreground">
-                                        Tampilkan Nilai ke Peserta
+                                        Hasil Dimulai sebagai Draft
                                     </p>
                                     <p className="text-xs text-muted-foreground mt-0.5">
-                                        Jika dinonaktifkan, peserta tidak akan dapat melihat skor/nilai ujian mereka.
+                                        Gunakan publikasi hasil pada Session Manager setelah seluruh nilai selesai ditinjau.
                                     </p>
                                 </div>
                             </label>
@@ -318,15 +365,22 @@ export default function CreateSessionPage() {
                 </GlassCard>
 
                 {/* Bagian 2: Enrollment Peserta (Modular & Rich Filtering) */}
-                <ParticipantEnrollmentPicker
-                    participants={availableUsers}
-                    selectedUserIds={selectedUserIds}
-                    onSelectionChange={setSelectedUserIds}
-                    isLoading={isLoadingParticipants}
-                    stepNumber={2}
-                    title="Enrollment Peserta"
-                    description="Pilih dan tandai peserta yang berhak mengikuti sesi ini dengan filter cerdas."
-                />
+                {sessionType === 'regular' ? (
+                    <ParticipantEnrollmentPicker
+                        participants={availableUsers}
+                        selectedUserIds={selectedUserIds}
+                        onSelectionChange={setSelectedUserIds}
+                        isLoading={isLoadingParticipants}
+                        stepNumber={2}
+                        title="Enrollment Peserta"
+                        description="Pilih dan tandai peserta yang berhak mengikuti sesi ini dengan filter cerdas."
+                    />
+                ) : (
+                    <GlassCard className="p-5 border-amber-200 bg-amber-50/60">
+                        <h2 className="font-bold text-amber-950">Peserta diisi otomatis saat hasil dipublikasikan</h2>
+                        <p className="mt-1 text-sm text-amber-800">Hanya peserta dan exam yang berstatus perlu remedial pada sesi induk yang akan dimasukkan ke jadwal ini.</p>
+                    </GlassCard>
+                )}
 
                 <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-4">
                     <Link

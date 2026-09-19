@@ -10,6 +10,7 @@
     "test:question-import": "node --experimental-strip-types scripts/test-question-import.mjs",
     "test:seb-config": "node --experimental-strip-types scripts/test-seb-config.mjs",
     "test:hardening": "node --experimental-strip-types scripts/test-lms-hardening.mjs",
+    "test:exam-results": "node --experimental-strip-types scripts/test-exam-results.mjs",
     "db:migrate-users": "node scripts/migrate-users.mjs",
     "db:migrate-question-import": "node scripts/migrate-question-import.mjs",
     "db:migrate-initial-password": "node scripts/migrate-add-initial-password.mjs",

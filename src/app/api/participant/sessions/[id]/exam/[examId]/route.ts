@@ -16,6 +16,7 @@ import {
     verifyEnrollment,
     validateSessionTiming,
     validateSebAccess,
+    verifyRemedialExamAssignment,
     ParticipantError,
 } from '@/lib/participant-helpers';
 import { normalizeDbDateToIso } from '@/lib/timezone';
@@ -78,6 +79,9 @@ async function handleGet(
 
         await validateSebAccess(_request, session, { userId: user.id, userRole: user.role });
         const moduleItem = await getSessionModuleItem(session.module_id, 'exam', examId);
+        if (user.role === 'trainee') {
+            await verifyRemedialExamAssignment(session, user.id, moduleItem.id);
+        }
 
         // Phase 2: Parallel exam rules + current progress
         const [exam, currentProgress] = await Promise.all([
@@ -103,11 +107,9 @@ async function handleGet(
                 { status: 409 },
             );
         }
-        const canRetake = currentProgress?.status === 'completed'
-            && !Boolean(currentProgress?.grading_pending)
-            && !!rules.allow_remedial
-            && Number(currentProgress.score ?? 0) < Number(rules.passing_grade)
-            && Number(currentProgress.attempts_count || 0) < Number(rules.max_attempts || 1);
+        // A remedial opportunity is represented by its own scheduled session
+        // and module. Never open a second package inside the same session.
+        const canRetake = false;
 
         if (user.role === 'trainee' && currentProgress?.status === 'completed' && !canRetake) {
             return NextResponse.json({ success: false, error: 'Ujian sudah diselesaikan' }, { status: 403 });
@@ -137,10 +139,8 @@ async function handleGet(
             );
         }
 
-        // Determine if current attempt is remedial and requires a distinct exam package
-        const currentAttemptsCount = Number(currentProgress?.attempts_count || 0);
-        const isRemedialAttempt = currentAttemptsCount >= 1 && !!rules.allow_remedial && !!rules.remedial_exam_id;
-        const activeExamId = isRemedialAttempt ? rules.remedial_exam_id : examId;
+        const isRemedialAttempt = session.session_type === 'remedial';
+        const activeExamId = examId;
 
         // Phase 3: Parallel fetch progress + questions from the active exam package
         const [progress, questions] = await Promise.all([
@@ -249,13 +249,8 @@ async function handleGet(
             [user.id, sessionId, examId, attemptNumber]
         );
 
-        const effectiveDuration = isRemedialAttempt && rules.remedial_duration_minutes
-            ? rules.remedial_duration_minutes
-            : rules.duration_minutes;
-
-        const effectiveTitle = isRemedialAttempt && rules.remedial_exam_title
-            ? `${rules.title} (Remedial: ${rules.remedial_exam_title})`
-            : rules.title;
+        const effectiveDuration = rules.duration_minutes;
+        const effectiveTitle = isRemedialAttempt ? `${rules.title} (Remedial)` : rules.title;
 
         return NextResponse.json({
             success: true,

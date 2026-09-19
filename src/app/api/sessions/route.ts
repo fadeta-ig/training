@@ -5,11 +5,15 @@ import pool from '@/lib/db';
 import { withAuth } from '@/lib/api-auth';
 import { sessionSchema } from '@/lib/validations/sessionSchema';
 import { normalizeDbDateToIso, toMysqlDatetimeWib } from '@/lib/timezone';
+import { validateRemedialSessionConfiguration } from '@/lib/exam-results';
 
 async function handleGet(_request: NextRequest) {
     try {
         const sessions = await executeQuery<any[]>(
-            `SELECT id, module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, created_at FROM sessions ORDER BY start_time DESC`
+            `SELECT id, module_id, title, start_time, end_time, session_type, parent_session_id,
+                    remedial_cycle, result_state, result_published_at, result_publication_version,
+                    require_seb, show_score, enable_proctoring, created_at
+             FROM sessions ORDER BY start_time DESC`
         );
         const normalized = (sessions || []).map((s) => ({
             ...s,
@@ -39,7 +43,10 @@ async function handlePost(request: NextRequest) {
             );
         }
 
-        const { module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, participant_ids } = parsed.data;
+        const {
+            module_id, title, start_time, end_time, session_type, parent_session_id,
+            remedial_cycle, require_seb, enable_proctoring, participant_ids,
+        } = parsed.data;
         const sessionId = uuidv4();
 
         // The Config Key is calculated from the exact generated .seb file on download.
@@ -50,23 +57,44 @@ async function handlePost(request: NextRequest) {
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
+        if (session_type === 'remedial') {
+            const configurationError = await validateRemedialSessionConfiguration(connection, {
+                parentSessionId: parent_session_id!,
+                moduleId: module_id,
+                remedialCycle: remedial_cycle,
+            });
+            if (configurationError) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json({ success: false, error: configurationError }, { status: 409 });
+            }
+        }
+
         await connection.execute(
-            `INSERT INTO sessions (id, module_id, title, start_time, end_time, require_seb, show_score, enable_proctoring, seb_config_key) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO sessions
+                (id, module_id, title, start_time, end_time, session_type, parent_session_id,
+                 remedial_cycle, result_state, require_seb, show_score, enable_proctoring, seb_config_key)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?)`,
             [
                 sessionId,
                 module_id,
                 title,
                 toMysqlDatetimeWib(start_time),
                 toMysqlDatetimeWib(end_time),
+                session_type,
+                session_type === 'remedial' ? (parent_session_id || null) : null,
+                session_type === 'remedial' ? remedial_cycle : 0,
                 Boolean(require_seb),
-                Boolean(show_score),
+                // Results always start in draft. They become visible only through
+                // the atomic session publication workflow.
+                false,
                 Boolean(enable_proctoring),
                 sebConfigKey
             ]
         );
 
-        if (participant_ids && participant_ids.length > 0) {
+        if (session_type === 'regular' && participant_ids && participant_ids.length > 0) {
             for (const userId of participant_ids) {
                 const participantId = uuidv4();
                 await connection.execute(

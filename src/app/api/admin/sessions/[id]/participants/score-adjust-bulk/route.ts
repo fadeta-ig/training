@@ -4,10 +4,11 @@ import pool, { executeQuery } from '@/lib/db';
 import { withAuth, AuthenticatedUser } from '@/lib/api-auth';
 import { logActivity } from '@/lib/audit';
 import logger from '@/lib/logger';
-import { v4 as uuidv4 } from 'uuid';
+import { getSessionExamMappings, getSessionResultContext } from '@/lib/exam-results';
 
 const bulkAdjustScoreSchema = z.object({
-    participant_ids: z.array(z.string().uuid()).min(1, 'Pilih minimal 1 peserta'),
+    participant_ids: z.array(z.string().uuid()).min(1, 'Pilih minimal 1 peserta').max(1000)
+        .refine((ids) => new Set(ids).size === ids.length, 'Daftar peserta mengandung ID duplikat'),
     module_item_id: z.string().uuid().optional(),
     adjustment_type: z.enum(['add', 'subtract', 'set']),
     value: z.number().min(0).max(100),
@@ -38,6 +39,20 @@ async function handlePost(
 
         const { participant_ids, module_item_id, adjustment_type, value, reason } = parsed.data;
 
+        const sessionRows = await executeQuery<any[]>(
+            `SELECT result_state FROM sessions WHERE id = ? LIMIT 1`,
+            [sessionId],
+        );
+        if (!sessionRows.length) {
+            return NextResponse.json({ success: false, error: 'Sesi tidak ditemukan' }, { status: 404 });
+        }
+        if (sessionRows[0].result_state === 'published') {
+            return NextResponse.json(
+                { success: false, error: 'Hasil sudah dipublikasikan. Buka revisi hasil sesi sebelum adjustment massal.' },
+                { status: 409 },
+            );
+        }
+
         // 1. Dapatkan target module_item_id untuk ujian sesi ini
         let targetModuleItemId: string = module_item_id || '';
         if (!targetModuleItemId) {
@@ -63,50 +78,87 @@ async function handlePost(
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
+        const resultContext = await getSessionResultContext(connection, sessionId, true);
+        if (!resultContext) throw new Error('Konteks hasil sesi tidak ditemukan');
+        if (resultContext.result_state === 'published') {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json(
+                { success: false, error: 'Hasil sudah dipublikasikan. Buka revisi hasil sesi sebelum adjustment massal.' },
+                { status: 409 },
+            );
+        }
+        const enrollmentPlaceholders = participant_ids.map(() => '?').join(',');
+        const [enrolledRows] = await connection.execute<any[]>(
+            `SELECT user_id FROM session_participants
+             WHERE session_id = ? AND user_id IN (${enrollmentPlaceholders})
+             FOR UPDATE`,
+            [sessionId, ...participant_ids],
+        );
+        if (enrolledRows.length !== participant_ids.length) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json(
+                { success: false, error: 'Adjustment massal dibatalkan karena ada peserta yang tidak terdaftar pada sesi ini' },
+                { status: 409 },
+            );
+        }
+        const mappings = await getSessionExamMappings(connection, resultContext);
+        const mapping = mappings.find((entry) => entry.module_item_id === targetModuleItemId);
+        if (!mapping) {
+            await connection.rollback();
+            connection.release();
+            connection = undefined;
+            return NextResponse.json({ success: false, error: 'Pemetaan exam tidak ditemukan' }, { status: 409 });
+        }
+
         let updatedCount = 0;
 
         for (const pId of participant_ids) {
-            // Ambil data progress peserta saat ini
+            const [attemptRows] = await connection.execute<any[]>(
+                `SELECT id, session_id, module_item_id, attempt_number,
+                        original_score, score_adjustment, final_score
+                 FROM exam_attempt_results
+                 WHERE root_session_id = ? AND user_id = ? AND source_exam_id = ?
+                   AND grading_pending = FALSE AND final_score IS NOT NULL
+                 ORDER BY final_score DESC, completed_at DESC, attempt_number DESC
+                 LIMIT 1
+                 FOR UPDATE`,
+                [resultContext.root_session_id, pId, mapping.source_exam_id],
+            );
+            if (attemptRows.length === 0) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json(
+                    { success: false, error: 'Riwayat attempt peserta belum tersedia. Jalankan sinkronisasi skema terlebih dahulu.', participant_id: pId },
+                    { status: 409 },
+                );
+            }
+
+            const targetAttempt = attemptRows[0];
             const [progressRows] = await connection.execute<any[]>(
-                `SELECT id, score, original_score, score_adjustment, status, COALESCE(grading_pending, 0) AS grading_pending
+                `SELECT id, status, COALESCE(grading_pending, 0) AS grading_pending
                  FROM user_progress
                  WHERE session_id = ? AND user_id = ? AND module_item_id = ?
                  LIMIT 1
                  FOR UPDATE`,
-                [sessionId, pId, targetModuleItemId]
+                [targetAttempt.session_id, pId, targetAttempt.module_item_id],
             );
-
-            let progressId: string;
-            let originalScore = 0;
-            let currentAdjustment = 0;
-
-            if (progressRows.length > 0) {
-                const pRow = progressRows[0];
-                if (pRow.status === 'grading_pending' || Boolean(pRow.grading_pending)) {
-                    await connection.rollback();
-                    connection.release();
-                    connection = undefined;
-                    return NextResponse.json(
-                        { success: false, error: 'Penyesuaian massal dibatalkan karena ada peserta yang masih menunggu penilaian esai', participant_id: pId },
-                        { status: 409 },
-                    );
-                }
-                progressId = pRow.id;
-                originalScore = pRow.original_score !== null && pRow.original_score !== undefined
-                    ? Number(pRow.original_score)
-                    : Number(pRow.score || 0);
-                currentAdjustment = Number(pRow.score_adjustment || 0);
-            } else {
-                progressId = uuidv4();
-                originalScore = 0;
-                currentAdjustment = 0;
-
-                await connection.execute(
-                    `INSERT INTO user_progress (id, user_id, session_id, module_item_id, status, score, original_score, score_adjustment)
-                     VALUES (?, ?, ?, ?, 'completed', 0, 0, 0)`,
-                    [progressId, pId, sessionId, targetModuleItemId]
+            if (!progressRows.length || progressRows[0].status === 'grading_pending' || Boolean(progressRows[0].grading_pending)) {
+                await connection.rollback();
+                connection.release();
+                connection = undefined;
+                return NextResponse.json(
+                    { success: false, error: 'Adjustment massal dibatalkan karena progres attempt tertinggi belum siap', participant_id: pId },
+                    { status: 409 },
                 );
             }
+            const progressId = progressRows[0].id;
+            const originalScore = Number(targetAttempt.original_score ?? targetAttempt.final_score ?? 0);
+            const currentAdjustment = Number(targetAttempt.score_adjustment || 0);
 
             // Hitung nilai akhir baru
             let newAdjustment = currentAdjustment;
@@ -124,16 +176,40 @@ async function handlePost(
             }
 
             await connection.execute(
+                `UPDATE exam_attempt_results
+                 SET original_score = ?, score_adjustment = ?, final_score = ?,
+                     adjustment_reason = ?, adjusted_by = ?, adjusted_at = UTC_TIMESTAMP()
+                 WHERE id = ?`,
+                [originalScore, newAdjustment, finalScore, reason.trim(), authUser.id, targetAttempt.id],
+            );
+
+            const [bestRows] = await connection.execute<any[]>(
+                `SELECT original_score, score_adjustment, final_score, adjustment_reason,
+                        adjusted_by, adjusted_at
+                 FROM exam_attempt_results
+                 WHERE session_id = ? AND user_id = ? AND module_item_id = ?
+                   AND grading_pending = FALSE AND final_score IS NOT NULL
+                 ORDER BY final_score DESC, attempt_number DESC
+                 LIMIT 1`,
+                [targetAttempt.session_id, pId, targetAttempt.module_item_id],
+            );
+            const bestAttempt = bestRows[0];
+
+            await connection.execute(
                 `UPDATE user_progress
                  SET original_score = ?,
                      score_adjustment = ?,
                      score = ?,
                      adjustment_reason = ?,
                      adjusted_by = ?,
-                     adjusted_at = NOW(),
+                     adjusted_at = ?,
                      status = 'completed'
                  WHERE id = ?`,
-                [originalScore, newAdjustment, finalScore, reason.trim(), authUser.id, progressId]
+                [
+                    Number(bestAttempt.original_score), Number(bestAttempt.score_adjustment || 0),
+                    Number(bestAttempt.final_score), bestAttempt.adjustment_reason || null,
+                    bestAttempt.adjusted_by || null, bestAttempt.adjusted_at || null, progressId,
+                ]
             );
 
             updatedCount++;

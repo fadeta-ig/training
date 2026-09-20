@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { X, Loader2, Sparkles } from 'lucide-react';
+import { useState, useEffect, useId } from 'react';
+import { X, Loader2, Sparkles, Tag, Eye, Layers } from 'lucide-react';
 import { toast } from 'sonner';
+import { ClientPortal } from '@/components/ui/ClientPortal';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { LearningCategory } from '@/types';
 
 interface CategoryFormModalProps {
@@ -13,14 +16,15 @@ interface CategoryFormModalProps {
 }
 
 const PRESET_COLORS = [
-    { name: 'Sky Blue', hex: '#0ea5e9' },
-    { name: 'Indigo', hex: '#6366f1' },
-    { name: 'Emerald', hex: '#10b981' },
-    { name: 'Amber', hex: '#f59e0b' },
-    { name: 'Rose', hex: '#f43f5e' },
-    { name: 'Purple', hex: '#a855f7' },
-    { name: 'Teal', hex: '#14b8a6' },
-    { name: 'Slate', hex: '#64748b' },
+    { name: 'Sky Blue', hex: '#0284c7' },
+    { name: 'Indigo', hex: '#4f46e5' },
+    { name: 'Violet', hex: '#7c3aed' },
+    { name: 'Emerald', hex: '#059669' },
+    { name: 'Amber', hex: '#d97706' },
+    { name: 'Rose', hex: '#e11d48' },
+    { name: 'Cyan', hex: '#0891b2' },
+    { name: 'Fuchsia', hex: '#c026d3' },
+    { name: 'Slate', hex: '#475569' },
 ];
 
 export function CategoryFormModal({ isOpen, onClose, onSuccess, category }: CategoryFormModalProps) {
@@ -28,29 +32,51 @@ export function CategoryFormModal({ isOpen, onClose, onSuccess, category }: Cate
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
     const [description, setDescription] = useState('');
-    const [color, setColor] = useState('#0ea5e9');
+    const [color, setColor] = useState('#0284c7');
     const [isActive, setIsActive] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const activeToggleId = useId();
 
+    // Inisialisasi form saat modal terbuka atau kategori berubah
     useEffect(() => {
         if (category) {
             setName(category.name);
             setCode(category.code);
             setDescription(category.description || '');
-            setColor(category.color || '#0ea5e9');
+            setColor(category.color || '#0284c7');
             setIsActive(category.is_active);
         } else {
             setName('');
             setCode('');
             setDescription('');
-            setColor('#0ea5e9');
+            setColor('#0284c7');
             setIsActive(true);
         }
     }, [category, isOpen]);
 
+    // Body scroll lock & Escape key listener
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && !isSubmitting) {
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen, isSubmitting, onClose]);
+
     if (!isOpen) return null;
 
-    // Otomatis buat kode dari nama kategori jika belum diisi
+    // Otomatis buat saran kode dari nama kategori jika belum pernah diisi
     const handleNameChange = (val: string) => {
         setName(val);
         if (!isEdit && !code) {
@@ -67,7 +93,10 @@ export function CategoryFormModal({ isOpen, onClose, onSuccess, category }: Cate
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name.trim() || !code.trim()) {
+        const trimmedName = name.trim();
+        const trimmedCode = code.trim().toUpperCase();
+
+        if (!trimmedName || !trimmedCode) {
             toast.error('Nama dan Kode kategori wajib diisi');
             return;
         }
@@ -81,8 +110,8 @@ export function CategoryFormModal({ isOpen, onClose, onSuccess, category }: Cate
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: name.trim(),
-                    code: code.trim().toUpperCase(),
+                    name: trimmedName,
+                    code: trimmedCode,
                     description: description.trim() || null,
                     color,
                     is_active: isActive,
@@ -106,157 +135,235 @@ export function CategoryFormModal({ isOpen, onClose, onSuccess, category }: Cate
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="relative w-full max-w-lg rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
-                {/* Modal Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
-                    <div className="flex items-center gap-2.5">
-                        <div
-                            className="size-4 rounded-full shadow-xs"
-                            style={{ backgroundColor: color }}
-                        />
-                        <h2 className="text-base font-semibold text-foreground">
-                            {isEdit ? 'Edit Kategori Pembelajaran' : 'Tambah Kategori Baru'}
-                        </h2>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    >
-                        <X size={18} />
-                    </button>
-                </div>
-
-                {/* Form Body */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {/* Nama Kategori */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Nama Kategori <span className="text-rose-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => handleNameChange(e.target.value)}
-                            placeholder="Contoh: Manajemen Risiko Perbankan"
-                            required
-                            className="w-full h-10 px-3.5 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-                        />
-                    </div>
-
-                    {/* Kode Kategori */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Kode Kategori (ID Unik) <span className="text-rose-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={code}
-                            onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
-                            placeholder="Contoh: CAT-RISK-01"
-                            required
-                            className="w-full h-10 px-3.5 text-sm font-mono uppercase tracking-wider rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-                        />
-                        <p className="text-[11px] text-muted-foreground">
-                            Hanya huruf kapital, angka, dan tanda hubung (-).
-                        </p>
-                    </div>
-
-                    {/* Deskripsi */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Deskripsi Singkat
-                        </label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Deskripsi materi pembelajaran atau lingkup topik..."
-                            rows={3}
-                            className="w-full p-3 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-all resize-none"
-                        />
-                    </div>
-
-                    {/* Palet Warna Aksen */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                            <span>Warna Aksen Kategori</span>
-                            <span className="font-mono text-[11px] text-muted-foreground">{color}</span>
-                        </label>
-                        <div className="flex flex-wrap gap-2 items-center">
-                            {PRESET_COLORS.map((preset) => (
-                                <button
-                                    key={preset.hex}
-                                    type="button"
-                                    onClick={() => setColor(preset.hex)}
-                                    title={preset.name}
-                                    className={`size-7 rounded-lg transition-transform ${
-                                        color.toLowerCase() === preset.hex.toLowerCase()
-                                            ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background scale-110'
-                                            : 'hover:scale-105'
-                                    }`}
-                                    style={{ backgroundColor: preset.hex }}
-                                />
-                            ))}
-                            <input
-                                type="color"
-                                value={color}
-                                onChange={(e) => setColor(e.target.value)}
-                                className="size-7 rounded-lg cursor-pointer bg-transparent border-0 p-0"
-                                title="Pilih warna kustom"
-                            />
+        <ClientPortal>
+            <div
+                className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+                onClick={() => {
+                    if (!isSubmitting) onClose();
+                }}
+            >
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="category-modal-title"
+                    className="relative w-full max-w-xl max-h-[calc(100dvh-2rem)] flex flex-col rounded-2xl bg-card border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Modal Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-muted/20 shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div
+                                className="size-8 rounded-xl flex items-center justify-center text-white shadow-xs transition-colors"
+                                style={{ backgroundColor: color }}
+                            >
+                                <Tag className="size-4.5" />
+                            </div>
+                            <div>
+                                <h2 id="category-modal-title" className="text-base font-bold text-foreground">
+                                    {isEdit ? 'Edit Kategori Pembelajaran' : 'Tambah Kategori Baru'}
+                                </h2>
+                                <p className="text-xs text-muted-foreground">
+                                    {isEdit
+                                        ? 'Perbarui informasi dan warna pengenal kategori ini.'
+                                        : 'Definisikan kategori baru untuk mengelompokkan materi, ujian, dan modul.'}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-
-                    {/* Status Aktif */}
-                    <div className="flex items-center justify-between pt-2 border-t border-border">
-                        <div>
-                            <p className="text-sm font-medium text-foreground">Status Kategori</p>
-                            <p className="text-xs text-muted-foreground">
-                                Kategori aktif dapat diakses dan digunakan pada materi & modul.
-                            </p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={isActive}
-                                onChange={(e) => setIsActive(e.target.checked)}
-                                className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
-                        </label>
-                    </div>
-
-                    {/* Modal Footer */}
-                    <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-border">
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={isSubmitting}
-                            className="px-4 py-2 text-sm font-medium rounded-xl border border-input hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                            aria-label="Tutup modal"
+                        >
+                            <X className="size-5" />
+                        </button>
+                    </div>
+
+                    {/* Form Content (Scrollable Container) */}
+                    <form id="category-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+                        {/* Live Preview Banner */}
+                        <div className="rounded-xl border border-border/80 bg-muted/10 p-3.5 space-y-2">
+                            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                <span className="flex items-center gap-1.5">
+                                    <Eye className="size-3.5 text-primary" />
+                                    <span>Pratinjau Tampilan Badge & Kartu</span>
+                                </span>
+                                <span className="font-mono text-xs">{color}</span>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-background border border-border/60 shadow-2xs">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <span
+                                        className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold font-mono uppercase tracking-wider shrink-0 border"
+                                        style={{
+                                            backgroundColor: `${color}18`,
+                                            color: color,
+                                            borderColor: `${color}40`,
+                                        }}
+                                    >
+                                        {code.trim() || 'KODE-CAT'}
+                                    </span>
+                                    <span className="text-sm font-bold text-foreground truncate">
+                                        {name.trim() || 'Nama Kategori Pembelajaran'}
+                                    </span>
+                                </div>
+                                <Badge variant={isActive ? 'success' : 'secondary'} className="shrink-0 text-[11px]">
+                                    {isActive ? 'Aktif' : 'Nonaktif'}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        {/* Nama Kategori */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                <span>Nama Kategori</span>
+                                <span className="text-rose-500 font-bold">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => handleNameChange(e.target.value)}
+                                placeholder="Contoh: Manajemen Risiko Perbankan"
+                                required
+                                maxLength={150}
+                                className="w-full h-10 px-3.5 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            />
+                        </div>
+
+                        {/* Kode Kategori */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                <span>Kode Kategori (Identifier Unik)</span>
+                                <span className="text-rose-500 font-bold">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+                                placeholder="Contoh: CAT-RISK-01"
+                                required
+                                maxLength={50}
+                                className="w-full h-10 px-3.5 text-sm font-mono uppercase tracking-wider rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                                Digunakan sebagai pengenal singkat pada badge konten, filter, dan integrasi modul.
+                            </p>
+                        </div>
+
+                        {/* Deskripsi */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Deskripsi Cakupan Kategori
+                            </label>
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="Jelaskan ringkasan materi, target kompetensi, atau bidang keahlian kategori ini..."
+                                rows={3}
+                                maxLength={1000}
+                                className="w-full p-3 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                            />
+                        </div>
+
+                        {/* Palet Warna Aksen */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                <span>Warna Aksen Kategori</span>
+                                <span className="text-[11px] font-normal text-muted-foreground">Pilih preset atau kustom</span>
+                            </label>
+                            <div className="flex flex-wrap items-center gap-2.5 p-3 rounded-xl border border-border/70 bg-muted/20">
+                                {PRESET_COLORS.map((preset) => {
+                                    const isSelected = color.toLowerCase() === preset.hex.toLowerCase();
+                                    return (
+                                        <button
+                                            key={preset.hex}
+                                            type="button"
+                                            onClick={() => setColor(preset.hex)}
+                                            title={preset.name}
+                                            className={`size-8 rounded-xl transition-all flex items-center justify-center ${
+                                                isSelected
+                                                    ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background scale-110 shadow-sm'
+                                                    : 'hover:scale-105 opacity-80 hover:opacity-100'
+                                            }`}
+                                            style={{ backgroundColor: preset.hex }}
+                                        />
+                                    );
+                                })}
+
+                                <div className="h-6 w-px bg-border mx-1" />
+
+                                <label
+                                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs cursor-pointer hover:bg-muted transition-colors"
+                                    title="Pilih warna khusus"
+                                >
+                                    <input
+                                        type="color"
+                                        value={color}
+                                        onChange={(e) => setColor(e.target.value)}
+                                        className="size-5 rounded cursor-pointer bg-transparent border-0 p-0"
+                                    />
+                                    <span className="font-mono font-medium uppercase text-muted-foreground">{color}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Status Aktif */}
+                        <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/80 bg-muted/10">
+                            <div>
+                                <label htmlFor={activeToggleId} className="text-sm font-semibold text-foreground cursor-pointer">
+                                    Status Publikasi Kategori
+                                </label>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Kategori aktif dapat langsung digunakan untuk mengelompokkan materi, ujian, dan modul.
+                                </p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-4">
+                                <input
+                                    id={activeToggleId}
+                                    type="checkbox"
+                                    checked={isActive}
+                                    onChange={(e) => setIsActive(e.target.checked)}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-muted-foreground/30 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 shadow-2xs" />
+                            </label>
+                        </div>
+                    </form>
+
+                    {/* Modal Footer */}
+                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border/80 bg-muted/20 shrink-0">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onClose}
+                            disabled={isSubmitting}
+                            className="rounded-xl"
                         >
                             Batal
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="submit"
+                            form="category-form"
+                            variant="primary"
                             disabled={isSubmitting}
-                            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow transition-all disabled:opacity-50"
+                            className="rounded-xl min-w-[130px]"
                         >
                             {isSubmitting ? (
                                 <>
-                                    <Loader2 size={16} className="animate-spin" />
+                                    <Loader2 className="size-4 animate-spin mr-1.5" />
                                     <span>Menyimpan...</span>
                                 </>
                             ) : (
                                 <>
-                                    <Sparkles size={16} />
+                                    <Sparkles className="size-4 mr-1.5" />
                                     <span>{isEdit ? 'Simpan Perubahan' : 'Buat Kategori'}</span>
                                 </>
                             )}
-                        </button>
+                        </Button>
                     </div>
-                </form>
+                </div>
             </div>
-        </div>
+        </ClientPortal>
     );
 }

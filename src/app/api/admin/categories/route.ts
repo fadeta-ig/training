@@ -13,6 +13,7 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
         const { page, limit, offset } = parsePagination(searchParams);
         const search = searchParams.get('search')?.trim() || '';
         const status = searchParams.get('status') || 'all'; // 'all' | 'active' | 'inactive'
+        const sort = searchParams.get('sort') || 'created_desc';
         const allList = searchParams.get('all') === 'true'; // return all for dropdown
 
         const conditions: string[] = [];
@@ -64,6 +65,29 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
         );
         const total = countResult[0]?.total || 0;
 
+        let orderByClause = 'ORDER BY lc.created_at DESC';
+        switch (sort) {
+            case 'created_asc':
+                orderByClause = 'ORDER BY lc.created_at ASC';
+                break;
+            case 'name_asc':
+                orderByClause = 'ORDER BY lc.name ASC';
+                break;
+            case 'name_desc':
+                orderByClause = 'ORDER BY lc.name DESC';
+                break;
+            case 'trainers_desc':
+                orderByClause = 'ORDER BY trainer_count DESC, lc.name ASC';
+                break;
+            case 'items_desc':
+                orderByClause = 'ORDER BY (training_count + exam_count + module_count) DESC, lc.name ASC';
+                break;
+            case 'created_desc':
+            default:
+                orderByClause = 'ORDER BY lc.created_at DESC';
+                break;
+        }
+
         const categories = await executeQuery(
             `SELECT lc.id, lc.name, lc.code, lc.description, lc.color, lc.is_active, lc.created_at, lc.updated_at,
                     (SELECT COUNT(*) FROM category_trainers ct WHERE ct.category_id = lc.id) AS trainer_count,
@@ -72,7 +96,7 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
                     (SELECT COUNT(*) FROM modules m WHERE m.category_id = lc.id) AS module_count
              FROM learning_categories lc
              ${whereClause}
-             ORDER BY lc.created_at DESC
+             ${orderByClause}
              LIMIT ? OFFSET ?`,
             [...conditionParams, limit, offset]
         );

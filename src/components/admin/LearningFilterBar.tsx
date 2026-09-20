@@ -34,6 +34,7 @@ export interface LearningFilterBarProps {
     totalItems?: number;
     itemLabel?: string;
     className?: string;
+    children?: React.ReactNode;
 }
 
 export function LearningFilterBar({
@@ -48,6 +49,7 @@ export function LearningFilterBar({
     totalItems,
     itemLabel = 'data',
     className,
+    children,
 }: LearningFilterBarProps) {
     const [inputValue, setInputValue] = useState(search);
     const [, startTransition] = useTransition();
@@ -176,19 +178,21 @@ export function LearningFilterBar({
             </div>
 
             {/* Total Indicator & Active Filters Bar */}
-            <div className="flex items-center justify-between text-xs text-muted-foreground px-0.5">
-                <div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground px-0.5 pt-0.5">
+                <div className="flex items-center gap-2">
                     {totalItems !== undefined && (
                         <span>
                             Menampilkan <strong className="text-foreground">{totalItems}</strong> {itemLabel}
                         </span>
                     )}
+                    {activeFiltersCount > 0 && (
+                        <span className="text-[11px] text-primary font-medium">
+                            • {activeFiltersCount} kriteria aktif
+                        </span>
+                    )}
                 </div>
-                {activeFiltersCount > 0 && (
-                    <span className="text-[11px] text-primary font-medium">
-                        {activeFiltersCount} kriteria aktif
-                    </span>
-                )}
+
+                {children && <div className="shrink-0">{children}</div>}
             </div>
         </div>
     );

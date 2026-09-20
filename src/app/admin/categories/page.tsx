@@ -14,8 +14,7 @@ import {
     Tag,
     LayoutGrid,
     Table as TableIcon,
-    Shield,
-    Sparkles,
+    CalendarDays,
 } from 'lucide-react';
 import { ManagementPageHeader } from '@/components/admin/ManagementPageHeader';
 import {
@@ -49,6 +48,15 @@ const SORT_OPTIONS: SortOption[] = [
     { label: 'Trainer Terbanyak', value: 'trainers_desc' },
     { label: 'Konten Terbanyak', value: 'items_desc' },
 ];
+
+function formatDate(value?: string | null) {
+    if (!value) return '-';
+    return new Date(value).toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    });
+}
 
 export default function CategoriesManagerPage() {
     const [categories, setCategories] = useState<LearningCategory[]>([]);
@@ -117,19 +125,16 @@ export default function CategoriesManagerPage() {
         fetchCategories(page, pageSize, search, statusFilter, sort);
     }, [fetchCategories, page, pageSize, search, statusFilter, sort]);
 
-    // Handle search change from LearningFilterBar (debounced)
     const handleSearchChange = (val: string) => {
         setSearch(val);
         setPage(1);
     };
 
-    // Handle sort change from LearningFilterBar
     const handleSortChange = (val: string) => {
         setSort(val);
         setPage(1);
     };
 
-    // Handle reset filter
     const handleReset = () => {
         setSearch('');
         setStatusFilter('all');
@@ -137,7 +142,6 @@ export default function CategoriesManagerPage() {
         setPage(1);
     };
 
-    // Filter Configs for LearningFilterBar
     const filterConfigs: FilterItemConfig[] = [
         {
             id: 'status',
@@ -184,16 +188,8 @@ export default function CategoriesManagerPage() {
         }
     };
 
-    // Quick Stats Calculation
-    const activeCount = categories.filter((c) => c.is_active).length;
-    const totalTrainersAssigned = categories.reduce((acc, c) => acc + (c.trainer_count || 0), 0);
-    const totalContentItems = categories.reduce(
-        (acc, c) => acc + (c.training_count || 0) + (c.exam_count || 0) + (c.module_count || 0),
-        0
-    );
-
     return (
-        <div className="relative max-w-6xl mx-auto space-y-6 pb-14">
+        <div className="relative max-w-6xl mx-auto space-y-5 pb-12">
             <ConfirmComponent />
 
             {/* Page Header */}
@@ -210,114 +206,53 @@ export default function CategoriesManagerPage() {
                 isRefreshing={isLoading}
             />
 
-            {/* Metric Summary Ribbon */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <Card className="p-4 sm:p-5 shadow-2xs border-border/80 flex items-center justify-between transition-all hover:shadow-xs">
-                    <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Total Kategori
-                        </p>
-                        <p className="text-2xl font-bold text-foreground mt-0.5">{totalItems}</p>
-                    </div>
-                    <div className="size-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                        <Layers className="size-5" />
-                    </div>
-                </Card>
-
-                <Card className="p-4 sm:p-5 shadow-2xs border-border/80 flex items-center justify-between transition-all hover:shadow-xs">
-                    <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Kategori Aktif
-                        </p>
-                        <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                            {activeCount}
-                        </p>
-                    </div>
-                    <div className="size-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                        <Tag className="size-5" />
-                    </div>
-                </Card>
-
-                <Card className="p-4 sm:p-5 shadow-2xs border-border/80 flex items-center justify-between transition-all hover:shadow-xs">
-                    <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Penugasan Trainer
-                        </p>
-                        <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">
-                            {totalTrainersAssigned}
-                        </p>
-                    </div>
-                    <div className="size-11 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                        <Users className="size-5" />
-                    </div>
-                </Card>
-
-                <Card className="p-4 sm:p-5 shadow-2xs border-border/80 flex items-center justify-between transition-all hover:shadow-xs">
-                    <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Total Konten
-                        </p>
-                        <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-0.5">
-                            {totalContentItems}
-                        </p>
-                    </div>
-                    <div className="size-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                        <Boxes className="size-5" />
-                    </div>
-                </Card>
-            </div>
-
-            {/* Standard LMS Filter Bar & View Switcher */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="flex-1">
-                    <LearningFilterBar
-                        search={search}
-                        onSearchChange={handleSearchChange}
-                        searchPlaceholder="Cari nama kategori, kode unik, atau deskripsi..."
-                        filters={filterConfigs}
-                        sort={sort}
-                        onSortChange={handleSortChange}
-                        sortOptions={SORT_OPTIONS}
-                        onReset={handleReset}
-                        totalItems={totalItems}
-                        itemLabel="kategori"
-                    />
-                </div>
-
-                {/* Grid / Table View Switcher */}
-                <div className="flex items-center gap-1 self-end sm:self-center p-1 rounded-xl border border-border/80 bg-card shadow-2xs shrink-0">
+            {/* Filter Bar with Inline View Switcher */}
+            <LearningFilterBar
+                search={search}
+                onSearchChange={handleSearchChange}
+                searchPlaceholder="Cari nama kategori, kode unik, atau deskripsi..."
+                filters={filterConfigs}
+                sort={sort}
+                onSortChange={handleSortChange}
+                sortOptions={SORT_OPTIONS}
+                onReset={handleReset}
+                totalItems={totalItems}
+                itemLabel="kategori"
+            >
+                {/* Compact View Switcher */}
+                <div className="inline-flex items-center p-0.5 rounded-lg border border-border/80 bg-muted/30">
                     <button
                         type="button"
                         onClick={() => setViewMode('grid')}
                         className={cn(
-                            'p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all',
+                            'flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer',
                             viewMode === 'grid'
-                                ? 'bg-primary text-primary-foreground shadow-2xs'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                ? 'bg-background text-foreground shadow-2xs'
+                                : 'text-muted-foreground hover:text-foreground'
                         )}
-                        title="Tampilan Kartu (Grid View)"
+                        title="Tampilan Grid Kartu"
                     >
-                        <LayoutGrid className="size-4" />
-                        <span className="hidden md:inline">Grid</span>
+                        <LayoutGrid className="size-3.5" />
+                        <span>Grid</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => setViewMode('table')}
                         className={cn(
-                            'p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all',
+                            'flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer',
                             viewMode === 'table'
-                                ? 'bg-primary text-primary-foreground shadow-2xs'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                ? 'bg-background text-foreground shadow-2xs'
+                                : 'text-muted-foreground hover:text-foreground'
                         )}
-                        title="Tampilan Tabel (Table View)"
+                        title="Tampilan Tabel Ringkas"
                     >
-                        <TableIcon className="size-4" />
-                        <span className="hidden md:inline">Tabel</span>
+                        <TableIcon className="size-3.5" />
+                        <span>Tabel</span>
                     </button>
                 </div>
-            </div>
+            </LearningFilterBar>
 
-            {/* Error Message */}
+            {/* Error State */}
             {error && (
                 <div className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive">
                     <AlertCircle className="mt-0.5 size-5 shrink-0" />
@@ -328,12 +263,12 @@ export default function CategoriesManagerPage() {
                 </div>
             )}
 
-            {/* Content Display */}
+            {/* Main Content Area */}
             {isLoading ? (
                 viewMode === 'grid' ? (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {[0, 1, 2, 3, 4, 5].map((i) => (
-                            <Skeleton key={i} className="h-64 rounded-2xl" />
+                            <Skeleton key={i} className="h-56 rounded-2xl" />
                         ))}
                     </div>
                 ) : (
@@ -345,16 +280,16 @@ export default function CategoriesManagerPage() {
                 )
             ) : categories.length === 0 ? (
                 /* Empty State */
-                <div className="rounded-2xl border border-dashed border-border px-6 py-16 text-center bg-card/40">
-                    <div className="size-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto text-muted-foreground/60 shadow-2xs">
-                        <Layers className="size-7" />
+                <div className="rounded-2xl border border-dashed border-border px-6 py-14 text-center bg-card/40">
+                    <div className="size-12 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground/60 shadow-2xs">
+                        <Layers className="size-6" />
                     </div>
                     <h2 className="mt-4 text-base font-bold text-foreground">
                         {isFilterActive ? 'Tidak Ada Kategori yang Cocok' : 'Belum Ada Kategori Pembelajaran'}
                     </h2>
-                    <p className="mx-auto mt-1.5 max-w-md text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                    <p className="mx-auto mt-1 max-w-md text-xs sm:text-sm text-muted-foreground leading-relaxed">
                         {isFilterActive
-                            ? 'Pencarian atau filter yang Anda pilih tidak menemukan hasil yang sesuai. Coba ubah kata kunci atau reset filter.'
+                            ? 'Pencarian atau filter yang Anda pilih tidak menemukan hasil. Coba ganti kata kunci atau reset filter.'
                             : 'Mulai buat kategori pertama untuk mengelompokkan materi, ujian, dan modul serta menugaskan trainer terkait.'}
                     </p>
                     {isFilterActive ? (
@@ -377,99 +312,96 @@ export default function CategoriesManagerPage() {
                 </div>
             ) : viewMode === 'grid' ? (
                 /* Grid View (Cards) */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {categories.map((cat) => {
                         const catColor = cat.color || '#0ea5e9';
                         return (
                             <Card
                                 key={cat.id}
-                                className="group relative overflow-hidden flex flex-col justify-between border-border/80 shadow-2xs hover:shadow-md transition-all duration-200"
+                                className="group flex flex-col justify-between overflow-hidden border-border/80 shadow-2xs hover:shadow-md hover:border-border transition-all duration-150"
                             >
-                                {/* Subtle Top Glow Stripe */}
-                                <div
-                                    className="h-1.5 w-full shrink-0"
-                                    style={{ backgroundColor: catColor }}
-                                />
-
-                                <CardHeader className="p-5 pb-3 space-y-3">
+                                <CardHeader className="p-4 sm:p-5 pb-3 space-y-2.5">
                                     <div className="flex items-center justify-between gap-2">
-                                        <span
-                                            className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold font-mono uppercase tracking-wider border shadow-2xs"
-                                            style={{
-                                                backgroundColor: `${catColor}14`,
-                                                color: catColor,
-                                                borderColor: `${catColor}35`,
-                                            }}
-                                        >
-                                            {cat.code}
-                                        </span>
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            <span
+                                                className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold font-mono uppercase tracking-wider border shadow-2xs"
+                                                style={{
+                                                    backgroundColor: `${catColor}14`,
+                                                    color: catColor,
+                                                    borderColor: `${catColor}30`,
+                                                }}
+                                            >
+                                                {cat.code}
+                                            </span>
+                                            <Badge
+                                                variant={cat.is_active ? 'success' : 'secondary'}
+                                                className="text-[10px] font-semibold h-5 px-2"
+                                            >
+                                                {cat.is_active ? 'Aktif' : 'Nonaktif'}
+                                            </Badge>
+                                        </div>
 
-                                        <Badge
-                                            variant={cat.is_active ? 'success' : 'secondary'}
-                                            className="text-[11px] font-semibold"
-                                        >
-                                            {cat.is_active ? 'Aktif' : 'Nonaktif'}
-                                        </Badge>
+                                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
+                                            <CalendarDays className="size-3" />
+                                            <span>{formatDate(cat.created_at)}</span>
+                                        </span>
                                     </div>
 
                                     <div>
-                                        <CardTitle className="text-base font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                                        <CardTitle className="text-base font-semibold leading-tight text-foreground group-hover:text-primary transition-colors line-clamp-1">
                                             {cat.name}
                                         </CardTitle>
-                                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1 min-h-[32px] leading-relaxed">
+                                        <p className="mt-1 text-xs text-muted-foreground line-clamp-2 min-h-[2rem] leading-relaxed">
                                             {cat.description || 'Tidak ada deskripsi cakupan.'}
                                         </p>
                                     </div>
                                 </CardHeader>
 
-                                <CardContent className="px-5 py-2 space-y-3.5">
-                                    {/* Content Metric Badges */}
-                                    <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/60 text-center">
-                                        <div className="space-y-0.5">
-                                            <span className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
+                                <CardContent className="border-t px-4 sm:px-5 py-3 space-y-2.5">
+                                    {/* Content Metric Pills */}
+                                    <dl className="grid grid-cols-3 gap-2 text-center text-xs">
+                                        <div className="rounded-lg bg-muted/40 p-2 border border-border/40">
+                                            <dt className="text-[11px] text-muted-foreground flex items-center justify-center gap-1 font-medium">
                                                 <BookOpen className="size-3 text-blue-500" />
                                                 <span>Materi</span>
-                                            </span>
-                                            <p className="text-sm font-bold text-foreground">
+                                            </dt>
+                                            <dd className="mt-0.5 text-sm font-bold text-foreground">
                                                 {cat.training_count || 0}
-                                            </p>
+                                            </dd>
                                         </div>
-                                        <div className="space-y-0.5 border-x border-border/60">
-                                            <span className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
+                                        <div className="rounded-lg bg-muted/40 p-2 border border-border/40">
+                                            <dt className="text-[11px] text-muted-foreground flex items-center justify-center gap-1 font-medium">
                                                 <FileQuestion className="size-3 text-amber-500" />
                                                 <span>Ujian</span>
-                                            </span>
-                                            <p className="text-sm font-bold text-foreground">
+                                            </dt>
+                                            <dd className="mt-0.5 text-sm font-bold text-foreground">
                                                 {cat.exam_count || 0}
-                                            </p>
+                                            </dd>
                                         </div>
-                                        <div className="space-y-0.5">
-                                            <span className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
+                                        <div className="rounded-lg bg-muted/40 p-2 border border-border/40">
+                                            <dt className="text-[11px] text-muted-foreground flex items-center justify-center gap-1 font-medium">
                                                 <Boxes className="size-3 text-emerald-500" />
                                                 <span>Modul</span>
-                                            </span>
-                                            <p className="text-sm font-bold text-foreground">
+                                            </dt>
+                                            <dd className="mt-0.5 text-sm font-bold text-foreground">
                                                 {cat.module_count || 0}
-                                            </p>
+                                            </dd>
                                         </div>
-                                    </div>
+                                    </dl>
 
-                                    {/* Assigned Trainers Status */}
-                                    <div className="flex items-center justify-between text-xs py-1 px-1">
-                                        <span className="text-muted-foreground flex items-center gap-1.5">
+                                    {/* Assigned Trainer Count */}
+                                    <div className="flex items-center justify-between text-xs pt-0.5 px-0.5">
+                                        <span className="text-muted-foreground flex items-center gap-1.5 font-medium">
                                             <Users className="size-3.5 text-primary" />
-                                            <span>Trainer Ditugaskan:</span>
+                                            <span>Pengajar Ditugaskan:</span>
                                         </span>
-                                        <Badge
-                                            variant="secondary"
-                                            className="font-semibold text-foreground text-[11px]"
-                                        >
+                                        <Badge variant="outline" className="font-semibold text-foreground text-[11px]">
                                             {cat.trainer_count || 0} Trainer
                                         </Badge>
                                     </div>
                                 </CardContent>
 
-                                <CardFooter className="p-4 pt-3 border-t border-border/70 bg-muted/20 flex items-center justify-between gap-2">
+                                <CardFooter className="justify-between gap-2 rounded-b-xl border-t bg-muted/30 px-4 sm:px-5 py-2.5">
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -478,32 +410,36 @@ export default function CategoriesManagerPage() {
                                             setAssignTarget({ id: cat.id, name: cat.name });
                                             setIsAssignOpen(true);
                                         }}
-                                        className="gap-1.5 rounded-xl text-xs font-semibold hover:border-primary/50 hover:bg-primary/5"
+                                        className="gap-1.5 rounded-xl text-xs font-semibold h-8 px-3"
                                     >
                                         <Users className="size-3.5 text-primary" />
                                         <span>Kelola Trainer</span>
                                     </Button>
 
                                     <div className="flex items-center gap-1">
-                                        <button
+                                        <Button
                                             type="button"
+                                            variant="ghost"
+                                            size="icon-sm"
                                             onClick={() => {
                                                 setEditingCategory(cat);
                                                 setIsFormOpen(true);
                                             }}
                                             title="Edit Kategori"
-                                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                            className="rounded-lg text-muted-foreground hover:text-foreground"
                                         >
-                                            <Pencil className="size-4" />
-                                        </button>
-                                        <button
+                                            <Pencil className="size-3.5" />
+                                        </Button>
+                                        <Button
                                             type="button"
+                                            variant="ghost"
+                                            size="icon-sm"
                                             onClick={() => handleDelete(cat)}
                                             title="Hapus Kategori"
-                                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                            className="rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                         >
-                                            <Trash2 className="size-4" />
-                                        </button>
+                                            <Trash2 className="size-3.5" />
+                                        </Button>
                                     </div>
                                 </CardFooter>
                             </Card>
@@ -517,12 +453,12 @@ export default function CategoriesManagerPage() {
                         <table className="w-full text-left border-collapse text-xs sm:text-sm">
                             <thead>
                                 <tr className="border-b border-border/80 bg-muted/30 text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">
-                                    <th className="py-3.5 px-4 sm:px-6">Kategori</th>
-                                    <th className="py-3.5 px-4 hidden md:table-cell">Deskripsi</th>
-                                    <th className="py-3.5 px-4 text-center">Konten Binaan</th>
-                                    <th className="py-3.5 px-4 text-center">Trainer</th>
-                                    <th className="py-3.5 px-4 text-center">Status</th>
-                                    <th className="py-3.5 px-4 sm:px-6 text-right">Aksi</th>
+                                    <th className="py-3 px-4 sm:px-5">Kategori</th>
+                                    <th className="py-3 px-4 hidden md:table-cell">Deskripsi</th>
+                                    <th className="py-3 px-4 text-center">Cakupan Konten</th>
+                                    <th className="py-3 px-4 text-center">Trainer</th>
+                                    <th className="py-3 px-4 text-center">Status</th>
+                                    <th className="py-3 px-4 sm:px-5 text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border/60">
@@ -533,14 +469,14 @@ export default function CategoriesManagerPage() {
                                             key={cat.id}
                                             className="hover:bg-muted/30 transition-colors group"
                                         >
-                                            <td className="py-3.5 px-4 sm:px-6">
-                                                <div className="flex items-center gap-3">
+                                            <td className="py-3 px-4 sm:px-5">
+                                                <div className="flex items-center gap-2.5">
                                                     <div
-                                                        className="size-3 rounded-full shrink-0 shadow-xs"
+                                                        className="size-2.5 rounded-full shrink-0 shadow-xs"
                                                         style={{ backgroundColor: catColor }}
                                                     />
                                                     <div className="min-w-0">
-                                                        <p className="font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                                                        <p className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                                                             {cat.name}
                                                         </p>
                                                         <span
@@ -557,11 +493,11 @@ export default function CategoriesManagerPage() {
                                                 </div>
                                             </td>
 
-                                            <td className="py-3.5 px-4 hidden md:table-cell max-w-xs truncate text-muted-foreground text-xs">
+                                            <td className="py-3 px-4 hidden md:table-cell max-w-xs truncate text-muted-foreground text-xs">
                                                 {cat.description || '-'}
                                             </td>
 
-                                            <td className="py-3.5 px-4 text-center">
+                                            <td className="py-3 px-4 text-center">
                                                 <div className="inline-flex items-center gap-1.5">
                                                     <Badge variant="secondary" className="text-[11px] font-normal" title="Materi">
                                                         <BookOpen className="size-3 text-blue-500 mr-1" />
@@ -578,13 +514,13 @@ export default function CategoriesManagerPage() {
                                                 </div>
                                             </td>
 
-                                            <td className="py-3.5 px-4 text-center">
+                                            <td className="py-3 px-4 text-center">
                                                 <Badge variant="outline" className="font-semibold text-[11px]">
                                                     {cat.trainer_count || 0} Trainer
                                                 </Badge>
                                             </td>
 
-                                            <td className="py-3.5 px-4 text-center">
+                                            <td className="py-3 px-4 text-center">
                                                 <Badge
                                                     variant={cat.is_active ? 'success' : 'secondary'}
                                                     className="text-[11px]"
@@ -593,7 +529,7 @@ export default function CategoriesManagerPage() {
                                                 </Badge>
                                             </td>
 
-                                            <td className="py-3.5 px-4 sm:px-6 text-right">
+                                            <td className="py-3 px-4 sm:px-5 text-right">
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <Button
                                                         type="button"
@@ -609,25 +545,29 @@ export default function CategoriesManagerPage() {
                                                         <span>Trainer</span>
                                                     </Button>
 
-                                                    <button
+                                                    <Button
                                                         type="button"
+                                                        variant="ghost"
+                                                        size="icon-xs"
                                                         onClick={() => {
                                                             setEditingCategory(cat);
                                                             setIsFormOpen(true);
                                                         }}
                                                         title="Edit Kategori"
-                                                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                                        className="rounded-lg text-muted-foreground hover:text-foreground"
                                                     >
-                                                        <Pencil className="size-3.5" />
-                                                    </button>
-                                                    <button
+                                                        <Pencil className="size-3" />
+                                                    </Button>
+                                                    <Button
                                                         type="button"
+                                                        variant="ghost"
+                                                        size="icon-xs"
                                                         onClick={() => handleDelete(cat)}
                                                         title="Hapus Kategori"
-                                                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                        className="rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                                     >
-                                                        <Trash2 className="size-3.5" />
-                                                    </button>
+                                                        <Trash2 className="size-3" />
+                                                    </Button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -641,7 +581,7 @@ export default function CategoriesManagerPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-                <div className="pt-4 flex justify-center">
+                <div className="pt-2 flex justify-center">
                     <Pagination
                         currentPage={page}
                         totalPages={totalPages}
@@ -650,7 +590,7 @@ export default function CategoriesManagerPage() {
                 </div>
             )}
 
-            {/* Modal Forms with ClientPortal & Scroll Lock */}
+            {/* Modal Forms */}
             <CategoryFormModal
                 isOpen={isFormOpen}
                 onClose={() => {

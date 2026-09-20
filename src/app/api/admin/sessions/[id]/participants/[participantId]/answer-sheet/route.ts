@@ -5,6 +5,7 @@ import {
     renderAnswerSheetHtml,
     generateAnswerSheetPdf,
 } from '@/lib/answer-sheet';
+import { assertTrainerSessionAccess } from '@/lib/data-scoping';
 import { logActivity } from '@/lib/audit';
 import logger from '@/lib/logger';
 import { getAppBaseUrl } from '@/lib/app-url';
@@ -20,12 +21,22 @@ async function handleGet(
 ) {
     try {
         const { id: sessionId, participantId } = await context.params;
+
+        // Anti-IDOR: Validasi hak akses trainer terhadap sesi
+        const hasAccess = await assertTrainerSessionAccess(authUser, sessionId);
+        if (!hasAccess) {
+            return new NextResponse('Anda tidak memiliki hak akses untuk sesi ini.', { status: 403 });
+        }
+
         const searchParams = request.nextUrl.searchParams;
-        const examId = searchParams.get('examId') || undefined;
+        const examId = searchParams.get('examId') || searchParams.get('exam') || undefined;
+        const rawAttempt = searchParams.get('attempt') || searchParams.get('attempt_number');
+        const parsedAttempt = rawAttempt ? parseInt(rawAttempt, 10) : undefined;
+        const requestedAttempt = Number.isFinite(parsedAttempt) ? parsedAttempt : undefined;
         const format = searchParams.get('format') || 'print'; // 'print' | 'pdf'
 
         // 1. Ambil data lembar pengerjaan
-        const data = await getParticipantAnswerSheetData(sessionId, participantId, examId);
+        const data = await getParticipantAnswerSheetData(sessionId, participantId, examId, requestedAttempt);
 
         if (!data) {
             return new NextResponse(

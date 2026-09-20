@@ -492,7 +492,7 @@ export default function ParticipantSessionDetailAdminPage({ params }: { params: 
                                         {isExam && done ? (
                                             <div className="flex items-center gap-2.5 ml-auto sm:ml-0 flex-wrap">
                                                 <a
-                                                    href={`/api/admin/sessions/${sessionId}/participants/${participantId}/answer-sheet`}
+                                                    href={`/api/admin/sessions/${sessionId}/participants/${participantId}/answer-sheet?examId=${encodeURIComponent(item.item_id)}`}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg border border-black/5 transition-colors"

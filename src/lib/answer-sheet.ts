@@ -83,12 +83,13 @@ export interface AnswerSheetData {
 export async function getParticipantAnswerSheetData(
     sessionId: string,
     participantId: string,
-    examId?: string
+    examId?: string,
+    requestedAttempt?: number
 ): Promise<AnswerSheetData | null> {
     try {
         // 1. Ambil detail sesi dan modul
         const sessionRows = await executeQuery<any[]>(
-            `SELECT s.id, s.title, s.start_time, s.end_time, s.module_id, m.title AS module_title
+            `SELECT s.id, s.title, s.start_time, s.end_time, s.module_id, s.session_type, s.parent_session_id, m.title AS module_title
              FROM sessions s
              LEFT JOIN modules m ON s.module_id = m.id
              WHERE s.id = ?
@@ -115,63 +116,116 @@ export async function getParticipantAnswerSheetData(
         if (!participantRows || participantRows.length === 0) return null;
         const participant = participantRows[0];
 
-        // 3. Resolve the module exam and its optional remedial package. A remedial
-        // answer belongs to the original module item even though exam_answers.exam_id
-        // stores the remedial package ID.
-        const examItems = await executeQuery<any[]>(
-            `SELECT mi.id AS module_item_id,
-                    e.id AS original_exam_id,
-                    e.passing_grade AS original_passing_grade,
-                    e.remedial_exam_id
-             FROM module_items mi
-             INNER JOIN exams e ON e.id = mi.item_id
-             WHERE mi.module_id = ?
-               AND mi.item_type = 'exam'
-               ${examId ? 'AND (e.id = ? OR e.remedial_exam_id = ?)' : ''}
-             ORDER BY mi.sequence_order ASC
-             LIMIT 1`,
-            examId ? [session.module_id, examId, examId] : [session.module_id],
-        );
-        if (!examItems || examItems.length === 0) return null;
-        const examMapping = examItems[0];
-
-        // 4. Ambil progres ujian peserta dari module item asli.
-        const progressRows = await executeQuery<any[]>(
-            `SELECT up.id, up.score, up.original_score, up.score_adjustment, up.adjustment_reason,
-                    up.attempts_count, up.updated_at, COALESCE(up.grading_pending, 0) AS grading_pending
-             FROM user_progress up
-             WHERE up.session_id = ? AND up.user_id = ? AND up.module_item_id = ?
-             LIMIT 1`,
-            [sessionId, participantId, examMapping.module_item_id]
+        // 3. Cari rekam jawaban aktual peserta di sesi ini
+        const answeredSubmissions = await executeQuery<Array<{
+            exam_id: string;
+            attempt_number: number;
+            answer_count: number;
+            last_answered: string;
+        }>>(
+            `SELECT ea.exam_id, ea.attempt_number, COUNT(*) AS answer_count, MAX(ea.answered_at) AS last_answered
+             FROM exam_answers ea
+             WHERE ea.session_id = ? AND ea.user_id = ?
+             GROUP BY ea.exam_id, ea.attempt_number
+             ORDER BY last_answered DESC, ea.attempt_number DESC`,
+            [sessionId, participantId]
         );
 
-        const progress = progressRows?.[0] || {};
-        const originalScore = progress.original_score !== null && progress.original_score !== undefined
-            ? Number(progress.original_score)
-            : Number(progress.score || 0);
-        const scoreAdjustment = Number(progress.score_adjustment || 0);
-        const finalScore = progress.score !== null && progress.score !== undefined
-            ? Number(progress.score)
-            : Math.min(100, Math.max(0, originalScore + scoreAdjustment));
-        const attemptNumber = Number(progress.attempts_count || 1);
+        let targetExamId: string | undefined = undefined;
+        let targetAttemptNumber: number | undefined = requestedAttempt;
 
-        let targetExamId = examId || examMapping.original_exam_id;
-        if (!examId && attemptNumber > 1 && examMapping.remedial_exam_id) {
-            targetExamId = examMapping.remedial_exam_id;
-        }
-        if (targetExamId !== examMapping.original_exam_id && targetExamId !== examMapping.remedial_exam_id) {
-            return null;
+        if (examId) {
+            // Cek apakah ada jawaban langsung dengan examId ini
+            const directMatch = answeredSubmissions.filter((s) => s.exam_id === examId);
+            if (directMatch.length > 0) {
+                targetExamId = examId;
+                if (!targetAttemptNumber) {
+                    targetAttemptNumber = directMatch[0].attempt_number;
+                }
+            } else {
+                // Cek kemungkinan relasi remedial: apakah examId adalah induk atau paket remedial dari ujian yang dijawab
+                const linkedExamRows = await executeQuery<any[]>(
+                    `SELECT id, remedial_exam_id FROM exams WHERE id = ? OR remedial_exam_id = ?`,
+                    [examId, examId]
+                );
+                const candidateIds = new Set<string>();
+                for (const row of linkedExamRows || []) {
+                    candidateIds.add(row.id);
+                    if (row.remedial_exam_id) candidateIds.add(row.remedial_exam_id);
+                }
+
+                const linkedMatch = answeredSubmissions.find((s) => candidateIds.has(s.exam_id));
+                if (linkedMatch) {
+                    targetExamId = linkedMatch.exam_id;
+                    if (!targetAttemptNumber) {
+                        targetAttemptNumber = linkedMatch.attempt_number;
+                    }
+                } else {
+                    targetExamId = examId;
+                    targetAttemptNumber = targetAttemptNumber || 1;
+                }
+            }
+        } else {
+            // Jika examId tidak ditentukan secara spesifik:
+            // Utamakan ujian yang memiliki rekaman jawaban aktual oleh peserta di sesi ini!
+            if (answeredSubmissions.length > 0) {
+                targetExamId = answeredSubmissions[0].exam_id;
+                targetAttemptNumber = targetAttemptNumber || answeredSubmissions[0].attempt_number;
+            } else {
+                // Fallback ke ujian pertama dalam modul sesi
+                const fallbackItem = await executeQuery<any[]>(
+                    `SELECT mi.item_id
+                     FROM module_items mi
+                     WHERE mi.module_id = ? AND mi.item_type = 'exam'
+                     ORDER BY mi.sequence_order ASC
+                     LIMIT 1`,
+                    [session.module_id]
+                );
+                if (!fallbackItem || fallbackItem.length === 0) return null;
+                targetExamId = fallbackItem[0].item_id;
+                targetAttemptNumber = targetAttemptNumber || 1;
+            }
         }
 
+        if (!targetExamId) return null;
+        if (!targetAttemptNumber) targetAttemptNumber = 1;
+
+        // 4. Ambil detail ujian dari master data
         const examRows = await executeQuery<any[]>(
-            `SELECT id, title, duration_minutes FROM exams WHERE id = ? LIMIT 1`,
+            `SELECT id, title, duration_minutes, passing_grade FROM exams WHERE id = ? LIMIT 1`,
             [targetExamId]
         );
         if (!examRows || examRows.length === 0) return null;
         const exam = examRows[0];
 
-        // 5. Ambil butir jawaban yang direkam
-        const answerRows = await executeQuery<any[]>(
+        // 5. Cari module_item terkait untuk mengambil progres (skor, adjustment, dll)
+        const moduleItemRows = await executeQuery<any[]>(
+            `SELECT mi.id AS module_item_id, mi.sequence_order
+             FROM module_items mi
+             INNER JOIN exams e ON e.id = mi.item_id
+             WHERE (mi.module_id = ? OR mi.module_id = ?)
+               AND mi.item_type = 'exam'
+               AND (e.id = ? OR e.remedial_exam_id = ?)
+             ORDER BY mi.sequence_order ASC
+             LIMIT 1`,
+            [session.module_id, session.parent_session_id || session.module_id, targetExamId, targetExamId]
+        );
+
+        let progress: any = {};
+        if (moduleItemRows && moduleItemRows.length > 0) {
+            const progressRows = await executeQuery<any[]>(
+                `SELECT up.id, up.score, up.original_score, up.score_adjustment, up.adjustment_reason,
+                        up.attempts_count, up.updated_at, COALESCE(up.grading_pending, 0) AS grading_pending
+                 FROM user_progress up
+                 WHERE up.session_id = ? AND up.user_id = ? AND up.module_item_id = ?
+                 LIMIT 1`,
+                [sessionId, participantId, moduleItemRows[0].module_item_id]
+            );
+            progress = progressRows?.[0] || {};
+        }
+
+        // 6. Ambil butir jawaban yang direkam
+        let answerRows = await executeQuery<any[]>(
             `SELECT ea.id, ea.question_id, ea.selected_option, ea.question_snapshot,
                     ea.is_correct, ea.grading_status, ea.awarded_points, ea.attempt_number, ea.answered_at,
                     ea.graded_at, grader.full_name AS grader_name,
@@ -188,8 +242,36 @@ export async function getParticipantAnswerSheetData(
              LEFT JOIN users grader ON grader.id = ea.graded_by
              WHERE ea.session_id = ? AND ea.user_id = ? AND ea.exam_id = ? AND ea.attempt_number = ?
              ORDER BY COALESCE(q.sequence_order, 0) ASC, ea.answered_at ASC, ea.id ASC`,
-            [sessionId, participantId, targetExamId, attemptNumber]
+            [sessionId, participantId, targetExamId, targetAttemptNumber]
         );
+
+        // Fallback jika attempt spesifik tidak memiliki baris jawaban tapi peserta memiliki jawaban di attempt lain
+        if ((!answerRows || answerRows.length === 0) && answeredSubmissions.length > 0) {
+            const fallbackRows = await executeQuery<any[]>(
+                `SELECT ea.id, ea.question_id, ea.selected_option, ea.question_snapshot,
+                        ea.is_correct, ea.grading_status, ea.awarded_points, ea.attempt_number, ea.answered_at,
+                        ea.graded_at, grader.full_name AS grader_name,
+                        q.question_type AS current_question_type,
+                        q.question_text AS current_question_text,
+                        q.question_image AS current_question_image,
+                        q.options_json AS current_options_json,
+                        q.correct_option_index AS current_correct_option_index,
+                        q.correct_answer AS current_correct_answer,
+                        q.points AS current_points,
+                        q.sequence_order
+                 FROM exam_answers ea
+                 LEFT JOIN questions q ON q.id = ea.question_id
+                 LEFT JOIN users grader ON grader.id = ea.graded_by
+                 WHERE ea.session_id = ? AND ea.user_id = ? AND ea.exam_id = ?
+                 ORDER BY ea.attempt_number DESC, COALESCE(q.sequence_order, 0) ASC, ea.answered_at ASC, ea.id ASC`,
+                [sessionId, participantId, targetExamId]
+            );
+
+            if (fallbackRows && fallbackRows.length > 0) {
+                targetAttemptNumber = fallbackRows[0].attempt_number;
+                answerRows = fallbackRows.filter((r) => r.attempt_number === targetAttemptNumber);
+            }
+        }
 
         let totalQuestions = 0;
         let correctCount = 0;
@@ -315,15 +397,24 @@ export async function getParticipantAnswerSheetData(
             });
         }
 
-        const passingGrade = Number(examMapping.original_passing_grade || 70);
+        const calculatedScore = totalMaxPoints > 0 ? (earnedPoints / totalMaxPoints) * 100 : 0;
+        const originalScore = progress.original_score !== null && progress.original_score !== undefined
+            ? Number(progress.original_score)
+            : (progress.score !== null && progress.score !== undefined ? Number(progress.score) : calculatedScore);
+        const scoreAdjustment = Number(progress.score_adjustment || 0);
+        const finalScore = progress.score !== null && progress.score !== undefined
+            ? Number(progress.score)
+            : Math.min(100, Math.max(0, originalScore + scoreAdjustment));
+        const passingGrade = Number(exam.passing_grade ?? 70);
         const isPassed = !Boolean(progress.grading_pending) && pendingCount === 0 && finalScore >= passingGrade;
 
         const submittedAtValue = submittedAt || progress.updated_at || null;
+        const finalAttemptNumber = Number(targetAttemptNumber || 1);
         const docId = createAnswerSheetDocumentId({
             sessionId,
             participantId,
             examId: targetExamId,
-            attemptNumber,
+            attemptNumber: finalAttemptNumber,
             submittedAt: submittedAtValue,
         });
 
@@ -351,7 +442,7 @@ export async function getParticipantAnswerSheetData(
                 title: exam.title,
                 passing_grade: passingGrade,
                 duration_minutes: Number(exam.duration_minutes || 60),
-                attempt_number: attemptNumber,
+                attempt_number: finalAttemptNumber,
                 submitted_at: submittedAtValue,
             },
             stats: {

@@ -312,7 +312,7 @@ export default function ParticipantAnswersPage({
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                     <a
-                        href={`/api/admin/sessions/${sessionId}/participants/${participantId}/answer-sheet`}
+                        href={`/api/admin/sessions/${sessionId}/participants/${participantId}/answer-sheet${selectedExamId ? `?examId=${encodeURIComponent(selectedExamId)}` : ''}${selectedExamId && selectedAttemptNumber ? `&attempt=${selectedAttemptNumber}` : ''}`}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-2xs h-9 shrink-0 cursor-pointer"

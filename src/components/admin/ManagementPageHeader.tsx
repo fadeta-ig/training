@@ -10,6 +10,7 @@ type ManagementPageHeaderProps = {
     icon: ReactNode;
     actionLabel?: string;
     actionHref?: string;
+    onActionClick?: () => void;
     onRefresh: () => void;
     isRefreshing: boolean;
 };
@@ -20,6 +21,7 @@ export function ManagementPageHeader({
     icon,
     actionLabel,
     actionHref,
+    onActionClick,
     onRefresh,
     isRefreshing,
 }: ManagementPageHeaderProps) {
@@ -56,6 +58,18 @@ export function ManagementPageHeader({
                         <Plus className="size-4.5" />
                         <span>{actionLabel}</span>
                     </Link>
+                )}
+                {actionLabel && onActionClick && !actionHref && (
+                    <Button
+                        type="button"
+                        size="lg"
+                        variant="create"
+                        onClick={onActionClick}
+                        className="w-full sm:w-auto font-bold shadow-xs hover:shadow-sm"
+                    >
+                        <Plus className="size-4.5" />
+                        <span>{actionLabel}</span>
+                    </Button>
                 )}
             </div>
         </header>

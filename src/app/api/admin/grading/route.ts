@@ -5,6 +5,7 @@ import pool from '@/lib/db';
 import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
 import logger from '@/lib/logger';
 import { getSessionExamMappings, getSessionResultContext } from '@/lib/exam-results';
+import { assertTrainerSessionAccess } from '@/lib/data-scoping';
 
 const gradeSchema = z.object({
     session_id: z.string().uuid(),
@@ -53,9 +54,9 @@ function parseSnapshot(value: string | null): Snapshot | null {
 }
 
 async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
-    if (authUser.role !== 'admin') {
+    if (authUser.role !== 'admin' && authUser.role !== 'trainer') {
         return NextResponse.json(
-            { success: false, error: 'Penilaian manual soal esai hanya dapat dilakukan oleh Administrator.' },
+            { success: false, error: 'Penilaian manual soal esai hanya dapat dilakukan oleh Pengajar atau Administrator.' },
             { status: 403 },
         );
     }
@@ -72,6 +73,18 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
         }
 
         const { session_id, user_id, exam_id, question_id, attempt_number, is_correct, awarded_points } = parsed.data;
+
+        // Validasi scoping jika trainer
+        if (authUser.role === 'trainer') {
+            const hasAccess = await assertTrainerSessionAccess(authUser, session_id);
+            if (!hasAccess) {
+                return NextResponse.json(
+                    { success: false, error: 'Anda tidak memiliki hak akses penilaian untuk sesi dalam kategori ini' },
+                    { status: 403 },
+                );
+            }
+        }
+
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
@@ -304,4 +317,4 @@ async function handlePost(request: NextRequest, authUser: AuthenticatedUser) {
     }
 }
 
-export const POST = withAuth(handlePost, { allowedRoles: ['admin'] });
+export const POST = withAuth(handlePost, { allowedRoles: ['admin', 'trainer'] });

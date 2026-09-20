@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import { trainingSchema } from '@/lib/validations/trainingSchema';
-import { withAuth } from '@/lib/api-auth';
+import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
 import { parsePagination } from '@/lib/sanitize';
+import { resolveUserCategoryScope } from '@/lib/data-scoping';
 import pool from '@/lib/db';
 
-async function handleGet(request: NextRequest) {
+async function handleGet(request: NextRequest, user: AuthenticatedUser) {
     try {
         const { searchParams } = new URL(request.url);
         const { page, limit, offset } = parsePagination(searchParams);
         const search = searchParams.get('search')?.trim() || searchParams.get('q')?.trim() || '';
+        const categoryId = searchParams.get('category_id') || 'all';
         const mediaType = searchParams.get('media_type') || 'all';
         const usage = searchParams.get('usage') || 'all';
         const sort = searchParams.get('sort') || 'created_desc';
@@ -18,9 +20,21 @@ async function handleGet(request: NextRequest) {
         const conditions: string[] = [];
         const conditionParams: (string | number)[] = [];
 
+        // Scoping per role: Trainer hanya melihat kategori yang di-assign
+        const scope = await resolveUserCategoryScope(user, 't');
+        if (scope.sqlCondition) {
+            conditions.push(scope.sqlCondition.replace(/^\s*AND\s*/i, ''));
+            conditionParams.push(...scope.params);
+        }
+
+        if (categoryId !== 'all' && categoryId) {
+            conditions.push(`t.category_id = ?`);
+            conditionParams.push(categoryId);
+        }
+
         if (search) {
-            conditions.push(`t.title LIKE ?`);
-            conditionParams.push(`%${search}%`);
+            conditions.push(`(t.title LIKE ? OR lc.name LIKE ? OR lc.code LIKE ?)`);
+            conditionParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         if (mediaType === 'video') {
@@ -49,16 +63,21 @@ async function handleGet(request: NextRequest) {
         const orderClause = SORT_MAP[sort] || 't.created_at DESC';
 
         const countResult = await executeQuery<{ total: number }[]>(
-            `SELECT COUNT(*) as total FROM trainings t${whereClause}`,
+            `SELECT COUNT(*) as total 
+             FROM trainings t
+             LEFT JOIN learning_categories lc ON t.category_id = lc.id
+             ${whereClause}`,
             conditionParams
         );
         const total = countResult[0]?.total || 0;
 
         const trainings = await executeQuery(
-            `SELECT t.id, t.title, t.created_at, t.updated_at,
+            `SELECT t.id, t.category_id, lc.name AS category_name, lc.code AS category_code, lc.color AS category_color,
+                    t.title, t.created_at, t.updated_at,
                     (SELECT COUNT(*) FROM training_media tm WHERE tm.training_id = t.id) AS media_count,
                     (SELECT COUNT(*) FROM module_items mi WHERE mi.item_id = t.id AND mi.item_type = 'training') AS module_count
              FROM trainings t
+             LEFT JOIN learning_categories lc ON t.category_id = lc.id
              ${whereClause}
              ORDER BY ${orderClause}
              LIMIT ? OFFSET ?`,
@@ -72,8 +91,8 @@ async function handleGet(request: NextRequest) {
                 total,
                 page,
                 limit,
-                totalPages: Math.ceil(total / limit)
-            }
+                totalPages: Math.ceil(total / limit),
+            },
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';
@@ -81,10 +100,6 @@ async function handleGet(request: NextRequest) {
     }
 }
 
-/**
- * Inserts media rows into `training_media` for a given training.
- * Reusable for both POST (create) and PUT (update) flows.
- */
 async function insertMediaItems(
     connection: import('mysql2/promise').PoolConnection,
     trainingId: string,
@@ -112,14 +127,14 @@ async function handlePost(request: NextRequest) {
             );
         }
 
-        const { title, content_html, media } = parsed.data;
+        const { category_id, title, content_html, media } = parsed.data;
         const trainingId = uuidv4();
 
         connection = await pool.getConnection();
         await connection.beginTransaction();
         await connection.execute(
-            `INSERT INTO trainings (id, title, content_html) VALUES (?, ?, ?)`,
-            [trainingId, title, content_html]
+            `INSERT INTO trainings (id, category_id, title, content_html) VALUES (?, ?, ?, ?)`,
+            [trainingId, category_id || null, title, content_html]
         );
 
         if (media && media.length > 0) {
@@ -130,7 +145,7 @@ async function handlePost(request: NextRequest) {
         connection.release();
         connection = undefined;
 
-        return NextResponse.json({ success: true, id: trainingId, message: 'Training created' }, { status: 201 });
+        return NextResponse.json({ success: true, id: trainingId, message: 'Materi berhasil dibuat' }, { status: 201 });
     } catch {
         if (connection) {
             await connection.rollback();

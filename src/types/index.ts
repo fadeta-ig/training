@@ -68,12 +68,45 @@ export interface PendingRegistration {
 }
 
 
+export interface LearningCategory {
+    id: string;
+    name: string;
+    code: string;
+    description: string | null;
+    color: string;
+    is_active: boolean;
+    created_by: string | null;
+    created_at: string;
+    updated_at: string;
+    trainer_count?: number;
+    training_count?: number;
+    exam_count?: number;
+    module_count?: number;
+    trainers?: Array<{ id: string; full_name: string; username: string }>;
+}
+
+export interface CategoryTrainer {
+    id: string;
+    category_id: string;
+    trainer_id: string;
+    assigned_by: string | null;
+    assigned_at: string;
+    trainer_name?: string;
+    trainer_username?: string;
+}
+
 export interface Training {
     id: string;
+    category_id?: string | null;
+    category_name?: string | null;
+    category_code?: string | null;
+    category_color?: string | null;
     title: string;
     content_html: string;
     created_at: string;
     updated_at: string;
+    media_count?: number;
+    module_count?: number;
 }
 
 export interface TrainingMedia {
@@ -88,6 +121,10 @@ export interface TrainingMedia {
 
 export interface Exam {
     id: string;
+    category_id?: string | null;
+    category_name?: string | null;
+    category_code?: string | null;
+    category_color?: string | null;
     title: string;
     duration_minutes: number;
     passing_grade: number;
@@ -96,6 +133,9 @@ export interface Exam {
     remedial_exam_id?: string | null;
     remedial_exam_title?: string | null;
     created_at: string;
+    question_count?: number;
+    module_count?: number;
+    is_remedial_package?: boolean | number;
 }
 
 export interface Question {
@@ -113,10 +153,18 @@ export interface Question {
 
 export interface Module {
     id: string;
+    category_id?: string | null;
+    category_name?: string | null;
+    category_code?: string | null;
+    category_color?: string | null;
     title: string;
     description: string | null;
     enforce_sequence?: boolean;
     created_at: string;
+    item_count?: number;
+    training_count?: number;
+    exam_count?: number;
+    session_count?: number;
 }
 
 export interface ModuleItem {

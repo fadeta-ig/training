@@ -7,15 +7,26 @@ import { withAuth } from '@/lib/api-auth';
 import logger from '@/lib/logger';
 import { normalizeDbDateToIso, toMysqlDatetimeWib } from '@/lib/timezone';
 import { pickHighestAttempt, resolveExamResultView, validateRemedialSessionConfiguration } from '@/lib/exam-results';
+import { assertTrainerSessionAccess } from '@/lib/data-scoping';
+import type { AuthenticatedUser } from '@/lib/api-auth';
 
 // GET Detail Sesi & Peserta + Progress Monitoring
 async function handleGet(
     request: NextRequest,
-    _user: any,
+    user: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
         const resolvedParams = await context.params;
+
+        // Anti-IDOR: Validasi bahwa trainer memiliki akses ke sesi ini berdasarkan kategori modul
+        const hasAccess = await assertTrainerSessionAccess(user, resolvedParams.id);
+        if (!hasAccess) {
+            return NextResponse.json(
+                { success: false, error: 'Anda tidak memiliki akses ke sesi ini atau sesi tidak ditemukan' },
+                { status: 403 }
+            );
+        }
         const result = await executeQuery<any[]>(
             `SELECT id, module_id, title, start_time, end_time, session_type, parent_session_id,
                     remedial_cycle, result_state, result_published_at, result_publication_version,
@@ -33,7 +44,7 @@ async function handleGet(
         // Fetch module items with titles & metadata from trainings and exams
         const moduleItems = await executeQuery<any[]>(
             `SELECT 
-                mi.id, 
+                mi.id,
                 mi.item_type, 
                 mi.item_id,
                 mi.sequence_order,

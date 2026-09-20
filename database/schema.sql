@@ -81,14 +81,57 @@ CREATE TABLE participant_profiles (
 
 
 -- ─────────────────────────────────────────────
+-- 2b. Master Data: Learning Categories
+-- ─────────────────────────────────────────────
+CREATE TABLE learning_categories (
+  id          VARCHAR(36)  PRIMARY KEY,
+  name        VARCHAR(150) NOT NULL,
+  code        VARCHAR(50)  UNIQUE NOT NULL,
+  description TEXT         NULL,
+  color       VARCHAR(30)  NOT NULL DEFAULT '#0ea5e9',
+  is_active   BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_by  VARCHAR(36)  NULL,
+  created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_learning_cat_active (is_active),
+  INDEX idx_learning_cat_code (code),
+  CONSTRAINT fk_learning_cat_creator
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ─────────────────────────────────────────────
+-- 2c. Category Trainers (Assignment Relasi Many-to-Many)
+-- ─────────────────────────────────────────────
+CREATE TABLE category_trainers (
+  id          VARCHAR(36) PRIMARY KEY,
+  category_id VARCHAR(36) NOT NULL,
+  trainer_id  VARCHAR(36) NOT NULL,
+  assigned_by VARCHAR(36) NULL,
+  assigned_at TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_category_trainer (category_id, trainer_id),
+  INDEX idx_cat_trainers_trainer (trainer_id),
+  INDEX idx_cat_trainers_category (category_id),
+  CONSTRAINT fk_ct_category
+    FOREIGN KEY (category_id) REFERENCES learning_categories(id) ON DELETE CASCADE,
+  CONSTRAINT fk_ct_trainer
+    FOREIGN KEY (trainer_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_ct_assigned_by
+    FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ─────────────────────────────────────────────
 -- 3. Master Data: Training Materials
 -- ─────────────────────────────────────────────
 CREATE TABLE trainings (
   id          VARCHAR(36)  PRIMARY KEY,
+  category_id VARCHAR(36)  NULL,
   title       VARCHAR(150) NOT NULL,
   content_html TEXT        NOT NULL,
   created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_trainings_category_created (category_id, created_at),
+  CONSTRAINT fk_trainings_category
+    FOREIGN KEY (category_id) REFERENCES learning_categories(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────
@@ -112,6 +155,7 @@ CREATE TABLE training_media (
 -- ─────────────────────────────────────────────
 CREATE TABLE exams (
   id               VARCHAR(36)    PRIMARY KEY,
+  category_id      VARCHAR(36)    NULL,
   title            VARCHAR(150)   NOT NULL,
   duration_minutes INT            NOT NULL DEFAULT 60,
   passing_grade    DECIMAL(5, 2)  NOT NULL DEFAULT 70.00,
@@ -120,6 +164,9 @@ CREATE TABLE exams (
   remedial_exam_id VARCHAR(36)    NULL,
   created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_exams_remedial (remedial_exam_id),
+  INDEX idx_exams_category_created (category_id, created_at),
+  CONSTRAINT fk_exams_category
+    FOREIGN KEY (category_id) REFERENCES learning_categories(id) ON DELETE RESTRICT,
   CONSTRAINT fk_exams_remedial
     FOREIGN KEY (remedial_exam_id) REFERENCES exams(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
@@ -187,10 +234,14 @@ CREATE TABLE questions (
 -- ─────────────────────────────────────────────
 CREATE TABLE modules (
   id          VARCHAR(36)  PRIMARY KEY,
+  category_id VARCHAR(36)  NULL,
   title       VARCHAR(150) NOT NULL,
   description TEXT,
   enforce_sequence BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_modules_category_created (category_id, created_at),
+  CONSTRAINT fk_modules_category
+    FOREIGN KEY (category_id) REFERENCES learning_categories(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 -- ─────────────────────────────────────────────

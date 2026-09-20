@@ -1,21 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { examSchema } from '@/lib/validations/examSchema';
-import { withAuth } from '@/lib/api-auth';
+import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
+import { assertTrainerAccess } from '@/lib/data-scoping';
 import pool from '@/lib/db';
 
 async function handleGet(
-    request: NextRequest,
-    _user: any,
+    _request: NextRequest,
+    user: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
         const resolvedParams = await context.params;
+
+        // Anti-IDOR: Validasi bahwa trainer memiliki akses ke kategori ujian ini
+        const hasAccess = await assertTrainerAccess(user, 'exams', resolvedParams.id);
+        if (!hasAccess) {
+            return NextResponse.json(
+                { success: false, error: 'Anda tidak memiliki akses ke ujian ini atau ujian tidak ditemukan' },
+                { status: 403 }
+            );
+        }
+
         const result = await executeQuery<any[]>(
-            `SELECT e.*, re.title AS remedial_exam_title 
+            `SELECT e.*, lc.name AS category_name, lc.code AS category_code, lc.color AS category_color,
+                    re.title AS remedial_exam_title 
              FROM exams e 
+             LEFT JOIN learning_categories lc ON e.category_id = lc.id
              LEFT JOIN exams re ON e.remedial_exam_id = re.id 
-             WHERE e.id = ?`,
+             WHERE e.id = ? LIMIT 1`,
             [resolvedParams.id]
         );
 
@@ -32,7 +45,7 @@ async function handleGet(
 
 async function handlePut(
     request: NextRequest,
-    _user: any,
+    _user: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -48,6 +61,7 @@ async function handlePut(
         }
 
         const { 
+            category_id,
             title, 
             duration_minutes, 
             passing_grade, 
@@ -67,8 +81,10 @@ async function handlePut(
         const finalRemedialExamId = allow_remedial && remedial_exam_id ? remedial_exam_id : null;
 
         const result = await executeQuery<{ affectedRows: number }>(
-            `UPDATE exams SET title = ?, duration_minutes = ?, passing_grade = ?, allow_remedial = ?, max_attempts = ?, remedial_exam_id = ? WHERE id = ?`,
-            [title, duration_minutes, passing_grade, allow_remedial, max_attempts, finalRemedialExamId, resolvedParams.id]
+            `UPDATE exams 
+             SET category_id = ?, title = ?, duration_minutes = ?, passing_grade = ?, allow_remedial = ?, max_attempts = ?, remedial_exam_id = ? 
+             WHERE id = ?`,
+            [category_id || null, title, duration_minutes, passing_grade, allow_remedial, max_attempts, finalRemedialExamId, resolvedParams.id]
         );
 
         if (result && 'affectedRows' in result && result.affectedRows === 0) {
@@ -83,8 +99,8 @@ async function handlePut(
 }
 
 async function handleDelete(
-    request: NextRequest,
-    _user: any,
+    _request: NextRequest,
+    _user: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     let connection;
@@ -93,16 +109,6 @@ async function handleDelete(
 
         connection = await pool.getConnection();
         await connection.beginTransaction();
-        const [examRows] = await connection.execute<Array<{ id: string }> & any[]>(
-            'SELECT id FROM exams WHERE id = ? LIMIT 1 FOR UPDATE',
-            [resolvedParams.id],
-        );
-        if (examRows.length === 0) {
-            await connection.rollback();
-            connection.release();
-            connection = undefined;
-            return NextResponse.json({ success: false, error: 'Exam not found' }, { status: 404 });
-        }
 
         const [usageRows] = await connection.execute<Array<{
             answers: number | string;

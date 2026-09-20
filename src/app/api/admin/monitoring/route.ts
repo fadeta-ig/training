@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
-import { withAuth } from '@/lib/api-auth';
+import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
+import { resolveSessionCategoryScope, assertTrainerSessionAccess } from '@/lib/data-scoping';
 import path from 'path';
 
 interface SessionData {
@@ -23,24 +24,38 @@ interface SnapshotData {
     username: string;
 }
 
-async function handleGet(request: NextRequest) {
+async function handleGet(request: NextRequest, user: AuthenticatedUser) {
     try {
         const { searchParams } = new URL(request.url);
         const sessionId = searchParams.get('session_id');
 
+        // Scoping jika trainer
+        const scope = await resolveSessionCategoryScope(user, 'm');
+
         // If no sessionId, return list of active/recent sessions that have proctoring
         if (!sessionId) {
-            const activeSessions = await executeQuery<SessionData[]>(`
+            let query = `
                 SELECT 
                     s.id, s.title, s.start_time, s.end_time, s.require_seb, s.enable_proctoring,
                     m.title as module_title
                 FROM sessions s
                 JOIN modules m ON s.module_id = m.id
+                WHERE 1=1 ${scope.sqlCondition}
                 ORDER BY s.end_time DESC
                 LIMIT 50
-            `);
+            `;
 
+            const activeSessions = await executeQuery<SessionData[]>(query, scope.params);
             return NextResponse.json({ success: true, data: activeSessions });
+        }
+
+        // Anti-IDOR: Jika sessionId diberikan, validasi apakah trainer berhak mengakses sesi ini
+        const hasAccess = await assertTrainerSessionAccess(user, sessionId);
+        if (!hasAccess) {
+            return NextResponse.json(
+                { success: false, error: 'Anda tidak memiliki akses proctoring untuk sesi ini' },
+                { status: 403 }
+            );
         }
 
         // If sessionId provided, get the LATEST snapshot for each participant in that session
@@ -60,8 +75,6 @@ async function handleGet(request: NextRequest) {
             ORDER BY u.full_name ASC
         `, [sessionId, sessionId]);
 
-        // Stream image URLs directly instead of heavy in-memory Base64 encoding.
-        // Reduces 100-user JSON payload from ~7.5MB to ~25KB.
         const formattedSnapshots = snapshots.map((snap) => {
             let directUrl = snap.image_url;
             if (snap.image_url?.startsWith('/uploads/proctor/')) {

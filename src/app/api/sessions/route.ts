@@ -2,19 +2,48 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
-import { withAuth } from '@/lib/api-auth';
+import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
 import { sessionSchema } from '@/lib/validations/sessionSchema';
 import { normalizeDbDateToIso, toMysqlDatetimeWib } from '@/lib/timezone';
 import { validateRemedialSessionConfiguration } from '@/lib/exam-results';
+import { resolveSessionCategoryScope } from '@/lib/data-scoping';
 
-async function handleGet(_request: NextRequest) {
+async function handleGet(request: NextRequest, user: AuthenticatedUser) {
     try {
+        const { searchParams } = new URL(request.url);
+        const categoryId = searchParams.get('category_id') || 'all';
+
+        const conditions: string[] = [];
+        const conditionParams: (string | number)[] = [];
+
+        // Scoping per role: Trainer hanya melihat sesi yang modulnya masuk kategori assignment
+        const scope = await resolveSessionCategoryScope(user, 'm');
+        if (scope.sqlCondition) {
+            conditions.push(scope.sqlCondition.replace(/^\s*AND\s*/i, ''));
+            conditionParams.push(...scope.params);
+        }
+
+        if (categoryId !== 'all' && categoryId) {
+            conditions.push(`m.category_id = ?`);
+            conditionParams.push(categoryId);
+        }
+
+        const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+
         const sessions = await executeQuery<any[]>(
-            `SELECT id, module_id, title, start_time, end_time, session_type, parent_session_id,
-                    remedial_cycle, result_state, result_published_at, result_publication_version,
-                    require_seb, show_score, enable_proctoring, created_at
-             FROM sessions ORDER BY start_time DESC`
+            `SELECT s.id, s.module_id, s.title, s.start_time, s.end_time, s.session_type, s.parent_session_id,
+                    s.remedial_cycle, s.result_state, s.result_published_at, s.result_publication_version,
+                    s.require_seb, s.show_score, s.enable_proctoring, s.created_at,
+                    m.title AS module_title, m.category_id,
+                    lc.name AS category_name, lc.code AS category_code, lc.color AS category_color
+             FROM sessions s
+             JOIN modules m ON s.module_id = m.id
+             LEFT JOIN learning_categories lc ON m.category_id = lc.id
+             ${whereClause}
+             ORDER BY s.start_time DESC`,
+            conditionParams
         );
+
         const normalized = (sessions || []).map((s) => ({
             ...s,
             start_time: normalizeDbDateToIso(s.start_time),
@@ -23,6 +52,7 @@ async function handleGet(_request: NextRequest) {
             show_score: s.show_score === 1 || s.show_score === true || s.show_score === '1',
             enable_proctoring: s.enable_proctoring === 1 || s.enable_proctoring === true || s.enable_proctoring === '1',
         }));
+
         return NextResponse.json({ success: true, data: normalized });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Internal Server Error';
@@ -49,9 +79,6 @@ async function handlePost(request: NextRequest) {
         } = parsed.data;
         const sessionId = uuidv4();
 
-        // The Config Key is calculated from the exact generated .seb file on download.
-        // It must never be a static environment value because startURL and settings
-        // are part of the platform-independent SEB checksum.
         const sebConfigKey = null;
 
         connection = await pool.getConnection();
@@ -86,8 +113,6 @@ async function handlePost(request: NextRequest) {
                 session_type === 'remedial' ? (parent_session_id || null) : null,
                 session_type === 'remedial' ? remedial_cycle : 0,
                 Boolean(require_seb),
-                // Results always start in draft. They become visible only through
-                // the atomic session publication workflow.
                 false,
                 Boolean(enable_proctoring),
                 sebConfigKey

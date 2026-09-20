@@ -21,6 +21,7 @@ import {
     UserCheck01Icon,
     Certificate01Icon
 } from 'hugeicons-react';
+import { Tags } from 'lucide-react';
 import type { AuthPayload } from '@/types';
 
 interface AdminSidebarProps {
@@ -65,6 +66,7 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
     }, [pathname, user?.role]);
 
     const isLearningActive =
+        pathname.startsWith('/admin/categories') ||
         pathname.startsWith('/admin/content') ||
         pathname.startsWith('/admin/exams') ||
         pathname.startsWith('/admin/modules');
@@ -169,6 +171,15 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                         {/* Submenu Items */}
                         {(showLearningItems || !isOpen) && (
                             <div className={`space-y-1 transition-all ${isOpen ? 'pl-4 border-l-2 border-slate-200 dark:border-slate-800 ml-4 mt-1' : ''}`}>
+                                {user?.role === 'admin' && (
+                                    <NavLink
+                                        href="/admin/categories"
+                                        label="Kategori Pembelajaran"
+                                        icon={<Tags size={18} />}
+                                        isOpen={isOpen}
+                                        active={pathname.startsWith('/admin/categories')}
+                                    />
+                                )}
                                 <NavLink
                                     href="/admin/content"
                                     label="Trainings (Materi)"

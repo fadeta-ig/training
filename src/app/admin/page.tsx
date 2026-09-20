@@ -15,6 +15,7 @@ import { AnalyticsCharts } from './_components/AnalyticsCharts';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifyToken } from '@/lib/auth';
+import { getTrainerCategoryIds } from '@/lib/data-scoping';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,40 +29,8 @@ type RecentSession = {
 };
 
 export default async function AdminOverviewPage() {
-    const [trainings, exams, sessions, trainees, recentSessions, trendData, ratioData] = await Promise.all([
-        executeQuery<{ count: number }[]>('SELECT COUNT(*) as count FROM trainings'),
-        executeQuery<{ count: number }[]>('SELECT COUNT(*) as count FROM exams'),
-        executeQuery<{ count: number }[]>('SELECT COUNT(*) as count FROM sessions'),
-        executeQuery<{ count: number }[]>("SELECT COUNT(*) as count FROM users WHERE role = 'trainee'"),
-        executeQuery<RecentSession[]>(`
-            SELECT s.id, s.title, s.start_time, s.end_time,
-                   m.title AS module_title,
-                   (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) AS participant_count
-            FROM sessions s
-            LEFT JOIN modules m ON s.module_id = m.id
-            ORDER BY s.start_time DESC
-            LIMIT 5
-        `),
-        executeQuery<{ name: string; partisipasi: number }[]>(`
-            SELECT DATE_FORMAT(updated_at, '%d %b') as name, COUNT(*) as partisipasi
-            FROM user_progress
-            WHERE status = 'completed' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
-            GROUP BY DATE(updated_at)
-            ORDER BY DATE(updated_at) ASC
-        `),
-        executeQuery<{ name: string; value: number }[]>(`
-            SELECT 
-                IF(up.score >= e.passing_grade, 'Lulus', 'Gagal') as name,
-                COUNT(*) as value
-            FROM user_progress up
-            JOIN module_items mi ON up.module_item_id = mi.id
-            JOIN exams e ON mi.item_id = e.id
-            WHERE mi.item_type = 'exam' AND up.status = 'completed'
-            GROUP BY name
-        `)
-    ]);
-
     let userRole = 'admin';
+    let userId = '';
     let shouldRedirectToLogin = false;
     let shouldRedirectToDashboard = false;
 
@@ -78,6 +47,7 @@ export default async function AdminOverviewPage() {
                 shouldRedirectToDashboard = true;
             } else {
                 userRole = payload.role;
+                userId = payload.sub;
             }
         }
     } catch {
@@ -89,6 +59,110 @@ export default async function AdminOverviewPage() {
     }
     if (shouldRedirectToDashboard) {
         redirect('/dashboard');
+    }
+
+    let trainings: { count: number }[] = [];
+    let exams: { count: number }[] = [];
+    let sessions: { count: number }[] = [];
+    let trainees: { count: number }[] = [];
+    let recentSessions: RecentSession[] = [];
+    let trendData: { name: string; partisipasi: number }[] = [];
+    let ratioData: { name: string; value: number }[] = [];
+
+    if (userRole === 'trainer') {
+        const trainerCategoryIds = await getTrainerCategoryIds(userId);
+        if (trainerCategoryIds.length > 0) {
+            const placeholders = trainerCategoryIds.map(() => '?').join(',');
+
+            [trainings, exams, sessions, trainees, recentSessions, trendData, ratioData] = await Promise.all([
+                executeQuery<{ count: number }[]>(
+                    `SELECT COUNT(*) as count FROM trainings WHERE category_id IN (${placeholders})`,
+                    trainerCategoryIds
+                ),
+                executeQuery<{ count: number }[]>(
+                    `SELECT COUNT(*) as count FROM exams WHERE category_id IN (${placeholders})`,
+                    trainerCategoryIds
+                ),
+                executeQuery<{ count: number }[]>(
+                    `SELECT COUNT(*) as count FROM sessions s JOIN modules m ON s.module_id = m.id WHERE m.category_id IN (${placeholders})`,
+                    trainerCategoryIds
+                ),
+                executeQuery<{ count: number }[]>(
+                    `SELECT COUNT(DISTINCT sp.user_id) as count 
+                     FROM session_participants sp 
+                     JOIN sessions s ON sp.session_id = s.id 
+                     JOIN modules m ON s.module_id = m.id 
+                     WHERE m.category_id IN (${placeholders})`,
+                    trainerCategoryIds
+                ),
+                executeQuery<RecentSession[]>(
+                    `SELECT s.id, s.title, s.start_time, s.end_time,
+                            m.title AS module_title,
+                            (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) AS participant_count
+                     FROM sessions s
+                     JOIN modules m ON s.module_id = m.id
+                     WHERE m.category_id IN (${placeholders})
+                     ORDER BY s.start_time DESC
+                     LIMIT 5`,
+                    trainerCategoryIds
+                ),
+                executeQuery<{ name: string; partisipasi: number }[]>(
+                    `SELECT DATE_FORMAT(up.updated_at, '%d %b') as name, COUNT(*) as partisipasi
+                     FROM user_progress up
+                     JOIN sessions s ON up.session_id = s.id
+                     JOIN modules m ON s.module_id = m.id
+                     WHERE m.category_id IN (${placeholders}) AND up.status = 'completed' AND up.updated_at >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+                     GROUP BY DATE(up.updated_at)
+                     ORDER BY DATE(up.updated_at) ASC`,
+                    trainerCategoryIds
+                ),
+                executeQuery<{ name: string; value: number }[]>(
+                    `SELECT 
+                         IF(up.score >= e.passing_grade, 'Lulus', 'Gagal') as name,
+                         COUNT(*) as value
+                     FROM user_progress up
+                     JOIN module_items mi ON up.module_item_id = mi.id
+                     JOIN exams e ON mi.item_id = e.id
+                     WHERE mi.item_type = 'exam' AND up.status = 'completed' AND e.category_id IN (${placeholders})
+                     GROUP BY name`,
+                    trainerCategoryIds
+                )
+            ]);
+        }
+    } else {
+        // Admin: global overview
+        [trainings, exams, sessions, trainees, recentSessions, trendData, ratioData] = await Promise.all([
+            executeQuery<{ count: number }[]>('SELECT COUNT(*) as count FROM trainings'),
+            executeQuery<{ count: number }[]>('SELECT COUNT(*) as count FROM exams'),
+            executeQuery<{ count: number }[]>('SELECT COUNT(*) as count FROM sessions'),
+            executeQuery<{ count: number }[]>("SELECT COUNT(*) as count FROM users WHERE role = 'trainee'"),
+            executeQuery<RecentSession[]>(`
+                SELECT s.id, s.title, s.start_time, s.end_time,
+                       m.title AS module_title,
+                       (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) AS participant_count
+                FROM sessions s
+                LEFT JOIN modules m ON s.module_id = m.id
+                ORDER BY s.start_time DESC
+                LIMIT 5
+            `),
+            executeQuery<{ name: string; partisipasi: number }[]>(`
+                SELECT DATE_FORMAT(updated_at, '%d %b') as name, COUNT(*) as partisipasi
+                FROM user_progress
+                WHERE status = 'completed' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+                GROUP BY DATE(updated_at)
+                ORDER BY DATE(updated_at) ASC
+            `),
+            executeQuery<{ name: string; value: number }[]>(`
+                SELECT 
+                    IF(up.score >= e.passing_grade, 'Lulus', 'Gagal') as name,
+                    COUNT(*) as value
+                FROM user_progress up
+                JOIN module_items mi ON up.module_item_id = mi.id
+                JOIN exams e ON mi.item_id = e.id
+                WHERE mi.item_type = 'exam' AND up.status = 'completed'
+                GROUP BY name
+            `)
+        ]);
     }
 
     const stats = {
@@ -120,15 +194,19 @@ export default async function AdminOverviewPage() {
         <div className="space-y-10 max-w-7xl mx-auto">
             <div>
                 <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground">Overview</h1>
-                <p className="text-muted-foreground mt-2 text-sm lg:text-base">Status sistem, sesi berjalan, dan modul pembelajaran saat ini.</p>
+                <p className="text-muted-foreground mt-2 text-sm lg:text-base">
+                    {userRole === 'trainer'
+                        ? 'Status statistik dan sesi pelatihan pada kategori yang ditugaskan kepada Anda.'
+                        : 'Status sistem, sesi berjalan, dan modul pembelajaran saat ini.'}
+                </p>
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-                <StatCard title="Total Materi (Trainings)" value={stats.totalTrainings} trend="Update terbaru" icon={<Book01Icon size={24} />} />
-                <StatCard title="Bank Soal (Exams)" value={stats.activeExams} trend="Siap digunakan" icon={<Edit01Icon size={24} />} />
-                <StatCard title="Sesi Ujian (Sessions)" value={stats.ongoingSessions} trend="Sesi terdaftar" icon={<PlayIcon size={24} />} />
-                <StatCard title="Total Peserta" value={stats.totalTrainees} trend="Aktif di sistem" icon={<UserGroupIcon size={24} />} />
+                <StatCard title="Total Materi (Trainings)" value={stats.totalTrainings} trend={userRole === 'trainer' ? 'Kategori Anda' : 'Update terbaru'} icon={<Book01Icon size={24} />} />
+                <StatCard title="Bank Soal (Exams)" value={stats.activeExams} trend={userRole === 'trainer' ? 'Kategori Anda' : 'Siap digunakan'} icon={<Edit01Icon size={24} />} />
+                <StatCard title="Sesi Ujian (Sessions)" value={stats.ongoingSessions} trend={userRole === 'trainer' ? 'Kategori Anda' : 'Sesi terdaftar'} icon={<PlayIcon size={24} />} />
+                <StatCard title="Total Peserta" value={stats.totalTrainees} trend={userRole === 'trainer' ? 'Peserta sesi Anda' : 'Aktif di sistem'} icon={<UserGroupIcon size={24} />} />
             </div>
 
             {/* Analytics Dashboard */}
@@ -137,7 +215,9 @@ export default async function AdminOverviewPage() {
             {/* Sesi Terkini & Aksi Cepat */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className={userRole === 'admin' ? "lg:col-span-2 space-y-5" : "lg:col-span-3 space-y-5"}>
-                    <h2 className="text-xl font-semibold tracking-tight">Sesi Terkini</h2>
+                    <h2 className="text-xl font-semibold tracking-tight">
+                        {userRole === 'trainer' ? 'Sesi Terkini (Kategori Anda)' : 'Sesi Terkini'}
+                    </h2>
 
                     {recentSessions.length === 0 ? (
                         <div className="glass-card p-10 flex flex-col items-center justify-center min-h-[300px]">
@@ -145,7 +225,11 @@ export default async function AdminOverviewPage() {
                                 <Calendar01Icon size={32} className="text-muted-foreground/50" />
                             </div>
                             <p className="text-base text-muted-foreground font-medium">Belum ada sesi yang terdaftar.</p>
-                            <p className="text-sm text-muted-foreground/70 mt-1">Sesi ujian baru dapat dibuat melalui menu Session Manager.</p>
+                            <p className="text-sm text-muted-foreground/70 mt-1">
+                                {userRole === 'trainer'
+                                    ? 'Belum ada jadwal sesi untuk modul dalam kategori Anda.'
+                                    : 'Sesi ujian baru dapat dibuat melalui menu Session Manager.'}
+                            </p>
                         </div>
                     ) : (
                         <div className="space-y-3">

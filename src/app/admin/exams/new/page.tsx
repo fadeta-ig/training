@@ -4,12 +4,22 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Edit01Icon, FloppyDiskIcon, ArrowLeft01Icon } from 'hugeicons-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+
+interface CategoryOption {
+    id: string;
+    name: string;
+    code: string;
+    color: string;
+}
 
 export default function NewExamPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [availableExams, setAvailableExams] = useState<Array<{ id: string; title: string }>>([]);
     const [formData, setFormData] = useState({
+        category_id: '',
         title: '',
         duration_minutes: 60,
         passing_grade: 70,
@@ -19,7 +29,32 @@ export default function NewExamPage() {
     });
     const [error, setError] = useState<string | null>(null);
 
+    // Proteksi: Trainer tidak diizinkan membuat ujian
     useEffect(() => {
+        fetch('/api/auth/me')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && data.data.role === 'trainer') {
+                    toast.error('Pengajar tidak memiliki izin membuat paket ujian baru.');
+                    router.replace('/admin/exams');
+                }
+            })
+            .catch(() => undefined);
+
+        // Fetch categories list
+        fetch('/api/admin/categories?all=true')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && Array.isArray(data.data)) {
+                    setCategories(data.data);
+                    if (data.data.length > 0) {
+                        setFormData((prev) => ({ ...prev, category_id: prev.category_id || data.data[0].id }));
+                    }
+                }
+            })
+            .catch(() => undefined);
+
+        // Fetch available exams for remedial dropdown
         fetch('/api/exams?limit=100')
             .then((res) => res.json())
             .then((data) => {
@@ -28,10 +63,16 @@ export default function NewExamPage() {
                 }
             })
             .catch(() => {});
-    }, []);
+    }, [router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!formData.category_id) {
+            setError('Kategori pembelajaran wajib dipilih.');
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
 
@@ -50,13 +91,14 @@ export default function NewExamPage() {
             const result = await res.json();
 
             if (result.success) {
+                toast.success('Paket ujian berhasil dibuat');
                 router.push('/admin/exams');
                 router.refresh();
             } else {
                 throw new Error(result.error || 'Gagal menyimpan ujian');
             }
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'Gagal menyimpan ujian');
         } finally {
             setIsLoading(false);
         }
@@ -77,7 +119,7 @@ export default function NewExamPage() {
                         Buat Ujian Baru
                     </h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        Tentukan parameter (waktu, batas kelulusan, dan paket remedial) sebelum memasukkan soal-soal.
+                        Tentukan kategori dan parameter (waktu, batas kelulusan, dan paket remedial) sebelum memasukkan soal-soal.
                     </p>
                 </div>
             </div>
@@ -89,6 +131,29 @@ export default function NewExamPage() {
             )}
 
             <form onSubmit={handleSubmit} className="glass-card space-y-6 p-4 sm:p-6 md:p-8">
+                {/* Category Selection */}
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-foreground">
+                        Kategori Pembelajaran <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                        value={formData.category_id}
+                        onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                        required
+                        className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background"
+                    >
+                        <option value="" disabled>-- Pilih Kategori --</option>
+                        {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                                {c.name} ({c.code})
+                            </option>
+                        ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                        Kategori ini menentukan kelompok topik ujian dan instruktur yang berwenang memantau.
+                    </p>
+                </div>
+
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-foreground">Judul Ujian <span className="text-destructive">*</span></label>
                     <input

@@ -45,7 +45,11 @@ const requiredColumns = {
         initial_password: 'VARCHAR(255) NULL',
         must_change_password: 'BOOLEAN NOT NULL DEFAULT TRUE',
     },
+    trainings: {
+        category_id: 'VARCHAR(36) NULL',
+    },
     exams: {
+        category_id: 'VARCHAR(36) NULL',
         allow_remedial: 'BOOLEAN NOT NULL DEFAULT FALSE',
         max_attempts: 'INT NOT NULL DEFAULT 1',
         remedial_exam_id: 'VARCHAR(36) NULL',
@@ -58,6 +62,7 @@ const requiredColumns = {
         source_row: 'INT NULL',
     },
     modules: {
+        category_id: 'VARCHAR(36) NULL',
         enforce_sequence: 'BOOLEAN NOT NULL DEFAULT FALSE',
     },
     sessions: {
@@ -124,9 +129,35 @@ const requiredIndexes = [
     ['email_outbox', 'idx_email_outbox_dispatch', '(status, available_at, created_at)'],
     ['session_reminder_runs', 'idx_session_reminder_cooldown', '(session_id, created_at)'],
     ['session_reminder_runs', 'uq_session_reminder_bucket', '(session_id, cooldown_bucket)', true],
+    ['trainings', 'idx_trainings_category_created', '(category_id, created_at)'],
+    ['exams', 'idx_exams_category_created', '(category_id, created_at)'],
+    ['modules', 'idx_modules_category_created', '(category_id, created_at)'],
 ];
 
 const requiredTables = {
+    learning_categories: `CREATE TABLE learning_categories (
+        id VARCHAR(36) PRIMARY KEY,
+        name VARCHAR(150) NOT NULL,
+        code VARCHAR(50) UNIQUE NOT NULL,
+        description TEXT NULL,
+        color VARCHAR(30) NOT NULL DEFAULT '#0ea5e9',
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_by VARCHAR(36) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_learning_cat_active (is_active),
+        INDEX idx_learning_cat_code (code)
+    ) ENGINE=InnoDB`,
+    category_trainers: `CREATE TABLE category_trainers (
+        id VARCHAR(36) PRIMARY KEY,
+        category_id VARCHAR(36) NOT NULL,
+        trainer_id VARCHAR(36) NOT NULL,
+        assigned_by VARCHAR(36) NULL,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_category_trainer (category_id, trainer_id),
+        INDEX idx_cat_trainers_trainer (trainer_id),
+        INDEX idx_cat_trainers_category (category_id)
+    ) ENGINE=InnoDB`,
     certification_programs: `CREATE TABLE certification_programs (
         id VARCHAR(36) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,

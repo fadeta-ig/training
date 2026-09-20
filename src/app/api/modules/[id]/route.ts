@@ -2,18 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import pool from '@/lib/db';
 import { moduleSchema } from '@/lib/validations/moduleSchema';
-import { withAuth } from '@/lib/api-auth';
+import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
 import { ModuleItemsError, synchronizeModuleItems } from '@/lib/module-items';
+import { assertTrainerAccess } from '@/lib/data-scoping';
 
 async function handleGet(
-    request: NextRequest,
-    _user: any,
+    _request: NextRequest,
+    user: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
         const resolvedParams = await context.params;
+
+        // Anti-IDOR: Validasi bahwa trainer memiliki akses ke kategori modul ini
+        const hasAccess = await assertTrainerAccess(user, 'modules', resolvedParams.id);
+        if (!hasAccess) {
+            return NextResponse.json(
+                { success: false, error: 'Anda tidak memiliki akses ke modul ini atau modul tidak ditemukan' },
+                { status: 403 }
+            );
+        }
+
         const result = await executeQuery<any[]>(
-            `SELECT * FROM modules WHERE id = ?`,
+            `SELECT m.*, lc.name AS category_name, lc.code AS category_code, lc.color AS category_color
+             FROM modules m
+             LEFT JOIN learning_categories lc ON m.category_id = lc.id
+             WHERE m.id = ? LIMIT 1`,
             [resolvedParams.id]
         );
 
@@ -35,7 +49,7 @@ async function handleGet(
 
 async function handlePut(
     request: NextRequest,
-    _user: any,
+    _user: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     let connection;
@@ -51,7 +65,7 @@ async function handlePut(
             );
         }
 
-        const { title, description, enforce_sequence, items } = parsed.data;
+        const { category_id, title, description, enforce_sequence, items } = parsed.data;
 
         connection = await pool.getConnection();
         await connection.beginTransaction();
@@ -68,8 +82,8 @@ async function handlePut(
         }
 
         await connection.execute(
-            `UPDATE modules SET title = ?, description = ?, enforce_sequence = ? WHERE id = ?`,
-            [title, description || null, enforce_sequence ? 1 : 0, resolvedParams.id]
+            `UPDATE modules SET category_id = ?, title = ?, description = ?, enforce_sequence = ? WHERE id = ?`,
+            [category_id || null, title, description || null, enforce_sequence ? 1 : 0, resolvedParams.id]
         );
 
         await synchronizeModuleItems(connection, resolvedParams.id, items);
@@ -92,8 +106,8 @@ async function handlePut(
 }
 
 async function handleDelete(
-    request: NextRequest,
-    _user: any,
+    _request: NextRequest,
+    _user: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     let connection;

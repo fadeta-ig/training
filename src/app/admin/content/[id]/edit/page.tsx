@@ -8,8 +8,16 @@ import dynamic from 'next/dynamic';
 import MediaAttachmentManager from '@/components/ui/MediaAttachmentManager';
 import type { MediaItem } from '@/components/ui/MediaAttachmentManager';
 import { safeFetchJson } from '@/lib/api-client';
+import { toast } from 'sonner';
 
 const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), { ssr: false });
+
+interface CategoryOption {
+    id: string;
+    name: string;
+    code: string;
+    color: string;
+}
 
 export default function EditTrainingPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
@@ -17,27 +25,54 @@ export default function EditTrainingPage({ params }: { params: Promise<{ id: str
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [categories, setCategories] = useState<CategoryOption[]>([]);
 
     const [formData, setFormData] = useState({
+        category_id: '',
         title: '',
         content_html: '',
     });
     const [media, setMedia] = useState<MediaItem[]>([]);
     const [error, setError] = useState<string | null>(null);
 
+    // Proteksi: Trainer tidak diizinkan mengubah materi
+    useEffect(() => {
+        fetch('/api/auth/me')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && data.data.role === 'trainer') {
+                    toast.error('Pengajar tidak memiliki izin mengedit materi.');
+                    router.replace('/admin/content');
+                }
+            })
+            .catch(() => undefined);
+
+        // Fetch categories list
+        fetch('/api/admin/categories?all=true')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && Array.isArray(data.data)) {
+                    setCategories(data.data);
+                }
+            })
+            .catch(() => undefined);
+    }, [router]);
+
     useEffect(() => {
         const fetchTraining = async () => {
             try {
                 const res = await safeFetchJson<{ success: boolean; data: any; error?: string }>(`/api/trainings/${resolvedParams.id}`);
                 if (res.ok && res.data?.success) {
+                    const item = res.data.data;
                     setFormData({
-                        title: res.data.data.title,
-                        content_html: res.data.data.content_html,
+                        category_id: item.category_id || '',
+                        title: item.title || '',
+                        content_html: item.content_html || '',
                     });
                     // Map existing media to form-compatible shape
-                    if (res.data.data.media && Array.isArray(res.data.data.media)) {
+                    if (item.media && Array.isArray(item.media)) {
                         setMedia(
-                            res.data.data.media.map((m: any) => ({
+                            item.media.map((m: any) => ({
                                 media_type: m.media_type,
                                 media_url: m.media_url,
                                 original_filename: m.original_filename || '',
@@ -59,6 +94,11 @@ export default function EditTrainingPage({ params }: { params: Promise<{ id: str
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData.category_id) {
+            setError('Kategori pembelajaran wajib dipilih.');
+            return;
+        }
+
         setIsSaving(true);
         setError(null);
 
@@ -70,6 +110,7 @@ export default function EditTrainingPage({ params }: { params: Promise<{ id: str
             });
 
             if (res.ok && res.data?.success) {
+                toast.success('Materi pelatihan berhasil diperbarui');
                 router.push('/admin/content');
                 router.refresh();
             } else {
@@ -113,6 +154,29 @@ export default function EditTrainingPage({ params }: { params: Promise<{ id: str
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="glass-card space-y-6 p-4 sm:p-6 md:p-8">
+                    {/* Category Selection */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-foreground">
+                            Kategori Pembelajaran <span className="text-destructive">*</span>
+                        </label>
+                        <select
+                            value={formData.category_id}
+                            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                            required
+                            className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background"
+                        >
+                            <option value="" disabled>-- Pilih Kategori --</option>
+                            {categories.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                    {c.name} ({c.code})
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-muted-foreground">
+                            Kategori ini menentukan kelompok topik materi dan instruktur yang berwenang mengampu.
+                        </p>
+                    </div>
+
                     <div className="space-y-2">
                         <label className="text-sm font-bold text-foreground">Judul <span className="text-destructive">*</span></label>
                         <input

@@ -16,6 +16,14 @@ import {
 import { Lock, Unlock, Sparkles, Layers, ListOrdered } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+
+interface CategoryOption {
+    id: string;
+    name: string;
+    code: string;
+    color: string;
+}
 
 type MasterItem = {
     id: string;
@@ -39,7 +47,8 @@ export default function NewModuleBuilderPage() {
     const [trainings, setTrainings] = useState<MasterItem[]>([]);
     const [exams, setExams] = useState<MasterItem[]>([]);
 
-    // Form State
+    const [categories, setCategories] = useState<CategoryOption[]>([]);
+    const [categoryId, setCategoryId] = useState('');
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [enforceSequence, setEnforceSequence] = useState(false);
@@ -47,7 +56,31 @@ export default function NewModuleBuilderPage() {
 
     const [error, setError] = useState<string | null>(null);
 
+    // Proteksi: Trainer tidak diizinkan membuat modul
     useEffect(() => {
+        fetch('/api/auth/me')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && data.data.role === 'trainer') {
+                    toast.error('Pengajar tidak memiliki izin membuat modul baru.');
+                    router.replace('/admin/modules');
+                }
+            })
+            .catch(() => undefined);
+
+        // Fetch categories list
+        fetch('/api/admin/categories?all=true')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && Array.isArray(data.data)) {
+                    setCategories(data.data);
+                    if (data.data.length > 0) {
+                        setCategoryId((prev) => prev || data.data[0].id);
+                    }
+                }
+            })
+            .catch(() => undefined);
+
         // Fetch available trainings and exams
         Promise.all([
             fetch('/api/trainings').then(res => res.json()),
@@ -60,7 +93,7 @@ export default function NewModuleBuilderPage() {
                 setExams(eRes.data.map((e: any) => ({ ...e, type: 'exam' })));
             }
         });
-    }, []);
+    }, [router]);
 
     const addItem = (item: MasterItem) => {
         const newItem: ModuleItem = {
@@ -98,6 +131,11 @@ export default function NewModuleBuilderPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (!categoryId) {
+            setError("Kategori pembelajaran wajib dipilih.");
+            return;
+        }
+
         if (selectedItems.length === 0) {
             setError("Anda harus memasukkan setidaknya satu item (Pelatihan atau Ujian) ke dalam modul.");
             return;
@@ -107,6 +145,7 @@ export default function NewModuleBuilderPage() {
         setError(null);
 
         const payload = {
+            category_id: categoryId,
             title,
             description,
             enforce_sequence: enforceSequence,
@@ -127,13 +166,14 @@ export default function NewModuleBuilderPage() {
             const result = await res.json();
 
             if (result.success) {
+                toast.success('Modul pelatihan berhasil dibuat');
                 router.push('/admin/modules');
                 router.refresh();
             } else {
                 throw new Error(result.error || 'Gagal membuat modul');
             }
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'Gagal membuat modul');
         } finally {
             setIsLoading(false);
         }
@@ -171,6 +211,29 @@ export default function NewModuleBuilderPage() {
                 <div className="lg:col-span-8 space-y-6">
                     <div className="glass-card p-6 space-y-5">
                         <h2 className="text-lg font-bold border-b border-black/5 pb-3">1. Informasi Modul</h2>
+
+                        {/* Category Selection */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-foreground">
+                                Kategori Pembelajaran <span className="text-destructive">*</span>
+                            </label>
+                            <select
+                                value={categoryId}
+                                onChange={(e) => setCategoryId(e.target.value)}
+                                required
+                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background"
+                            >
+                                <option value="" disabled>-- Pilih Kategori --</option>
+                                {categories.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name} ({c.code})
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-xs text-muted-foreground">
+                                Kategori ini menentukan kelompok topik modul pelatihan dan instruktur yang berwenang.
+                            </p>
+                        </div>
 
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-foreground">Judul Modul <span className="text-destructive">*</span></label>

@@ -6,14 +6,17 @@ import { withAuth } from '@/lib/api-auth';
 import pool from '@/lib/db';
 import { cleanupUnusedUploads } from '@/lib/upload-cleanup';
 
+import { assertTrainerAccess } from '@/lib/data-scoping';
+import type { AuthenticatedUser } from '@/lib/api-auth';
+
 async function handleGet(
-    request: NextRequest,
-    _user: any,
+    _request: NextRequest,
+    user: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
         const resolvedParams = await context.params;
-        const questions = await executeQuery(
+        const questions = await executeQuery<any[]>(
             `SELECT id, exam_id, question_type, question_text, question_image, options_json, correct_option_index, correct_answer, points, sequence_order FROM questions WHERE id = ?`,
             [resolvedParams.id]
         );
@@ -21,6 +24,13 @@ async function handleGet(
         const data = Array.isArray(questions) ? questions[0] : null;
         if (!data) {
             return NextResponse.json({ success: false, error: 'Soal tidak ditemukan' }, { status: 404 });
+        }
+
+        if (user.role === 'trainer') {
+            const hasAccess = await assertTrainerAccess(user, 'exams', data.exam_id);
+            if (!hasAccess) {
+                return NextResponse.json({ success: false, error: 'Anda tidak memiliki akses ke soal ini' }, { status: 403 });
+            }
         }
 
         return NextResponse.json({ success: true, data });

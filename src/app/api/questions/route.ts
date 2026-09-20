@@ -4,29 +4,54 @@ import { executeQuery } from '@/lib/db';
 import { questionSchema } from '@/lib/validations/questionSchema';
 import { buildQuestionData } from '@/lib/question-helpers';
 import { withAuth } from '@/lib/api-auth';
+import { assertTrainerAccess, resolveUserCategoryScope } from '@/lib/data-scoping';
 import { parsePagination } from '@/lib/sanitize';
+import type { AuthenticatedUser } from '@/lib/api-auth';
 
-async function handleGet(request: NextRequest) {
+async function handleGet(request: NextRequest, user: AuthenticatedUser) {
     try {
         const { searchParams } = new URL(request.url);
         const examId = searchParams.get('examId');
 
         const { page, limit, offset } = parsePagination(searchParams, 100, 200);
 
-        let countQuery = `SELECT COUNT(*) as total FROM questions`;
+        if (examId) {
+            const hasAccess = await assertTrainerAccess(user, 'exams', examId);
+            if (!hasAccess) {
+                return NextResponse.json(
+                    { success: false, error: 'Anda tidak memiliki akses ke butir soal ujian ini' },
+                    { status: 403 }
+                );
+            }
+        } else if (user.role === 'trainer') {
+            const scope = await resolveUserCategoryScope(user, 'e');
+            if (scope.categoryIds.length === 0) {
+                return NextResponse.json({ success: true, data: [], pagination: { total: 0, page: 1, limit, totalPages: 0 } });
+            }
+        }
+
+        let countQuery = `SELECT COUNT(*) as total FROM questions q`;
         const countParams: (string | number)[] = [];
 
-        let query = `SELECT id, exam_id, question_type, question_text, question_image, options_json, correct_option_index, correct_answer, points, sequence_order FROM questions`;
+        let query = `SELECT q.id, q.exam_id, q.question_type, q.question_text, q.question_image, q.options_json, q.correct_option_index, q.correct_answer, q.points, q.sequence_order FROM questions q`;
         const params: (string | number)[] = [];
 
         if (examId) {
-            countQuery += ` WHERE exam_id = ?`;
+            countQuery += ` WHERE q.exam_id = ?`;
             countParams.push(examId);
 
-            query += ` WHERE exam_id = ? ORDER BY sequence_order ASC, id ASC LIMIT ? OFFSET ?`;
+            query += ` WHERE q.exam_id = ? ORDER BY q.sequence_order ASC, q.id ASC LIMIT ? OFFSET ?`;
             params.push(examId, limit, offset);
+        } else if (user.role === 'trainer') {
+            const scope = await resolveUserCategoryScope(user, 'e');
+            const placeholders = scope.categoryIds.map(() => '?').join(',');
+            countQuery += ` JOIN exams e ON q.exam_id = e.id WHERE e.category_id IN (${placeholders})`;
+            countParams.push(...scope.categoryIds);
+
+            query += ` JOIN exams e ON q.exam_id = e.id WHERE e.category_id IN (${placeholders}) ORDER BY q.sequence_order ASC, q.id ASC LIMIT ? OFFSET ?`;
+            params.push(...scope.categoryIds, limit, offset);
         } else {
-            query += ` ORDER BY sequence_order ASC, id ASC LIMIT ? OFFSET ?`;
+            query += ` ORDER BY q.sequence_order ASC, q.id ASC LIMIT ? OFFSET ?`;
             params.push(limit, offset);
         }
 

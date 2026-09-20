@@ -15,6 +15,7 @@ import {
     Target,
     Timer,
     Trash2,
+    Tag,
 } from 'lucide-react';
 import { ManagementPageHeader } from '@/components/admin/ManagementPageHeader';
 import {
@@ -39,6 +40,10 @@ import { toast } from 'sonner';
 
 type Exam = {
     id: string;
+    category_id?: string | null;
+    category_name?: string | null;
+    category_code?: string | null;
+    category_color?: string | null;
     title: string;
     duration_minutes: number;
     passing_grade: number;
@@ -51,6 +56,13 @@ type Exam = {
     module_count?: number;
     is_remedial_package?: boolean | number;
 };
+
+interface CategoryOption {
+    id: string;
+    name: string;
+    code: string;
+    color: string;
+}
 
 const SORT_OPTIONS: SortOption[] = [
     { label: 'Terbaru Dibuat', value: 'created_desc' },
@@ -74,6 +86,7 @@ function formatDate(value: string) {
 
 export default function ExamsManagerPage() {
     const [exams, setExams] = useState<Exam[]>([]);
+    const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
@@ -85,6 +98,7 @@ export default function ExamsManagerPage() {
 
     // Search, Filter, Sort States
     const [search, setSearch] = useState('');
+    const [category, setCategory] = useState('all');
     const [examType, setExamType] = useState('all');
     const [allowRemedial, setAllowRemedial] = useState('all');
     const [questionStatus, setQuestionStatus] = useState('all');
@@ -92,11 +106,24 @@ export default function ExamsManagerPage() {
 
     const { confirm, ConfirmComponent } = useConfirm();
 
+    // Fetch accessible categories for filter
+    useEffect(() => {
+        fetch('/api/admin/categories?all=true')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && Array.isArray(data.data)) {
+                    setCategories(data.data);
+                }
+            })
+            .catch(() => undefined);
+    }, []);
+
     const fetchExams = useCallback(
         async (
             targetPage: number,
             limit: number,
             currentSearch = search,
+            currentCategory = category,
             currentExamType = examType,
             currentAllowRemedial = allowRemedial,
             currentQuestionStatus = questionStatus,
@@ -109,6 +136,7 @@ export default function ExamsManagerPage() {
                     page: String(targetPage),
                     limit: String(limit),
                     search: currentSearch,
+                    category_id: currentCategory,
                     exam_type: currentExamType,
                     allow_remedial: currentAllowRemedial,
                     question_status: currentQuestionStatus,
@@ -127,7 +155,7 @@ export default function ExamsManagerPage() {
                 setIsLoading(false);
             }
         },
-        [search, examType, allowRemedial, questionStatus, sort]
+        [search, category, examType, allowRemedial, questionStatus, sort]
     );
 
     useEffect(() => {
@@ -145,6 +173,11 @@ export default function ExamsManagerPage() {
 
     const handleSearchChange = (newSearch: string) => {
         setSearch(newSearch);
+        setPage(1);
+    };
+
+    const handleCategoryChange = (newCategory: string) => {
+        setCategory(newCategory);
         setPage(1);
     };
 
@@ -170,6 +203,7 @@ export default function ExamsManagerPage() {
 
     const handleReset = () => {
         setSearch('');
+        setCategory('all');
         setExamType('all');
         setAllowRemedial('all');
         setQuestionStatus('all');
@@ -179,6 +213,7 @@ export default function ExamsManagerPage() {
 
     const isFilterActive =
         search.trim() !== '' ||
+        category !== 'all' ||
         examType !== 'all' ||
         allowRemedial !== 'all' ||
         questionStatus !== 'all' ||
@@ -186,78 +221,97 @@ export default function ExamsManagerPage() {
 
     const filterConfigs: FilterItemConfig[] = [
         {
+            id: 'category',
+            label: 'Kategori',
+            value: category,
+            onChange: handleCategoryChange,
+            options: [
+                { label: 'Semua Kategori', value: 'all' },
+                ...categories.map((c) => ({
+                    label: `${c.name} (${c.code})`,
+                    value: c.id,
+                })),
+            ],
+        },
+        {
             id: 'exam_type',
-            label: 'Tipe Ujian',
+            label: 'Tipe Paket Ujian',
             value: examType,
             onChange: handleExamTypeChange,
             options: [
-                { label: 'Semua Tipe Ujian', value: 'all' },
+                { label: 'Semua Tipe Paket', value: 'all' },
                 { label: 'Ujian Reguler', value: 'regular' },
-                { label: 'Paket Remidial', value: 'remedial' },
+                { label: 'Paket Remedial Saja', value: 'remedial' },
             ],
         },
         {
             id: 'allow_remedial',
-            label: 'Opsi Remidi',
+            label: 'Hak Remedial',
             value: allowRemedial,
             onChange: handleAllowRemedialChange,
             options: [
-                { label: 'Semua Opsi Remidi', value: 'all' },
-                { label: 'Bisa Remidial', value: 'yes' },
-                { label: 'Tanpa Remidial', value: 'no' },
+                { label: 'Semua Kebijakan Remedial', value: 'all' },
+                { label: 'Mengizinkan Remedial', value: 'yes' },
+                { label: 'Tanpa Remedial', value: 'no' },
             ],
         },
         {
             id: 'question_status',
-            label: 'Status Bank Soal',
+            label: 'Ketersediaan Soal',
             value: questionStatus,
             onChange: handleQuestionStatusChange,
             options: [
                 { label: 'Semua Bank Soal', value: 'all' },
-                { label: 'Ada Butir Soal', value: 'has_questions' },
+                { label: 'Sudah Memiliki Soal', value: 'has_questions' },
                 { label: 'Belum Ada Soal', value: 'no_questions' },
             ],
         },
     ];
 
     const duplicateExam = async (id: string, title: string) => {
-        const isConfirmed = await confirm({
-            title: 'Duplikasi Ujian & Bank Soal?',
-            message: `Ujian "${title}" beserta seluruh kumpulan soal di dalamnya akan diduplikasi sebagai ujian baru. Hasil duplikasi dapat disesuaikan atau diedit kembali. Lanjutkan?`,
+        const confirmed = await confirm({
+            title: `Duplikasi Ujian "${title}"?`,
+            message: 'Sistem akan membuat salinan paket ujian ini beserta seluruh butir soalnya.',
+            confirmLabel: 'Duplikasi Sekarang',
             isDestructive: false,
-            confirmLabel: 'Ya, Duplikasi',
-            cancelLabel: 'Batal',
         });
-        if (!isConfirmed) return;
+
+        if (!confirmed) return;
 
         setDuplicatingId(id);
         try {
-            const response = await fetch(`/api/exams/${id}/duplicate`, { method: 'POST' });
-            const body = await response.json();
-            if (!response.ok || !body.success) throw new Error(body.error || 'Gagal menduplikasi ujian');
-            toast.success(`Ujian "${body.data.title}" berhasil diduplikasi (${body.data.questionCount} butir soal)`);
-            setPage(1);
-            fetchExams(1, pageSize);
-        } catch (caught) {
-            toast.error(caught instanceof Error ? caught.message : 'Gagal menduplikasi ujian');
+            const res = await fetch(`/api/exams/${id}/duplicate`, { method: 'POST' });
+            const body = await res.json();
+            if (!res.ok || !body.success) {
+                toast.error(body.error || 'Gagal menduplikasi ujian');
+                return;
+            }
+            toast.success('Ujian berhasil diduplikasi');
+            fetchExams(page, pageSize);
+        } catch {
+            toast.error('Terjadi kesalahan saat menduplikasi ujian');
         } finally {
             setDuplicatingId(null);
         }
     };
 
     const deleteExam = async (id: string, title: string) => {
-        const isConfirmed = await confirm({
-            title: 'Hapus Ujian?',
-            message: `Apakah Anda yakin ingin menghapus ujian "${title}" beserta seluruh soalnya secara permanen? Aksi ini tidak dapat dibatalkan.`,
+        const confirmed = await confirm({
+            title: `Hapus ujian "${title}"?`,
+            message: 'Ujian yang sudah dihapus tidak dapat dipulihkan. Pastikan ujian ini tidak lagi digunakan.',
+            confirmLabel: 'Hapus ujian',
             isDestructive: true,
-            confirmLabel: 'Ya, Hapus Ujian',
-            cancelLabel: 'Batal',
         });
-        if (!isConfirmed) return;
+
+        if (!confirmed) return;
 
         try {
             const response = await fetch(`/api/exams/${id}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Gagal menghapus ujian');
+            const body = await response.json();
+            if (!response.ok || !body.success) {
+                toast.error(body.error || 'Gagal menghapus ujian');
+                return;
+            }
             toast.success('Ujian berhasil dihapus');
             fetchExams(page, pageSize);
         } catch (caught) {
@@ -269,8 +323,12 @@ export default function ExamsManagerPage() {
         <div className="relative max-w-6xl space-y-6 pb-12">
             <ConfirmComponent />
             <ManagementPageHeader
-                title="Ujian & Bank Soal"
-                description="Atur durasi dan nilai kelulusan, lalu susun pertanyaan yang akan digunakan dalam evaluasi peserta."
+                title="Bank Soal & Ujian"
+                description={
+                    userRole === 'trainer'
+                        ? 'Daftar bank soal dan konfigurasi ujian yang ditugaskan kepada Anda.'
+                        : 'Kelola paket evaluasi, batas waktu, passing grade, dan bank butir soal yang siap diujikan.'
+                }
                 icon={<FileQuestion className="size-7" />}
                 actionLabel={userRole === 'admin' ? 'Buat Ujian Baru' : undefined}
                 actionHref={userRole === 'admin' ? '/admin/exams/new' : undefined}
@@ -282,7 +340,7 @@ export default function ExamsManagerPage() {
             <LearningFilterBar
                 search={search}
                 onSearchChange={handleSearchChange}
-                searchPlaceholder="Cari judul ujian atau bank soal..."
+                searchPlaceholder="Cari judul ujian atau kode kategori..."
                 filters={filterConfigs}
                 sort={sort}
                 onSortChange={handleSortChange}
@@ -321,12 +379,14 @@ export default function ExamsManagerPage() {
                 ) : (
                     <div className="rounded-lg border border-dashed px-6 py-14 text-center">
                         <FileQuestion className="mx-auto size-9 text-muted-foreground/50" />
-                        <h2 className="mt-4 font-medium">Belum ada ujian</h2>
+                        <h2 className="mt-4 font-medium">Belum ada paket ujian</h2>
                         <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-                            Buat parameter ujian pertama, kemudian tambahkan pertanyaan melalui Bank Soal.
+                            {userRole === 'trainer'
+                                ? 'Belum ada paket ujian yang ditugaskan oleh Administrator kepada Anda.'
+                                : 'Mulai rancang evaluasi belajar dengan menentukan durasi, passing grade, dan butir soal.'}
                         </p>
                         {userRole === 'admin' && (
-                            <Link href="/admin/exams/new" className={cn(buttonVariants({ size: 'lg' }), 'mt-5')}>
+                            <Link href="/admin/exams/new" className={cn(buttonVariants(), 'mt-5')}>
                                 <Plus /> Buat Ujian Pertama
                             </Link>
                         )}
@@ -335,35 +395,37 @@ export default function ExamsManagerPage() {
             ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                     {exams.map((exam) => (
-                        <Card key={exam.id} className="gap-0 rounded-lg py-0 shadow-none">
-                            <CardHeader className="gap-4 px-5 pb-4 pt-5">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <Badge variant="outline" className="rounded-md text-muted-foreground">
-                                            <FileQuestion /> Ujian
-                                        </Badge>
-                                        {Boolean(exam.is_remedial_package) && (
-                                            <Badge variant="outline" className="rounded-md border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300 text-[11px]">
-                                                Paket Remidial
-                                            </Badge>
+                        <Card key={exam.id} className="flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md transition-shadow">
+                            <CardHeader className="space-y-3 p-5">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        {/* Category Badge */}
+                                        {exam.category_code && (
+                                            <span
+                                                className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase tracking-wider"
+                                                style={{
+                                                    backgroundColor: `${exam.category_color || '#0ea5e9'}18`,
+                                                    color: exam.category_color || '#0ea5e9',
+                                                }}
+                                            >
+                                                {exam.category_code}
+                                            </span>
                                         )}
-                                        {(exam.allow_remedial === 1 || exam.allow_remedial === true) && (
-                                            <Badge variant="secondary" className="rounded-md text-xs font-normal border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                                                {exam.remedial_exam_title ? `Remidial: ${exam.remedial_exam_title}` : `Remidial (${exam.max_attempts || 2}x)`}
-                                            </Badge>
-                                        )}
-                                        {Number(exam.question_count) > 0 ? (
-                                            <Badge variant="outline" className="rounded-md border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 text-[11px]">
-                                                {exam.question_count} Soal
+                                        {Boolean(exam.is_remedial_package) ? (
+                                            <Badge variant="secondary" className="rounded-md border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-[11px]">
+                                                Paket Remedial
                                             </Badge>
                                         ) : (
-                                            <Badge variant="outline" className="rounded-md border-amber-200 text-amber-600 dark:border-amber-900 text-[11px]">
-                                                Belum Ada Soal
+                                            <Badge variant="outline" className="rounded-md text-[11px] font-normal">
+                                                Ujian Reguler
                                             </Badge>
                                         )}
-                                        {Number(exam.module_count) > 0 && (
-                                            <Badge variant="outline" className="rounded-md border-slate-200 text-slate-500 dark:border-slate-800 text-[11px]">
-                                                {exam.module_count} Modul
+                                        <Badge variant="outline" className="rounded-md text-[11px] font-normal">
+                                            {exam.question_count || 0} Soal
+                                        </Badge>
+                                        {Boolean(exam.allow_remedial) && (
+                                            <Badge variant="outline" className="rounded-md border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 text-[11px]">
+                                                Remedial Aktif
                                             </Badge>
                                         )}
                                     </div>
@@ -373,8 +435,9 @@ export default function ExamsManagerPage() {
                                 </div>
                                 <div>
                                     <CardTitle className="line-clamp-2 text-lg font-semibold leading-6">{exam.title}</CardTitle>
-                                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                                        Evaluasi peserta dengan durasi dan batas kelulusan yang telah ditentukan.
+                                    <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
+                                        <Tag size={12} className="text-muted-foreground/70" />
+                                        <span>Kategori: {exam.category_name || 'Umum'}</span>
                                     </p>
                                 </div>
                             </CardHeader>
@@ -397,8 +460,8 @@ export default function ExamsManagerPage() {
                             </CardContent>
 
                             <CardFooter className="justify-between gap-3 rounded-b-lg border-t bg-muted/30 px-5 py-3">
-                                <Link href={`/admin/exams/${exam.id}/questions`} className={buttonVariants({ size: 'lg' })}>
-                                    <ListChecks /> {userRole === 'admin' ? 'Kelola bank soal' : 'Lihat bank soal'}
+                                <Link href={`/admin/exams/${exam.id}/questions`} className={buttonVariants({ size: 'sm' })}>
+                                    <ListChecks className="size-4 mr-1.5" /> {userRole === 'admin' ? 'Kelola bank soal' : 'Lihat bank soal'}
                                 </Link>
                                 {userRole === 'admin' && (
                                     <div className="flex items-center gap-2">
@@ -423,7 +486,7 @@ export default function ExamsManagerPage() {
                                             aria-label={`Edit ujian ${exam.title}`}
                                             title="Edit parameter ujian"
                                         >
-                                            <Pencil />
+                                            <Pencil size={15} />
                                         </Link>
                                         <Button
                                             type="button"
@@ -433,7 +496,7 @@ export default function ExamsManagerPage() {
                                             aria-label={`Hapus ujian ${exam.title}`}
                                             title="Hapus ujian"
                                         >
-                                            <Trash2 />
+                                            <Trash2 size={15} />
                                         </Button>
                                     </div>
                                 )}

@@ -4,6 +4,14 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Edit01Icon, FloppyDiskIcon, ArrowLeft01Icon } from 'hugeicons-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+
+interface CategoryOption {
+    id: string;
+    name: string;
+    code: string;
+    color: string;
+}
 
 export default function EditExamPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
@@ -11,9 +19,11 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [availableExams, setAvailableExams] = useState<Array<{ id: string; title: string }>>([]);
 
     const [formData, setFormData] = useState({
+        category_id: '',
         title: '',
         duration_minutes: 60,
         passing_grade: 70,
@@ -22,6 +32,29 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
         remedial_exam_id: '' as string,
     });
     const [error, setError] = useState<string | null>(null);
+
+    // Proteksi: Trainer tidak diizinkan mengubah ujian
+    useEffect(() => {
+        fetch('/api/auth/me')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && data.data.role === 'trainer') {
+                    toast.error('Pengajar tidak memiliki izin mengedit paket ujian.');
+                    router.replace('/admin/exams');
+                }
+            })
+            .catch(() => undefined);
+
+        // Fetch categories list
+        fetch('/api/admin/categories?all=true')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success && Array.isArray(data.data)) {
+                    setCategories(data.data);
+                }
+            })
+            .catch(() => undefined);
+    }, [router]);
 
     useEffect(() => {
         const fetchExamAndOptions = async () => {
@@ -38,7 +71,8 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
 
                 if (examData.success) {
                     setFormData({
-                        title: examData.data.title,
+                        category_id: examData.data.category_id || '',
+                        title: examData.data.title || '',
                         duration_minutes: examData.data.duration_minutes,
                         passing_grade: Number(examData.data.passing_grade),
                         allow_remedial: examData.data.allow_remedial === 1 || examData.data.allow_remedial === true,
@@ -46,7 +80,7 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
                         remedial_exam_id: examData.data.remedial_exam_id || '',
                     });
                 } else {
-                    throw new Error(examData.error);
+                    throw new Error(examData.error || 'Gagal memuat ujian');
                 }
 
                 if (listData.success && Array.isArray(listData.data)) {
@@ -54,7 +88,7 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
                     setAvailableExams(listData.data.filter((ex: { id: string }) => ex.id !== resolvedParams.id));
                 }
             } catch (err: any) {
-                setError(err.message);
+                setError(err.message || 'Gagal memuat ujian');
             } finally {
                 setIsLoading(false);
             }
@@ -64,6 +98,12 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!formData.category_id) {
+            setError('Kategori pembelajaran wajib dipilih.');
+            return;
+        }
+
         setIsSaving(true);
         setError(null);
 
@@ -82,13 +122,14 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
             const result = await res.json();
 
             if (result.success) {
+                toast.success('Paket ujian berhasil diperbarui');
                 router.push('/admin/exams');
                 router.refresh();
             } else {
                 throw new Error(result.error || 'Gagal menyimpan perubahan ujian');
             }
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'Gagal menyimpan ujian');
         } finally {
             setIsSaving(false);
         }
@@ -108,10 +149,10 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
                         <Edit01Icon size={28} className="text-muted-foreground" />
-                        Edit Informasi Ujian
+                        Edit Ujian
                     </h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        Perbarui batas kelulusan, durasi waktu, atau paket soal remedial untuk ujian ini.
+                        Perbarui kategori dan pengaturan ujian ini.
                     </p>
                 </div>
             </div>
@@ -123,6 +164,29 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
             )}
 
             <form onSubmit={handleSubmit} className="glass-card space-y-6 p-4 sm:p-6 md:p-8">
+                {/* Category Selection */}
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-foreground">
+                        Kategori Pembelajaran <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                        value={formData.category_id}
+                        onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                        required
+                        className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background"
+                    >
+                        <option value="" disabled>-- Pilih Kategori --</option>
+                        {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                                {c.name} ({c.code})
+                            </option>
+                        ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                        Kategori ini menentukan kelompok topik ujian dan instruktur yang berwenang memantau.
+                    </p>
+                </div>
+
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-foreground">Judul Ujian <span className="text-destructive">*</span></label>
                     <input
@@ -146,6 +210,7 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
                             value={formData.duration_minutes}
                             onChange={e => setFormData({ ...formData, duration_minutes: Number(e.target.value) })}
                         />
+                        <p className="text-xs text-muted-foreground">Antara 10 hingga 300 menit.</p>
                     </div>
 
                     <div className="space-y-2">
@@ -159,6 +224,7 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
                             value={formData.passing_grade}
                             onChange={e => setFormData({ ...formData, passing_grade: Number(e.target.value) })}
                         />
+                        <p className="text-xs text-muted-foreground">Persentase minimum untuk lulus (0-100).</p>
                     </div>
                 </div>
 

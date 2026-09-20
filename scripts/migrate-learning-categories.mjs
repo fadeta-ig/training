@@ -138,7 +138,7 @@ async function runMigration() {
         }
 
         // 6. Buat Kategori Default jika belum ada (Safe Data Backfill)
-        const defaultCategoryId = 'cat-default-00000000-0000-0000-0000-000000000001';
+        const defaultCategoryId = '00000000-0000-0000-0000-000000000001';
         const [existingCategory] = await connection.execute(
             `SELECT id FROM learning_categories WHERE id = ? OR code = 'UMUM' LIMIT 1`,
             [defaultCategoryId]

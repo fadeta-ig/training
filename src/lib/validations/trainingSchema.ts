@@ -11,7 +11,7 @@ export const mediaItemSchema = z.object({
 });
 
 export const trainingSchema = z.object({
-    category_id: z.string().uuid('Kategori harus berupa UUID yang valid').nullable().optional().or(z.literal('')),
+    category_id: z.string().trim().max(50, 'ID Kategori maksimal 50 karakter').nullable().optional().or(z.literal('')),
     title: z.string().trim().min(3, 'Judul materi pelatihan minimal 3 karakter').max(150, 'Judul materi maksimal 150 karakter'),
     content_html: z.string()
         .min(1, 'Konten materi tidak boleh kosong')

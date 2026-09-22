@@ -16,11 +16,11 @@ export const categorySchema = z.object({
         .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Format warna harus hex yang valid (contoh: #0ea5e9)')
         .default('#0ea5e9'),
     is_active: z.boolean().default(true),
-    trainer_ids: z.array(z.string().uuid('ID trainer tidak valid')).optional().default([]),
+    trainer_ids: z.array(z.string().trim().max(50, 'ID trainer tidak valid')).optional().default([]),
 });
 
 export const assignTrainersSchema = z.object({
-    trainer_ids: z.array(z.string().uuid('ID trainer tidak valid')),
+    trainer_ids: z.array(z.string().trim().max(50, 'ID trainer tidak valid')),
 });
 
 export type CategoryInput = z.infer<typeof categorySchema>;

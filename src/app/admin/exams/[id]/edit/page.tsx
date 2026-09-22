@@ -73,7 +73,7 @@ export default function EditExamPage({ params }: { params: Promise<{ id: string 
                     setFormData({
                         category_id: examData.data.category_id || '',
                         title: examData.data.title || '',
-                        duration_minutes: examData.data.duration_minutes,
+                        duration_minutes: Number(examData.data.duration_minutes) || 60,
                         passing_grade: Number(examData.data.passing_grade),
                         allow_remedial: examData.data.allow_remedial === 1 || examData.data.allow_remedial === true,
                         max_attempts: Number(examData.data.max_attempts) || 1,

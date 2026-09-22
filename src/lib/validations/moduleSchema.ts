@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
 export const moduleSchema = z.object({
-    category_id: z.string().uuid('Kategori harus berupa UUID yang valid').nullable().optional().or(z.literal('')),
+    category_id: z.string().trim().max(50, 'ID Kategori maksimal 50 karakter').nullable().optional().or(z.literal('')),
     title: z.string().trim().min(3, 'Judul modul minimal 3 karakter').max(150, 'Judul modul maksimal 150 karakter'),
     description: z.string().optional(),
     enforce_sequence: z.boolean().optional().default(false),
     items: z.array(
         z.object({
             item_type: z.enum(['training', 'exam']),
-            item_id: z.string().uuid('Item ID harus berupa UUID yang valid'),
-            sequence_order: z.number().int().min(1)
+            item_id: z.string().trim().max(50, 'Item ID harus berupa string yang valid'),
+            sequence_order: z.coerce.number().int().min(1)
         })
     ).max(500, 'Maksimal 500 item dalam satu modul').optional().default([])
 }).superRefine((value, context) => {

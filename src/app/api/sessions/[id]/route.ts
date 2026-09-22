@@ -312,7 +312,10 @@ async function handleGet(
         for (const exam of sourceExamItems || []) {
             if (session.session_type === 'remedial') {
                 const remedialItem = (moduleItems || []).find(
-                    (item: any) => item.item_type === 'exam' && item.item_id === (exam.remedial_exam_id || exam.source_exam_id || exam.exam_id),
+                    (item: any) => item.item_type === 'exam' && (
+                        item.item_id === exam.exam_id ||
+                        (Boolean(exam.remedial_exam_id) && item.item_id === exam.remedial_exam_id)
+                    ),
                 );
                 if (remedialItem) moduleItemBySourceExam.set(exam.exam_id, remedialItem.id);
             } else {

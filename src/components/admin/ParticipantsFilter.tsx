@@ -53,12 +53,28 @@ export function ParticipantsFilter({
 
     const hasActiveFilters = activeFilterCount > 0;
 
+    const handleDownloadExcel = () => {
+        const params = new URLSearchParams({
+            search: filters.search || '',
+            institution: filters.institution || 'all',
+            batch: filters.batch || 'all',
+            gender: filters.gender || 'all',
+            date_from: filters.dateFrom || '',
+            date_to: filters.dateTo || '',
+            sort_by: filters.sortBy || 'created_desc',
+        });
+        const link = document.createElement('a');
+        link.href = `/api/admin/participants/export?${params.toString()}`;
+        link.download = '';
+        link.click();
+    };
+
     return (
         <div className="space-y-3">
-            {/* Primary Toolbar Row */}
-            <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+            {/* Primary Toolbar Row: Search Input & Action Buttons */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 {/* Search Bar */}
-                <div className="relative flex-1 min-w-0">
+                <div className="relative flex-1 min-w-0 sm:max-w-md">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
                         <Search01Icon size={18} />
                     </span>
@@ -67,13 +83,13 @@ export function ParticipantsFilter({
                         placeholder="Cari NIP, nama, email, instansi, atau no. HP..."
                         value={filters.search}
                         onChange={(e) => onFilterChange({ search: e.target.value })}
-                        className="w-full glass-input pl-10 pr-9 py-2.5 rounded-xl text-xs sm:text-sm focus:outline-none placeholder:text-muted-foreground/70"
+                        className="w-full h-10 glass-input pl-10 pr-9 rounded-xl text-xs sm:text-sm focus:outline-none placeholder:text-muted-foreground/70"
                     />
                     {filters.search && (
                         <button
                             type="button"
                             onClick={() => onFilterChange({ search: '' })}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors cursor-pointer"
                             title="Hapus pencarian"
                         >
                             <Cancel01Icon size={14} />
@@ -81,8 +97,33 @@ export function ParticipantsFilter({
                     )}
                 </div>
 
-                {/* Quick Filters & Action Buttons */}
-                <div className="flex flex-wrap items-center gap-2">
+                {/* Action Buttons: Export & Import */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                        type="button"
+                        onClick={handleDownloadExcel}
+                        className="inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 text-xs font-semibold text-slate-700 shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
+                        title="Unduh seluruh data peserta sesuai filter aktif (lengkap dengan password, NIP, & profil)"
+                    >
+                        <FileSpreadsheet className="size-4 text-emerald-600 shrink-0" />
+                        <span>Download Excel</span>
+                    </button>
+
+                    {userRole === 'admin' && (
+                        <Link
+                            href="/admin/participants/import"
+                            className="inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-emerald-600/30 bg-emerald-50/90 hover:bg-emerald-100 hover:border-emerald-500/50 px-3.5 text-xs font-semibold text-emerald-800 shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
+                        >
+                            <CloudUploadIcon size={16} className="text-emerald-700 shrink-0" />
+                            <span>Import Massal Excel</span>
+                        </Link>
+                    )}
+                </div>
+            </div>
+
+            {/* Secondary Toolbar: Faceted Filters & View Summary */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pt-0.5">
+                <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                     {/* Instansi Dropdown */}
                     <div className="relative min-w-[140px] sm:min-w-[160px] flex-1 sm:flex-initial">
                         <select
@@ -138,41 +179,23 @@ export function ParticipantsFilter({
                         )}
                     </button>
 
-                    {/* Download Excel */}
-                    <button
-                        type="button"
-                        onClick={() => {
-                            const params = new URLSearchParams({
-                                search: filters.search || '',
-                                institution: filters.institution || 'all',
-                                batch: filters.batch || 'all',
-                                gender: filters.gender || 'all',
-                                date_from: filters.dateFrom || '',
-                                date_to: filters.dateTo || '',
-                                sort_by: filters.sortBy || 'created_desc',
-                            });
-                            const link = document.createElement('a');
-                            link.href = `/api/admin/participants/export?${params.toString()}`;
-                            link.download = '';
-                            link.click();
-                        }}
-                        className="inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 text-xs font-semibold text-slate-700 shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
-                        title="Unduh seluruh data peserta sesuai filter aktif (lengkap dengan password, NIP, & profil)"
-                    >
-                        <FileSpreadsheet className="size-4 text-emerald-600 shrink-0" />
-                        <span>Download Excel</span>
-                    </button>
-
-                    {/* Import Massal Excel (Admin only) */}
-                    {userRole === 'admin' && (
-                        <Link
-                            href="/admin/participants/import"
-                            className="inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-emerald-600/30 bg-emerald-50/90 hover:bg-emerald-100 hover:border-emerald-500/50 px-3.5 text-xs font-semibold text-emerald-800 shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all whitespace-nowrap cursor-pointer"
+                    {/* Quick Reset Button when filters active */}
+                    {hasActiveFilters && (
+                        <button
+                            type="button"
+                            onClick={onReset}
+                            className="inline-flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-destructive/5 hover:border-destructive/30 text-xs font-semibold text-muted-foreground hover:text-destructive transition-all cursor-pointer"
+                            title="Reset semua filter aktif"
                         >
-                            <CloudUploadIcon size={16} className="text-emerald-700 shrink-0" />
-                            <span>Import Massal Excel</span>
-                        </Link>
+                            <RotateCcw className="size-3.5" />
+                            <span>Reset</span>
+                        </button>
                     )}
+                </div>
+
+                {/* Total count indicator */}
+                <div className="text-xs text-muted-foreground font-medium shrink-0 hidden sm:block">
+                    Total: <strong className="text-foreground font-semibold">{totalItems}</strong> peserta
                 </div>
             </div>
 
@@ -211,7 +234,7 @@ export function ParticipantsFilter({
                                         key={opt.value}
                                         type="button"
                                         onClick={() => onFilterChange({ gender: opt.value })}
-                                        className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                                        className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                                             filters.gender === opt.value
                                                 ? 'bg-slate-900 text-white shadow-xs'
                                                 : 'text-muted-foreground hover:text-foreground'
@@ -233,7 +256,7 @@ export function ParticipantsFilter({
                                     type="date"
                                     value={filters.dateFrom}
                                     onChange={(e) => onFilterChange({ dateFrom: e.target.value })}
-                                    className="w-full h-10 px-3 rounded-xl bg-white border border-black/10 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                                    className="w-full h-10 px-3 rounded-xl bg-white border border-black/10 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer"
                                 />
                             </div>
                         </div>
@@ -248,7 +271,7 @@ export function ParticipantsFilter({
                                     type="date"
                                     value={filters.dateTo}
                                     onChange={(e) => onFilterChange({ dateTo: e.target.value })}
-                                    className="w-full h-10 px-3 rounded-xl bg-white border border-black/10 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                                    className="w-full h-10 px-3 rounded-xl bg-white border border-black/10 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer"
                                 />
                             </div>
                         </div>
@@ -280,7 +303,7 @@ export function ParticipantsFilter({
                 </div>
             )}
 
-            {/* Active Filters Badges & Result Count Bar */}
+            {/* Active Filters Badges Bar */}
             {hasActiveFilters && (
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -294,7 +317,8 @@ export function ParticipantsFilter({
                                 <button
                                     type="button"
                                     onClick={() => onFilterChange({ search: '' })}
-                                    className="hover:text-destructive"
+                                    className="hover:text-destructive cursor-pointer"
+                                    title="Hapus filter pencarian"
                                 >
                                     <Cancel01Icon size={12} />
                                 </button>
@@ -307,7 +331,8 @@ export function ParticipantsFilter({
                                 <button
                                     type="button"
                                     onClick={() => onFilterChange({ institution: 'all' })}
-                                    className="hover:text-destructive"
+                                    className="hover:text-destructive cursor-pointer"
+                                    title="Hapus filter instansi"
                                 >
                                     <Cancel01Icon size={12} />
                                 </button>
@@ -320,7 +345,8 @@ export function ParticipantsFilter({
                                 <button
                                     type="button"
                                     onClick={() => onFilterChange({ batch: 'all' })}
-                                    className="hover:text-destructive"
+                                    className="hover:text-destructive cursor-pointer"
+                                    title="Hapus filter batch"
                                 >
                                     <Cancel01Icon size={12} />
                                 </button>
@@ -333,7 +359,8 @@ export function ParticipantsFilter({
                                 <button
                                     type="button"
                                     onClick={() => onFilterChange({ gender: 'all' })}
-                                    className="hover:text-destructive"
+                                    className="hover:text-destructive cursor-pointer"
+                                    title="Hapus filter jenis kelamin"
                                 >
                                     <Cancel01Icon size={12} />
                                 </button>
@@ -348,7 +375,8 @@ export function ParticipantsFilter({
                                 <button
                                     type="button"
                                     onClick={() => onFilterChange({ dateFrom: '', dateTo: '' })}
-                                    className="hover:text-destructive"
+                                    className="hover:text-destructive cursor-pointer"
+                                    title="Hapus filter rentang tanggal"
                                 >
                                     <Cancel01Icon size={12} />
                                 </button>
@@ -361,7 +389,8 @@ export function ParticipantsFilter({
                                 <button
                                     type="button"
                                     onClick={() => onFilterChange({ sortBy: 'created_desc' })}
-                                    className="hover:text-destructive"
+                                    className="hover:text-destructive cursor-pointer"
+                                    title="Kembalikan urutan default"
                                 >
                                     <Cancel01Icon size={12} />
                                 </button>
@@ -373,11 +402,11 @@ export function ParticipantsFilter({
                             onClick={onReset}
                             className="text-[11px] font-bold text-primary hover:underline ml-1 cursor-pointer"
                         >
-                            Reset
+                            Reset Semua
                         </button>
                     </div>
 
-                    <div className="text-[11px] text-muted-foreground font-medium">
+                    <div className="text-[11px] text-muted-foreground font-medium sm:hidden">
                         Ditemukan <strong className="text-foreground">{totalItems}</strong> peserta
                     </div>
                 </div>

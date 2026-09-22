@@ -83,8 +83,8 @@ export default function NewModuleBuilderPage() {
 
         // Fetch available trainings and exams
         Promise.all([
-            fetch('/api/trainings').then(res => res.json()),
-            fetch('/api/exams').then(res => res.json())
+            fetch('/api/trainings?limit=100').then(res => res.json()),
+            fetch('/api/exams?limit=100').then(res => res.json())
         ]).then(([tRes, eRes]) => {
             if (tRes.success) {
                 setTrainings(tRes.data.map((t: any) => ({ ...t, type: 'training' })));

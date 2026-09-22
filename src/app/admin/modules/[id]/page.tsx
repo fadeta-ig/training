@@ -32,17 +32,19 @@ export default function ModuleDetailPage({ params }: { params: Promise<{ id: str
                     if (eRes.success) tempExams = eRes.data;
 
                     const loadedItems = mRes.data.items.map((it: any) => {
-                        let itemTitle = 'Item Tanpa Judul';
-                        if (it.item_type === 'training') {
-                            const rec = tempTrainings.find((t) => t.id === it.item_id);
-                            if (rec) itemTitle = rec.title;
-                        } else if (it.item_type === 'exam') {
-                            const rec = tempExams.find((e) => e.id === it.item_id);
-                            if (rec) itemTitle = rec.title;
+                        let itemTitle = it.title && it.title !== 'Unknown Item' ? it.title : '';
+                        if (!itemTitle) {
+                            if (it.item_type === 'training') {
+                                const rec = tempTrainings.find((t) => t.id === it.item_id);
+                                if (rec) itemTitle = rec.title;
+                            } else if (it.item_type === 'exam') {
+                                const rec = tempExams.find((e) => e.id === it.item_id);
+                                if (rec) itemTitle = rec.title;
+                            }
                         }
                         return {
                             ...it,
-                            title: itemTitle,
+                            title: itemTitle || 'Item Tanpa Judul',
                         };
                     });
 

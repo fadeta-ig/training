@@ -85,8 +85,8 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
         // Fetch module data and available resources
         Promise.all([
             fetch(`/api/modules/${resolvedParams.id}`).then(res => res.json()),
-            fetch('/api/trainings').then(res => res.json()),
-            fetch('/api/exams').then(res => res.json())
+            fetch('/api/trainings?limit=100').then(res => res.json()),
+            fetch('/api/exams?limit=100').then(res => res.json())
         ]).then(([mRes, tRes, eRes]) => {
             if (mRes.success) {
                 setCategoryId(mRes.data.category_id || '');
@@ -94,7 +94,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                 setDescription(mRes.data.description || '');
                 setEnforceSequence(Boolean(mRes.data.enforce_sequence));
 
-                // Map items to include titles (the API returns item_type and item_id, we need to map titles from tRes and eRes)
+                // Map items to include titles (the API returns item_type, item_id, and joined title)
                 let tempTrainings: any[] = [];
                 let tempExams: any[] = [];
 
@@ -102,19 +102,21 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                 if (eRes.success) tempExams = eRes.data;
 
                 const loadedItems = mRes.data.items.map((it: any) => {
-                    let itemTitle = 'Unknown Item';
-                    if (it.item_type === 'training') {
-                        const rec = tempTrainings.find(t => t.id === it.item_id);
-                        if (rec) itemTitle = rec.title;
-                    } else if (it.item_type === 'exam') {
-                        const rec = tempExams.find(e => e.id === it.item_id);
-                        if (rec) itemTitle = rec.title;
+                    let itemTitle = it.title && it.title !== 'Unknown Item' ? it.title : '';
+                    if (!itemTitle) {
+                        if (it.item_type === 'training') {
+                            const rec = tempTrainings.find(t => t.id === it.item_id);
+                            if (rec) itemTitle = rec.title;
+                        } else if (it.item_type === 'exam') {
+                            const rec = tempExams.find(e => e.id === it.item_id);
+                            if (rec) itemTitle = rec.title;
+                        }
                     }
                     return {
                         item_type: it.item_type,
                         item_id: it.item_id,
                         sequence_order: it.sequence_order,
-                        title: itemTitle
+                        title: itemTitle || 'Unknown Item'
                     };
                 });
                 setSelectedItems(loadedItems);

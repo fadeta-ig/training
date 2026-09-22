@@ -36,7 +36,24 @@ async function handleGet(
         }
 
         const items = await executeQuery<any[]>(
-            `SELECT * FROM module_items WHERE module_id = ? ORDER BY sequence_order ASC`,
+            `SELECT 
+                mi.id,
+                mi.module_id,
+                mi.item_type,
+                mi.item_id,
+                mi.sequence_order,
+                COALESCE(
+                    CASE 
+                        WHEN mi.item_type = 'training' THEN t.title
+                        WHEN mi.item_type = 'exam' THEN e.title
+                    END,
+                    'Unknown Item'
+                ) AS title
+             FROM module_items mi
+             LEFT JOIN trainings t ON mi.item_type = 'training' AND mi.item_id = t.id
+             LEFT JOIN exams e ON mi.item_type = 'exam' AND mi.item_id = e.id
+             WHERE mi.module_id = ? 
+             ORDER BY mi.sequence_order ASC`,
             [resolvedParams.id]
         );
 

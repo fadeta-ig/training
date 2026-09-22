@@ -37,7 +37,7 @@ export function AnalyticsCharts({ trendData, ratioData }: AnalyticsChartsProps) 
                     <h2 className="text-lg font-semibold tracking-tight mb-6">Aktivitas Ujian (14 Hari Terakhir)</h2>
                     {trendData.length > 0 ? (
                         <div className="flex-1 w-full min-h-[300px]">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                                 <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="opacity-10" />
                                     <XAxis 
@@ -78,7 +78,7 @@ export function AnalyticsCharts({ trendData, ratioData }: AnalyticsChartsProps) 
                 <div className="flex-1 w-full min-h-[250px] relative flex flex-col items-center justify-center">
                     {ratioData.length > 0 ? (
                         <>
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                                 <PieChart>
                                     <Pie
                                         data={ratioData}

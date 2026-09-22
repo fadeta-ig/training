@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const moduleSchema = z.object({
-    category_id: z.string().uuid('Kategori harus berupa UUID yang valid').optional().nullable(),
+    category_id: z.string().uuid('Kategori harus berupa UUID yang valid').nullable().optional().or(z.literal('')),
     title: z.string().trim().min(3, 'Judul modul minimal 3 karakter').max(150, 'Judul modul maksimal 150 karakter'),
     description: z.string().optional(),
     enforce_sequence: z.boolean().optional().default(false),

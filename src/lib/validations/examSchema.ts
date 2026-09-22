@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const examSchema = z.object({
-    category_id: z.string().uuid('Kategori harus berupa UUID yang valid').optional().nullable(),
+    category_id: z.string().uuid('Kategori harus berupa UUID yang valid').nullable().optional().or(z.literal('')),
     title: z.string().trim().min(3, 'Judul ujian minimal 3 karakter').max(150, 'Judul ujian maksimal 150 karakter'),
     duration_minutes: z.number().int().min(1, 'Durasi ujian minimal 1 menit'),
     passing_grade: z.number().int().min(0, 'Passing grade minimal 0').max(100, 'Passing grade maksimal 100'),

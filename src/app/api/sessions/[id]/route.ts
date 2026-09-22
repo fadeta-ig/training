@@ -332,7 +332,7 @@ async function handleGet(
                    ON source_mi.module_id = root.module_id AND source_mi.item_type = 'exam'
                  JOIN exams source_exam
                    ON source_exam.id = source_mi.item_id
-                  AND COALESCE(source_exam.remedial_exam_id, source_exam.id) = remedial_exam.id
+                  AND (source_exam.id = remedial_exam.id OR source_exam.remedial_exam_id = remedial_exam.id)
                  WHERE rs.session_type = 'remedial'
                    AND rs.parent_session_id = ?
                    AND rs.remedial_cycle > ?

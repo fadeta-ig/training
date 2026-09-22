@@ -19,7 +19,7 @@ import {
 import { formatIsoToWibInput } from '@/lib/timezone';
 
 type Module = { id: string; title: string };
-type SessionOption = { id: string; title: string; session_type?: 'regular' | 'remedial' };
+type SessionOption = { id: string; title: string; module_id?: string; session_type?: 'regular' | 'remedial' };
 
 export default function EditSessionPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
@@ -118,10 +118,21 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
             } finally {
                 setInitialLoading(false);
                 setIsLoadingParticipants(false);
+                setIsInitialLoad(false);
             }
         };
         fetchInitialData();
     }, [resolvedParams.id]);
+
+    // Auto-sync module when parent session is changed by user (not on initial load)
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+    useEffect(() => {
+        if (isInitialLoad || sessionType !== 'remedial' || !parentSessionId) return;
+        const parentSession = availableParentSessions.find((s) => s.id === parentSessionId);
+        if (parentSession?.module_id) {
+            setModuleId(parentSession.module_id);
+        }
+    }, [parentSessionId, sessionType, availableParentSessions, isInitialLoad]);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -201,9 +212,17 @@ export default function EditSessionPage({ params }: { params: Promise<{ id: stri
             />
 
             {error && (
-                <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-xl flex items-center gap-3 text-sm font-medium border border-destructive/20">
-                    <AlertCircleIcon size={18} />
-                    {error}
+                <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-xl flex items-start gap-3 text-sm font-medium border border-destructive/20">
+                    <AlertCircleIcon size={18} className="mt-0.5 shrink-0" />
+                    <div>
+                        <p>{error}</p>
+                        {sessionType === 'remedial' && error.includes('exam') && (
+                            <p className="mt-1 text-xs font-normal opacity-80">
+                                Pastikan setiap exam di modul remedial dapat dipetakan ke exam di modul sesi induk. Jika menggunakan modul yang sama, aktifkan &quot;Izinkan Pelaksanaan Remidi Ujian&quot; di halaman{' '}
+                                <Link href="/admin/exams" className="underline font-semibold hover:opacity-100">Edit Ujian</Link>.
+                            </p>
+                        )}
+                    </div>
                 </div>
             )}
 

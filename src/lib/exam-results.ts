@@ -234,7 +234,7 @@ export async function getSessionExamMappings(
          JOIN exams source_exam
            ON source_mi.item_type = 'exam'
           AND source_exam.id = source_mi.item_id
-          AND COALESCE(source_exam.remedial_exam_id, source_exam.id) = remedial_exam.id
+          AND (source_exam.id = remedial_exam.id OR source_exam.remedial_exam_id = remedial_exam.id)
          WHERE remedial_mi.module_id = ? AND remedial_mi.item_type = 'exam'
          ORDER BY remedial_mi.sequence_order ASC`,
         [context.parent_session_id, context.module_id],
@@ -258,7 +258,7 @@ export async function findNextRemedialSession(
          FROM sessions rs
          JOIN module_items rmi ON rmi.module_id = rs.module_id AND rmi.item_type = 'exam'
          JOIN exams remedial_exam ON remedial_exam.id = rmi.item_id
-         JOIN exams source_exam ON source_exam.id = ? AND COALESCE(source_exam.remedial_exam_id, source_exam.id) = remedial_exam.id
+         JOIN exams source_exam ON source_exam.id = ? AND (source_exam.id = remedial_exam.id OR source_exam.remedial_exam_id = remedial_exam.id)
          WHERE rs.session_type = 'remedial'
            AND rs.parent_session_id = ?
            AND rs.remedial_cycle > ?
@@ -301,7 +301,7 @@ export async function validateRemedialSessionConfiguration(
            ON source_mi.module_id = parent.module_id AND source_mi.item_type = 'exam'
          LEFT JOIN exams source_exam
            ON source_exam.id = source_mi.item_id
-          AND COALESCE(source_exam.remedial_exam_id, source_exam.id) = remedial_exam.id
+          AND (source_exam.id = remedial_exam.id OR source_exam.remedial_exam_id = remedial_exam.id)
          WHERE remedial_mi.module_id = ? AND remedial_mi.item_type = 'exam'
          GROUP BY remedial_mi.id`,
         [input.parentSessionId, input.moduleId],

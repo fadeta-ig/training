@@ -410,8 +410,15 @@ async function handlePost(
             `UPDATE sessions
              SET result_state = 'published', result_published_at = UTC_TIMESTAMP(),
                  result_published_by = ?, result_publication_version = ?, show_score = TRUE
-             WHERE id IN (?, ?)`,
-            [authUser.id, version, sessionId, rootSessionId],
+             WHERE id = ?
+                OR (id = ? AND id <> ?)
+                OR (parent_session_id = ? AND remedial_cycle <= ?)`,
+            [
+                authUser.id, version,
+                rootSessionId,
+                sessionId, rootSessionId,
+                rootSessionId, Number(preview.context.remedial_cycle || 0),
+            ],
         );
 
         await connection.commit();
@@ -432,7 +439,11 @@ async function handlePost(
             data: { publication_id: publicationId, version, counts: preview.counts },
         });
     } catch (error) {
-        if (connection) await connection.rollback().catch(() => {});
+        if (connection) {
+            await connection.rollback().catch(() => {});
+            connection.release();
+            connection = undefined;
+        }
         logger.error('PUBLISH_SESSION_RESULTS', 'Gagal mempublikasikan hasil sesi', error, authUser.id);
         const status = Number((error as { statusCode?: number })?.statusCode || 500);
         return NextResponse.json(

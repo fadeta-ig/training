@@ -60,7 +60,7 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
     }
 }
 
-async function handlePost(request: NextRequest) {
+async function handlePost(request: NextRequest, _user: AuthenticatedUser) {
     let connection;
     try {
         const body = await request.json();

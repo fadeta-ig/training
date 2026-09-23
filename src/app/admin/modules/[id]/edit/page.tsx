@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { Suspense, useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     CubeIcon,
@@ -11,12 +11,15 @@ import {
     ArrowUp01Icon,
     ArrowDown01Icon,
     Delete02Icon,
-    PlusSignIcon
 } from 'hugeicons-react';
-import { Lock, Unlock, Sparkles, Layers, ListOrdered } from 'lucide-react';
+import { Lock, Unlock, Sparkles, Layers, ListOrdered, Plus, BookOpen, FileQuestion } from 'lucide-react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { ModuleContentSidebar } from '@/components/admin/ModuleContentSidebar';
+import { ModuleContentPickerModal } from '@/components/admin/ModuleContentPickerModal';
+import type { MasterResourceItem, SelectedModuleItem, ResourceTabType } from '@/types/module-builder';
 
 interface CategoryOption {
     id: string;
@@ -25,36 +28,26 @@ interface CategoryOption {
     color: string;
 }
 
-type MasterItem = {
-    id: string;
-    title: string;
-    type: 'training' | 'exam';
-};
-
-type ModuleItem = {
-    item_type: 'training' | 'exam';
-    item_id: string;
-    sequence_order: number;
-    title: string;
-};
-
-export default function EditModuleBuilderPage({ params }: { params: Promise<{ id: string }> }) {
-    const resolvedParams = use(params);
+function EditModuleBuilderForm({ id }: { id: string }) {
     const router = useRouter();
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
     // Master Lists 
-    const [trainings, setTrainings] = useState<MasterItem[]>([]);
-    const [exams, setExams] = useState<MasterItem[]>([]);
+    const [trainings, setTrainings] = useState<MasterResourceItem[]>([]);
+    const [exams, setExams] = useState<MasterResourceItem[]>([]);
 
     const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [categoryId, setCategoryId] = useState('');
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [enforceSequence, setEnforceSequence] = useState(false);
-    const [selectedItems, setSelectedItems] = useState<ModuleItem[]>([]);
+    const [selectedItems, setSelectedItems] = useState<SelectedModuleItem[]>([]);
+
+    // Picker Modal State
+    const [isPickerOpen, setIsPickerOpen] = useState(false);
+    const [pickerInitialTab, setPickerInitialTab] = useState<ResourceTabType>('all');
 
     const [error, setError] = useState<string | null>(null);
 
@@ -82,75 +75,114 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
     }, [router]);
 
     useEffect(() => {
-        // Fetch module data and available resources
+        // Fetch module data and available resources with metadata
         Promise.all([
-            fetch(`/api/modules/${resolvedParams.id}`).then(res => res.json()),
-            fetch('/api/trainings?limit=100').then(res => res.json()),
-            fetch('/api/exams?limit=100').then(res => res.json())
-        ]).then(([mRes, tRes, eRes]) => {
-            if (mRes.success) {
-                setCategoryId(mRes.data.category_id || '');
-                setTitle(mRes.data.title);
-                setDescription(mRes.data.description || '');
-                setEnforceSequence(Boolean(mRes.data.enforce_sequence));
-
-                // Map items to include titles (the API returns item_type, item_id, and joined title)
+            fetch(`/api/modules/${id}`).then((res) => res.json()),
+            fetch('/api/trainings?limit=100').then((res) => res.json()),
+            fetch('/api/exams?limit=100').then((res) => res.json()),
+        ])
+            .then(([mRes, tRes, eRes]) => {
                 let tempTrainings: any[] = [];
                 let tempExams: any[] = [];
 
-                if (tRes.success) tempTrainings = tRes.data;
-                if (eRes.success) tempExams = eRes.data;
+                if (tRes.success && Array.isArray(tRes.data)) {
+                    tempTrainings = tRes.data;
+                    setTrainings(tRes.data.map((t: any) => ({ ...t, type: 'training' as const })));
+                }
+                if (eRes.success && Array.isArray(eRes.data)) {
+                    tempExams = eRes.data;
+                    setExams(eRes.data.map((e: any) => ({ ...e, type: 'exam' as const })));
+                }
 
-                const loadedItems = mRes.data.items.map((it: any) => {
-                    let itemTitle = it.title && it.title !== 'Unknown Item' ? it.title : '';
-                    if (!itemTitle) {
-                        if (it.item_type === 'training') {
-                            const rec = tempTrainings.find(t => t.id === it.item_id);
-                            if (rec) itemTitle = rec.title;
-                        } else if (it.item_type === 'exam') {
-                            const rec = tempExams.find(e => e.id === it.item_id);
-                            if (rec) itemTitle = rec.title;
+                if (mRes.success && mRes.data) {
+                    setCategoryId(mRes.data.category_id || '');
+                    setTitle(mRes.data.title || '');
+                    setDescription(mRes.data.description || '');
+                    setEnforceSequence(Boolean(mRes.data.enforce_sequence));
+
+                    const loadedItems = (mRes.data.items || []).map((it: any) => {
+                        let itemTitle = it.title && it.title !== 'Unknown Item' ? it.title : '';
+                        if (!itemTitle) {
+                            if (it.item_type === 'training') {
+                                const rec = tempTrainings.find((t) => t.id === it.item_id);
+                                if (rec) itemTitle = rec.title;
+                            } else if (it.item_type === 'exam') {
+                                const rec = tempExams.find((e) => e.id === it.item_id);
+                                if (rec) itemTitle = rec.title;
+                            }
                         }
-                    }
-                    return {
-                        item_type: it.item_type,
-                        item_id: it.item_id,
-                        sequence_order: it.sequence_order,
-                        title: itemTitle || 'Unknown Item'
-                    };
-                });
-                setSelectedItems(loadedItems);
-            }
+                        return {
+                            item_type: it.item_type,
+                            item_id: it.item_id,
+                            sequence_order: it.sequence_order,
+                            title: itemTitle || 'Unknown Item',
+                        };
+                    });
+                    setSelectedItems(loadedItems);
+                }
 
-            if (tRes.success) {
-                setTrainings(tRes.data.map((t: any) => ({ ...t, type: 'training' })));
-            }
-            if (eRes.success) {
-                setExams(eRes.data.map((e: any) => ({ ...e, type: 'exam' })));
-            }
-            setIsLoading(false);
-        }).catch(() => {
-            setError('Gagal memuat data modul');
-            setIsLoading(false);
-        });
-    }, [resolvedParams.id]);
+                setIsLoading(false);
+            })
+            .catch(() => {
+                setError('Gagal memuat data modul');
+                setIsLoading(false);
+            });
+    }, [id]);
 
-    const addItem = (item: MasterItem) => {
-        const newItem: ModuleItem = {
+    const addItem = (item: MasterResourceItem) => {
+        const alreadyExists = selectedItems.some(
+            (si) => si.item_id === item.id && si.item_type === item.type
+        );
+        if (alreadyExists) {
+            toast.info(`"${item.title}" sudah ada di dalam antrean modul.`);
+            return;
+        }
+
+        const newItem: SelectedModuleItem = {
             item_type: item.type,
             item_id: item.id,
             title: item.title,
-            sequence_order: selectedItems.length + 1
+            sequence_order: selectedItems.length + 1,
         };
-        setSelectedItems([...selectedItems, newItem]);
+        setSelectedItems((prev) => [...prev, newItem]);
+        toast.success(`"${item.title}" ditambahkan ke alur modul.`);
+    };
+
+    const addItemsBulk = (items: MasterResourceItem[]) => {
+        const unaddedItems = items.filter(
+            (item) => !selectedItems.some((si) => si.item_id === item.id && si.item_type === item.type)
+        );
+
+        if (unaddedItems.length === 0) {
+            toast.info('Item yang dipilih sudah ada di dalam antrean modul.');
+            return;
+        }
+
+        const newItems: SelectedModuleItem[] = unaddedItems.map((item, idx) => ({
+            item_type: item.type,
+            item_id: item.id,
+            title: item.title,
+            sequence_order: selectedItems.length + idx + 1,
+        }));
+
+        setSelectedItems((prev) => [...prev, ...newItems]);
+        toast.success(`${newItems.length} item berhasil ditambahkan ke alur modul.`);
     };
 
     const removeItem = (index: number) => {
         const newItems = [...selectedItems];
         newItems.splice(index, 1);
-        // Re-calculate sequence_order
-        newItems.forEach((item, idx) => item.sequence_order = idx + 1);
+        newItems.forEach((item, idx) => (item.sequence_order = idx + 1));
         setSelectedItems(newItems);
+    };
+
+    const removeItemByTargetId = (itemId: string, itemType: 'training' | 'exam') => {
+        const filtered = selectedItems.filter(
+            (si) => !(si.item_id === itemId && si.item_type === itemType)
+        );
+        filtered.forEach((item, idx) => (item.sequence_order = idx + 1));
+        setSelectedItems(filtered);
+        toast.info('Item dihapus dari susunan modul.');
     };
 
     const moveItem = (index: number, direction: 'up' | 'down') => {
@@ -160,24 +192,26 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
         const newItems = [...selectedItems];
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
 
-        // Swap
         [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
-
-        // Re-calculate sequence_order
-        newItems.forEach((item, idx) => item.sequence_order = idx + 1);
+        newItems.forEach((item, idx) => (item.sequence_order = idx + 1));
         setSelectedItems(newItems);
+    };
+
+    const openPickerModal = (tab: ResourceTabType = 'all') => {
+        setPickerInitialTab(tab);
+        setIsPickerOpen(true);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!categoryId) {
-            setError("Kategori pembelajaran wajib dipilih.");
+            setError('Kategori pembelajaran wajib dipilih.');
             return;
         }
 
         if (selectedItems.length === 0) {
-            setError("Anda harus memasukkan setidaknya satu item (Pelatihan atau Ujian) ke dalam modul.");
+            setError('Anda harus memasukkan setidaknya satu item (Pelatihan atau Ujian) ke dalam modul.');
             return;
         }
 
@@ -189,25 +223,28 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
             title,
             description,
             enforce_sequence: enforceSequence,
-            items: selectedItems.map(si => ({
+            items: selectedItems.map((si) => ({
                 item_type: si.item_type,
                 item_id: si.item_id,
-                sequence_order: si.sequence_order
-            }))
+                sequence_order: si.sequence_order,
+            })),
         };
 
         try {
-            const res = await fetch(`/api/modules/${resolvedParams.id}`, {
+            const res = await fetch(`/api/modules/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
             });
 
             const result = await res.json();
 
             if (result.success) {
                 toast.success('Modul pelatihan berhasil diperbarui');
-                router.push('/admin/modules');
+                const returnUrl = categoryId
+                    ? `/admin/modules?category=${categoryId}`
+                    : '/admin/modules';
+                router.push(returnUrl);
                 router.refresh();
             } else {
                 throw new Error(result.error || 'Gagal menyimpan perubahan modul');
@@ -222,16 +259,18 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground" />
             </div>
         );
     }
+
+    const backUrl = categoryId ? `/admin/modules?category=${categoryId}` : '/admin/modules';
 
     return (
         <div className="space-y-8 pb-12">
             <div className="flex items-start gap-3 border-b border-black/5 pb-5 sm:items-center sm:gap-4 sm:pb-6">
                 <Link
-                    href="/admin/modules"
+                    href={backUrl}
                     className="shrink-0 p-2.5 rounded-xl bg-white border border-black/10 text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors shadow-sm"
                 >
                     <ArrowLeft01Icon size={20} />
@@ -242,7 +281,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                         Edit Alur Modul
                     </h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        Ubah kurikulum modul, aturan akses alur, serta urutan materi dan ujian.
+                        Perbarui kurikulum, urutan materi pelatihan, dan paket ujian evaluasi.
                     </p>
                 </div>
             </div>
@@ -254,8 +293,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
             )}
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-
-                {/* Left Column */}
+                {/* Left Column: Module Details & Sequence Definition */}
                 <div className="lg:col-span-8 space-y-6">
                     <div className="glass-card p-6 space-y-5">
                         <h2 className="text-lg font-bold border-b border-black/5 pb-3">1. Informasi Modul</h2>
@@ -269,7 +307,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                 value={categoryId}
                                 onChange={(e) => setCategoryId(e.target.value)}
                                 required
-                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background"
+                                className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background cursor-pointer"
                             >
                                 <option value="" disabled>-- Pilih Kategori --</option>
                                 {categories.map((c) => (
@@ -284,13 +322,16 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-foreground">Judul Modul <span className="text-destructive">*</span></label>
+                            <label className="text-sm font-bold text-foreground">
+                                Judul Modul <span className="text-destructive">*</span>
+                            </label>
                             <input
                                 type="text"
                                 required
                                 className="w-full glass-input px-4 py-3 rounded-xl text-sm"
+                                placeholder="Contoh: Orientasi Pekerja Baru (Q1)"
                                 value={title}
-                                onChange={e => setTitle(e.target.value)}
+                                onChange={(e) => setTitle(e.target.value)}
                             />
                         </div>
 
@@ -299,8 +340,9 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                             <textarea
                                 rows={3}
                                 className="w-full glass-input px-4 py-3 rounded-xl text-sm resize-y"
+                                placeholder="Jelaskan tujuan dari modul ini secara singkat..."
                                 value={description}
-                                onChange={e => setDescription(e.target.value)}
+                                onChange={(e) => setDescription(e.target.value)}
                             />
                         </div>
                     </div>
@@ -317,13 +359,15 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                     Tentukan bagaimana peserta mengakses item-item materi dan ujian dalam modul ini.
                                 </p>
                             </div>
-                            <span className={cn(
-                                "text-xs font-semibold px-3 py-1 rounded-full w-fit",
-                                !enforceSequence
-                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
-                                    : "bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800"
-                            )}>
-                                {!enforceSequence ? "Mode: Terbuka & Fleksibel" : "Mode: Terkunci Bertahap"}
+                            <span
+                                className={cn(
+                                    'text-xs font-semibold px-3 py-1 rounded-full w-fit',
+                                    !enforceSequence
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+                                        : 'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
+                                )}
+                            >
+                                {!enforceSequence ? 'Mode: Terbuka & Fleksibel' : 'Mode: Terkunci Bertahap'}
                             </span>
                         </div>
 
@@ -332,20 +376,22 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                             <div
                                 onClick={() => setEnforceSequence(false)}
                                 className={cn(
-                                    "relative flex flex-col p-4 sm:p-5 rounded-2xl border-2 transition-all cursor-pointer select-none",
+                                    'relative flex flex-col p-4 sm:p-5 rounded-2xl border-2 transition-all cursor-pointer select-none',
                                     !enforceSequence
-                                        ? "border-emerald-500 bg-emerald-50/40 shadow-sm dark:bg-emerald-950/20 dark:border-emerald-500"
-                                        : "border-black/10 bg-white/50 hover:border-black/20 hover:bg-white/80 dark:border-white/10 dark:bg-card/40 dark:hover:border-white/20"
+                                        ? 'border-emerald-500 bg-emerald-50/40 shadow-sm dark:bg-emerald-950/20 dark:border-emerald-500'
+                                        : 'border-black/10 bg-white/50 hover:border-black/20 hover:bg-white/80 dark:border-white/10 dark:bg-card/40 dark:hover:border-white/20'
                                 )}
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-start gap-3">
-                                        <div className={cn(
-                                            "size-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
-                                            !enforceSequence
-                                                ? "bg-emerald-600 text-white shadow-xs"
-                                                : "bg-black/5 text-muted-foreground"
-                                        )}>
+                                        <div
+                                            className={cn(
+                                                'size-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
+                                                !enforceSequence
+                                                    ? 'bg-emerald-600 text-white shadow-xs'
+                                                    : 'bg-black/5 text-muted-foreground'
+                                            )}
+                                        >
                                             <Unlock className="size-5" />
                                         </div>
                                         <div>
@@ -360,16 +406,18 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                             </p>
                                         </div>
                                     </div>
-                                    <div className={cn(
-                                        "size-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5",
-                                        !enforceSequence
-                                            ? "border-emerald-600 bg-emerald-600 text-white"
-                                            : "border-black/20"
-                                    )}>
+                                    <div
+                                        className={cn(
+                                            'size-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5',
+                                            !enforceSequence
+                                                ? 'border-emerald-600 bg-emerald-600 text-white'
+                                                : 'border-black/20'
+                                        )}
+                                    >
                                         {!enforceSequence && <div className="size-2 rounded-full bg-white" />}
                                     </div>
                                 </div>
-                                
+
                                 <div className="mt-3 pt-3 border-t border-black/5 flex items-center gap-1.5 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
                                     <Sparkles className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                     <span>Pilihan ideal untuk pembelajaran mandiri tanpa blokir.</span>
@@ -380,20 +428,22 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                             <div
                                 onClick={() => setEnforceSequence(true)}
                                 className={cn(
-                                    "relative flex flex-col p-4 sm:p-5 rounded-2xl border-2 transition-all cursor-pointer select-none",
+                                    'relative flex flex-col p-4 sm:p-5 rounded-2xl border-2 transition-all cursor-pointer select-none',
                                     enforceSequence
-                                        ? "border-amber-500 bg-amber-50/40 shadow-sm dark:bg-amber-950/20 dark:border-amber-500"
-                                        : "border-black/10 bg-white/50 hover:border-black/20 hover:bg-white/80 dark:border-white/10 dark:bg-card/40 dark:hover:border-white/20"
+                                        ? 'border-amber-500 bg-amber-50/40 shadow-sm dark:bg-amber-950/20 dark:border-amber-500'
+                                        : 'border-black/10 bg-white/50 hover:border-black/20 hover:bg-white/80 dark:border-white/10 dark:bg-card/40 dark:hover:border-white/20'
                                 )}
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-start gap-3">
-                                        <div className={cn(
-                                            "size-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
-                                            enforceSequence
-                                                ? "bg-amber-600 text-white shadow-xs"
-                                                : "bg-black/5 text-muted-foreground"
-                                        )}>
+                                        <div
+                                            className={cn(
+                                                'size-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
+                                                enforceSequence
+                                                    ? 'bg-amber-600 text-white shadow-xs'
+                                                    : 'bg-black/5 text-muted-foreground'
+                                            )}
+                                        >
                                             <Lock className="size-5" />
                                         </div>
                                         <div>
@@ -408,12 +458,14 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                             </p>
                                         </div>
                                     </div>
-                                    <div className={cn(
-                                        "size-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5",
-                                        enforceSequence
-                                            ? "border-amber-600 bg-amber-600 text-white"
-                                            : "border-black/20"
-                                    )}>
+                                    <div
+                                        className={cn(
+                                            'size-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5',
+                                            enforceSequence
+                                                ? 'border-amber-600 bg-amber-600 text-white'
+                                                : 'border-black/20'
+                                        )}
+                                    >
                                         {enforceSequence && <div className="size-2 rounded-full bg-white" />}
                                     </div>
                                 </div>
@@ -426,26 +478,110 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                         </div>
                     </div>
 
+                    {/* Section 3: Learning Items Sequence */}
                     <div className="glass-card p-6 space-y-5">
-                        <div className="flex flex-col items-start gap-2 border-b border-black/5 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                            <h2 className="text-lg font-bold">3. Susunan Item Pembelajaran</h2>
-                            <span className="text-sm font-semibold text-muted-foreground bg-black/5 px-3 py-1 rounded-full">
-                                {selectedItems.length} Item Terpilih
-                            </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-black/5 pb-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-foreground">3. Susunan Item Pembelajaran</h2>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Atur urutan materi dan ujian yang akan ditempuh peserta.
+                                </p>
+                            </div>
+
+                            {/* Action Buttons to open Picker */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openPickerModal('training')}
+                                    className="h-8 px-2.5 text-xs font-medium rounded-lg text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300"
+                                >
+                                    <BookOpen className="size-3.5 mr-1 text-blue-500" />
+                                    + Tambah Materi
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openPickerModal('exam')}
+                                    className="h-8 px-2.5 text-xs font-medium rounded-lg text-amber-600 border-amber-200 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300"
+                                >
+                                    <FileQuestion className="size-3.5 mr-1 text-amber-500" />
+                                    + Tambah Ujian
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => openPickerModal('all')}
+                                    className="h-8 px-3 text-xs font-semibold rounded-lg"
+                                >
+                                    <Plus className="size-3.5 mr-1" />
+                                    Pustaka Lengkap
+                                </Button>
+                            </div>
                         </div>
 
                         {selectedItems.length === 0 ? (
-                            <div className="flex items-center justify-center rounded-2xl border-2 border-dashed border-black/10 bg-black/5 p-5 text-center text-muted-foreground sm:p-10">
-                                Pilih Materi atau Ujian dari pustaka di sebelah kanan untuk menambahkannya.
+                            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border/80 bg-muted/20 p-8 sm:p-12 text-center space-y-4">
+                                <div className="size-14 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground border">
+                                    <Layers className="size-7 opacity-60" />
+                                </div>
+                                <div className="space-y-1 max-w-sm">
+                                    <h4 className="font-bold text-sm text-foreground">Alur modul masih kosong</h4>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Pilih materi bacaan dan ujian evaluasi dari panel pustaka sebelah kanan, atau klik tombol di bawah untuk memilih sekaligus.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => openPickerModal('training')}
+                                        className="h-9 px-3 text-xs font-medium rounded-xl"
+                                    >
+                                        <BookOpen className="size-3.5 mr-1 text-blue-500" />
+                                        Pilih Materi Pelatihan
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => openPickerModal('exam')}
+                                        className="h-9 px-3 text-xs font-medium rounded-xl"
+                                    >
+                                        <FileQuestion className="size-3.5 mr-1 text-amber-500" />
+                                        Pilih Paket Ujian
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={() => openPickerModal('all')}
+                                        className="h-9 px-4 text-xs font-semibold rounded-xl"
+                                    >
+                                        <Plus className="size-3.5 mr-1.5" />
+                                        Buka Pustaka Lengkap
+                                    </Button>
+                                </div>
                             </div>
                         ) : (
                             <div className="space-y-3">
                                 {selectedItems.map((item, index) => (
-                                    <div key={`${item.item_id}-${index}`} className="group flex flex-wrap items-center gap-3 rounded-xl border border-black/10 bg-white/60 p-3 shadow-sm backdrop-blur-sm transition-all hover:border-black/20 sm:flex-nowrap sm:gap-4 sm:p-4">
-                                        <div className="font-bold text-xl text-black/20 w-8 text-center">{index + 1}</div>
+                                    <div
+                                        key={`${item.item_id}-${index}`}
+                                        className="group flex flex-wrap items-center gap-3 rounded-xl border border-black/10 bg-white/60 p-3 shadow-sm backdrop-blur-sm transition-all hover:border-black/20 sm:flex-nowrap sm:gap-4 sm:p-4"
+                                    >
+                                        <div className="font-bold text-xl text-black/20 w-8 text-center">
+                                            {index + 1}
+                                        </div>
 
                                         <div className="p-2 rounded-lg bg-black/5 text-muted-foreground">
-                                            {item.item_type === 'training' ? <Book01Icon size={20} /> : <Edit01Icon size={20} />}
+                                            {item.item_type === 'training' ? (
+                                                <Book01Icon size={20} className="text-blue-600" />
+                                            ) : (
+                                                <Edit01Icon size={20} className="text-amber-600" />
+                                            )}
                                         </div>
 
                                         <div className="min-w-[8rem] flex-1">
@@ -461,7 +597,9 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-xs font-mono text-muted-foreground uppercase mt-0.5">{item.item_type}</p>
+                                            <p className="text-xs font-mono text-muted-foreground uppercase mt-0.5">
+                                                {item.item_type === 'training' ? 'Materi Pelatihan' : 'Paket Ujian'}
+                                            </p>
                                         </div>
 
                                         <div className="ml-auto flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
@@ -470,6 +608,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                                 onClick={() => moveItem(index, 'up')}
                                                 disabled={index === 0}
                                                 className="p-1.5 rounded-md hover:bg-black/5 disabled:opacity-30 transition-colors"
+                                                title="Pindah ke atas"
                                             >
                                                 <ArrowUp01Icon size={18} />
                                             </button>
@@ -478,6 +617,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                                 onClick={() => moveItem(index, 'down')}
                                                 disabled={index === selectedItems.length - 1}
                                                 className="p-1.5 rounded-md hover:bg-black/5 disabled:opacity-30 transition-colors"
+                                                title="Pindah ke bawah"
                                             >
                                                 <ArrowDown01Icon size={18} />
                                             </button>
@@ -486,6 +626,7 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                                                 type="button"
                                                 onClick={() => removeItem(index)}
                                                 className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive/70 hover:text-destructive transition-colors"
+                                                title="Hapus dari alur modul"
                                             >
                                                 <Delete02Icon size={18} />
                                             </button>
@@ -508,69 +649,43 @@ export default function EditModuleBuilderPage({ params }: { params: Promise<{ id
                     </div>
                 </div>
 
-                {/* Right Column: Library Pool */}
-                <div className="lg:col-span-4 space-y-6">
-                    <div className="glass-card flex h-[min(600px,70dvh)] flex-col overflow-hidden lg:sticky lg:top-8">
-                        <div className="p-5 border-b border-black/5 bg-white/60 z-10">
-                            <h3 className="font-bold text-lg">Pustaka Konten</h3>
-                            <p className="text-xs text-muted-foreground mt-1">Klik item untuk menambahkannya ke antrean susunan modul.</p>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-3 space-y-6">
-
-                            {/* Trainings Section */}
-                            <div>
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 px-2 flex items-center gap-2">
-                                    <Book01Icon size={14} /> Materi Tersedia
-                                </h4>
-                                <div className="space-y-2">
-                                    {trainings.length === 0 ? (
-                                        <p className="text-xs text-muted-foreground px-2">Data materi tidak tersedia.</p>
-                                    ) : (
-                                        trainings.map(t => (
-                                            <button
-                                                key={t.id}
-                                                type="button"
-                                                onClick={() => addItem(t)}
-                                                className="w-full text-left p-3 rounded-xl hover:bg-black/5 active:bg-black/10 transition-colors text-sm font-medium border border-transparent hover:border-black/10 group flex justify-between items-center cursor-pointer"
-                                            >
-                                                <span className="truncate pr-2">{t.title}</span>
-                                                <PlusSignIcon size={16} className="opacity-0 group-hover:opacity-100 shrink-0 text-muted-foreground" />
-                                            </button>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Exams Section */}
-                            <div>
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 px-2 flex items-center gap-2">
-                                    <Edit01Icon size={14} /> Ujian Tersedia
-                                </h4>
-                                <div className="space-y-2">
-                                    {exams.length === 0 ? (
-                                        <p className="text-xs text-muted-foreground px-2">Data ujian tidak tersedia.</p>
-                                    ) : (
-                                        exams.map(e => (
-                                            <button
-                                                key={e.id}
-                                                type="button"
-                                                onClick={() => addItem(e)}
-                                                className="w-full text-left p-3 rounded-xl hover:bg-black/5 active:bg-black/10 transition-colors text-sm font-medium border border-transparent hover:border-black/10 group flex justify-between items-center cursor-pointer"
-                                            >
-                                                <span className="truncate pr-2">{e.title}</span>
-                                                <PlusSignIcon size={16} className="opacity-0 group-hover:opacity-100 shrink-0 text-muted-foreground" />
-                                            </button>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
+                {/* Right Column: Overhauled Content Library */}
+                <div className="lg:col-span-4">
+                    <ModuleContentSidebar
+                        trainings={trainings}
+                        exams={exams}
+                        categories={categories}
+                        currentCategoryId={categoryId}
+                        selectedItems={selectedItems}
+                        onAddItem={addItem}
+                        onRemoveItemByTargetId={removeItemByTargetId}
+                        onOpenModal={openPickerModal}
+                    />
                 </div>
-
             </form>
+
+            {/* Modal Dialog Content Picker */}
+            <ModuleContentPickerModal
+                isOpen={isPickerOpen}
+                onClose={() => setIsPickerOpen(false)}
+                trainings={trainings}
+                exams={exams}
+                categories={categories}
+                currentCategoryId={categoryId}
+                selectedItems={selectedItems}
+                initialTab={pickerInitialTab}
+                onAddItems={addItemsBulk}
+            />
         </div>
+    );
+}
+
+export default function EditModuleBuilderPage({ params }: { params: Promise<{ id: string }> }) {
+    const resolvedParams = use(params);
+
+    return (
+        <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Memuat perakit modul...</div>}>
+            <EditModuleBuilderForm id={resolvedParams.id} />
+        </Suspense>
     );
 }

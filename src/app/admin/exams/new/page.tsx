@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Edit01Icon, FloppyDiskIcon, ArrowLeft01Icon } from 'hugeicons-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -13,13 +13,16 @@ interface CategoryOption {
     color: string;
 }
 
-export default function NewExamPage() {
+function NewExamForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const paramCategoryId = searchParams.get('category_id') || searchParams.get('category') || '';
+
     const [isLoading, setIsLoading] = useState(false);
     const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [availableExams, setAvailableExams] = useState<Array<{ id: string; title: string }>>([]);
     const [formData, setFormData] = useState({
-        category_id: '',
+        category_id: paramCategoryId,
         title: '',
         duration_minutes: 60,
         passing_grade: 70,
@@ -48,7 +51,11 @@ export default function NewExamPage() {
                 if (data.success && Array.isArray(data.data)) {
                     setCategories(data.data);
                     if (data.data.length > 0) {
-                        setFormData((prev) => ({ ...prev, category_id: prev.category_id || data.data[0].id }));
+                        const hasParam = data.data.some((c: CategoryOption) => c.id === paramCategoryId);
+                        setFormData((prev) => ({
+                            ...prev,
+                            category_id: hasParam ? paramCategoryId : prev.category_id || data.data[0].id,
+                        }));
                     }
                 }
             })
@@ -63,7 +70,7 @@ export default function NewExamPage() {
                 }
             })
             .catch(() => {});
-    }, [router]);
+    }, [router, paramCategoryId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -73,26 +80,29 @@ export default function NewExamPage() {
             return;
         }
 
+        if (!formData.title.trim()) {
+            setError('Judul paket ujian wajib diisi.');
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
 
         try {
-            const payload = {
-                ...formData,
-                remedial_exam_id: formData.allow_remedial && formData.remedial_exam_id ? formData.remedial_exam_id : null,
-            };
-
             const res = await fetch('/api/exams', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(formData),
             });
 
             const result = await res.json();
 
             if (result.success) {
                 toast.success('Paket ujian berhasil dibuat');
-                router.push('/admin/exams');
+                const returnUrl = formData.category_id
+                    ? `/admin/exams?category=${formData.category_id}`
+                    : '/admin/exams';
+                router.push(returnUrl);
                 router.refresh();
             } else {
                 throw new Error(result.error || 'Gagal menyimpan ujian');
@@ -104,11 +114,13 @@ export default function NewExamPage() {
         }
     };
 
+    const backUrl = paramCategoryId ? `/admin/exams?category=${paramCategoryId}` : '/admin/exams';
+
     return (
         <div className="space-y-8 pb-12">
             <div className="flex items-center gap-4 border-b border-black/5 pb-6">
                 <Link
-                    href="/admin/exams"
+                    href={backUrl}
                     className="p-2.5 rounded-xl bg-white border border-black/10 text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors shadow-sm"
                 >
                     <ArrowLeft01Icon size={20} />
@@ -134,13 +146,13 @@ export default function NewExamPage() {
                 {/* Category Selection */}
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-foreground">
-                        Kategori Pembelajaran <span className="text-destructive">*</span>
+                        Kategori Program <span className="text-destructive">*</span>
                     </label>
                     <select
+                        required
+                        className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background cursor-pointer"
                         value={formData.category_id}
                         onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                        required
-                        className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background"
                     >
                         <option value="" disabled>-- Pilih Kategori --</option>
                         {categories.map((c) => (
@@ -149,18 +161,17 @@ export default function NewExamPage() {
                             </option>
                         ))}
                     </select>
-                    <p className="text-xs text-muted-foreground">
-                        Kategori ini menentukan kelompok topik ujian dan instruktur yang berwenang memantau.
-                    </p>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-sm font-bold text-foreground">Judul Ujian <span className="text-destructive">*</span></label>
+                    <label className="text-sm font-bold text-foreground">
+                        Judul Paket Ujian <span className="text-destructive">*</span>
+                    </label>
                     <input
                         type="text"
                         required
                         className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
-                        placeholder="Contoh: Ujian Akhir Arsitektur Enterprise"
+                        placeholder="Contoh: Ujian Sertifikasi K3 Tingkat Dasar"
                         value={formData.title}
                         onChange={e => setFormData({ ...formData, title: e.target.value })}
                     />
@@ -168,21 +179,24 @@ export default function NewExamPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-foreground">Durasi (Menit) <span className="text-destructive">*</span></label>
+                        <label className="text-sm font-bold text-foreground">
+                            Durasi Pengerjaan (Menit) <span className="text-destructive">*</span>
+                        </label>
                         <input
                             type="number"
                             required
-                            min={10}
-                            max={300}
+                            min={1}
                             className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
                             value={formData.duration_minutes}
                             onChange={e => setFormData({ ...formData, duration_minutes: Number(e.target.value) })}
                         />
-                        <p className="text-xs text-muted-foreground">Antara 10 hingga 300 menit.</p>
+                        <p className="text-xs text-muted-foreground">Waktu maksimal peserta menyelesaikan ujian.</p>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-foreground">Kriteria Kelulusan (%) <span className="text-destructive">*</span></label>
+                        <label className="text-sm font-bold text-foreground">
+                            Batas Nilai Kelulusan (Passing Grade %) <span className="text-destructive">*</span>
+                        </label>
                         <input
                             type="number"
                             required
@@ -192,50 +206,52 @@ export default function NewExamPage() {
                             value={formData.passing_grade}
                             onChange={e => setFormData({ ...formData, passing_grade: Number(e.target.value) })}
                         />
-                        <p className="text-xs text-muted-foreground">Persentase minimum untuk lulus (0-100).</p>
+                        <p className="text-xs text-muted-foreground">Nilai minimum persentase untuk dinyatakan lulus.</p>
                     </div>
                 </div>
 
-                <div className="pt-4 border-t border-black/5">
-                    <div className="flex items-center gap-3 mb-4">
+                <div className="pt-4 border-t border-black/5 space-y-4">
+                    <div className="flex items-center gap-3">
                         <input
                             type="checkbox"
                             id="allow_remedial"
-                            className="w-5 h-5 rounded border-black/20 text-foreground focus:ring-foreground transition-all"
+                            className="size-4 rounded text-foreground focus:ring-ring"
                             checked={formData.allow_remedial}
-                            onChange={(e) => {
-                                setFormData({
-                                    ...formData,
-                                    allow_remedial: e.target.checked,
-                                    max_attempts: e.target.checked ? Math.max(2, formData.max_attempts) : 1
-                                })
-                            }}
+                            onChange={e => setFormData({ ...formData, allow_remedial: e.target.checked })}
                         />
                         <label htmlFor="allow_remedial" className="text-sm font-bold text-foreground cursor-pointer select-none">
-                            Izinkan Pelaksanaan Remidi Ujian
+                            Aktifkan Fitur Remedial
                         </label>
                     </div>
+                    <p className="text-xs text-muted-foreground ml-7">
+                        Izinkan peserta mengulang ujian jika skor akhir di bawah Passing Grade.
+                    </p>
 
                     {formData.allow_remedial && (
-                        <div className="space-y-5 mb-6 ml-0 sm:ml-8 p-4 sm:p-5 bg-black/[0.02] rounded-xl border border-black/5">
-                            <div className="space-y-2">
-                                <label className="text-sm font-bold text-foreground">Batas Maksimal Percobaan <span className="text-destructive">*</span></label>
+                        <div className="ml-7 space-y-4 pt-2">
+                            <div className="space-y-2 max-w-xs">
+                                <label className="text-sm font-bold text-foreground">
+                                    Maksimal Percobaan (Attempts)
+                                </label>
                                 <input
                                     type="number"
-                                    required
-                                    min={2}
+                                    min={1}
                                     max={10}
-                                    className="w-full max-w-xs glass-input px-4 py-3 rounded-xl text-sm focus:outline-none block"
+                                    className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none"
                                     value={formData.max_attempts}
                                     onChange={e => setFormData({ ...formData, max_attempts: Number(e.target.value) })}
                                 />
-                                <p className="text-xs text-muted-foreground mt-1">Jumlah kesempatan maksimal yang diberikan kepada peserta (termasuk ujian pertama).</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Termasuk 1x ujian utama (Contoh: 2 = 1x Ujian Utama + 1x Remedial).
+                                </p>
                             </div>
 
-                            <div className="space-y-2 pt-2 border-t border-black/5">
-                                <label className="text-sm font-bold text-foreground">Paket Soal Ujian Remedial</label>
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-foreground">
+                                    Sumber Paket Soal Remedial
+                                </label>
                                 <select
-                                    className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-white text-foreground"
+                                    className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background cursor-pointer"
                                     value={formData.remedial_exam_id}
                                     onChange={e => setFormData({ ...formData, remedial_exam_id: e.target.value })}
                                 >
@@ -266,5 +282,13 @@ export default function NewExamPage() {
                 </div>
             </form>
         </div>
+    );
+}
+
+export default function NewExamPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Memuat formulir...</div>}>
+            <NewExamForm />
+        </Suspense>
     );
 }

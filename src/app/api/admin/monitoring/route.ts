@@ -34,7 +34,7 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
 
         // If no sessionId, return list of active/recent sessions that have proctoring
         if (!sessionId) {
-            let query = `
+            const query = `
                 SELECT 
                     s.id, s.title, s.start_time, s.end_time, s.require_seb, s.enable_proctoring,
                     m.title as module_title

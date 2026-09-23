@@ -27,7 +27,9 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
             conditionParams.push(...scope.params);
         }
 
-        if (categoryId !== 'all' && categoryId) {
+        if (categoryId === 'uncategorized' || categoryId === 'none') {
+            conditions.push(`(t.category_id IS NULL OR t.category_id = '')`);
+        } else if (categoryId !== 'all' && categoryId) {
             conditions.push(`t.category_id = ?`);
             conditionParams.push(categoryId);
         }

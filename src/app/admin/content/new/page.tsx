@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Book01Icon, FloppyDiskIcon, ArrowLeft01Icon } from 'hugeicons-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -19,12 +19,15 @@ interface CategoryOption {
     color: string;
 }
 
-export default function NewTrainingPage() {
+function NewTrainingForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const paramCategoryId = searchParams.get('category_id') || searchParams.get('category') || '';
+
     const [isLoading, setIsLoading] = useState(false);
     const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [formData, setFormData] = useState({
-        category_id: '',
+        category_id: paramCategoryId,
         title: '',
         content_html: '',
     });
@@ -50,12 +53,16 @@ export default function NewTrainingPage() {
                 if (data.success && Array.isArray(data.data)) {
                     setCategories(data.data);
                     if (data.data.length > 0) {
-                        setFormData((prev) => ({ ...prev, category_id: prev.category_id || data.data[0].id }));
+                        const hasParam = data.data.some((c: CategoryOption) => c.id === paramCategoryId);
+                        setFormData((prev) => ({
+                            ...prev,
+                            category_id: hasParam ? paramCategoryId : prev.category_id || data.data[0].id,
+                        }));
                     }
                 }
             })
             .catch(() => undefined);
-    }, [router]);
+    }, [router, paramCategoryId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -65,8 +72,13 @@ export default function NewTrainingPage() {
             return;
         }
 
-        if (!formData.content_html || formData.content_html === '<p></p>') {
-            setError('Konten materi tidak boleh kosong.');
+        if (!formData.title.trim()) {
+            setError('Judul materi wajib diisi.');
+            return;
+        }
+
+        if (!formData.content_html.trim() || formData.content_html === '<p></p>') {
+            setError('Konten materi wajib diisi.');
             return;
         }
 
@@ -74,7 +86,7 @@ export default function NewTrainingPage() {
         setError(null);
 
         try {
-            const res = await safeFetchJson<{ success: boolean; id?: string; error?: string }>('/api/trainings', {
+            const res = await safeFetchJson<{ success: boolean; data?: { id: string } }>('/api/trainings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...formData, media }),
@@ -82,7 +94,10 @@ export default function NewTrainingPage() {
 
             if (res.ok && res.data?.success) {
                 toast.success('Materi pelatihan berhasil dibuat');
-                router.push('/admin/content');
+                const returnUrl = formData.category_id
+                    ? `/admin/content?category=${formData.category_id}`
+                    : '/admin/content';
+                router.push(returnUrl);
                 router.refresh();
             } else {
                 throw new Error(res.error || 'Gagal menyimpan materi pelatihan');
@@ -95,11 +110,13 @@ export default function NewTrainingPage() {
         }
     };
 
+    const backUrl = paramCategoryId ? `/admin/content?category=${paramCategoryId}` : '/admin/content';
+
     return (
         <div className="space-y-8 pb-12">
             <div className="flex items-center gap-4 border-b border-black/5 pb-6">
                 <Link
-                    href="/admin/content"
+                    href={backUrl}
                     className="p-2.5 rounded-xl bg-white border border-black/10 text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors shadow-sm"
                 >
                     <ArrowLeft01Icon size={20} />
@@ -121,18 +138,18 @@ export default function NewTrainingPage() {
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="glass-card space-y-6 p-4 sm:p-6 md:p-8">
-                    {/* Category Selection */}
+            <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl">
+                <div className="glass-card p-6 space-y-6">
+                    {/* Category Selector */}
                     <div className="space-y-2">
                         <label className="text-sm font-bold text-foreground">
                             Kategori Pembelajaran <span className="text-destructive">*</span>
                         </label>
                         <select
+                            required
+                            className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background cursor-pointer"
                             value={formData.category_id}
                             onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                            required
-                            className="w-full glass-input px-4 py-3 rounded-xl text-sm focus:outline-none bg-background"
                         >
                             <option value="" disabled>-- Pilih Kategori --</option>
                             {categories.map((c) => (
@@ -141,9 +158,6 @@ export default function NewTrainingPage() {
                                 </option>
                             ))}
                         </select>
-                        <p className="text-xs text-muted-foreground">
-                            Kategori ini menentukan kelompok topik materi dan instruktur yang berwenang mengampu.
-                        </p>
                     </div>
 
                     <div className="space-y-2">
@@ -189,5 +203,13 @@ export default function NewTrainingPage() {
                 </div>
             </form>
         </div>
+    );
+}
+
+export default function NewTrainingPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Memuat formulir...</div>}>
+            <NewTrainingForm />
+        </Suspense>
     );
 }

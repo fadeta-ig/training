@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     CubeIcon,
     FloppyDiskIcon,
@@ -39,8 +39,10 @@ type ModuleItem = {
     title: string;
 };
 
-export default function NewModuleBuilderPage() {
+function NewModuleBuilderForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const paramCategoryId = searchParams.get('category_id') || searchParams.get('category') || '';
     const [isLoading, setIsLoading] = useState(false);
 
     // Master Lists 
@@ -48,7 +50,7 @@ export default function NewModuleBuilderPage() {
     const [exams, setExams] = useState<MasterItem[]>([]);
 
     const [categories, setCategories] = useState<CategoryOption[]>([]);
-    const [categoryId, setCategoryId] = useState('');
+    const [categoryId, setCategoryId] = useState(paramCategoryId);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [enforceSequence, setEnforceSequence] = useState(false);
@@ -75,7 +77,8 @@ export default function NewModuleBuilderPage() {
                 if (data.success && Array.isArray(data.data)) {
                     setCategories(data.data);
                     if (data.data.length > 0) {
-                        setCategoryId((prev) => prev || data.data[0].id);
+                        const hasParam = data.data.some((c: CategoryOption) => c.id === paramCategoryId);
+                        setCategoryId((prev) => (hasParam ? paramCategoryId : prev || data.data[0].id));
                     }
                 }
             })
@@ -93,7 +96,7 @@ export default function NewModuleBuilderPage() {
                 setExams(eRes.data.map((e: any) => ({ ...e, type: 'exam' })));
             }
         });
-    }, [router]);
+    }, [router, paramCategoryId]);
 
     const addItem = (item: MasterItem) => {
         const newItem: ModuleItem = {
@@ -167,7 +170,10 @@ export default function NewModuleBuilderPage() {
 
             if (result.success) {
                 toast.success('Modul pelatihan berhasil dibuat');
-                router.push('/admin/modules');
+                const returnUrl = categoryId
+                    ? `/admin/modules?category=${categoryId}`
+                    : '/admin/modules';
+                router.push(returnUrl);
                 router.refresh();
             } else {
                 throw new Error(result.error || 'Gagal membuat modul');
@@ -179,11 +185,13 @@ export default function NewModuleBuilderPage() {
         }
     };
 
+    const backUrl = paramCategoryId ? `/admin/modules?category=${paramCategoryId}` : '/admin/modules';
+
     return (
         <div className="space-y-8 pb-12">
             <div className="flex items-start gap-3 border-b border-black/5 pb-5 sm:items-center sm:gap-4 sm:pb-6">
                 <Link
-                    href="/admin/modules"
+                    href={backUrl}
                     className="shrink-0 p-2.5 rounded-xl bg-white border border-black/10 text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors shadow-sm"
                 >
                     <ArrowLeft01Icon size={20} />
@@ -528,3 +536,12 @@ export default function NewModuleBuilderPage() {
         </div>
     );
 }
+
+export default function NewModuleBuilderPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Memuat perakit modul...</div>}>
+            <NewModuleBuilderForm />
+        </Suspense>
+    );
+}
+

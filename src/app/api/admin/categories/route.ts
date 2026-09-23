@@ -47,8 +47,53 @@ async function handleGet(request: NextRequest, user: AuthenticatedUser) {
 
         const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
 
-        // Jika request parameter `all=true`, kembalikan seluruh daftar tanpa pagination (untuk select dropdown)
+        // Jika request parameter `all=true`, kembalikan seluruh daftar tanpa pagination (untuk select dropdown atau folder view)
         if (allList) {
+            const includeCounts = searchParams.get('include_counts') === 'true';
+            if (includeCounts) {
+                const categories = await executeQuery(
+                    `SELECT lc.id, lc.name, lc.code, lc.description, lc.color, lc.is_active, lc.created_at, lc.updated_at,
+                            (SELECT COUNT(*) FROM category_trainers ct WHERE ct.category_id = lc.id) AS trainer_count,
+                            (SELECT COUNT(*) FROM trainings t WHERE t.category_id = lc.id) AS training_count,
+                            (SELECT COUNT(*) FROM exams e WHERE e.category_id = lc.id) AS exam_count,
+                            (SELECT COUNT(*) FROM modules m WHERE m.category_id = lc.id) AS module_count
+                     FROM learning_categories lc
+                     ${whereClause}
+                     ORDER BY lc.name ASC`,
+                    conditionParams
+                );
+
+                let uncategorizedTrainings = 0;
+                let uncategorizedExams = 0;
+                let uncategorizedModules = 0;
+
+                // Hanya admin yang melihat item uncategorized secara global (trainer terikat pada assignment kategori)
+                if (user.role === 'admin') {
+                    const [trainingsCount] = await executeQuery<{ count: number }[]>(
+                        `SELECT COUNT(*) as count FROM trainings WHERE category_id IS NULL OR category_id = ''`
+                    );
+                    const [examsCount] = await executeQuery<{ count: number }[]>(
+                        `SELECT COUNT(*) as count FROM exams WHERE category_id IS NULL OR category_id = ''`
+                    );
+                    const [modulesCount] = await executeQuery<{ count: number }[]>(
+                        `SELECT COUNT(*) as count FROM modules WHERE category_id IS NULL OR category_id = ''`
+                    );
+                    uncategorizedTrainings = trainingsCount?.count || 0;
+                    uncategorizedExams = examsCount?.count || 0;
+                    uncategorizedModules = modulesCount?.count || 0;
+                }
+
+                return NextResponse.json({
+                    success: true,
+                    data: categories,
+                    uncategorized: {
+                        training_count: uncategorizedTrainings,
+                        exam_count: uncategorizedExams,
+                        module_count: uncategorizedModules,
+                    },
+                });
+            }
+
             const categories = await executeQuery(
                 `SELECT lc.id, lc.name, lc.code, lc.color, lc.is_active
                  FROM learning_categories lc

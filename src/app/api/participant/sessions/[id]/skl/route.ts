@@ -503,12 +503,12 @@ async function handleGet(
         <div class="letterhead">
             <div class="logo-container">
                 ${safeLogoBase64
-                    ? `<img src="${safeLogoBase64}" alt="Nusamitra Consulting" class="logo-img" />`
-                    : `<div style="font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.03em;">NUSAMITRA</div>`
+                    ? `<img src="${safeLogoBase64}" alt="PT Nusamitra Consulting Indonesia" class="logo-img" />`
+                    : `<div style="font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.03em;">PT NUSAMITRA CONSULTING INDONESIA</div>`
                 }
             </div>
             <div class="company-info">
-                <div class="company-name">NUSAMITRA CONSULTING</div>
+                <div class="company-name">PT NUSAMITRA CONSULTING INDONESIA</div>
                 <div class="company-sub">Lembaga Konsultasi & Pelatihan Profesional</div>
                 <div class="company-address">Official Online Training Portal • Verifikasi Dokumen Terdaftar</div>
             </div>
@@ -599,7 +599,7 @@ async function handleGet(
                     <img src="${safeQrCodeDataUrl}" alt="QR Verification" class="qr-img" />
                     <span class="qr-hint">Pindai untuk Verifikasi</span>
                 </div>
-                <div class="sign-name">Nusamitra Training Directorate</div>
+                <div class="sign-name">PT Nusamitra Consulting Indonesia Training Directorate</div>
                 <div class="sign-title">Direktorat Pelatihan & Sertifikasi</div>
             </div>
         </div>

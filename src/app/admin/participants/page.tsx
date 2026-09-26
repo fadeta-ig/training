@@ -795,7 +795,7 @@ export default function ParticipantsManagerPage() {
                                     <button
                                         type="button"
                                         onClick={async () => {
-                                            const text = `Kredensial Akun LMS Nusamitra\nNama: ${singleCredentialModal.name}\nNIP: ${singleCredentialModal.nip || '-'}\nUsername: ${singleCredentialModal.email}\nPassword: ${singleCredentialModal.password}\nLogin: ${window.location.origin}/auth/login`;
+                                            const text = `Kredensial Akun LMS PT Nusamitra Consulting Indonesia\nNama: ${singleCredentialModal.name}\nNIP: ${singleCredentialModal.nip || '-'}\nUsername: ${singleCredentialModal.email}\nPassword: ${singleCredentialModal.password}\nLogin: ${window.location.origin}/auth/login`;
                                             await navigator.clipboard.writeText(text);
                                             toast.success('Seluruh info kredensial disalin!');
                                         }}

@@ -1,5 +1,5 @@
 /**
- * Timezone Management Utility for LMS Nusamitra
+ * Timezone Management Utility for LMS PT Nusamitra Consulting Indonesia
  * Standardizes time handling across WIB (UTC+7), WITA (UTC+8), and WIT (UTC+9).
  * Single Source of Truth: WIB (Asia/Jakarta / UTC+7).
  */

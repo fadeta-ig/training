@@ -1,7 +1,7 @@
 import mysql, { Pool, PoolOptions } from 'mysql2/promise';
 
 /**
- * LMS Nusamitra Consulting MySQL Connection Pool (Singleton Pattern)
+ * LMS PT Nusamitra Consulting Indonesia MySQL Connection Pool (Singleton Pattern)
  * Prevents multiple pools during Next.js HMR (Hot Module Replacement).
  */
 const configuredConnectionLimit = Number.parseInt(process.env.DB_CONNECTION_LIMIT || '20', 10);

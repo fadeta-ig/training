@@ -7,7 +7,7 @@ function formatTimestamp(): string {
 }
 
 /**
- * LMS Nusamitra Consulting Server Logger.
+ * LMS PT Nusamitra Consulting Indonesia Server Logger.
  * Formats server logs cleanly: [TIMESTAMP] [LEVEL] [MODULE] [USER_ID] Message | Context
  */
 export const logger = {

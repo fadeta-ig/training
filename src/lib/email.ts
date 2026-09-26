@@ -38,7 +38,7 @@ const transporter = nodemailer.createTransport({
 });
 
 function getFromAddress(customSenderName?: string): string {
-    const senderName = customSenderName || process.env.SMTP_FROM_NAME || 'LMS Nusamitra Consulting';
+    const senderName = customSenderName || process.env.SMTP_FROM_NAME || 'LMS PT Nusamitra Consulting Indonesia';
     const senderEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'lms@nusamitraconsulting.com';
     return `"${senderName}" <${senderEmail}>`;
 }
@@ -76,19 +76,19 @@ export async function sendEmail({
 
 export async function sendPasswordResetEmail(to: string, resetLink: string) {
     const safeResetLink = escapeHtml(resetLink);
-    const plainText = `Reset Password LMS Nusamitra Consulting\n\nHalo,\n\nKami menerima permintaan untuk mereset password akun Anda di LMS Nusamitra Consulting. Jika Anda tidak merasa melakukan permintaan ini, silakan abaikan email ini.\n\nBuka tautan berikut untuk membuat password baru:\n${resetLink}\n\nTautan ini hanya berlaku selama 1 jam.\n\nSalam Hormat,\nTim Manajemen Pelatihan LMS Nusamitra Consulting\nhttps://nusamitraconsulting.com`;
+    const plainText = `Reset Password LMS PT Nusamitra Consulting Indonesia\n\nHalo,\n\nKami menerima permintaan untuk mereset password akun Anda di LMS PT Nusamitra Consulting Indonesia. Jika Anda tidak merasa melakukan permintaan ini, silakan abaikan email ini.\n\nBuka tautan berikut untuk membuat password baru:\n${resetLink}\n\nTautan ini hanya berlaku selama 1 jam.\n\nSalam Hormat,\nTim Manajemen Pelatihan LMS PT Nusamitra Consulting Indonesia\nhttps://nusamitraconsulting.com`;
 
     const mailOptions = {
         from: getFromAddress(),
         replyTo: defaultReplyTo,
         to,
-        subject: 'Permintaan Reset Password - LMS Nusamitra Consulting',
+        subject: 'Permintaan Reset Password - LMS PT Nusamitra Consulting Indonesia',
         text: plainText,
         html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px;">
-            <h2 style="color: #047857; border-bottom: 2px solid #059669; padding-bottom: 12px;">Reset Password LMS Nusamitra Consulting</h2>
+            <h2 style="color: #047857; border-bottom: 2px solid #059669; padding-bottom: 12px;">Reset Password LMS PT Nusamitra Consulting Indonesia</h2>
             <p style="color: #334155;">Halo,</p>
-            <p style="color: #334155;">Kami menerima permintaan untuk mereset password akun Anda di LMS Nusamitra Consulting. Jika Anda tidak melakukan permintaan ini, abaikan email ini.</p>
+            <p style="color: #334155;">Kami menerima permintaan untuk mereset password akun Anda di LMS PT Nusamitra Consulting Indonesia. Jika Anda tidak melakukan permintaan ini, abaikan email ini.</p>
             <p style="color: #334155;">Klik tombol di bawah ini untuk membuat password baru:</p>
             <div style="text-align: center; margin: 32px 0;">
                 <a href="${safeResetLink}" style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block;">Reset Password Sekarang</a>
@@ -99,7 +99,7 @@ export async function sendPasswordResetEmail(to: string, resetLink: string) {
             </p>
             <p style="color: #64748b; font-size: 12px; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
                 Link ini hanya berlaku selama 1 jam.<br/>
-                Nusamitra Consulting | Website: <a href="https://nusamitraconsulting.com" style="color: #059669;">nusamitraconsulting.com</a>
+                PT Nusamitra Consulting Indonesia | Website: <a href="https://nusamitraconsulting.com" style="color: #059669;">nusamitraconsulting.com</a>
             </p>
         </div>
         `,
@@ -125,7 +125,7 @@ export async function sendCredentialEmail(to: string, participantName: string, p
 
     const plainText = `Halo ${participantName},
 
-Akun Anda telah terdaftar pada platform LMS Nusamitra Consulting untuk pelaksanaan ujian sertifikasi online. Berikut adalah rincian informasi login serta petunjuk pelaksanaan ujian Anda.
+Akun Anda telah terdaftar pada platform LMS PT Nusamitra Consulting Indonesia untuk pelaksanaan ujian sertifikasi online. Berikut adalah rincian informasi login serta petunjuk pelaksanaan ujian Anda.
 
 INFORMASI KREDENSIAL AKUN
 - Username (Email) : ${to}
@@ -156,7 +156,7 @@ Bagan panduan langkah-langkah pelaksanaan ujian dapat diakses melalui tautan ber
 ${flyerUrl}
 
 Hormat kami,
-Tim Manajemen Pelatihan LMS Nusamitra Consulting
+Tim Manajemen Pelatihan LMS PT Nusamitra Consulting Indonesia
 Website: https://nusamitraconsulting.com
 `;
 
@@ -175,7 +175,7 @@ Website: https://nusamitraconsulting.com
                 
                 <!-- Header -->
                 <div style="padding: 28px 32px 22px 32px; border-bottom: 1px solid #e2e8f0;">
-                    <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #64748b;">Nusamitra Consulting</div>
+                    <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #64748b;">PT Nusamitra Consulting Indonesia</div>
                     <h1 style="margin: 6px 0 0 0; font-size: 18px; font-weight: 600; color: #0f172a; line-height: 1.4;">Informasi Akun dan Panduan Pelaksanaan Ujian</h1>
                 </div>
 
@@ -185,7 +185,7 @@ Website: https://nusamitraconsulting.com
                         Halo <b>${safeName}</b>,
                     </p>
                     <p style="margin: 0 0 24px 0; font-size: 14px; color: #334155; line-height: 1.6;">
-                        Akun Anda telah terdaftar pada platform LMS Nusamitra Consulting untuk pelaksanaan ujian sertifikasi online. Berikut adalah rincian informasi login serta petunjuk pelaksanaan ujian Anda.
+                        Akun Anda telah terdaftar pada platform LMS PT Nusamitra Consulting Indonesia untuk pelaksanaan ujian sertifikasi online. Berikut adalah rincian informasi login serta petunjuk pelaksanaan ujian Anda.
                     </p>
 
                     <!-- Section: Kredensial Akun -->
@@ -288,13 +288,13 @@ Website: https://nusamitraconsulting.com
                     </p>
                     <p style="margin: 16px 0 0 0; font-size: 13px; color: #64748b;">
                         Hormat kami,<br/>
-                        <b style="color: #0f172a;">Tim Manajemen Pelatihan LMS Nusamitra Consulting</b>
+                        <b style="color: #0f172a;">Tim Manajemen Pelatihan LMS PT Nusamitra Consulting Indonesia</b>
                     </p>
                 </div>
 
                 <!-- Footer -->
                 <div style="padding: 16px 32px; border-top: 1px solid #e2e8f0; background-color: #f8fafc; text-align: center; font-size: 11.5px; color: #64748b;">
-                    Nusamitra Consulting &bull; <a href="https://nusamitraconsulting.com" target="_blank" style="color: #0f172a; text-decoration: none;">nusamitraconsulting.com</a><br/>
+                    PT Nusamitra Consulting Indonesia &bull; <a href="https://nusamitraconsulting.com" target="_blank" style="color: #0f172a; text-decoration: none;">nusamitraconsulting.com</a><br/>
                     Email ini diterbitkan secara otomatis oleh sistem LMS kepada peserta yang terdaftar resmi.
                 </div>
             </div>
@@ -345,7 +345,7 @@ export async function sendSessionReminderEmail(bccEmails: string[], sessionDetai
     const safeTime = escapeHtml(timeStr);
     const safeDashboardUrl = escapeHtml(`${baseUrl}/dashboard`);
 
-    const plainText = `[Pengingat] Jadwal Sesi Pelatihan: ${sessionDetail.title}\n\nHalo Peserta,\n\nMengingatkan Anda bahwa sesi pembelajaran ${sessionDetail.title} akan/sedang berlangsung:\n- Modul/Sesi: ${sessionDetail.title}\n- Tanggal: ${dateStr}\n- Waktu Mulai: ${timeStr}\n\nPastikan Anda telah bersiap dengan jaringan koneksi yang stabil sebelum sesi ujian / materi dieksekusi secara terawasi.\n\nAkses Dashboard Anda di: ${baseUrl}/dashboard\n\nSalam Hormat,\nTim Manajemen Pelatihan LMS Nusamitra Consulting\nhttps://nusamitraconsulting.com`;
+    const plainText = `[Pengingat] Jadwal Sesi Pelatihan: ${sessionDetail.title}\n\nHalo Peserta,\n\nMengingatkan Anda bahwa sesi pembelajaran ${sessionDetail.title} akan/sedang berlangsung:\n- Modul/Sesi: ${sessionDetail.title}\n- Tanggal: ${dateStr}\n- Waktu Mulai: ${timeStr}\n\nPastikan Anda telah bersiap dengan jaringan koneksi yang stabil sebelum sesi ujian / materi dieksekusi secara terawasi.\n\nAkses Dashboard Anda di: ${baseUrl}/dashboard\n\nSalam Hormat,\nTim Manajemen Pelatihan LMS PT Nusamitra Consulting Indonesia\nhttps://nusamitraconsulting.com`;
 
     const mailOptions = {
         from: getFromAddress('LMS System Admin'),
@@ -384,7 +384,7 @@ export async function sendSessionReminderEmail(bccEmails: string[], sessionDetai
             
             <p style="color: #64748b; font-size: 12px; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
                 Anda menerima rincian notifikasi email sistem ini karena Administrator telah mengaitkan Anda ke dalam Sesi.<br/>
-                Nusamitra Consulting | Website: <a href="https://nusamitraconsulting.com" style="color: #0284c7;">nusamitraconsulting.com</a>
+                PT Nusamitra Consulting Indonesia | Website: <a href="https://nusamitraconsulting.com" style="color: #0284c7;">nusamitraconsulting.com</a>
             </p>
         </div>
         `,

@@ -56,7 +56,7 @@ export default function QuitSebPage() {
                 </div>
 
                 <p className="text-xs text-slate-400">
-                    LMS Nusamitra Consulting - Safe Exam Browser Integration
+                    LMS PT Nusamitra Consulting Indonesia - Safe Exam Browser Integration
                 </p>
             </div>
         </div>

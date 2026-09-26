@@ -265,7 +265,7 @@ export default function RegisterPage() {
             <div className="hidden lg:flex lg:w-[42%] xl:w-[40%] relative overflow-hidden bg-slate-950 select-none flex-col justify-between p-10 xl:p-12">
                 <Image
                     src="/images/auth-hero.jpg"
-                    alt="Pendaftaran Sertifikasi Profesi Nusamitra"
+                    alt="Pendaftaran Sertifikasi Profesi PT Nusamitra Consulting Indonesia"
                     fill
                     sizes="(min-width: 1024px) 42vw, 100vw"
                     priority
@@ -278,7 +278,7 @@ export default function RegisterPage() {
                 <div className="relative z-10">
                     <Image
                         src="/logo-nusamitra-tr.png"
-                        alt="Nusamitra Consulting"
+                        alt="PT Nusamitra Consulting Indonesia"
                         width={180}
                         height={52}
                         priority
@@ -317,7 +317,7 @@ export default function RegisterPage() {
                     <div className="mb-4 lg:hidden flex justify-between items-center">
                         <Image
                             src="/logo-nusamitra-tr.png"
-                            alt="Nusamitra Consulting"
+                            alt="PT Nusamitra Consulting Indonesia"
                             width={140}
                             height={40}
                             priority
@@ -919,7 +919,7 @@ export default function RegisterPage() {
                 {/* Footer Info */}
                 <div className="w-full max-w-xl mx-auto pt-4 text-center border-t border-slate-200/60">
                     <p className="text-[11px] text-muted-foreground">
-                        © {new Date().getFullYear()} Nusamitra Consulting. Portal Sertifikasi & Pelatihan Resmi.
+                        © {new Date().getFullYear()} PT Nusamitra Consulting Indonesia. Portal Sertifikasi & Pelatihan Resmi.
                     </p>
                 </div>
             </div>

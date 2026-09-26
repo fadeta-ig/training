@@ -88,7 +88,7 @@ function LoginForm() {
                 {/* Background Hero Image */}
                 <Image
                     src="/images/auth-hero.jpg"
-                    alt="Sesi Pelatihan dan Sertifikasi Profesional Nusamitra"
+                    alt="Sesi Pelatihan dan Sertifikasi Profesional PT Nusamitra Consulting Indonesia"
                     fill
                     sizes="(min-width: 1024px) 60vw, 100vw"
                     priority
@@ -103,7 +103,7 @@ function LoginForm() {
                 <div className="absolute bottom-8 left-8 right-8 z-10">
                     <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white/90 text-xs font-medium tracking-wide">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        LMS Nusamitra Consulting • Professional Assessment Portal
+                        LMS PT Nusamitra Consulting Indonesia • Professional Assessment Portal
                     </div>
                 </div>
             </div>
@@ -116,7 +116,7 @@ function LoginForm() {
                     <div className="mb-8">
                         <Image
                             src="/logo-nusamitra-tr.png"
-                            alt="Nusamitra Consulting"
+                            alt="PT Nusamitra Consulting Indonesia"
                             width={180}
                             height={52}
                             priority
@@ -271,7 +271,7 @@ function LoginForm() {
                 {/* Footer Info */}
                 <div className="w-full max-w-md mx-auto pt-6 text-center lg:text-left border-t border-slate-100">
                     <p className="text-xs text-muted-foreground">
-                        © {new Date().getFullYear()} Nusamitra Consulting. Hak Cipta Dilindungi.
+                        © {new Date().getFullYear()} PT Nusamitra Consulting Indonesia. Hak Cipta Dilindungi.
                     </p>
                 </div>
             </div>

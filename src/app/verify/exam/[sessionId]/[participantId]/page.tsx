@@ -6,8 +6,8 @@ import { getParticipantAnswerSheetData } from '@/lib/answer-sheet';
 import { verifyAnswerSheetDocumentId } from '@/lib/answer-sheet-verification';
 
 export const metadata: Metadata = {
-    title: 'Verifikasi Lembar Jawaban - Nusamitra Consulting',
-    description: 'Portal verifikasi resmi lembar jawaban ujian LMS Nusamitra Consulting.',
+    title: 'Verifikasi Lembar Jawaban - PT Nusamitra Consulting Indonesia',
+    description: 'Portal verifikasi resmi lembar jawaban ujian LMS PT Nusamitra Consulting Indonesia.',
     robots: { index: false, follow: false, nocache: true },
 };
 
@@ -43,7 +43,7 @@ export default async function AnswerSheetVerificationPage({ params, searchParams
                 <div className="text-center">
                     <Image
                         src="/logo-nusamitra-tr.png"
-                        alt="Nusamitra Consulting"
+                        alt="PT Nusamitra Consulting Indonesia"
                         width={180}
                         height={52}
                         priority

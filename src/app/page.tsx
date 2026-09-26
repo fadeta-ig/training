@@ -10,8 +10,8 @@ import {
 } from "lucide-react";
 
 export const metadata = {
-    title: "LMS Nusamitra Consulting - Platform Pelatihan & Sertifikasi Profesional",
-    description: "Sistem Manajemen Pembelajaran dan Penilaian Kompetensi Terstandar Nusamitra Consulting.",
+    title: "LMS PT Nusamitra Consulting Indonesia - Platform Pelatihan & Sertifikasi Profesional",
+    description: "Sistem Manajemen Pembelajaran dan Penilaian Kompetensi Terstandar PT Nusamitra Consulting Indonesia.",
 };
 
 export default function HomePage() {
@@ -31,7 +31,7 @@ export default function HomePage() {
                         <div className="p-2 bg-white rounded-2xl shadow-sm">
                             <Image
                                 src="/logo-nusamitra-tr.png"
-                                alt="Nusamitra Consulting"
+                                alt="PT Nusamitra Consulting Indonesia"
                                 width={160}
                                 height={44}
                                 priority
@@ -137,7 +137,7 @@ export default function HomePage() {
             {/* Footer */}
             <footer className="relative z-10 border-t border-white/10 bg-slate-950/60 py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-                    <p>© {new Date().getFullYear()} Nusamitra Consulting. Hak Cipta Dilindungi.</p>
+                    <p>© {new Date().getFullYear()} PT Nusamitra Consulting Indonesia. Hak Cipta Dilindungi.</p>
                     <div className="flex items-center gap-6">
                         <Link href="/auth/login" className="hover:text-white transition-colors">
                             Portal Peserta

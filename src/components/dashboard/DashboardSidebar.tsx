@@ -53,14 +53,14 @@ export function DashboardSidebar({ isOpen, onClose, user }: DashboardSidebarProp
                             <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-xs border border-black/5 shrink-0 p-1">
                                 <Image
                                     src="/logo-nusamitra-tr.png"
-                                    alt="Logo Nusamitra Consulting"
+                                    alt="Logo PT Nusamitra Consulting Indonesia"
                                     width={32}
                                     height={32}
                                     className="w-full h-full object-contain"
                                 />
                             </div>
                             <div className="min-w-0">
-                                <h1 className="text-sm font-bold tracking-tight text-foreground truncate leading-tight">LMS Nusamitra</h1>
+                                <h1 className="text-sm font-bold tracking-tight text-foreground truncate leading-tight">LMS Nusamitra Consulting</h1>
                                 <p className="text-[11px] text-muted-foreground font-medium truncate">Portal Peserta</p>
                             </div>
                         </div>
@@ -68,7 +68,7 @@ export function DashboardSidebar({ isOpen, onClose, user }: DashboardSidebarProp
                         <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-xs border border-black/5 p-1">
                             <Image
                                 src="/logo-nusamitra-tr.png"
-                                alt="Logo Nusamitra Consulting"
+                                alt="Logo PT Nusamitra Consulting Indonesia"
                                 width={32}
                                 height={32}
                                 className="w-full h-full object-contain"

@@ -3,7 +3,7 @@ import path from 'path';
 
 /**
  * Professional, elegant, and print-ready HTML document templates for Module Downloads.
- * Designed with Tahoma typography, text-justify alignment, zero emojis, official Nusamitra logo, and clean corporate layout.
+ * Designed with Tahoma typography, text-justify alignment, zero emojis, official PT Nusamitra Consulting Indonesia logo, and clean corporate layout.
  */
 
 export interface ModuleInfo {
@@ -403,7 +403,7 @@ function renderHeaderTable(badgeText: string, badgeClass: string = 'doc-badge'):
             <tr>
                 ${logoTd}
                 <td style="vertical-align: middle;">
-                    <div class="org-title">LMS NUSAMITRA CONSULTING</div>
+                    <div class="org-title">LMS PT NUSAMITRA CONSULTING INDONESIA</div>
                     <div class="org-subtitle">Sistem Manajemen Pembelajaran &amp; Pelatihan Terpadu</div>
                 </td>
                 <td style="text-align: right; vertical-align: middle;">
@@ -501,7 +501,7 @@ export function generateModuleSyllabusHtml(module: ModuleInfo, items: ModuleItem
         </div>
 
         <div class="footer-note">
-            Dokumen Resmi LMS Nusamitra Consulting • Dicetak pada ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            Dokumen Resmi LMS PT Nusamitra Consulting Indonesia • Dicetak pada ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
         </div>
     </div>
 </body>
@@ -577,7 +577,7 @@ export function generateTrainingMaterialHtml(
         }
 
         <div class="footer-note">
-            Dokumen Resmi LMS Nusamitra Consulting • Dicetak pada ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            Dokumen Resmi LMS PT Nusamitra Consulting Indonesia • Dicetak pada ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
         </div>
     </div>
 </body>
@@ -826,7 +826,7 @@ export function generateExamSheetHtml(
         </div>
 
         <div class="footer-note">
-            Dokumen Resmi LMS Nusamitra Consulting • Dicetak pada ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            Dokumen Resmi LMS PT Nusamitra Consulting Indonesia • Dicetak pada ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
         </div>
     </div>
 </body>

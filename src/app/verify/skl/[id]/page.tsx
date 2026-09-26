@@ -6,8 +6,8 @@ import { ShieldCheck, CheckCircle2, AlertTriangle, Building, Calendar, Award, Us
 import { verifySklVerificationToken } from '@/lib/skl-verification';
 
 export const metadata: Metadata = {
-    title: 'Verifikasi Keaslian Dokumen SKL - Nusamitra Consulting',
-    description: 'Portal resmi verifikasi keabsahan dan keaslian Surat Keterangan Lulus (SKL) Nusamitra Consulting.',
+    title: 'Verifikasi Keaslian Dokumen SKL - PT Nusamitra Consulting Indonesia',
+    description: 'Portal resmi verifikasi keabsahan dan keaslian Surat Keterangan Lulus (SKL) PT Nusamitra Consulting Indonesia.',
     robots: { index: false, follow: false, nocache: true },
 };
 
@@ -95,7 +95,7 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
                     <div className="inline-flex items-center justify-center p-2 bg-white rounded-2xl shadow-sm border border-slate-200">
                         <Image
                             src="/logo-nusamitra-tr.png"
-                            alt="Nusamitra Consulting"
+                            alt="PT Nusamitra Consulting Indonesia"
                             width={160}
                             height={46}
                             priority
@@ -207,7 +207,7 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
                             <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-center text-xs text-emerald-800 space-y-1">
                                 <p className="font-bold">Dokumen ini Sah dan Terdaftar Resmi</p>
                                 <p className="text-[11px] text-emerald-700 leading-relaxed">
-                                    Sistem pangkalan data Nusamitra Consulting memastikan bahwa dokumen Surat Keterangan Lulus (SKL) di atas adalah asli dan diterbitkan secara sah oleh Direktorat Pelatihan & Sertifikasi.
+                                    Sistem pangkalan data PT Nusamitra Consulting Indonesia memastikan bahwa dokumen Surat Keterangan Lulus (SKL) di atas adalah asli dan diterbitkan secara sah oleh Direktorat Pelatihan & Sertifikasi.
                                 </p>
                             </div>
                         </div>
@@ -239,7 +239,7 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
 
                 {/* Footer Copy */}
                 <div className="text-center text-xs text-slate-400">
-                    <p>© {new Date().getFullYear()} Nusamitra Consulting. Sistem Verifikasi Dokumen Elektronik Terdaftar.</p>
+                    <p>© {new Date().getFullYear()} PT Nusamitra Consulting Indonesia. Sistem Verifikasi Dokumen Elektronik Terdaftar.</p>
                 </div>
             </div>
         </div>

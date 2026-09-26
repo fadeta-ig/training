@@ -1146,10 +1146,10 @@ function styleExampleTable(sheet: ExcelJS.Worksheet, rangeStart: number, rangeEn
 
 export async function generateQuestionImportTemplateXlsx(): Promise<Uint8Array> {
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'LMS Nusamitra';
-    workbook.company = 'Nusamitra Consulting';
+    workbook.creator = 'LMS PT Nusamitra Consulting Indonesia';
+    workbook.company = 'PT Nusamitra Consulting Indonesia';
     workbook.subject = 'Template Import Soal Ujian';
-    workbook.title = 'Template Import Soal LMS Nusamitra';
+    workbook.title = 'Template Import Soal LMS PT Nusamitra Consulting Indonesia';
     workbook.description = `Template versi ${QUESTION_IMPORT_TEMPLATE_VERSION} untuk enam tipe soal.`;
     workbook.created = new Date();
     workbook.calcProperties.fullCalcOnLoad = true;
@@ -1157,7 +1157,7 @@ export async function generateQuestionImportTemplateXlsx(): Promise<Uint8Array> 
     const guide = workbook.addWorksheet('PETUNJUK', { properties: { tabColor: { argb: COLORS.blue } }, views: [{ showGridLines: false }] });
     guide.columns = [{ width: 4 }, { width: 28 }, { width: 92 }];
     guide.mergeCells('A1:C1');
-    guide.getCell('A1').value = 'PANDUAN TEMPLATE IMPORT SOAL LMS NUSAMITRA';
+    guide.getCell('A1').value = 'PANDUAN TEMPLATE IMPORT SOAL LMS PT NUSAMITRA CONSULTING INDONESIA';
     guide.getCell('A1').font = { name: 'Aptos Display', size: 17, bold: true, color: { argb: COLORS.white } };
     guide.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.navy } };
     guide.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };

@@ -1011,7 +1011,7 @@ export async function renderAnswerSheetHtml(data: AnswerSheetData, baseUrl?: str
         <!-- Kop Surat -->
         <div class="letterhead">
             <div class="logo-wrap">
-                ${logoBase64 ? `<img src="${logoBase64}" alt="Logo Lembaga" />` : `<strong style="font-size: 18px;">LMS NUSAMITRA</strong>`}
+                ${logoBase64 ? `<img src="${logoBase64}" alt="Logo Lembaga" />` : `<strong style="font-size: 18px;">LMS PT NUSAMITRA CONSULTING INDONESIA</strong>`}
             </div>
             <div class="org-info">
                 <strong>LEMBAGA PELATIHAN & PENGEMBANGAN PROFESI</strong><br>
@@ -1129,7 +1129,7 @@ export async function renderAnswerSheetHtml(data: AnswerSheetData, baseUrl?: str
             <div class="signatures-block">
                 <div class="sig-date">Ditetapkan pada: ${data.generated_at}</div>
                 <div class="sig-name">Tim Penilai & Asesor LMS</div>
-                <div class="sig-title">Nusamitra Consulting Examination Committee</div>
+                <div class="sig-title">PT Nusamitra Consulting Indonesia Examination Committee</div>
             </div>
         </div>
     </div>

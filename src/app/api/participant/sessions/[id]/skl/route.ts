@@ -109,7 +109,7 @@ async function handleGet(
         // Load Nusamitra logo as base64 for self-contained print reliability
         let logoBase64 = '';
         try {
-            const logoPath = path.join(process.cwd(), 'public', 'logo-nusamitra-tr.png');
+            const logoPath = path.join(process.cwd(), 'public', 'logo-nusa-tr-new.png');
             if (fs.existsSync(logoPath)) {
                 const logoBuf = fs.readFileSync(logoPath);
                 logoBase64 = `data:image/png;base64,${logoBuf.toString('base64')}`;

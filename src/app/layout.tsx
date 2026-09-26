@@ -21,11 +21,10 @@ export const metadata: Metadata = {
   description: "Platform Pelatihan dan Ujian Online PT Nusamitra Consulting Indonesia",
   icons: {
     icon: [
-      { url: "/logo-nusamitra-tr.png", sizes: "any" },
-      { url: "/logo-nusamitra.png", type: "image/png" },
+      { url: "/logo-nusa-tr-new.png", sizes: "any" },
     ],
-    shortcut: "/logo-nusamitra-tr.png",
-    apple: "/logo-nusamitra-tr.png",
+    shortcut: "/logo-nusa-tr-new.png",
+    apple: "/logo-nusa-tr-new.png",
   },
 };
 

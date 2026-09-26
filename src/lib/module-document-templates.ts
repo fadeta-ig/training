@@ -74,7 +74,7 @@ let cachedLogoBase64: string | null = null;
 export function getNusamitraLogoBase64(): string {
     if (cachedLogoBase64) return cachedLogoBase64;
     try {
-        const logoPath = path.join(process.cwd(), 'public', 'logo-nusamitra-tr.png');
+        const logoPath = path.join(process.cwd(), 'public', 'logo-nusa-tr-new.png');
         if (fs.existsSync(logoPath)) {
             const buffer = fs.readFileSync(logoPath);
             cachedLogoBase64 = `data:image/png;base64,${buffer.toString('base64')}`;

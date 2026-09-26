@@ -277,7 +277,7 @@ export default function RegisterPage() {
                 {/* Top Logo */}
                 <div className="relative z-10">
                     <Image
-                        src="/logo-nusamitra-tr.png"
+                        src="/logo-nusa-tr-new.png"
                         alt="PT Nusamitra Consulting Indonesia"
                         width={180}
                         height={52}
@@ -316,7 +316,7 @@ export default function RegisterPage() {
                     {/* Header Mobile Brand */}
                     <div className="mb-4 lg:hidden flex justify-between items-center">
                         <Image
-                            src="/logo-nusamitra-tr.png"
+                            src="/logo-nusa-tr-new.png"
                             alt="PT Nusamitra Consulting Indonesia"
                             width={140}
                             height={40}

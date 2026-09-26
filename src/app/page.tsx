@@ -30,7 +30,7 @@ export default function HomePage() {
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-white rounded-2xl shadow-sm">
                             <Image
-                                src="/logo-nusamitra-tr.png"
+                                src="/logo-nusa-tr-new.png"
                                 alt="PT Nusamitra Consulting Indonesia"
                                 width={160}
                                 height={44}

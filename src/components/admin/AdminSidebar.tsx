@@ -106,7 +106,7 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                         <div className="flex items-center gap-3 min-w-0">
                             <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-xs border border-black/5 shrink-0 p-1">
                                 <Image
-                                    src="/logo-nusamitra-tr.png"
+                                    src="/logo-nusa-tr-new.png"
                                     alt="Logo PT Nusamitra Consulting Indonesia"
                                     width={32}
                                     height={32}
@@ -121,7 +121,7 @@ export function AdminSidebar({ isOpen, onClose, user }: AdminSidebarProps) {
                     ) : (
                         <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-xs border border-black/5 p-1">
                             <Image
-                                src="/logo-nusamitra-tr.png"
+                                src="/logo-nusa-tr-new.png"
                                 alt="Logo PT Nusamitra Consulting Indonesia"
                                 width={32}
                                 height={32}

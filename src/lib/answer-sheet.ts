@@ -476,7 +476,7 @@ export async function renderAnswerSheetHtml(data: AnswerSheetData, baseUrl?: str
     // 1. Baca Logo Nusamitra base64
     let logoBase64 = '';
     try {
-        const logoPath = path.join(process.cwd(), 'public', 'logo-nusamitra-tr.png');
+        const logoPath = path.join(process.cwd(), 'public', 'logo-nusa-tr-new.png');
         if (fs.existsSync(logoPath)) {
             const logoBuf = fs.readFileSync(logoPath);
             logoBase64 = `data:image/png;base64,${logoBuf.toString('base64')}`;

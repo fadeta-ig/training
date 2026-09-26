@@ -42,7 +42,7 @@ export default async function AnswerSheetVerificationPage({ params, searchParams
             <div className="mx-auto max-w-2xl space-y-6">
                 <div className="text-center">
                     <Image
-                        src="/logo-nusamitra-tr.png"
+                        src="/logo-nusa-tr-new.png"
                         alt="PT Nusamitra Consulting Indonesia"
                         width={180}
                         height={52}

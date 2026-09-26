@@ -115,7 +115,7 @@ function LoginForm() {
                     {/* Brand Logo (Clean, no card border/shadow) */}
                     <div className="mb-8">
                         <Image
-                            src="/logo-nusamitra-tr.png"
+                            src="/logo-nusa-tr-new.png"
                             alt="PT Nusamitra Consulting Indonesia"
                             width={180}
                             height={52}

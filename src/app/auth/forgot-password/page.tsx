@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
                     <div className="flex justify-center mb-4">
                         <div className="relative w-16 h-16 rounded-2xl bg-white p-2 shadow-lg shadow-black/5 border border-black/5 flex items-center justify-center">
                             <Image
-                                src="/logo-nusamitra-tr.png"
+                                src="/logo-nusa-tr-new.png"
                                 alt="Logo PT Nusamitra Consulting Indonesia"
                                 width={60}
                                 height={60}

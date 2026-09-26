@@ -94,7 +94,7 @@ export default async function SklVerificationPage({ params, searchParams }: Veri
                 <div className="text-center space-y-2">
                     <div className="inline-flex items-center justify-center p-2 bg-white rounded-2xl shadow-sm border border-slate-200">
                         <Image
-                            src="/logo-nusamitra-tr.png"
+                            src="/logo-nusa-tr-new.png"
                             alt="PT Nusamitra Consulting Indonesia"
                             width={160}
                             height={46}

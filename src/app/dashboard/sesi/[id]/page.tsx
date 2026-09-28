@@ -229,6 +229,13 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
     const dualSchedule = formatDualSchedule(session.start_time, session.end_time);
     const formattedScheduleString = dualSchedule.fullText;
 
+    const examItems = session.items.filter((item) => item.item_type === 'exam');
+    const hasAttemptedExam = examItems.length > 0 && examItems.some(
+        (item) => (item.attempts_count || 0) > 0 ||
+            item.progress_status === 'completed' ||
+            item.progress_status === 'grading_pending'
+    );
+
     return (
         <div className="mx-auto max-w-5xl space-y-8 pb-12">
             <Link href="/dashboard/sesi" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
@@ -272,7 +279,7 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                 </div>
             </header>
 
-            {session.graduation_status === 'pending' && session.evaluation_status === 'draft' && (
+            {hasAttemptedExam && session.graduation_status === 'pending' && session.evaluation_status === 'draft' && (
                 <section className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" role="status">
                     <Clock3 className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-400" />
                     <div>

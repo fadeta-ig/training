@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import logger from '@/lib/logger';
-import { withAuth, type AuthenticatedUser } from '@/lib/api-auth';
+import { verifyToken } from '@/lib/auth';
 import { verifyEnrollment, ParticipantError } from '@/lib/participant-helpers';
 import { getAppBaseUrl } from '@/lib/app-url';
 import {
@@ -12,22 +12,29 @@ import {
     serializeSebConfigPlist,
 } from '@/lib/seb-config';
 
-async function handleGet(
+export async function GET(
     request: NextRequest,
-    user: AuthenticatedUser,
     context: { params: Promise<{ id: string }> }
 ) {
     const resolvedParams = await context?.params;
     const sessionId = resolvedParams?.id;
     
-    if (!sessionId) {
-        return NextResponse.json({ error: 'ID sesi tidak valid' }, { status: 400 });
+    if (!sessionId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId)) {
+        return NextResponse.json({ success: false, message: 'ID sesi tidak valid' }, { status: 400 });
     }
 
     try {
-        if (user.role === 'trainee') {
-            await verifyEnrollment(sessionId, user.id);
+        // Optional verification if an authenticated user session cookie is present.
+        // Safe Exam Browser connects directly without browser session cookies when launched via seb(s):// protocol handlers,
+        // then prompts for login when opening startUrl.
+        const token = request.cookies.get('training_session')?.value;
+        if (token) {
+            const payload = await verifyToken(token);
+            if (payload && payload.role === 'trainee') {
+                await verifyEnrollment(sessionId, payload.sub);
+            }
         }
+
         // Cek sesi dan apakah mewajibkan SEB
         const queryStr = `
              SELECT s.id, s.require_seb, s.seb_config_key, s.title, s.enable_proctoring
@@ -107,5 +114,3 @@ async function handleGet(
         );
     }
 }
-
-export const GET = withAuth(handleGet, { allowedRoles: ['admin', 'trainer', 'trainee'] });

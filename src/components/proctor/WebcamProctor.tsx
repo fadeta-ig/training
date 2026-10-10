@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Minimize2, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getPreferredCameraDeviceId } from '@/hooks/useSeb';
 
 const SNAPSHOT_INTERVAL_MS = 3 * 60 * 1000;
 
@@ -39,10 +40,24 @@ export default function WebcamProctor({
     const startCamera = useCallback(async () => {
         try {
             stoppingRef.current = false;
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 320, height: 240, facingMode: 'user' },
-                audio: false,
-            });
+            let stream: MediaStream | null = null;
+            const preferredDeviceId = getPreferredCameraDeviceId();
+            if (preferredDeviceId) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { deviceId: { exact: preferredDeviceId }, width: 320, height: 240 },
+                        audio: false,
+                    });
+                } catch {
+                    stream = null;
+                }
+            }
+            if (!stream) {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 320, height: 240, facingMode: 'user' },
+                    audio: false,
+                });
+            }
             if (videoRef.current) videoRef.current.srcObject = stream;
             stream.getVideoTracks().forEach((track) => {
                 track.addEventListener('ended', () => {
@@ -54,8 +69,19 @@ export default function WebcamProctor({
             });
             streamRef.current = stream;
             setIsStreaming(true);
-        } catch {
-            onError?.('Akses webcam ditolak atau kamera tidak tersedia.');
+        } catch (error) {
+            const name = error instanceof DOMException ? error.name : '';
+            let message = 'Akses webcam ditolak atau kamera tidak tersedia.';
+            if (name === 'NotAllowedError') {
+                message = 'Izin kamera ditolak. Buka Pengaturan Sistem > Privasi & Keamanan > Kamera, izinkan SEB/browser, lalu tutup-buka ulang.';
+            } else if (name === 'NotReadableError') {
+                message = 'Kamera sedang dipakai aplikasi lain. Tutup FaceTime/Zoom/Photo Booth dan cabut iPhone lalu Aktifkan ulang.';
+            } else if (name === 'OverconstrainedError') {
+                message = 'Kamera terpilih tidak tersedia (Continuity Camera). Cabut iPhone / pilih FaceTime HD lalu Aktifkan ulang.';
+            } else if (name === 'NotFoundError') {
+                message = 'Tidak ada kamera terdeteksi.';
+            }
+            onError?.(message);
             onReadyChange?.(false);
             setMinimized(false);
             setIsStreaming(false);

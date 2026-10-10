@@ -307,6 +307,64 @@ function AnswerEditor({
     );
 }
 
+function getSebErrorGuidance(code: string): { title: string; steps: string[] } | null {
+    if (
+        code === 'camera_denied' ||
+        code === 'camera_busy' ||
+        code === 'camera_overconstrained' ||
+        code === 'camera_unavailable' ||
+        code === 'camera_error'
+    ) {
+        return {
+            title: 'Perbaiki akses kamera:',
+            steps: [
+                'Tutup FaceTime, Zoom, Photo Booth, dan aplikasi lain yang memakai kamera.',
+                'Cabut iPhone dari Mac (putuskan Continuity Camera).',
+                'macOS: Pengaturan Sistem > Privasi & Keamanan > Kamera — izinkan SEB, lalu quit-reopen SEB.',
+                'Windows: Settings > Privacy & security > Camera — izinkan SEB/browser.',
+                'Setelah mengubah izin wajib quit-reopen SEB (tutup penuh, bukan minimize).',
+                'macOS bila masih gagal: jalankan `tccutil reset Camera` di Terminal, lalu ulangi pra-izin kamera.',
+            ],
+        };
+    }
+    if (code === 'unsupported_version') {
+        return {
+            title: 'Perbarui SEB ke versi yang didukung:',
+            steps: [
+                'Windows: gunakan SEB 3.10.2 (Windows 10 1803+ / 11).',
+                'macOS: gunakan SEB 3.7.1+ (macOS 12+).',
+                'Unduh versi terbaru, instal, lalu buka ulang file .seb dari halaman sesi.',
+            ],
+        };
+    }
+    if (code === 'seb_key_pending' || code === 'seb_handshake_timeout' || code === 'config_key_mismatch') {
+        return {
+            title: 'Perbaiki koneksi SEB:',
+            steps: [
+                'Unduh dan buka ulang file .seb terbaru dari halaman sesi.',
+                'Pastikan dibuka via aplikasi SEB (tautan sebs://), bukan browser biasa.',
+                'Tunggu hingga validasi selesai; ulangi bila diminta.',
+            ],
+        };
+    }
+    if (code === 'not_seb' || code === 'unsupported_platform') {
+        return {
+            title: code === 'unsupported_platform' ? 'Perangkat tidak didukung:' : 'Buka ujian via SEB:',
+            steps: code === 'unsupported_platform'
+                ? [
+                    'iPad/iPhone tidak didukung untuk ujian ini.',
+                    'Gunakan laptop Windows (SEB 3.10.2) atau macOS 12+ (SEB 3.7.1+).',
+                    'Unduh file .seb dari halaman sesi, lalu buka dengan SEB di laptop.',
+                ]
+                : [
+                    'Halaman ini wajib dibuka melalui aplikasi Safe Exam Browser.',
+                    'Unduh file .seb dari halaman sesi, lalu buka dengan SEB.',
+                ],
+        };
+    }
+    return null;
+}
+
 export default function UjianPage({ params }: { params: Promise<{ id: string; examId: string }> }) {
     const { id: sessionId, examId } = use(params);
     const [examData, setExamData] = useState<ExamData | null>(null);
@@ -910,6 +968,8 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
         );
     }
 
+    const sebGuidance = errorCode ? getSebErrorGuidance(errorCode) : null;
+
     if (error) {
         return (
             <main className="grid min-h-dvh place-items-center bg-muted/30 p-4">
@@ -920,6 +980,16 @@ export default function UjianPage({ params }: { params: Promise<{ id: string; ex
                             <h1 className="text-lg font-semibold">Ujian tidak dapat dilanjutkan</h1>
                             <p className="text-sm text-muted-foreground">{error}</p>
                         </div>
+                        {sebGuidance && (
+                            <div className="rounded-lg border bg-muted/50 p-4 text-left text-xs leading-5">
+                                <p className="font-semibold">{sebGuidance.title}</p>
+                                <ol className="ml-4 list-decimal">
+                                    {sebGuidance.steps.map((step) => (
+                                        <li key={step}>{step}</li>
+                                    ))}
+                                </ol>
+                            </div>
+                        )}
                         <div className="grid gap-2 sm:grid-cols-2">
                             {errorCode && (
                                 <Button

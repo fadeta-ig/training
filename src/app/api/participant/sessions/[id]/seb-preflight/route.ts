@@ -10,7 +10,7 @@ import {
     type SebAccessMode,
 } from '@/lib/seb-access';
 
-type CameraStatus = 'granted' | 'denied' | 'unavailable' | 'error' | 'unchecked';
+type CameraStatus = 'granted' | 'denied' | 'unavailable' | 'busy' | 'overconstrained' | 'error' | 'unchecked';
 
 interface PreflightBody {
     page_url?: unknown;
@@ -20,6 +20,8 @@ interface PreflightBody {
     version?: unknown;
     js_api_available?: unknown;
     camera_status?: unknown;
+    camera_error?: unknown;
+    camera_device_id?: unknown;
 }
 
 interface OverrideRow {
@@ -47,14 +49,19 @@ function versionAtLeast(actual: number[], minimum: number[]): boolean {
     return true;
 }
 
-function normalizePlatform(value: string | null, userAgent: string): 'windows' | 'macos' | 'unknown' {
+function normalizePlatform(value: string | null, userAgent: string): 'windows' | 'macos' | 'ios' | 'unknown' {
     const combined = `${value || ''} ${userAgent}`.toLowerCase();
-    if (combined.includes('win')) return 'windows';
+    if (/\biphone\b|\bipad\b|\bios\b|like mac os x.*mobile/.test(combined)) return 'ios';
+    if (/\bmacintosh\b|\bmac os\b|\bdarwin\b|\bmacintel\b/.test(combined)) return 'macos';
+    if (/\bwin(dows|32|64)?\b/.test(combined)) return 'windows';
     if (combined.includes('mac')) return 'macos';
     return 'unknown';
 }
 
-function checkSupportedVersion(platform: 'windows' | 'macos' | 'unknown', version: string | null) {
+function checkSupportedVersion(platform: 'windows' | 'macos' | 'ios' | 'unknown', version: string | null) {
+    if (platform === 'ios') {
+        return { supported: false, detected: version, minimum: 'tidak didukung (gunakan laptop macOS/Windows)' };
+    }
     if (!version) return { supported: true, detected: null, minimum: null };
     const parsed = versionParts(version);
     if (!parsed) return { supported: true, detected: version, minimum: null };
@@ -68,17 +75,27 @@ function checkSupportedVersion(platform: 'windows' | 'macos' | 'unknown', versio
     };
 }
 
-function cameraPreflightFailure(enabled: boolean, cameraStatus: CameraStatus | null): NextResponse | null {
+function cameraPreflightFailure(enabled: boolean, cameraStatus: CameraStatus | null, platform: 'windows' | 'macos' | 'ios' | 'unknown'): NextResponse | null {
     if (!enabled || cameraStatus === 'granted') return null;
     const unchecked = !cameraStatus || cameraStatus === 'unchecked';
+    let errorMessage: string;
+    if (unchecked) {
+        errorMessage = 'Izin kamera perlu diperiksa sebelum ujian dibuka.';
+    } else if (cameraStatus === 'denied') {
+        errorMessage = 'Izin kamera ditolak. ' + (platform === 'macos'
+            ? 'Buka Pengaturan Sistem > Privasi & Keamanan > Kamera, centang SEB, lalu tutup-buka ulang SEB. Jika baru mengubah izin, wajib quit-reopen.'
+            : 'Aktifkan izin kamera lalu coba kembali.');
+    } else if (cameraStatus === 'busy') {
+        errorMessage = 'Kamera sedang dipakai aplikasi lain. Tutup FaceTime/Zoom/Photo Booth, cabut iPhone (Continuity Camera), lalu coba lagi.';
+    } else if (cameraStatus === 'overconstrained') {
+        errorMessage = 'Kamera yang dipilih tidak tersedia (umum di MacBook TouchBar + Continuity Camera). Cabut iPhone, pilih FaceTime HD Camera, lalu coba lagi.';
+    } else {
+        errorMessage = 'Kamera tidak tersedia atau gagal dibuka. Pastikan kamera tidak dipakai aplikasi lain dan SEB diizinkan mengakses kamera (macOS: Pengaturan Sistem > Privasi & Keamanan > Kamera).';
+    }
     return NextResponse.json({
         success: false,
         code: unchecked ? 'camera_check_required' : `camera_${cameraStatus}`,
-        error: unchecked
-            ? 'Izin kamera perlu diperiksa sebelum ujian dibuka.'
-            : cameraStatus === 'denied'
-                ? 'Izin kamera ditolak. Aktifkan izin kamera lalu coba kembali.'
-                : 'Kamera tidak tersedia atau sedang digunakan aplikasi lain.',
+        error: errorMessage,
         retryable: unchecked,
         cameraRequired: true,
     }, { status: 428 });
@@ -128,10 +145,25 @@ async function handlePost(
         }
 
         const cameraStatus = stringValue(body.camera_status, 30) as CameraStatus | null;
+        const cameraError = stringValue(body.camera_error, 60);
+        const cameraDeviceId = stringValue(body.camera_device_id, 200);
+        const userAgent = request.headers.get('user-agent') || '';
+        const platform = normalizePlatform(stringValue(body.platform, 100), userAgent);
+        const version = stringValue(body.version, 100);
 
         if (!session.require_seb) {
-            const cameraFailure = cameraPreflightFailure(Boolean(session.enable_proctoring), cameraStatus);
-            if (cameraFailure) return cameraFailure;
+            const cameraFailure = cameraPreflightFailure(Boolean(session.enable_proctoring), cameraStatus, platform);
+            if (cameraFailure) {
+                logger.warn('SEB_PREFLIGHT', 'Preflight kamera gagal', {
+                    sessionId,
+                    platform,
+                    version: version || 'unavailable',
+                    cameraStatus,
+                    cameraError,
+                    cameraDeviceId,
+                }, user.id);
+                return cameraFailure;
+            }
             return NextResponse.json({
                 success: true,
                 required: false,
@@ -139,15 +171,35 @@ async function handlePost(
             });
         }
 
-        const userAgent = request.headers.get('user-agent') || '';
-        const platform = normalizePlatform(stringValue(body.platform, 100), userAgent);
-        const version = stringValue(body.version, 100);
+        if (platform === 'ios') {
+            logger.warn('SEB_PREFLIGHT', 'Preflight ditolak: platform iOS tidak didukung', {
+                sessionId,
+                platform,
+                version: version || 'unavailable',
+            }, user.id);
+            return NextResponse.json({
+                success: false,
+                code: 'unsupported_platform',
+                error: 'iPad/iPhone tidak didukung. Gunakan laptop Windows/macOS dengan SEB.',
+                retryable: false,
+            }, { status: 400 });
+        }
+
         const versionCheck = checkSupportedVersion(platform, version);
         if (!versionCheck.supported) {
+            logger.warn('SEB_PREFLIGHT', 'Preflight ditolak: versi SEB tidak didukung', {
+                sessionId,
+                platform,
+                version: versionCheck.detected,
+                minimumVersion: versionCheck.minimum,
+            }, user.id);
+            const versionError = (platform as string) === 'ios'
+                ? 'iPad/iPhone tidak didukung. Gunakan laptop Windows/macOS dengan SEB.'
+                : `Versi SEB ${versionCheck.detected} belum didukung. Minimum untuk ${platform === 'windows' ? 'Windows' : 'macOS'} adalah ${versionCheck.minimum}.` + (platform === 'macos' ? ' Unduh SEB 3.7.1+ untuk macOS 12+.' : '');
             return NextResponse.json({
                 success: false,
                 code: 'unsupported_version',
-                error: `Versi SEB ${versionCheck.detected} belum didukung. Minimum untuk ${platform === 'windows' ? 'Windows' : 'macOS'} adalah ${versionCheck.minimum}.`,
+                error: versionError,
                 retryable: false,
                 platform,
                 version: versionCheck.detected,
@@ -201,8 +253,18 @@ async function handlePost(
             }, { status: 403 });
         }
 
-        const cameraFailure = cameraPreflightFailure(Boolean(session.enable_proctoring), cameraStatus);
-        if (cameraFailure) return cameraFailure;
+        const cameraFailure = cameraPreflightFailure(Boolean(session.enable_proctoring), cameraStatus, platform);
+        if (cameraFailure) {
+            logger.warn('SEB_PREFLIGHT', 'Preflight kamera gagal', {
+                sessionId,
+                platform,
+                version: version || 'unavailable',
+                cameraStatus,
+                cameraError,
+                cameraDeviceId,
+            }, user.id);
+            return cameraFailure;
+        }
 
         let expiresAt = new Date(effectiveEndTime.getTime() + 10 * 60 * 1000);
         if (accessMode === 'admin_override' && override?.expires_at) {
@@ -229,6 +291,8 @@ async function handlePost(
             platform,
             version: version || 'unavailable',
             cameraStatus: session.enable_proctoring ? cameraStatus : 'not_required',
+            cameraError,
+            cameraDeviceId,
         }, user.id);
 
         return NextResponse.json({

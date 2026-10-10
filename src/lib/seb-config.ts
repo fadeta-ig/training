@@ -80,6 +80,8 @@ export function buildSebConfig(options: BuildSebConfigOptions): SebConfigDiction
         enableF5: true,
         enableAAC: false,
         enableMacOSAAC: false,
+        // 0=Automatic: AAC aktif bila didukung (macOS 12.1+). Eksplisit agar perilaku terdokumentasi & ikut Config Key.
+        lockdownModePolicy: 0,
     };
 }
 

@@ -547,13 +547,27 @@ export default function ParticipantSessionDetailPage({ params }: { params: Promi
                             </div>
                             <div className="min-w-0 flex-1">
                                 <span className="font-semibold text-slate-900 dark:text-slate-100 mr-1.5">macOS:</span>
-                                <span>Gunakan SEB 3.7.1 pada macOS 12+ dan izinkan kamera. Keluar:</span>
+                                <span>Gunakan SEB 3.7.1+ di macOS 12+. TouchBar & non-TouchBar didukung. Pra-izin Kamera + tutup FaceTime/Zoom, cabut iPhone, matikan BetterTouchTool. Keluar:</span>
                                 <kbd className="ml-1.5 inline-flex items-center rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-800 shadow-2xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                     Cmd + Q
                                 </kbd>
                             </div>
                         </div>
                     </div>
+
+                    <details className="mt-3 rounded-xl border border-slate-200/80 bg-white/80 px-4 py-3 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+                        <summary className="cursor-pointer font-semibold text-slate-900 dark:text-slate-100">
+                            Panduan MacBook TouchBar (klik)
+                        </summary>
+                        <ol className="ml-4 mt-2 list-decimal space-y-1 leading-5">
+                            <li>Gunakan SEB 3.7.1+ di macOS 12+.</li>
+                            <li>TouchBar otomatis menjadi Expanded Control Strip saat SEB berjalan (normal).</li>
+                            <li>Matikan BetterTouchTool / strip TouchBar kustom sebelum membuka SEB.</li>
+                            <li>Beri pra-izin di System Settings &gt; Privacy &amp; Security &gt; Kamera dan Full Disk Access bila diminta.</li>
+                            <li>Tutup FaceTime/Zoom dan cabut iPhone (putuskan Continuity Camera).</li>
+                            <li>Setelah mengubah izin wajib quit-reopen SEB; bila TouchBar nyangkut, kembalikan manual via System Settings &gt; Keyboard.</li>
+                        </ol>
+                    </details>
                 </section>
             )}
 

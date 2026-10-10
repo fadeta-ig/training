@@ -71,11 +71,47 @@ export function getSebHeaders(): Record<string, string> {
     return headers;
 }
 
+const PREFERRED_CAMERA_DEVICE_KEY = 'lms-seb-camera-device-id';
+
+export function getPreferredCameraDeviceId(): string | null {
+    try {
+        if (typeof window === 'undefined' || !window.sessionStorage) return null;
+        return window.sessionStorage.getItem(PREFERRED_CAMERA_DEVICE_KEY);
+    } catch {
+        return null;
+    }
+}
+
+export function setPreferredCameraDeviceId(id: string | null): void {
+    try {
+        if (typeof window === 'undefined' || !window.sessionStorage) return;
+        if (id) {
+            window.sessionStorage.setItem(PREFERRED_CAMERA_DEVICE_KEY, id);
+        } else {
+            window.sessionStorage.removeItem(PREFERRED_CAMERA_DEVICE_KEY);
+        }
+    } catch {
+        // Ignore storage errors (private mode / blocked storage).
+    }
+}
+
+export function isMacClient(): boolean {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    const nav = navigator as unknown as { platform?: string; userAgentData?: { platform?: string } };
+    const platform = nav.platform || nav.userAgentData?.platform || '';
+    return /macintosh|mac os|darwin/i.test(`${ua} ${platform}`);
+}
+
 /**
  * Asynchronously query the SEB JavaScript API to update security keys
  * in Modern WebView (WKWebView) environments before making network calls.
+ * Mac (WKWebView) needs a longer default timeout (3500ms) than other
+ * platforms (1500ms) because key refresh via Continuity Camera-era
+ * WebKit bridges is measurably slower.
  */
-export async function updateSebSecurityKeys(timeoutMs = 1_500): Promise<Record<string, string>> {
+export async function updateSebSecurityKeys(timeoutMs?: number): Promise<Record<string, string>> {
+    const effectiveTimeout = typeof timeoutMs === 'number' ? timeoutMs : (isMacClient() ? 3_500 : 1_500);
     if (typeof window === 'undefined') return {};
     const seb = window.SafeExamBrowser;
     if (!seb?.security) return {};
@@ -88,7 +124,7 @@ export async function updateSebSecurityKeys(timeoutMs = 1_500): Promise<Record<s
                     settled = true;
                     resolve();
                 }
-            }, timeoutMs);
+            }, effectiveTimeout);
 
             try {
                 seb.security?.updateKeys?.(() => {
@@ -111,7 +147,14 @@ export async function updateSebSecurityKeys(timeoutMs = 1_500): Promise<Record<s
     return getSebHeaders();
 }
 
-export type SebCameraStatus = 'granted' | 'denied' | 'unavailable' | 'error' | 'unchecked';
+export type SebCameraStatus = 'granted' | 'denied' | 'unavailable' | 'busy' | 'overconstrained' | 'error' | 'unchecked';
+
+export interface SebCameraProbe {
+    status: SebCameraStatus;
+    errorName?: string;
+    deviceId?: string | null;
+    deviceLabel?: string | null;
+}
 
 export interface SebPreflightResult {
     required: boolean;
@@ -151,20 +194,93 @@ function getClientPlatform(): string {
     return navigator.platform || navigator.userAgent || 'unknown';
 }
 
-async function probeCameraPermission(): Promise<SebCameraStatus> {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return 'unavailable';
-    let stream: MediaStream | null = null;
+function mapCameraErrorToStatus(name: string): SebCameraStatus {
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') return 'denied';
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return 'unavailable';
+    if (name === 'NotReadableError' || name === 'TrackStartError') return 'busy';
+    if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') return 'overconstrained';
+    if (name === 'AbortError') return 'error';
+    return 'error';
+}
+
+function stopMediaStream(stream: MediaStream | null | undefined): void {
     try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        return stream.getVideoTracks().length > 0 ? 'granted' : 'unavailable';
-    } catch (error) {
-        const name = error instanceof DOMException ? error.name : '';
-        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return 'denied';
-        if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return 'unavailable';
-        return 'error';
-    } finally {
         stream?.getTracks().forEach((track) => track.stop());
+    } catch {
+        // Ignore stop errors.
     }
+}
+
+export async function probeCameraPermission(): Promise<SebCameraProbe> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+        return { status: 'unavailable', errorName: 'NoMediaDevices' };
+    }
+
+    let selectedDeviceId: string | null = getPreferredCameraDeviceId();
+    let selectedDeviceLabel: string | null = null;
+
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+        if (videoInputs.length > 0) {
+            const byLabel = (needle: string) =>
+                videoInputs.find((d) => (d.label || '').toLowerCase().includes(needle));
+            // Prefer built-in FaceTime camera on macOS; Continuity Camera
+            // devices appear with iPhone names and are less reliable in SEB.
+            const preferred =
+                byLabel('facetime hd') || byLabel('face time') || byLabel('built-in') || videoInputs[0];
+            if (preferred) {
+                // Keep a stored preference if it still exists.
+                const storedStillExists = selectedDeviceId
+                    ? videoInputs.some((d) => d.deviceId === selectedDeviceId)
+                    : false;
+                if (!storedStillExists) {
+                    selectedDeviceId = preferred.deviceId || null;
+                    selectedDeviceLabel = preferred.label || null;
+                } else {
+                    const stored = videoInputs.find((d) => d.deviceId === selectedDeviceId);
+                    selectedDeviceLabel = stored?.label || null;
+                }
+            }
+        }
+    } catch {
+        // enumerateDevices failed (permission-gated labels); fall back to stored id / generic constraints.
+    }
+
+    const attempts: MediaStreamConstraints[] = [];
+    if (selectedDeviceId) {
+        attempts.push({ video: { deviceId: { exact: selectedDeviceId } }, audio: false });
+    }
+    attempts.push({ video: { width: { ideal: 1280 }, facingMode: 'user' }, audio: false });
+    attempts.push({ video: true, audio: false });
+
+    let lastErrorName = 'UnknownError';
+    for (const constraints of attempts) {
+        let stream: MediaStream | null = null;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            const track = stream.getVideoTracks()[0];
+            if (!track) {
+                stopMediaStream(stream);
+                lastErrorName = 'NoVideoTrack';
+                continue;
+            }
+            const settings = typeof track.getSettings === 'function' ? track.getSettings() : ({} as MediaTrackSettings);
+            const deviceId = settings.deviceId || selectedDeviceId || null;
+            const deviceLabel = track.label || selectedDeviceLabel || null;
+            setPreferredCameraDeviceId(deviceId);
+            const probe: SebCameraProbe = { status: 'granted', deviceId, deviceLabel };
+            stopMediaStream(stream);
+            return probe;
+        } catch (error) {
+            stopMediaStream(stream);
+            const name = error instanceof DOMException ? error.name : (error as Error)?.name || 'UnknownError';
+            lastErrorName = name || 'UnknownError';
+            continue;
+        }
+    }
+
+    return { status: mapCameraErrorToStatus(lastErrorName), errorName: lastErrorName };
 }
 
 function delay(ms: number): Promise<void> {
@@ -187,13 +303,17 @@ export async function performSebPreflight(
     const timeoutMs = options.timeoutMs ?? 15_000;
     const startedAt = Date.now();
     let attempt = 0;
+    let cameraProbe: SebCameraProbe = { status: 'unchecked' };
     let cameraStatus: SebCameraStatus = 'unchecked';
     let lastError: SebPreflightError | null = null;
 
     while (Date.now() - startedAt <= timeoutMs) {
         attempt += 1;
         options.onAttempt?.(attempt);
-        const sebHeaders = await updateSebSecurityKeys(Math.min(1_500, Math.max(300, timeoutMs - (Date.now() - startedAt))));
+        const remaining = Math.max(300, timeoutMs - (Date.now() - startedAt));
+        const baseTimeout = isMacClient() ? 3_500 : 1_500;
+        const keyTimeout = Math.min(4_000, baseTimeout + (attempt - 1) * 500);
+        const sebHeaders = await updateSebSecurityKeys(Math.min(keyTimeout, remaining));
 
         let response: Response;
         try {
@@ -208,6 +328,8 @@ export async function performSebPreflight(
                     version: getSebVersion(),
                     js_api_available: Boolean(window.SafeExamBrowser?.security),
                     camera_status: cameraStatus,
+                    camera_error: cameraProbe.errorName || null,
+                    camera_device_id: cameraProbe.deviceId || null,
                 }),
             });
         } catch {
@@ -238,7 +360,8 @@ export async function performSebPreflight(
         const retryable = data.retryable === true;
 
         if (code === 'camera_check_required') {
-            cameraStatus = await probeCameraPermission();
+            cameraProbe = await probeCameraPermission();
+            cameraStatus = cameraProbe.status;
             continue;
         }
 
